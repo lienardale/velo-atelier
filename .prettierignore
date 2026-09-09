@@ -1,0 +1,16 @@
+.next/
+out/
+build/
+coverage/
+node_modules/
+package-lock.json
+lib/generated/
+lib/content/generated/
+.content-collections/
+playwright-report/
+test-results/
+.lighthouseci/
+messages/**
+prisma/migrations/**
+public/
+*.tsbuildinfo

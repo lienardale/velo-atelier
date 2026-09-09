@@ -1,0 +1,9 @@
+/*
+ * Global stylesheet.
+ *
+ * This file intentionally contains nothing but the Tailwind v4 entry point.
+ * The "Atelier" design tokens (@theme, :root, prefers-color-scheme dark block,
+ * reduced-motion and coarse-pointer escape hatches) are added by W0-T2.
+ * There is no tailwind.config.* — Tailwind v4 is configured CSS-first.
+ */
+@import "tailwindcss";

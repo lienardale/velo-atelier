@@ -1,0 +1,5 @@
+{
+  "*.{ts,tsx,js,jsx,mjs,cjs}": ["eslint --fix", "prettier --write"],
+  "*.{json,md,yml,yaml,css}": ["prettier --write"],
+  "{content,messages}/**/*.{mdx,json,yaml,yml}": ["tsx scripts/content-check.ts"]
+}

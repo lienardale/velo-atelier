@@ -1,0 +1,122 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard",
+    ":enableVulnerabilityAlertsWithLabel(security)",
+    "group:monorepos"
+  ],
+  "schedule": ["before 5am on monday"],
+  "timezone": "Europe/Paris",
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "vulnerabilityAlerts": {
+    "labels": ["security", "dependencies"],
+    "schedule": ["at any time"]
+  },
+  "customManagers": [
+    {
+      "description": "Keep the Playwright container tag in the workflows in lockstep with @playwright/test. The browser binaries inside mcr.microsoft.com/playwright:v<X>-noble only match the exact npm version, and the visual baselines are generated inside that container.",
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$", "^package\\.json$"],
+      "matchStrings": [
+        "mcr\\.microsoft\\.com/playwright:v(?<currentValue>\\d+\\.\\d+\\.\\d+)-noble"
+      ],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "@playwright/test"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "TypeScript is capped below 7. The 7.x Go port breaks `next build`, @typescript-eslint and the tsserver `next` plugin. Revisit once eslint-config-next and typescript-eslint both ship a 7-compatible release.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    },
+    {
+      "description": "@types/node is capped below 25 so it stays aligned with the Node 24 runtime pinned in .nvmrc and engines.node. Bump the cap together with .nvmrc.",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "<25"
+    },
+    {
+      "description": "ESLint is capped below 10: eslint-config-next 16 peers `eslint >=9` and the v10 flat-config changes have not been validated against eslint-plugin-security 3. Revisit when eslint-config-next declares v10 support.",
+      "matchPackageNames": ["eslint"],
+      "allowedVersions": "<10"
+    },
+    {
+      "description": "Prisma is pinned to 7.x across prisma, @prisma/client and @prisma/adapter-pg — the three must move together, and the 8.x line is still release-candidate only.",
+      "matchPackageNames": ["prisma", "@prisma/client", "@prisma/adapter-pg", "@prisma/**"],
+      "groupName": "prisma",
+      "allowedVersions": "<8",
+      "ignoreUnstable": true,
+      "automerge": false
+    },
+    {
+      "description": "next-auth stays on the v5 beta tag until v5 goes stable; the v4 line is a different API.",
+      "matchPackageNames": ["next-auth"],
+      "followTag": "beta",
+      "automerge": false
+    },
+    {
+      "description": "eslint-config-next must always equal the exact next version, and React must stay below 19.3 for @react-three/fiber 9. One PR for the four.",
+      "matchPackageNames": ["next", "react", "react-dom", "eslint-config-next"],
+      "groupName": "next + react",
+      "automerge": false
+    },
+    {
+      "description": "React is capped below 19.3: @react-three/fiber 9 has not been validated against it.",
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"],
+      "allowedVersions": "<19.3"
+    },
+    {
+      "description": "The three.js stack is version-coupled: drei and fiber pin narrow `three` peer ranges and @types/three tracks three's minor. One PR for all of them.",
+      "matchPackageNames": [
+        "three",
+        "@types/three",
+        "@react-three/fiber",
+        "@react-three/drei",
+        "@react-three/test-renderer",
+        "camera-controls"
+      ],
+      "groupName": "three-stack",
+      "automerge": false
+    },
+    {
+      "description": "vitest and @vitest/coverage-v8 must be the exact same version or coverage silently reports nothing.",
+      "matchPackageNames": ["vitest", "@vitest/coverage-v8"],
+      "groupName": "vitest",
+      "automerge": false
+    },
+    {
+      "description": "@playwright/test moves together with the container tag matched by customManagers above.",
+      "matchPackageNames": ["@playwright/test", "@axe-core/playwright"],
+      "groupName": "playwright",
+      "automerge": false
+    },
+    {
+      "description": "The content-collections packages are versioned independently but released together; a partial bump breaks the build-time MDX pipeline.",
+      "matchPackageNames": ["@content-collections/**"],
+      "groupName": "content-collections",
+      "automerge": false
+    },
+    {
+      "description": "Type definitions are low risk — automerge them on a branch.",
+      "matchPackageNames": ["@types/**"],
+      "groupName": "type definitions",
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Patch updates are automerged on a branch; CI is the gate.",
+      "matchUpdateTypes": ["patch"],
+      "matchDepTypes": ["dependencies", "devDependencies"],
+      "automerge": true,
+      "automergeType": "branch"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  }
+}

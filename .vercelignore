@@ -1,0 +1,5 @@
+# Debug notes and local tooling never need to reach the build machine.
+.debug/
+.claude/
+docs/
+tests/

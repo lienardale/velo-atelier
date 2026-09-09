@@ -1,0 +1,35 @@
+# Gitleaks config — extends the default ruleset shipped with the binary.
+# https://github.com/gitleaks/gitleaks
+#
+# Run locally:  gitleaks detect --config .gitleaks.toml
+# Staged only:  gitleaks protect --staged --config .gitleaks.toml  (pre-commit)
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Committed-on-purpose templates, CI-only values and test fixtures"
+paths = [
+  '''\.env\.example$''',
+  '''\.env\.test$''',
+  '''messages/.+\.json$''',
+  '''tests/_fakes/.*''',
+  '''tests/_mocks/.*''',
+  '''tests/fixtures/.*''',
+  '''tests/perf/baselines/.*''',
+  '''prisma/seed-data\.ts$''',
+  '''package-lock\.json$''',
+  '''docker-compose\.yml$''',
+  '''audit-ci-allowlist\.md$''',
+]
+
+# Value shapes that are, by construction, never real credentials:
+#   - anything prefixed `ci-only` / `ci-dummy` (.env.test, CI workflow env)
+#   - the local Docker Postgres credentials (velo:velo@localhost)
+#   - the demo account password shared by prisma/seed-data.ts and the e2e fixtures
+regexes = [
+  '''ci-only[A-Za-z0-9_.-]*''',
+  '''ci-dummy''',
+  '''velo:velo@(localhost|127\.0\.0\.1|db|postgres)''',
+  '''dev-only-change-me[0-9]*''',
+  '''Demo-Velo-Atelier-2026!''',
+]

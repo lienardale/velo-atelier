@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+# Pre-push: run the EXACT same scripts CI will run, so a green push guarantees a
+# green pipeline (and saves the GitHub Actions minute budget).
+#
+# The build is skipped by default — CI runs it. Set RUN_BUILD=1 to include it.
+# SKIP_DB=1 skips the integration step when Docker is not running.
+# e2e / perf / Lighthouse never run here: they are CI-only (npm run e2e:docker
+# for the full suite locally).
+set -e
+
+if [ ! -f scripts/ci.sh ]; then
+  echo "scripts/ci.sh not present yet (W0-T3a) — skipping pre-push gate."
+  exit 0
+fi
+
+if [ "${RUN_BUILD:-0}" = "1" ]; then
+  exec bash scripts/ci.sh
+fi
+
+SKIP_BUILD=1 exec bash scripts/ci.sh

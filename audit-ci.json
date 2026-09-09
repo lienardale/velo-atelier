@@ -1,0 +1,23 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "moderate": true,
+  "report-type": "important",
+  "registry": "https://registry.npmjs.org",
+  "skip-dev": false,
+  "show-not-found": false,
+  "show-found": true,
+  "allowlist": [
+    "GHSA-ggr8-5vv4-36mx",
+    "GHSA-3f6p-5ww8-9rcr",
+    "GHSA-rgwj-5xj2-c3m3",
+    "GHSA-jmr9-qjv8-65gv",
+    "GHSA-7pqw-9j4j-h8q3",
+    "GHSA-52f5-9888-hmc6",
+    "GHSA-ph9p-34f9-6g65",
+    "GHSA-x5fp-wj9c-mxmx",
+    "GHSA-4mjr-xmp4-gh2g",
+    "GHSA-w5hq-g745-h8pq",
+    "GHSA-82x6-q7mm-w9cf",
+    "GHSA-v5mp-jgw5-2x6j"
+  ]
+}

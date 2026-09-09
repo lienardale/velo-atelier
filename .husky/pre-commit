@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+# Fast pre-commit checks. Heavier suites run in pre-push (= the CI mirror).
+#
+# Steps:
+#   1. lint-staged:    eslint --fix + prettier --write on staged files only,
+#                      plus content-check on staged content/ and messages/ files
+#   2. typecheck:      tsc --noEmit (project-wide; cached after the first run)
+#   3. vitest related: only the test files transitively impacted by the diff
+#   4. gitleaks:       scan the staged changes for secrets
+set -e
+
+echo "▶ lint-staged"
+npx --no-install lint-staged
+
+echo "▶ tsc --noEmit"
+npx --no-install tsc --noEmit
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|js|jsx)$' || true)
+if [ -n "$STAGED" ] && [ -f vitest.config.ts ]; then
+  echo "▶ vitest related (staged: $(echo "$STAGED" | wc -l | tr -d ' ') files)"
+  # `vitest related` runs only tests transitively depending on the changed files.
+  # shellcheck disable=SC2086
+  npx --no-install vitest related --run --project unit --project ui $STAGED
+fi
+
+echo "▶ gitleaks (staged)"
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --no-banner --redact --config .gitleaks.toml
+else
+  echo "  gitleaks not installed locally — skipping secret scan in pre-commit."
+  echo "  Install with: brew install gitleaks  (or see https://github.com/gitleaks/gitleaks)"
+fi
