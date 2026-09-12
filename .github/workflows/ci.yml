@@ -173,12 +173,19 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund --prefer-offline
       - run: bash scripts/ci/test-unit.sh
+      # `include-hidden-files: true` on every upload below whose path starts with a
+      # dot: upload-artifact v4 skips dotfiles by default, so `.vitest-reports/`,
+      # `.next` and `.lighthouseci/` silently uploaded NOTHING (a warning, not an
+      # error) and every downstream job died on "Artifact not found". `if-no-files-
+      # found: error` makes a future empty artifact fail here instead of there.
       - name: Upload unit blob report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: blob-unit
           path: .vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 3
 
   integration:
@@ -217,6 +224,8 @@ jobs:
         with:
           name: blob-integration
           path: .vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 3
 
   coverage:
@@ -300,6 +309,8 @@ jobs:
           path: |
             .next
             !.next/cache
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 3
 
   e2e:
@@ -413,6 +424,7 @@ jobs:
         with:
           name: lighthouse
           path: .lighthouseci/
+          include-hidden-files: true
           retention-days: 14
 
   perf:
@@ -461,6 +473,7 @@ jobs:
           path: |
             .perf/
             test-results/
+          include-hidden-files: true
           retention-days: 90
 
   gitleaks:

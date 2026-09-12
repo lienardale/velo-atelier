@@ -41,6 +41,16 @@ shopt -s nullglob
 blobs=(.vitest-reports/*.json)
 shopt -u nullglob
 
+if [[ ${#blobs[@]} -eq 0 && "${CI:-}" == "true" ]]; then
+  # In CI the blobs are produced by test-unit.sh / test-integration.sh and passed
+  # here as artifacts, so their absence is a workflow bug — not a reason to redo
+  # the work. Re-running the whole suite here would also start the integration
+  # project, which needs a Postgres this job does not have, and the real cause
+  # (an empty artifact) would be buried under a connection error.
+  log_err "no blob reports in .vitest-reports/ — the unit/integration artifacts did not arrive"
+  exit 1
+fi
+
 if [[ ${#blobs[@]} -eq 0 ]]; then
   log_warn "no blob reports in .vitest-reports/ — running the whole suite instead"
   log_step "vitest run --coverage"
