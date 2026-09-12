@@ -1,0 +1,64 @@
+name: "🐛 Bug report"
+description: "Something on the site does not work"
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a mistake *inside a repair guide*, use the **Guide error** template
+        instead. For a security problem, do not open an issue — see
+        [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: "What you did, what you expected, what you got."
+      placeholder: |
+        1. Went to /fr/velo/demo
+        2. Tapped the rear derailleur
+        3. Expected the part panel; the page scrolled to the top instead
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL
+      placeholder: "https://…/fr/velo/demo?part=derailleur-rear"
+    validations:
+      required: false
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Phone
+        - Tablet
+        - Desktop / laptop
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: "Safari 26, iOS 26.1 / Firefox 148, Ubuntu 26.04"
+    validations:
+      required: true
+  - type: checkboxes
+    id: area
+    attributes:
+      label: Where?
+      options:
+        - label: "The 3D bike (nothing renders, wrong part, cannot rotate…)"
+        - label: "The questionnaire on the home page"
+        - label: "A checkup or the to-fix list"
+        - label: "Sign in / sign up / my account"
+        - label: "Something else"
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: "Browser devtools console, if you can get to it. Pasted as text, not a screenshot."
+      render: text
+    validations:
+      required: false

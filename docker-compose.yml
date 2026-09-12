@@ -1,0 +1,38 @@
+# Local PostgreSQL for development and for the integration / e2e tiers.
+#
+# Docker provides the database and nothing else: migrations and the seed run
+# from the host (`npm run db:setup`), so there is exactly one code path for
+# "prepare a database" and it is the one a contributor debugs.
+#
+#   npm run db:up      docker compose up -d --wait   (waits for the healthcheck)
+#   npm run db:down    stop, keep the data
+#   npm run db:reset   destroy the volume, migrate and seed from scratch
+#
+# `docker/initdb/01-test-db.sh` creates `velo_atelier_test` — but ONLY when the
+# volume is empty, which is how postgres:16-alpine's entrypoint works. If the
+# `_test` database is missing on an old volume, `npm run db:reset` is the fix.
+services:
+  db:
+    container_name: velo-atelier-postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: velo
+      POSTGRES_PASSWORD: velo
+      POSTGRES_DB: velo_atelier
+      # Deterministic collation: an index built under a different locale sorts
+      # differently, and `citext` comparisons depend on it.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    volumes:
+      - velo_atelier_pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velo -d velo_atelier"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  velo_atelier_pgdata:

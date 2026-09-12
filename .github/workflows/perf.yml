@@ -1,0 +1,245 @@
+name: Perf
+
+# Nightly performance and Lighthouse run, plus the two "regenerate a recorded
+# artefact" operations that must never happen on a laptop:
+#
+#   update_baseline=true   rewrite tests/perf/baselines/* from THIS run
+#                          (scripts/perf/compare.ts refuses outside Actions)
+#   update_snapshots=true  regenerate the Playwright screenshot baselines and
+#                          open a PR labelled `visual-baseline` for review
+#
+# None of this is on the PR path: it costs ~20 minutes and its timing numbers
+# are advisory (CI renders through SwiftShader). The PR-blocking part of perf
+# lives in ci.yml's `perf` job — the hard WebGL counters.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: "Rewrite tests/perf/baselines/* from this run"
+        type: boolean
+        default: false
+      update_snapshots:
+        description: "Regenerate visual baselines and open a PR"
+        type: boolean
+        default: false
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NPM_CONFIG_FUND: "false"
+  NPM_CONFIG_AUDIT: "false"
+  AUTH_SECRET: ci-only-secret-32-chars-minimum-abcdef
+  AUTH_TRUST_HOST: "true"
+  AUTH_GOOGLE_ID: ci-dummy
+  AUTH_GOOGLE_SECRET: ci-dummy
+  NEXT_PUBLIC_SITE_URL: http://localhost:3100
+  BCRYPT_COST: "4"
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    env:
+      ENABLE_TEST_PAGES: "1"
+      NEXT_PUBLIC_TEST_HOOKS: "1"
+      NEXT_PUBLIC_DEMO_LOGIN: "1"
+      POSTGRES_URL: postgresql://velo:velo@localhost:5432/velo_atelier_test
+      POSTGRES_URL_NON_POOLING: postgresql://velo:velo@localhost:5432/velo_atelier_test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: velo
+          POSTGRES_PASSWORD: velo
+          POSTGRES_DB: velo_atelier_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U velo -d velo_atelier_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - run: bash scripts/ci/build.sh
+      - name: Upload build output
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: next-build
+          path: |
+            .next
+            !.next/cache
+          retention-days: 3
+
+  perf:
+    name: perf (nightly)
+    runs-on: ubuntu-latest
+    needs: build
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    env:
+      PERF_REPEAT: "5"
+      UPDATE_PERF_BASELINE: ${{ inputs.update_baseline == true && '1' || '0' }}
+      POSTGRES_URL: postgresql://velo:velo@postgres:5432/velo_atelier_test
+      POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
+      ENABLE_TEST_PAGES: "1"
+      NEXT_PUBLIC_TEST_HOOKS: "1"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: velo
+          POSTGRES_PASSWORD: velo
+          POSTGRES_DB: velo_atelier_test
+        options: >-
+          --health-cmd "pg_isready -U velo -d velo_atelier_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: next-build
+          path: .next
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - run: bash scripts/ci/perf.sh
+      - run: bash scripts/ci/bundle-budget.sh
+      - name: Upload perf results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: perf-nightly
+          path: |
+            .perf/
+            tests/perf/baselines/
+            test-results/
+          retention-days: 90
+
+  lighthouse:
+    name: lighthouse (nightly)
+    runs-on: ubuntu-latest
+    needs: build
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    env:
+      LHCI_NUMBER_OF_RUNS: "5"
+      POSTGRES_URL: postgresql://velo:velo@postgres:5432/velo_atelier_test
+      POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
+      ENABLE_TEST_PAGES: "1"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: velo
+          POSTGRES_PASSWORD: velo
+          POSTGRES_DB: velo_atelier_test
+        options: >-
+          --health-cmd "pg_isready -U velo -d velo_atelier_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: next-build
+          path: .next
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - run: bash scripts/ci/lighthouse.sh
+      - name: Upload Lighthouse results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lighthouse-nightly
+          path: .lighthouseci/
+          retention-days: 90
+
+  update-snapshots:
+    name: update-snapshots
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+    permissions:
+      contents: write
+      pull-requests: write
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    env:
+      UPDATE_SNAPSHOTS: "1"
+      POSTGRES_URL: postgresql://velo:velo@postgres:5432/velo_atelier_test
+      POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
+      ENABLE_TEST_PAGES: "1"
+      NEXT_PUBLIC_TEST_HOOKS: "1"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: velo
+          POSTGRES_PASSWORD: velo
+          POSTGRES_DB: velo_atelier_test
+        options: >-
+          --health-cmd "pg_isready -U velo -d velo_atelier_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: next-build
+          path: .next
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - env:
+          PLAYWRIGHT_PROJECT: desktop-chromium
+        run: bash scripts/ci/e2e.sh
+      - env:
+          PLAYWRIGHT_PROJECT: mobile-chromium
+        run: bash scripts/ci/e2e.sh
+      # Never pushed straight to main: a regenerated baseline is a human saying
+      # "these pixels are correct", which is what the `visual-baseline` label
+      # and the visual-baseline-guard job in ci.yml enforce.
+      - name: Open a PR with the new baselines
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          branch: visual-baselines/${{ github.run_id }}
+          title: "test(visual): refresh screenshot baselines"
+          body: |
+            Regenerated by the `perf.yml` workflow (`update_snapshots=true`),
+            run ${{ github.run_id }}, on `mcr.microsoft.com/playwright:v1.63.0-noble`.
+
+            Review every image before merging: a baseline that hides a
+            regression looks exactly like a baseline that fixes one.
+          labels: visual-baseline
+          add-paths: tests/e2e/__screenshots__

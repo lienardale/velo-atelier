@@ -1,0 +1,42 @@
+name: CodeQL
+
+# CodeQL is the one gate that reads the code semantically rather than
+# syntactically — taint flow from a request into a sink, across files. It
+# overlaps with semgrep on purpose: semgrep is fast and pattern-based (it runs
+# on every PR in seconds), CodeQL is slow and dataflow-based.
+#
+# `security-and-quality` rather than `security-extended`: the quality queries
+# catch the dead-code and unused-value classes that a review misses on a
+# 40-file PR, and this repository is small enough to keep them green.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Monday 04:00 UTC — a weekly pass over unchanged code, because new queries
+    # ship faster than this repository changes.
+    - cron: "0 4 * * 1"
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4
+        with:
+          category: "/language:javascript-typescript"

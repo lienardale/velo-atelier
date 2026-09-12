@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "Single source of truth for every size budget. scripts/perf/bundle-budget.ts reads",
+    "the route budgets, tests/e2e/bike3d/bundle-budget.spec.ts reads lazy3dChunkGzipBytes,",
+    "and scripts/perf/compare.ts reads timingLadder. Nothing hard-codes a number.",
+    "",
+    "All sizes are GZIPPED BYTES of the JavaScript a browser must download before the",
+    "route is interactive: the shared framework chunks plus the route's own eager client",
+    "chunks. Legacy `nomodule` polyfills and CSS are excluded (they are not what a 3D",
+    "viewer regression shows up in).",
+    "",
+    "RATCHET POLICY (decided by the user, 2026-09-12, overriding the flat §7.3 numbers).",
+    "`firstLoadJsGzipBytes` is re-pinned at EVERY wave integration to the freshly measured",
+    "value + 10 %, rounded up to a whole KiB. The gate therefore catches an unexpected jump",
+    "rather than an absolute the framework floor already exceeds, and every raise is a",
+    "visible diff in this file. `targetGzipBytes` stays at §7.3's numbers (130 kB / 140 kB);",
+    "W4-T2 ratchets the ceilings down toward them.",
+    "",
+    "Why the plan's flat numbers were dropped: an EMPTY Next 16.3.4 + React 19 + next-intl",
+    "App Router route already measures 130.7 kB gzip (W0-T3a, 2026-09-11), and the W0 shell",
+    "(header, footer, locale switcher, NextIntlClientProvider) measures 154.6 kB (W0 integration,",
+    "2026-09-12) — both above the 130 kB the plan asks for.",
+    "",
+    "Last re-pinned: W0 integration, 2026-09-12. Home measured 154600 B -> ceiling 171008 B.",
+    "The guide route does not exist until W1-T4; its ceiling is pinned at that wave's integration."
+  ],
+  "routes": {
+    "/[locale]": {
+      "label": "home (decision tree)",
+      "firstLoadJsGzipBytes": 171008,
+      "targetGzipBytes": 133120,
+      "forbidWebgl": true
+    },
+    "/[locale]/guides/[slug]": {
+      "label": "guide page",
+      "firstLoadJsGzipBytes": 168960,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    }
+  },
+  "webglMarker": "THREE.WebGLRenderer",
+  "lazy3dChunkGzipBytes": 409600,
+  "timingLadder": {
+    "warnPct": 150,
+    "failPct": 300
+  }
+}

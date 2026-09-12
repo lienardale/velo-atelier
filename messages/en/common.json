@@ -1,0 +1,63 @@
+{
+  "site": {
+    "name": "vélo-atelier",
+    "homeLink": "vélo-atelier — home",
+    "tagline": "Service and repair your own bike",
+    "description": "Describe your bike in a few questions, check every part on a 3D model and follow step-by-step guides to fix, clean, adjust or replace whatever needs it."
+  },
+  "skipLink": "Skip to main content",
+  "nav": {
+    "label": "Main navigation",
+    "home": "Home",
+    "guides": "Guides",
+    "shop": "Shop",
+    "myBike": "My bike",
+    "demoBike": "See the demo bike",
+    "menu": "Menu",
+    "openMenu": "Open the menu",
+    "closeMenu": "Close the menu"
+  },
+  "footer": {
+    "label": "About this site",
+    "legal": "Legal notice",
+    "privacy": "Privacy",
+    "sourceCode": "Source code on GitHub",
+    "newTab": "(opens in a new tab)",
+    "license": "Code under the MIT licence · guides under CC BY-SA 4.0"
+  },
+  "localeSwitcher": {
+    "label": "Site language"
+  },
+  "localeNames": {
+    "fr": "Français",
+    "en": "English"
+  },
+  "notFound": {
+    "code": "Error 404",
+    "title": "Page not found",
+    "description": "This page does not exist, or no longer does. Check the address, or start again from the home page to describe your bike.",
+    "backHome": "Back to the home page",
+    "guides": "Browse the guides"
+  },
+  "error": {
+    "code": "Error 500",
+    "title": "Something went wrong",
+    "description": "An unexpected error is stopping us from showing this page. Nothing you saved is lost: try again in a moment.",
+    "retry": "Try again",
+    "backHome": "Back to the home page",
+    "reference": "Error reference: {digest}"
+  },
+  "loading": "Loading…",
+  "units": {
+    "mm": "{value, number}\u00a0mm",
+    "cm": "{value, number}\u00a0cm",
+    "m": "{value, number}\u00a0m",
+    "g": "{value, number}\u00a0g",
+    "kg": "{value, number}\u00a0kg",
+    "bar": "{value, number}\u00a0bar",
+    "psi": "{value, number}\u00a0psi",
+    "newtonMetre": "{value, number}\u00a0N·m",
+    "percent": "{value, number}%",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}"
+  }
+}

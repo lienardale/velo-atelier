@@ -1,0 +1,50 @@
+name: "💡 Feature request"
+description: "Suggest something the site should do"
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Some things are deliberately out of scope for now: password reset by
+        email, passkeys, an admin back-office, price scraping or affiliate
+        links, a search index, imperial units, and full-suspension kinematics.
+        See `docs/backlog.md` before filing.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: >
+        Describe the situation, not the solution: what were you trying to do to
+        your bike when the site got in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Decision tree / bike identification
+        - 3D viewer
+        - Checkups and the to-fix list
+        - Guides (repair, cleaning, adjustment)
+        - Buying guidance and shops
+        - Fit and geometry
+        - Account, sign-in, data
+        - Accessibility
+        - Something else
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: "This would need new content (a guide, an illustration) as well as code"
+        - label: "I would be willing to help implement it"

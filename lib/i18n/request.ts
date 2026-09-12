@@ -1,32 +1,37 @@
+/**
+ * next-intl request configuration — resolved by `createNextIntlPlugin(
+ * './lib/i18n/request.ts')` in `next.config.ts`.
+ *
+ * The locale comes from the `[locale]` segment (`requestLocale`, a Promise in
+ * next-intl v4) and falls back to the default locale when it is missing or not
+ * one of `routing.locales` — `app/[locale]/layout.tsx` has already turned an
+ * unknown locale into a 404 by then; the fallback covers requests outside the
+ * `[locale]` tree (e.g. `app/global-error.tsx`).
+ *
+ * Messages are merged from one file per namespace (§1.2): every file listed in
+ * `NAMESPACES` becomes a top-level object keyed by its file name.
+ */
+import { hasLocale } from "next-intl";
 import { getRequestConfig } from "next-intl/server";
 
-/**
- * next-intl request configuration — **W0-T1 scaffold placeholder**.
- *
- * `createNextIntlPlugin('./lib/i18n/request.ts')` in `next.config.ts` resolves
- * this path while the config is loaded, so the file has to exist before any
- * `next build` can run — including the one in W0-T1's own acceptance, which
- * lands before W0-T2 writes the i18n shell.
- *
- * W0-T2 REPLACES THIS FILE ENTIRELY with the real implementation:
- * `routing` from `@/lib/i18n/routing`, a `hasLocale` guard, and the namespace
- * merge described in §1.2 —
- *
- *   messages = Object.fromEntries(await Promise.all(NAMESPACES.map(async (ns) =>
- *     [ns, (await import(`@/messages/${locale}/${ns}.json`)).default])))
- *
- * Nothing here is a contract. There are no message files yet, so this returns
- * an empty catalogue: any `t()` call would throw, which is the correct signal
- * that the shell is not built yet.
- */
-const LOCALES = ["fr", "en"] as const;
-const DEFAULT_LOCALE = "fr";
+import { NAMESPACES } from "./namespaces";
+import { routing, type Locale } from "./routing";
+
+/** The merged catalogue for `locale`: `{ common: {...}, parts: {...}, … }`. */
+export async function loadMessages(locale: Locale): Promise<Record<string, unknown>> {
+  return Object.fromEntries(
+    await Promise.all(
+      NAMESPACES.map(async (ns) => [ns, (await import(`@/messages/${locale}/${ns}.json`)).default]),
+    ),
+  );
+}
 
 export default getRequestConfig(async ({ requestLocale }) => {
   const requested = await requestLocale;
-  const locale = LOCALES.includes(requested as (typeof LOCALES)[number])
-    ? (requested as string)
-    : DEFAULT_LOCALE;
+  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
 
-  return { locale, messages: {} };
+  return {
+    locale,
+    messages: await loadMessages(locale),
+  };
 });

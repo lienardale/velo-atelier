@@ -1,0 +1,63 @@
+{
+  "site": {
+    "name": "vélo-atelier",
+    "homeLink": "vélo-atelier — accueil",
+    "tagline": "Entretenez et réparez votre vélo vous-même",
+    "description": "Décrivez votre vélo en quelques questions, contrôlez chaque pièce sur un modèle 3D et suivez des guides pas à pas pour réparer, nettoyer, régler ou remplacer ce qui doit l’être."
+  },
+  "skipLink": "Aller au contenu principal",
+  "nav": {
+    "label": "Navigation principale",
+    "home": "Accueil",
+    "guides": "Guides",
+    "shop": "Acheter",
+    "myBike": "Mon vélo",
+    "demoBike": "Voir le vélo de démo",
+    "menu": "Menu",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu"
+  },
+  "footer": {
+    "label": "Informations sur le site",
+    "legal": "Mentions légales",
+    "privacy": "Confidentialité",
+    "sourceCode": "Code source sur GitHub",
+    "newTab": "(s’ouvre dans un nouvel onglet)",
+    "license": "Code sous licence MIT · guides sous licence CC BY-SA 4.0"
+  },
+  "localeSwitcher": {
+    "label": "Langue du site"
+  },
+  "localeNames": {
+    "fr": "Français",
+    "en": "English"
+  },
+  "notFound": {
+    "code": "Erreur 404",
+    "title": "Page introuvable",
+    "description": "Cette page n’existe pas, ou plus. Vérifiez l’adresse, ou repartez de l’accueil pour décrire votre vélo.",
+    "backHome": "Retour à l’accueil",
+    "guides": "Parcourir les guides"
+  },
+  "error": {
+    "code": "Erreur 500",
+    "title": "Quelque chose s’est mal passé",
+    "description": "Une erreur inattendue nous empêche d’afficher cette page. Vos données enregistrées ne sont pas perdues : réessayez dans un instant.",
+    "retry": "Réessayer",
+    "backHome": "Retour à l’accueil",
+    "reference": "Référence de l’erreur : {digest}"
+  },
+  "loading": "Chargement…",
+  "units": {
+    "mm": "{value, number}\u00a0mm",
+    "cm": "{value, number}\u00a0cm",
+    "m": "{value, number}\u00a0m",
+    "g": "{value, number}\u00a0g",
+    "kg": "{value, number}\u00a0kg",
+    "bar": "{value, number}\u00a0bar",
+    "psi": "{value, number}\u00a0psi",
+    "newtonMetre": "{value, number}\u00a0N·m",
+    "percent": "{value, number}\u00a0%",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}"
+  }
+}

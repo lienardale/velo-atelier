@@ -1,9 +1,213 @@
 /*
- * Global stylesheet.
+ * Global stylesheet — Tailwind v4, CSS-first, and the "Atelier" design tokens (§6.5).
  *
- * This file intentionally contains nothing but the Tailwind v4 entry point.
- * The "Atelier" design tokens (@theme, :root, prefers-color-scheme dark block,
- * reduced-motion and coarse-pointer escape hatches) are added by W0-T2.
- * There is no tailwind.config.* — Tailwind v4 is configured CSS-first.
+ * Rules of the road:
+ *   - There is no tailwind.config.*: the theme is the @theme blocks below.
+ *   - Style with the palette utilities (bg-paper, bg-paper-2, text-ink,
+ *     text-ink-muted, border-rule, bg-accent, text-accent-fg, text-danger-fg, …).
+ *     Tailwind's stock palette is switched off (`--color-*: initial`), so
+ *     `text-gray-600` or `bg-blue-500` simply do not exist here.
+ *   - No `dark:` variants. Every colour token is redefined in the
+ *     `prefers-color-scheme: dark` block, and the utilities follow.
+ *   - Text tokens are held to WCAG AA (4.5:1) on BOTH papers in BOTH themes by
+ *     tests/unit/tokens-contrast.test.ts, which parses this file: change a
+ *     value, run `npm run test:unit`.
+ *   - `*-fg` status colours (warn/danger/success) are for TEXT and icons on
+ *     paper; the plain status colours are fills (borders, bars, badges). The
+ *     accent pair is the exception: `accent-fg` is the text ON an accent fill.
  */
 @import "tailwindcss";
+@import "./print.css" print;
+
+/* ── Light theme (default) ──────────────────────────────────────────────────
+ * Declared in @theme so Tailwind generates the utilities; Tailwind emits these
+ * values on :root, and the dark block below redefines them on :root.        */
+@theme {
+  --color-*: initial;
+
+  --color-paper: #f7f4ee;
+  --color-paper-2: #efeae1;
+  --color-ink: #1c1a17;
+  --color-ink-muted: #5c574f;
+  --color-rule: #d9d2c5;
+  --color-accent: #1f5f8b;
+  --color-accent-fg: #ffffff;
+
+  --color-warn: #d9741c;
+  --color-warn-fg: #8a4409;
+  --color-danger: #b23a2f;
+  --color-danger-fg: #8f2a21;
+  --color-success: #2e7d4f;
+  --color-success-fg: #1d6a3d;
+
+  --color-ring: #1f5f8b;
+
+  /* Photographic neutrals for overlays and the print sheet — never for text. */
+  --color-black: #000000;
+  --color-white: #ffffff;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --color-paper: #161412;
+    --color-paper-2: #211e1a;
+    --color-ink: #f2ede4;
+    --color-ink-muted: #b4ac9f;
+    --color-rule: #3d3831;
+    --color-accent: #7db6df;
+    --color-accent-fg: #0b1c29;
+
+    --color-warn: #e08a3c;
+    --color-warn-fg: #f2ac6d;
+    --color-danger: #e0675b;
+    --color-danger-fg: #f39a90;
+    --color-success: #4caf78;
+    --color-success-fg: #86d2a5;
+
+    --color-ring: #7db6df;
+  }
+}
+
+/* ── Fonts and aliases ───────────────────────────────────────────────────────
+ * `--font-inter` / `--font-grotesk` are set by next/font in app/[locale]/layout.tsx.
+ * The shadcn/ui semantic names (background, primary, muted, …) are aliases of
+ * the Atelier tokens, so generated components (components/ui/**) render in
+ * this palette and flip with it. shadcn's `accent` is its hover fill: here it
+ * is the brand accent, with `accent-foreground` = `accent-fg`.             */
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-grotesk), var(--font-sans);
+
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-paper);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-paper);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+  --color-secondary: var(--color-paper-2);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-paper-2);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-accent-foreground: var(--color-accent-fg);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--color-rule);
+  --color-input: var(--color-rule);
+
+  --default-transition-duration: var(--motion-base);
+  --default-transition-timing-function: var(--ease-standard);
+}
+
+/* ── Layout and motion tokens ────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* Sticky header height; pages offset anchors and the 3D viewer by it. */
+  --header-h: 3.5rem;
+  /* Minimum tap target (44 CSS px, WCAG 2.5.5). */
+  --tap-min: 2.75rem;
+
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+}
+
+/* `tap-target`: at least 44×44, centred content — every button, link-button,
+ * radio card, checkbox row and header control uses it (§6.8 AC5). */
+@utility tap-target {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-rule);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* In-page anchors (the skip link, guide TOC) land below the sticky header. */
+    scroll-padding-top: calc(var(--header-h) + 1rem);
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* The skip-link target is focused programmatically; it is not a control. */
+  main:focus {
+    outline: none;
+  }
+}
+
+/* ── Escape hatches ──────────────────────────────────────────────────────── */
+
+/* Reduced motion: no animation, no transition, no smooth scroll. Components
+ * read the motion tokens (MobileSheet: `transition: transform var(--motion-base)`),
+ * which drop to 0 ms here. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch screens: chrome that only makes sense under a mouse (hover hints,
+ * "hover to preview" labels) is removed. Tailwind's own `hover:` variant is
+ * already scoped to `(hover: hover)`. */
+@media (hover: none), (pointer: coarse) {
+  [data-hover-only] {
+    display: none !important;
+  }
+}

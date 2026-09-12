@@ -1,0 +1,65 @@
+name: "🔧 Guide error"
+description: "Something in a repair guide is wrong, unclear, or dangerous"
+title: "guide: "
+labels: ["content", "guide-error"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. A wrong instruction here can hurt someone or wreck a part, so
+        this is the most important kind of report this project gets.
+
+        **If you were injured or damaged something following a guide, say so** —
+        it changes the priority.
+  - type: input
+    id: guide
+    attributes:
+      label: Which guide?
+      description: "The URL, or the slug (e.g. check-brakes-disc)"
+      placeholder: "https://…/fr/guides/check-brakes-disc"
+    validations:
+      required: true
+  - type: input
+    id: step
+    attributes:
+      label: Which step?
+      description: "The step title, or its number in the wizard"
+    validations:
+      required: false
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Language
+      options:
+        - Français
+        - English
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: what_is_wrong
+    attributes:
+      label: What is wrong?
+      description: "What the guide says, and what it should say."
+    validations:
+      required: true
+  - type: textarea
+    id: bike
+    attributes:
+      label: Which bike?
+      description: >
+        Type (road / gravel / MTB / e-bike…), brakes (disc / rim, hydraulic /
+        mechanical), drivetrain (1x, 2x, number of speeds), wheel size. Guides
+        adapt to the bike, so this tells us whether the guide is wrong or the
+        wrong guide was shown.
+      placeholder: |
+        Gravel, mechanical disc brakes, 1x11, 700c
+    validations:
+      required: false
+  - type: checkboxes
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - label: "This could injure someone or destroy a part (brakes, steering, wheel retention)"
+        - label: "This made me damage something"

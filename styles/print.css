@@ -1,0 +1,84 @@
+/*
+ * Print sheet — imported from globals.css with `@import "./print.css" print`,
+ * so every rule here applies to paper only.
+ *
+ * What gets printed is the CONTENT: a build list, a guide, a checkup summary.
+ * Site chrome, the 3D canvas and interactive controls are dropped (§6.8 AC7:
+ * "print emulation hides header/nav/canvas"). Mark anything else that makes no
+ * sense on paper with `data-print="hide"`; force something visible with
+ * `data-print="show"`.
+ */
+
+@page {
+  margin: 15mm 12mm;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-size: 11pt;
+  line-height: 1.45;
+}
+
+[data-site-header],
+[data-site-footer],
+[data-print="hide"],
+nav,
+canvas,
+dialog,
+button,
+[role="toolbar"],
+.skip-link {
+  display: none !important;
+}
+
+[data-print="show"] {
+  display: revert !important;
+}
+
+main {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+
+/* Keep headings with what follows, and cards in one piece. */
+h1,
+h2,
+h3 {
+  break-after: avoid-page;
+}
+
+article,
+section,
+li,
+figure,
+table,
+[data-print-card] {
+  break-inside: avoid;
+}
+
+/* No colour-only meaning on a black-and-white printer: links are underlined
+ * and external targets are spelled out. */
+a {
+  color: #000000 !important;
+  text-decoration: underline;
+}
+
+a[href^="http"]::after {
+  content: " (" attr(href) ")";
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+*,
+::before,
+::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}

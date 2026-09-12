@@ -16,7 +16,7 @@
     "lint:fix": "eslint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate && tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:ui": "vitest run --project ui",
@@ -43,7 +43,8 @@
     "geom:report": "tsx scripts/geometry-report.ts",
     "domain:check": "vitest run --project unit tests/unit/domain --passWithNoTests",
     "ci:local": "bash scripts/ci.sh",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

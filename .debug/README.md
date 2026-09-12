@@ -16,6 +16,7 @@ person (or the next session) does not rediscover them.
 
 ## Index
 
-| #   | Date | Subject            | Status |
-| --- | ---- | ------------------ | ------ |
-| —   | —    | _(no entries yet)_ | —      |
+| #   | Date       | Subject                                                          | Status   |
+| --- | ---------- | ---------------------------------------------------------------- | -------- |
+| 001 | 2026-09-12 | W0 scaffold: registry reality vs the plan's pins; W0 integration | resolved |
+| 002 | 2026-09-09 | Prisma 7 + Turbopack: observed CLI flags and the init migration  | resolved |

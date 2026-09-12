@@ -1,0 +1,13 @@
+# Review routing. This repository has a single maintainer, so branch protection
+# does NOT require an approving review (a solo maintainer cannot approve their
+# own PR and would be permanently blocked). CODEOWNERS exists to request the
+# right reviewer automatically, and to make ownership explicit for anyone who
+# joins later.
+#
+# GitHub handle, not the macOS user name: @lienardale.
+
+* @lienardale
+
+# The guides are the product. A wrong instruction here sends someone down a hill
+# with a brake that does not work, so content review is called out separately.
+/content/ @lienardale

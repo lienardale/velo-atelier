@@ -1,0 +1,317 @@
+// vélo-atelier — Prisma 7 schema.
+//
+// The database holds USER DATA ONLY. Everything that describes bikes as a
+// domain (part taxonomy, decision tree, compatibility rules, guides) is typed
+// TypeScript and MDX in the repo — see lib/domain/** and content/**.
+//
+// Prisma 7 notes:
+//   - the connection URL lives in `prisma.config.ts`, not in this file
+//     (`datasource db` therefore carries only the provider);
+//   - `postgresqlExtensions` is deprecated and no longer emits DDL, so the
+//     `citext` extension is created by hand as the first statement of
+//     migration 0001 (see prisma/migrations/*_init/migration.sql and
+//     tests/unit/db/init-migration.test.ts);
+//   - the `prisma-client` generator emits ESM into lib/generated/prisma, which
+//     is gitignored, ESLint-ignored, tsconfig-excluded and coverage-excluded.
+//     The single legal import path is `@/lib/generated/prisma/client`
+//     (enforced by `no-restricted-imports` in eslint.config.mjs).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- enums ----
+
+/// `Locale` in TypeScript is `'fr' | 'en'` (lib/i18n/routing.ts); the Prisma
+/// enum is deliberately named `UserLocale` so the two never clash on import.
+enum UserLocale {
+  fr
+  en
+}
+
+enum PartStatus {
+  OK
+  ATTENTION
+  BROKEN
+  UNKNOWN
+}
+
+enum CheckupScope {
+  FULL
+  PARTIAL
+}
+
+enum CheckupStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum CheckupResult {
+  OK
+  KO
+  SKIPPED
+}
+
+enum BuildListStatus {
+  OPEN
+  DONE
+  ARCHIVED
+}
+
+enum BuildAction {
+  REPLACE
+  FIX
+  CLEAN
+  ADJUST
+  INSPECT_SHOP
+}
+
+// ------------------------------------------------------ auth / identity ----
+
+model User {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  name          String?
+  /// `citext` so `Demo@Velo-Atelier.test` and `demo@velo-atelier.test` are the
+  /// same account at the database level, whatever a caller forgets to
+  /// normalise. The extension is created in migration 0001.
+  email         String    @unique @db.Citext
+  emailVerified DateTime?
+  image         String?
+
+  /// bcrypt hash (`$2b$<cost>$…`, always 60 chars). NULL for Google-only
+  /// accounts. 72 is bcrypt's own input limit and doubles as a sanity cap.
+  passwordHash String? @db.VarChar(72)
+
+  locale UserLocale @default(fr)
+
+  /// Bumped by `changePasswordAction`; the `jwt` callback re-reads it at most
+  /// every 5 minutes and invalidates sessions whose copy is stale.
+  sessionVersion Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  bikes    Bike[]
+}
+
+/// Exact @auth/prisma-adapter shape (snake_case token columns come from the
+/// OAuth spec and are what the adapter writes).
+model Account {
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Unused at runtime (the session strategy is `jwt`), but the adapter's type
+/// requires the delegate to exist, and dropping it would make a future switch
+/// to database sessions a migration instead of a one-line change.
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+/// Rate-limit counters (lib/security/rate-limit.ts). A table rather than an
+/// in-process map because Vercel functions share no memory; `key` is
+/// `sha256(scope:ip:email)` so no address or address+email pair is stored.
+model AuthAttempt {
+  key         String    @id
+  count       Int       @default(0)
+  windowStart DateTime
+  lockedUntil DateTime?
+
+  @@index([windowStart])
+}
+
+// ------------------------------------------------------------- bikes -------
+
+/// `answers` is the source of truth; `spec` and `parts` are derived caches
+/// recomputed by `buildBikeSpec()` / `partsForSpec()` on every write
+/// (lib/bike/rules.ts). JSON because those shapes are owned by the content
+/// taxonomy and change per release, and nothing ever filters on them.
+model Bike {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @db.Uuid
+
+  name        String @db.VarChar(80)
+  answers     Json
+  spec        Json
+  specVersion Int    @default(1)
+  parts       Json
+  fit         Json?
+
+  /// Set from `va:bike:local` when a guest bike is imported, so re-importing
+  /// the same localStorage payload is a no-op instead of a duplicate.
+  guestLocalId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partStates BikePartState[]
+  checkups   Checkup[]
+  buildLists BuildList[]
+
+  @@unique([userId, guestLocalId])
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model BikePartState {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bikeId String @db.Uuid
+
+  /// A `PartId` from lib/domain/data/parts — validated in the action layer,
+  /// never a foreign key (the taxonomy lives in the repo, not in the DB).
+  partId String @db.VarChar(64)
+
+  status         PartStatus @default(UNKNOWN)
+  installedAt    DateTime?
+  lastServicedAt DateTime?
+  notes          String?    @db.VarChar(2000)
+
+  /// `{ brand?, model?, sizeLabel? }`
+  installed Json?
+
+  updatedAt DateTime @updatedAt
+
+  bike Bike @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+
+  @@unique([bikeId, partId])
+  @@index([bikeId, status])
+}
+
+// ----------------------------------------------------------- checkups ------
+
+model Checkup {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bikeId String @db.Uuid
+
+  scope  CheckupScope
+  status CheckupStatus @default(IN_PROGRESS)
+
+  /// Idempotency key for a checkup imported from guest localStorage.
+  guestKey String? @unique
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  bike      Bike          @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+  items     CheckupItem[]
+  buildList BuildList?
+
+  @@index([bikeId, startedAt(sort: Desc)])
+}
+
+model CheckupItem {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checkupId String @db.Uuid
+
+  /// `${guideSlug}#${stepId}` — the plan is recomputed server-side from
+  /// (spec, scope), so the client only ever sends this key back.
+  stepKey   String @db.VarChar(160)
+  partId    String @db.VarChar(64)
+  guideSlug String @db.VarChar(160)
+
+  result CheckupResult @default(SKIPPED)
+  notes  String?       @db.VarChar(2000)
+
+  updatedAt DateTime @updatedAt
+
+  checkup        Checkup         @relation(fields: [checkupId], references: [id], onDelete: Cascade)
+  buildListItems BuildListItem[]
+
+  @@unique([checkupId, stepKey])
+  @@index([checkupId, result])
+}
+
+// --------------------------------------------------------- build lists -----
+
+model BuildList {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bikeId    String  @db.Uuid
+  /// Nulled rather than cascaded: a list outlives the checkup it came from.
+  checkupId String? @unique @db.Uuid
+
+  name   String          @db.VarChar(80)
+  status BuildListStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bike    Bike            @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+  checkup Checkup?        @relation(fields: [checkupId], references: [id], onDelete: SetNull)
+  items   BuildListItem[]
+
+  @@index([bikeId, status])
+}
+
+model BuildListItem {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buildListId   String  @db.Uuid
+  checkupItemId String? @db.Uuid
+
+  partId    String      @db.VarChar(64)
+  action    BuildAction
+  /// A `guides.reasons.<reasonKey>` message key, validated against the
+  /// generated reason enum before it is written.
+  reasonKey String      @db.VarChar(80)
+  guideSlug String?     @db.VarChar(160)
+
+  /// Answers to the buying-guide questions.
+  refinement    Json?
+  /// `{ brand, model, size, vendor: RetailerId | 'other', url: https }`
+  chosenProduct Json?
+
+  done      Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buildList   BuildList    @relation(fields: [buildListId], references: [id], onDelete: Cascade)
+  checkupItem CheckupItem? @relation(fields: [checkupItemId], references: [id], onDelete: SetNull)
+
+  @@unique([buildListId, partId, action])
+  @@index([buildListId, done, sortOrder])
+}
