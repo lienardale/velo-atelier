@@ -10,6 +10,10 @@ import { notFound } from "next/navigation";
  * shell (status 200) before `notFound()` runs — verified on Next 16.3.4, see
  * tests/e2e/smoke.spec.ts. Loading boundaries belong below the segment that
  * decides a 404.
+ *
+ * This is not theoretical: `loading.tsx` was added here once (W0 integration,
+ * 2026-09-12) because §8.1 lists it, and all six e2e projects went red with
+ * `Expected: 404, Received: 200`. Do not re-add it. See .debug/001.
  */
 export default function UnknownPage(): never {
   notFound();
