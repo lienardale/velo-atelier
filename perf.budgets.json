@@ -18,22 +18,23 @@
     "",
     "Why the plan's flat numbers were dropped: an EMPTY Next 16.3.4 + React 19 + next-intl",
     "App Router route already measures 130.7 kB gzip (W0-T3a, 2026-09-11), and the W0 shell",
-    "(header, footer, locale switcher, NextIntlClientProvider) measures 154.6 kB (W0 integration,",
+    "(header, footer, locale switcher, NextIntlClientProvider) measures 154.6 KiB (W0 integration,",
     "2026-09-12) — both above the 130 kB the plan asks for.",
     "",
-    "Last re-pinned: W0 integration, 2026-09-12. Home measured 154600 B -> ceiling 171008 B.",
-    "The guide route does not exist until W1-T4; its ceiling is pinned at that wave's integration."
+    "Pin history (sizes are KiB, as scripts/perf/bundle-budget.ts prints them; ceiling = measured + 10 %, rounded up to a whole KiB):",
+    "  W0 integration 2026-09-12: home 154.6 KiB -> 171 008 B. (Recorded then as 154 600 B: the table's 'kB' is KiB, so that pin had +8 % headroom, not +10 %.)",
+    "  W1 integration 2026-09-13: home 157.7 KiB (161485 B) -> 178176 B; guide 159.6 KiB (163430 B, first build of the route) -> 180224 B."
   ],
   "routes": {
     "/[locale]": {
       "label": "home (decision tree)",
-      "firstLoadJsGzipBytes": 171008,
+      "firstLoadJsGzipBytes": 178176,
       "targetGzipBytes": 133120,
       "forbidWebgl": true
     },
     "/[locale]/guides/[slug]": {
       "label": "guide page",
-      "firstLoadJsGzipBytes": 168960,
+      "firstLoadJsGzipBytes": 180224,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     }

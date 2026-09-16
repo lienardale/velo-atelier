@@ -1,0 +1,942 @@
+{
+  "frame": {
+    "label": "Cadre",
+    "description": "La structure du vélo : tubes, pattes arrière, boîtier et douille de direction."
+  },
+  "fork": {
+    "label": "Fourche",
+    "description": "Tient la roue avant et tourne avec le cintre ; rigide ou suspendue."
+  },
+  "headset": {
+    "label": "Jeu de direction",
+    "description": "Les roulements qui laissent la fourche tourner dans la douille du cadre."
+  },
+  "wheel-front": {
+    "label": "Roue avant",
+    "description": "Moyeu, rayons et jante de la roue avant."
+  },
+  "wheel-rear": {
+    "label": "Roue arrière",
+    "description": "Moyeu, rayons et jante de la roue arrière, avec le corps de roue libre."
+  },
+  "tire-front": {
+    "label": "Pneu avant",
+    "description": "Le pneu monté sur la jante avant."
+  },
+  "tire-rear": {
+    "label": "Pneu arrière",
+    "description": "Le pneu monté sur la jante arrière ; il s'use plus vite que l'avant."
+  },
+  "tube-front": {
+    "label": "Chambre à air avant",
+    "description": "La chambre qui tient la pression dans le pneu avant."
+  },
+  "tube-rear": {
+    "label": "Chambre à air arrière",
+    "description": "La chambre qui tient la pression dans le pneu arrière."
+  },
+  "sealant": {
+    "label": "Préventif tubeless",
+    "description": "Le liquide qui rend le montage étanche et rebouche les petites crevaisons."
+  },
+  "bottom-bracket": {
+    "label": "Boîtier de pédalier",
+    "description": "Les roulements dans lesquels tourne l'axe du pédalier."
+  },
+  "crankset": {
+    "label": "Pédalier",
+    "description": "Les manivelles, leur axe et les plateaux."
+  },
+  "chainring": {
+    "label": "Plateau",
+    "description": "La couronne dentée du pédalier qui entraîne la chaîne."
+  },
+  "chain": {
+    "label": "Chaîne",
+    "description": "Transmet l'effort du plateau aux pignons ; elle s'allonge avec l'usure."
+  },
+  "belt": {
+    "label": "Courroie",
+    "description": "Courroie crantée qui remplace la chaîne sur certains vélos à moyeu."
+  },
+  "cassette": {
+    "label": "Cassette",
+    "description": "Le bloc de pignons arrière, glissé sur le corps de roue libre."
+  },
+  "freewheel": {
+    "label": "Roue libre",
+    "description": "Bloc de pignons vissé sur le moyeu, sur les transmissions 5 à 7 vitesses."
+  },
+  "rear-derailleur": {
+    "label": "Dérailleur arrière",
+    "description": "Déplace la chaîne d'un pignon à l'autre."
+  },
+  "front-derailleur": {
+    "label": "Dérailleur avant",
+    "description": "Fait passer la chaîne d'un plateau à l'autre."
+  },
+  "shifter-right": {
+    "label": "Manette droite",
+    "description": "Commande les vitesses arrière (dérailleur ou moyeu)."
+  },
+  "shifter-left": {
+    "label": "Manette gauche",
+    "description": "Commande le dérailleur avant."
+  },
+  "internal-gear-hub": {
+    "label": "Moyeu à vitesses intégrées",
+    "description": "Moyeu arrière qui contient toutes les vitesses, à l'abri de la boue."
+  },
+  "shift-cables": {
+    "label": "Câbles de vitesses",
+    "description": "Câbles et gaines entre les manettes et les dérailleurs ou le moyeu."
+  },
+  "brake-lever-front": {
+    "label": "Levier de frein avant",
+    "description": "Le levier gauche : il commande le frein avant."
+  },
+  "brake-lever-rear": {
+    "label": "Levier de frein arrière",
+    "description": "Le levier droit : il commande le frein arrière."
+  },
+  "brake-caliper-front": {
+    "label": "Étrier de frein avant",
+    "description": "L'étrier de disque, ou les bras du frein sur jante, à l'avant."
+  },
+  "brake-caliper-rear": {
+    "label": "Étrier de frein arrière",
+    "description": "L'étrier de disque, ou les bras du frein sur jante, à l'arrière."
+  },
+  "rotor-front": {
+    "label": "Disque avant",
+    "description": "Le disque de frein fixé au moyeu avant."
+  },
+  "rotor-rear": {
+    "label": "Disque arrière",
+    "description": "Le disque de frein fixé au moyeu arrière."
+  },
+  "brake-pads-front": {
+    "label": "Plaquettes ou patins avant",
+    "description": "Plaquettes sur un frein à disque, patins sur un frein sur jante."
+  },
+  "brake-pads-rear": {
+    "label": "Plaquettes ou patins arrière",
+    "description": "Plaquettes sur un frein à disque, patins sur un frein sur jante."
+  },
+  "brake-line-front": {
+    "label": "Câble ou durite de frein avant",
+    "description": "Relie le levier à l'étrier : câble en mécanique, durite en hydraulique."
+  },
+  "brake-line-rear": {
+    "label": "Câble ou durite de frein arrière",
+    "description": "Relie le levier à l'étrier : câble en mécanique, durite en hydraulique."
+  },
+  "handlebar": {
+    "label": "Cintre",
+    "description": "Le guidon : cintre route, plat, relevé ou ville."
+  },
+  "stem": {
+    "label": "Potence",
+    "description": "Relie le cintre au pivot de fourche."
+  },
+  "grips-or-tape": {
+    "label": "Guidoline ou poignées",
+    "description": "Guidoline sur un cintre route, poignées sur les autres cintres."
+  },
+  "saddle": {
+    "label": "Selle",
+    "description": "La selle et ses rails."
+  },
+  "seatpost": {
+    "label": "Tige de selle",
+    "description": "Tient la selle dans le tube de selle ; fixe ou télescopique."
+  },
+  "seat-clamp": {
+    "label": "Collier de selle",
+    "description": "Serre la tige de selle en haut du tube de selle."
+  },
+  "pedal-left": {
+    "label": "Pédale gauche",
+    "description": "Filetage à gauche : elle se dévisse dans le sens des aiguilles d'une montre."
+  },
+  "pedal-right": {
+    "label": "Pédale droite",
+    "description": "Filetage normal, côté transmission."
+  },
+  "rear-shock": {
+    "label": "Amortisseur arrière",
+    "description": "L'amortisseur entre le cadre avant et le triangle arrière."
+  },
+  "e-motor": {
+    "label": "Moteur",
+    "description": "Le moteur d'assistance, au pédalier ou dans le moyeu arrière."
+  },
+  "e-battery": {
+    "label": "Batterie",
+    "description": "La batterie qui alimente le moteur."
+  },
+  "mudguards": {
+    "label": "Garde-boue",
+    "description": "Protègent de l'eau et de la boue projetées par les roues."
+  },
+  "rack": {
+    "label": "Porte-bagages",
+    "description": "Support arrière pour sacoches et paniers."
+  },
+  "kickstand": {
+    "label": "Béquille",
+    "description": "Tient le vélo debout à l'arrêt."
+  },
+  "lights": {
+    "label": "Éclairage",
+    "description": "Phare avant et feu arrière."
+  },
+  "attr": {
+    "material": {
+      "label": "Matériau",
+      "help": "Le matériau du cadre, souvent écrit sur un autocollant ou le tube de selle."
+    },
+    "rear-axle": {
+      "label": "Axe arrière",
+      "help": "Le standard d'axe accepté par les pattes arrière : largeur et type de serrage."
+    },
+    "bb-shell": {
+      "label": "Boîtier (boîte de pédalier)",
+      "help": "Le standard du logement du boîtier dans le cadre, fileté ou emboîté."
+    },
+    "head-tube": {
+      "label": "Douille de direction",
+      "help": "Le standard de la douille : filetée 1 pouce, droite 1-1/8 ou conique."
+    },
+    "seatpost-diameter": {
+      "label": "Diamètre de tige de selle",
+      "help": "Gravé sur la tige de selle (27,2, 30,9, 31,6 mm…) ou mesuré au pied à coulisse."
+    },
+    "seat-clamp-diameter": {
+      "label": "Diamètre du collier",
+      "help": "Le diamètre extérieur du tube de selle, là où se serre le collier."
+    },
+    "brake-mount": {
+      "label": "Fixation de frein",
+      "help": "Comment l'étrier se fixe : flat mount, post mount ou IS (avec adaptateur)."
+    },
+    "max-rotor": {
+      "label": "Disque maximal",
+      "help": "Le plus grand diamètre de disque autorisé par le fabricant."
+    },
+    "max-tire-width": {
+      "label": "Pneu le plus large",
+      "help": "La largeur de pneu maximale qui passe avec au moins 4 mm de marge."
+    },
+    "hanger-standard": {
+      "label": "Standard de patte de dérailleur",
+      "help": "UDH est la patte universelle ; les autres pattes sont propres à chaque cadre."
+    },
+    "belt-splitter": {
+      "label": "Cadre ouvrable pour courroie",
+      "help": "Une courroie ne s'ouvre pas : le triangle arrière doit pouvoir s'ouvrir pour la passer."
+    },
+    "axle": {
+      "label": "Axe",
+      "help": "Le type d'axe de la roue : blocage rapide, axe traversant ou écrous."
+    },
+    "steerer": {
+      "label": "Pivot de fourche",
+      "help": "Le tube de la fourche qui monte dans la douille : fileté, droit ou conique."
+    },
+    "travel-mm": {
+      "label": "Débattement",
+      "help": "La course de la suspension, en millimètres."
+    },
+    "spring": {
+      "label": "Ressort",
+      "help": "Ressort acier (coil) ou chambre à air (air), réglable à la pompe."
+    },
+    "stanchion-mm": {
+      "label": "Diamètre des plongeurs",
+      "help": "Le diamètre des tubes brillants de la fourche."
+    },
+    "lockout": {
+      "label": "Blocage",
+      "help": "Un levier ou une molette qui rend la suspension quasi rigide."
+    },
+    "etrto-diameter": {
+      "label": "Diamètre ETRTO",
+      "help": "Le nombre à trois chiffres après le tiret sur le flanc du pneu (622, 584…)."
+    },
+    "rim-width": {
+      "label": "Largeur intérieure de jante",
+      "help": "Écrite sur l'autocollant de la jante (ex. 622x19) ou mesurée entre les crochets."
+    },
+    "rotor-interface": {
+      "label": "Fixation du disque sur le moyeu",
+      "help": "6 trous ou Centerlock (cannelures et bague) côté moyeu."
+    },
+    "tubeless-ready": {
+      "label": "Compatible tubeless",
+      "help": "Marqué « tubeless ready » ou « TLR » sur la jante ou le pneu."
+    },
+    "freehub": {
+      "label": "Corps de roue libre",
+      "help": "Le support des pignons sur le moyeu : il décide quelle cassette se monte."
+    },
+    "etrto-width": {
+      "label": "Largeur du pneu",
+      "help": "Le nombre avant le tiret sur le flanc (28-622 = 28 mm)."
+    },
+    "tread": {
+      "label": "Sculpture",
+      "help": "Lisse pour la route, crampons pour les chemins."
+    },
+    "valve": {
+      "label": "Valve",
+      "help": "Presta (fine, avec écrou), Schrader (comme une voiture) ou Dunlop."
+    },
+    "valve-length": {
+      "label": "Longueur de valve",
+      "help": "Plus la jante est haute, plus la valve doit être longue."
+    },
+    "sealant-kind": {
+      "label": "Type de préventif",
+      "help": "À base de latex (bouche mieux) ou synthétique (sèche moins vite)."
+    },
+    "spindle": {
+      "label": "Axe de pédalier",
+      "help": "Le type d'axe qui relie les manivelles au boîtier ou au moteur."
+    },
+    "pedal-thread": {
+      "label": "Filetage des pédales",
+      "help": "9/16 pouce sur presque tous les vélos, 1/2 pouce sur les pédaliers monobloc."
+    },
+    "chainrings": {
+      "label": "Nombre de plateaux",
+      "help": "Comptez les couronnes dentées à côté de la manivelle droite."
+    },
+    "crank-length": {
+      "label": "Longueur de manivelle",
+      "help": "Gravée à l'intérieur de la manivelle (170, 172,5, 175 mm…)."
+    },
+    "teeth": {
+      "label": "Nombre de dents",
+      "help": "Souvent gravé sur le plateau ; sinon, comptez les dents."
+    },
+    "speeds": {
+      "label": "Vitesses",
+      "help": "Le nombre de pignons à l'arrière, ou de vitesses du moyeu."
+    },
+    "e-rated": {
+      "label": "Chaîne pour VAE",
+      "help": "Chaîne renforcée prévue pour le couple d'un moteur."
+    },
+    "belt-line": {
+      "label": "Gamme de courroie",
+      "help": "CDX pour le sport, CDN pour la ville ; les deux ne sont pas interchangeables."
+    },
+    "belt-teeth": {
+      "label": "Dents de la courroie",
+      "help": "Imprimé sur la courroie ; il fixe sa longueur."
+    },
+    "range": {
+      "label": "Étagement",
+      "help": "Le plus petit et le plus grand pignon (ex. 11-34)."
+    },
+    "largest-cog": {
+      "label": "Plus grand pignon",
+      "help": "Le nombre de dents du plus grand pignon de la cassette."
+    },
+    "brand": {
+      "label": "Marque",
+      "help": "La marque du groupe de transmission, écrite sur la manette ou le dérailleur."
+    },
+    "actuation": {
+      "label": "Commande",
+      "help": "Par câble (mécanique), par fluide (hydraulique) ou électronique."
+    },
+    "max-cog": {
+      "label": "Pignon maximal accepté",
+      "help": "Le plus grand pignon que le dérailleur peut monter, indiqué par le fabricant."
+    },
+    "clutch": {
+      "label": "Embrayage",
+      "help": "Un interrupteur ou levier qui tend la chaîne et l'empêche de battre."
+    },
+    "hanger-model": {
+      "label": "Référence de patte",
+      "help": "La référence de la patte de dérailleur, gravée dessus ou donnée par la marque du cadre."
+    },
+    "fd-mount": {
+      "label": "Fixation du dérailleur avant",
+      "help": "Soudée au cadre (braze-on), collier autour du tube, ou direct mount."
+    },
+    "shifter-type": {
+      "label": "Type de manette",
+      "help": "Levier de frein intégré, gâchettes, poignée tournante, pouce, bout de cintre ou électronique."
+    },
+    "positions": {
+      "label": "Positions",
+      "help": "Le nombre de plateaux que la manette gauche sait commander."
+    },
+    "hub-brand": {
+      "label": "Marque du moyeu",
+      "help": "Écrite sur le corps du moyeu."
+    },
+    "routing": {
+      "label": "Passage des câbles",
+      "help": "À l'extérieur du cadre ou à l'intérieur des tubes."
+    },
+    "pull": {
+      "label": "Tirage",
+      "help": "Course de câble du levier : route (court), V-brake (long) ou hydraulique."
+    },
+    "integrated": {
+      "label": "Levier intégré",
+      "help": "Le levier de frein porte aussi les vitesses."
+    },
+    "brake-type": {
+      "label": "Type de frein",
+      "help": "Étrier sur jante, V-brake, cantilever, disque mécanique ou hydraulique."
+    },
+    "mount": {
+      "label": "Fixation de l'étrier",
+      "help": "Le corps de l'étrier : flat mount (vis par-dessous) ou post mount (deux vis verticales)."
+    },
+    "adapter": {
+      "label": "Adaptateur",
+      "help": "La pièce entre l'étrier et le cadre qui permet un plus grand disque."
+    },
+    "rotor-size": {
+      "label": "Taille de disque de l'étrier",
+      "help": "Le diamètre de disque pour lequel l'étrier est positionné."
+    },
+    "pad-type": {
+      "label": "Type de garniture",
+      "help": "Résine (silencieuse), métal fritté (durable), ou patins de frein sur jante."
+    },
+    "piston-count": {
+      "label": "Nombre de pistons",
+      "help": "2 pistons sur la plupart des freins, 4 pour plus de puissance."
+    },
+    "fluid": {
+      "label": "Liquide de frein",
+      "help": "Huile minérale (Shimano…) ou DOT (SRAM…) : ne jamais les mélanger."
+    },
+    "diameter": {
+      "label": "Diamètre",
+      "help": "Gravé sur le disque (140, 160, 180, 203 mm)."
+    },
+    "interface": {
+      "label": "Fixation",
+      "help": "6 vis ou Centerlock : doit correspondre au moyeu."
+    },
+    "pad-model": {
+      "label": "Référence des plaquettes",
+      "help": "La référence du fabricant, sur l'emballage ou le dos de la plaquette."
+    },
+    "pad-thickness": {
+      "label": "Épaisseur de garniture",
+      "help": "À remplacer sous 1 mm de garniture pour un disque."
+    },
+    "kind": {
+      "label": "Type de gaine",
+      "help": "Câble dans une gaine (mécanique) ou durite remplie de liquide (hydraulique)."
+    },
+    "bar-shape": {
+      "label": "Forme du cintre",
+      "help": "Route (courbé vers le bas), plat, relevé ou ville (recourbé vers vous)."
+    },
+    "bar-clamp": {
+      "label": "Diamètre de serrage du cintre",
+      "help": "Le diamètre du cintre au centre (25,4, 31,8 ou 35 mm)."
+    },
+    "bar-width": {
+      "label": "Largeur du cintre",
+      "help": "D'une extrémité à l'autre, ou d'axe en axe sur un cintre route."
+    },
+    "steerer-clamp": {
+      "label": "Serrage sur le pivot",
+      "help": "Potence à plongeur (vélos anciens ou enfant) ou potence 1-1/8 pouce."
+    },
+    "stem-length": {
+      "label": "Longueur de potence",
+      "help": "Mesurée de l'axe du pivot à l'axe du cintre."
+    },
+    "cover": {
+      "label": "Revêtement",
+      "help": "Guidoline enroulée sur un cintre route, poignées sur les autres."
+    },
+    "saddle-width": {
+      "label": "Largeur de selle",
+      "help": "Choisie selon l'écartement de vos ischions."
+    },
+    "rail": {
+      "label": "Rails",
+      "help": "Ronds de 7 mm sur la plupart des selles, ovales 7x9 mm en carbone."
+    },
+    "dropper": {
+      "label": "Télescopique",
+      "help": "Une commande au cintre fait descendre la selle en roulant."
+    },
+    "quick-release": {
+      "label": "Serrage rapide",
+      "help": "Un levier plutôt qu'une vis pour régler la hauteur de selle."
+    },
+    "pedal-type": {
+      "label": "Type de pédale",
+      "help": "Plate, SPD, route automatique, cale-pieds ou mixte."
+    },
+    "cleat": {
+      "label": "Cale",
+      "help": "La cale vissée sous la chaussure, qui doit correspondre à la pédale."
+    },
+    "shock-mount": {
+      "label": "Fixation de l'amortisseur",
+      "help": "Œillet classique ou trunnion (fixé par le corps)."
+    },
+    "eye-to-eye": {
+      "label": "Entraxe",
+      "help": "La distance entre les axes des deux fixations de l'amortisseur."
+    },
+    "stroke": {
+      "label": "Course",
+      "help": "La longueur de laquelle l'amortisseur peut se comprimer."
+    },
+    "motor-brand": {
+      "label": "Marque du moteur",
+      "help": "Écrite sur le carter du moteur ou sur l'écran."
+    },
+    "crank-interface": {
+      "label": "Fixation des manivelles",
+      "help": "Les cannelures de l'axe moteur : propres à chaque marque."
+    },
+    "torque": {
+      "label": "Couple",
+      "help": "La force maximale du moteur, en newton-mètres."
+    },
+    "battery-position": {
+      "label": "Emplacement de la batterie",
+      "help": "Intégrée au tube diagonal, fixée dessus, ou sur le porte-bagages."
+    },
+    "capacity": {
+      "label": "Capacité",
+      "help": "Écrite sur l'étiquette de la batterie, en wattheures."
+    },
+    "voltage": {
+      "label": "Tension",
+      "help": "Écrite sur l'étiquette de la batterie (36 V le plus souvent)."
+    },
+    "mudguard-width": {
+      "label": "Largeur des garde-boue",
+      "help": "Au moins 10 mm de plus que le pneu."
+    },
+    "rack-mount": {
+      "label": "Fixation du porte-bagages",
+      "help": "Sur les œillets du cadre, ou serré sur la tige de selle."
+    },
+    "kickstand-mount": {
+      "label": "Fixation de la béquille",
+      "help": "Plaque entre les bases, fixation centrale ou à l'axe arrière."
+    },
+    "light-power": {
+      "label": "Alimentation",
+      "help": "Piles ou batterie, dynamo dans le moyeu, ou batterie du VAE."
+    }
+  },
+  "values": {
+    "material": {
+      "aluminium": "Aluminium",
+      "steel": "Acier",
+      "carbon": "Carbone",
+      "titanium": "Titane"
+    },
+    "rear-axle": {
+      "qr-10x130": "Blocage rapide 10x130 (route)",
+      "qr-10x135": "Blocage rapide 10x135",
+      "ta-12x142": "Axe traversant 12x142",
+      "ta-12x148-boost": "Axe traversant 12x148 Boost",
+      "nutted": "Axe à écrous"
+    },
+    "axle": {
+      "qr-9x100": "Blocage rapide 9x100",
+      "ta-12x100": "Axe traversant 12x100",
+      "ta-15x100": "Axe traversant 15x100",
+      "ta-15x110-boost": "Axe traversant 15x110 Boost",
+      "qr-10x130": "Blocage rapide 10x130 (route)",
+      "qr-10x135": "Blocage rapide 10x135",
+      "ta-12x142": "Axe traversant 12x142",
+      "ta-12x148-boost": "Axe traversant 12x148 Boost",
+      "nutted": "Axe à écrous"
+    },
+    "bb-shell": {
+      "bsa-68": "BSA fileté 68 mm",
+      "bsa-73": "BSA fileté 73 mm",
+      "bb86": "BB86 (emboîté)",
+      "bb30": "BB30 (emboîté)",
+      "pf30": "PF30 (emboîté)",
+      "t47": "T47 (fileté)"
+    },
+    "head-tube": {
+      "threaded-1": "Fileté 1 pouce",
+      "straight-1-1-8": "Droit 1-1/8 pouce",
+      "tapered-1-1-8-1-5": "Conique 1-1/8 à 1,5 pouce"
+    },
+    "steerer": {
+      "threaded-1": "Fileté 1 pouce",
+      "straight-1-1-8": "Droit 1-1/8 pouce",
+      "tapered-1-1-8-1-5": "Conique 1-1/8 à 1,5 pouce"
+    },
+    "brake-mount": {
+      "flat-mount": "Flat mount",
+      "post-mount": "Post mount",
+      "is-mount": "IS (International Standard)"
+    },
+    "mount": {
+      "flat-mount": "Flat mount",
+      "post-mount": "Post mount"
+    },
+    "hanger-standard": {
+      "udh": "UDH (patte universelle)",
+      "classic": "Patte spécifique au cadre"
+    },
+    "spring": {
+      "coil": "Ressort acier",
+      "air": "Air"
+    },
+    "etrto-diameter": {
+      "622": "622 mm (700c / 29 pouces)",
+      "584": "584 mm (650b / 27,5 pouces)",
+      "559": "559 mm (26 pouces)",
+      "507": "507 mm (24 pouces)",
+      "406": "406 mm (20 pouces)",
+      "305": "305 mm (16 pouces)"
+    },
+    "rim-width": {
+      "17": "17 mm",
+      "19": "19 mm",
+      "21": "21 mm",
+      "23": "23 mm",
+      "25": "25 mm",
+      "30": "30 mm"
+    },
+    "rotor-interface": {
+      "6-bolt": "6 trous",
+      "centerlock": "Centerlock"
+    },
+    "interface": {
+      "6-bolt": "6 trous",
+      "centerlock": "Centerlock"
+    },
+    "freehub": {
+      "hg": "Shimano HG",
+      "hg-l": "Shimano HG-L (route 12 v)",
+      "xd": "SRAM XD",
+      "xdr": "SRAM XDR",
+      "micro-spline": "Shimano Micro Spline",
+      "freewheel-thread": "Filetage roue libre",
+      "igh": "Moyeu à vitesses intégrées"
+    },
+    "tread": {
+      "slick": "Lisse",
+      "knobby": "Crampons",
+      "semi-slick": "Semi-lisse"
+    },
+    "valve": {
+      "presta": "Presta",
+      "schrader": "Schrader",
+      "dunlop": "Dunlop"
+    },
+    "sealant-kind": {
+      "latex": "Latex",
+      "synthetic": "Synthétique"
+    },
+    "spindle": {
+      "square-taper": "Carré conique",
+      "isis": "ISIS",
+      "octalink": "Shimano Octalink",
+      "hollowtech-24": "Shimano Hollowtech II 24 mm",
+      "dub-28-99": "SRAM DUB 28,99 mm",
+      "bb30-30": "BB30 30 mm",
+      "bosch-spline": "Cannelures Bosch",
+      "shimano-steps-spline": "Cannelures Shimano STEPS",
+      "bafang-spline": "Cannelures Bafang"
+    },
+    "crank-interface": {
+      "square-taper": "Carré conique",
+      "isis": "ISIS",
+      "octalink": "Shimano Octalink",
+      "hollowtech-24": "Shimano Hollowtech II 24 mm",
+      "dub-28-99": "SRAM DUB 28,99 mm",
+      "bb30-30": "BB30 30 mm",
+      "bosch-spline": "Cannelures Bosch",
+      "shimano-steps-spline": "Cannelures Shimano STEPS",
+      "bafang-spline": "Cannelures Bafang"
+    },
+    "pedal-thread": {
+      "9-16": "9/16 pouce",
+      "1-2": "1/2 pouce (monobloc)"
+    },
+    "chainrings": {
+      "1": "1 plateau",
+      "2": "2 plateaux",
+      "3": "3 plateaux"
+    },
+    "speeds": {
+      "single": "Une vitesse",
+      "6-7-8": "6-7-8 vitesses",
+      "3": "3 vitesses",
+      "5": "5 vitesses",
+      "6": "6 vitesses",
+      "7": "7 vitesses",
+      "8": "8 vitesses",
+      "9": "9 vitesses",
+      "10": "10 vitesses",
+      "11": "11 vitesses",
+      "12": "12 vitesses",
+      "13": "13 vitesses",
+      "14": "14 vitesses"
+    },
+    "belt-line": {
+      "gates-cdx": "Gates CDX",
+      "gates-cdn": "Gates CDN"
+    },
+    "range": {
+      "11-25": "11–25 dents",
+      "11-28": "11–28 dents",
+      "11-30": "11–30 dents",
+      "11-32": "11–32 dents",
+      "11-34": "11–34 dents",
+      "11-36": "11–36 dents",
+      "11-42": "11–42 dents",
+      "10-42": "10–42 dents",
+      "10-45": "10–45 dents",
+      "10-51": "10–51 dents",
+      "10-52": "10–52 dents"
+    },
+    "brand": {
+      "shimano": "Shimano",
+      "sram": "SRAM",
+      "campagnolo": "Campagnolo",
+      "microshift": "microSHIFT"
+    },
+    "actuation": {
+      "mechanical": "Mécanique",
+      "electronic": "Électronique",
+      "hydraulic": "Hydraulique"
+    },
+    "fd-mount": {
+      "braze-on": "Braze-on (patte soudée)",
+      "clamp-28-6": "Collier 28,6 mm",
+      "clamp-31-8": "Collier 31,8 mm",
+      "clamp-34-9": "Collier 34,9 mm",
+      "direct-mount": "Direct mount"
+    },
+    "shifter-type": {
+      "sti-integrated": "Intégrée au levier de frein",
+      "trigger": "Gâchettes",
+      "grip": "Poignée tournante",
+      "thumb": "Manette au pouce",
+      "bar-end": "Bout de cintre",
+      "electronic": "Électronique"
+    },
+    "positions": {
+      "2": "2 positions",
+      "3": "3 positions"
+    },
+    "hub-brand": {
+      "shimano": "Shimano",
+      "sturmey-archer": "Sturmey-Archer",
+      "rohloff": "Rohloff",
+      "enviolo": "enviolo"
+    },
+    "routing": {
+      "external": "Extérieur",
+      "internal": "Intérieur"
+    },
+    "pull": {
+      "short-road": "Court (route, cantilever)",
+      "long-v-brake": "Long (V-brake)",
+      "hydraulic": "Hydraulique"
+    },
+    "brake-type": {
+      "rim-caliper": "Étrier sur jante",
+      "v-brake": "V-brake",
+      "cantilever": "Cantilever",
+      "disc-mechanical": "Disque mécanique",
+      "disc-hydraulic": "Disque hydraulique"
+    },
+    "adapter": {
+      "none": "Aucun",
+      "+20": "+20 mm",
+      "+40": "+40 mm",
+      "is-to-post": "IS vers post mount (160 mm)",
+      "is-to-post-180": "IS vers post mount 180 mm",
+      "is-to-post-203": "IS vers post mount 203 mm",
+      "is-to-flat": "IS vers flat mount"
+    },
+    "rotor-size": {
+      "140": "140 mm",
+      "160": "160 mm",
+      "180": "180 mm",
+      "203": "203 mm"
+    },
+    "diameter": {
+      "140": "140 mm",
+      "160": "160 mm",
+      "180": "180 mm",
+      "203": "203 mm"
+    },
+    "pad-type": {
+      "resin": "Résine",
+      "sintered": "Métal fritté",
+      "rim-cartridge": "Patins à cartouche",
+      "rim-molded": "Patins moulés"
+    },
+    "fluid": {
+      "mineral": "Huile minérale",
+      "dot": "DOT"
+    },
+    "kind": {
+      "cable": "Câble",
+      "hose": "Durite"
+    },
+    "bar-shape": {
+      "drop": "Cintre route",
+      "flat": "Plat",
+      "riser": "Relevé",
+      "swept": "Ville (recourbé)"
+    },
+    "steerer-clamp": {
+      "quill-22-2": "Plongeur 22,2 mm",
+      "1-1-8": "1-1/8 pouce"
+    },
+    "cover": {
+      "bar-tape": "Guidoline",
+      "grips": "Poignées"
+    },
+    "rail": {
+      "round-7mm": "Ronds 7 mm",
+      "oval-7x9": "Ovales 7x9 mm"
+    },
+    "pedal-type": {
+      "flat": "Plate",
+      "spd": "SPD",
+      "road-clipless": "Route automatique",
+      "toe-clips": "Cale-pieds",
+      "combo": "Mixte"
+    },
+    "cleat": {
+      "none": "Sans cale",
+      "spd": "Cale SPD",
+      "spd-sl": "Cale SPD-SL",
+      "look-keo": "Cale Look Keo"
+    },
+    "shock-mount": {
+      "standard-eye": "Œillet classique",
+      "trunnion": "Trunnion"
+    },
+    "motor-brand": {
+      "bosch": "Bosch",
+      "shimano": "Shimano",
+      "yamaha": "Yamaha",
+      "brose": "Brose",
+      "bafang": "Bafang"
+    },
+    "battery-position": {
+      "integrated": "Intégrée au cadre",
+      "external-downtube": "Sur le tube diagonal",
+      "rack": "Sur le porte-bagages"
+    },
+    "rack-mount": {
+      "frame-eyelets": "Œillets du cadre",
+      "seatpost-clamp": "Sur la tige de selle"
+    },
+    "kickstand-mount": {
+      "chainstay-plate": "Plaque entre les bases",
+      "center": "Centrale",
+      "rear-axle": "À l'axe arrière"
+    },
+    "light-power": {
+      "battery": "Piles ou batterie",
+      "dynamo": "Dynamo",
+      "e-bike": "Batterie du VAE"
+    }
+  },
+  "boolean": {
+    "true": "Oui",
+    "false": "Non"
+  },
+  "systems": {
+    "frame": "Cadre et fourche",
+    "wheels": "Roues",
+    "tires": "Pneus",
+    "drivetrain": "Transmission",
+    "brakes": "Freins",
+    "cockpit": "Poste de pilotage",
+    "saddle": "Selle",
+    "pedals": "Pédales",
+    "suspension": "Suspension",
+    "e-system": "Assistance électrique",
+    "accessories": "Accessoires"
+  },
+  "position": {
+    "front": "Avant",
+    "rear": "Arrière",
+    "left": "Gauche",
+    "right": "Droite",
+    "none": "Centre"
+  },
+  "units": {
+    "mm": "{value} mm",
+    "in": "{value} po",
+    "g": "{value} g",
+    "Wh": "{value} Wh",
+    "V": "{value} V",
+    "Nm": "{value} N·m",
+    "count": "{value}",
+    "speeds": "{value} vitesses"
+  },
+  "retailers": {
+    "rosebikes": "Rose Bikes",
+    "alltricks": "Alltricks",
+    "decathlon": "Decathlon"
+  },
+  "measures": {
+    "saddle-height": {
+      "label": "Hauteur de selle",
+      "help": "Du centre de l'axe de pédalier au dessus de la selle, dans l'axe du tube de selle."
+    },
+    "saddle-setback": {
+      "label": "Recul de selle",
+      "help": "La distance horizontale entre le bec de selle et l'axe du pédalier."
+    },
+    "reach": {
+      "label": "Reach",
+      "help": "La distance horizontale entre la selle et le cintre, là où vous tenez les mains."
+    },
+    "bar-drop": {
+      "label": "Différence selle-cintre",
+      "help": "La hauteur du dessus de selle moins la hauteur du cintre."
+    },
+    "cleat-position": {
+      "label": "Position des cales",
+      "help": "Où placer la cale pour que la base du gros orteil soit au-dessus de l'axe de la pédale."
+    },
+    "tire-pressure": {
+      "label": "Pression des pneus",
+      "help": "La pression selon votre poids, la largeur du pneu et le montage tubeless ou chambre."
+    },
+    "sag": {
+      "label": "Affaissement (sag)",
+      "help": "De combien la suspension s'enfonce quand vous êtes assis sur le vélo, en pourcentage de la course."
+    },
+    "chain-wear": {
+      "label": "Usure de la chaîne",
+      "help": "L'allongement de la chaîne, mesuré à l'outil ou au réglet sur 12 maillons."
+    }
+  },
+  "constraints": {
+    "oneOf": "{attribute} : {values}",
+    "atMost": "{attribute} : {value} au maximum",
+    "atLeast": "{attribute} : {value} au minimum",
+    "between": "{attribute} : entre {min} et {max}"
+  }
+}

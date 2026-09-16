@@ -108,6 +108,20 @@ scripts/             ci/, db/, perf/, content tooling
   nests `bike: { userId }`, and an `ActionResult<T>` return. Expected failures
   are returned, never thrown. Messages are **keys**, never French strings.
 - **Not-found over forbidden** — another user's resource returns 404, not 403.
+- **Session cookie** — the `jwt` callback drops a token whose `sessionVersion`
+  differs from the row on EVERY trigger, `update` included (a stolen cookie must
+  not adopt a new number). `changePasswordAction` keeps its own device signed in by
+  re-issuing the cookie (`lib/auth/session-cookie.ts`), never via `unstable_update()`.
+  Background reads must never write it: Auth.js re-writes a JWT cookie on every
+  read, so `proxy.ts` keeps that refresh only on a document navigation with a token
+  at least 24 h old (`sessionRefreshPolicy`, the plan's `updateAge`), drops it on
+  router requests, and drops every session cookie on action POSTs;
+  `GET /api/auth/session` writes no refresh. See `.debug/003`.
+- **Protected pages** are guarded by `authorized()` in `proxy.ts` only — never skip
+  `auth()` for any request there.
+- **Domain data** — `validateBuild` is hand-written (zod-free barrel); rule messages
+  are keyed per rule group (`rules.<group>.{message,fix}`); `parts.units.*` messages
+  take `{ value }`.
 - **Messages** — next-intl keys are leaves: a key is either a string or an
   object, never both; ids that become key segments never contain `.`. Every
   user-facing string exists in **both** `messages/fr/` and `messages/en/`;
@@ -142,7 +156,13 @@ Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
 - Vitest projects `unit | ui | bike3d | integration | security`; coverage
   thresholds 80 % overall, 100 % on `lib/domain/**`.
 - Playwright on desktop, Pixel 7, landscape, 320 px, WebKit (non-blocking) and
-  a no-WebGL profile; axe sweep with zero serious/critical violations.
+  a no-WebGL profile; axe sweep with zero serious/critical violations. e2e runs a
+  production build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build`
+  first) and reuses a running server locally — stop stale servers on :3100. Each
+  test gets its own `x-real-ip` so rate limits never collide between tests. Use
+  `--project=<name>` (equals form): `--project` is variadic and eats a spec path.
+- Bundle budget is a per-wave ratchet: `perf.budgets.json` ceilings are re-pinned
+  at each wave integration to measured + 10 % (sizes print as KiB).
 - Lighthouse CI, a bundle budget, and WebGL draw-call/triangle counters.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
 

@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { SessionProvider } from "next-auth/react";
 
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -76,12 +77,20 @@ export default async function LocaleLayout({
       <body className="flex min-h-dvh flex-col">
         {/* Inherits locale and messages from lib/i18n/request.ts (next-intl v4). */}
         <NextIntlClientProvider>
-          <SkipLink />
-          <SiteHeader />
-          <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex flex-1 flex-col">
-            {children}
-          </main>
-          <SiteFooter />
+          {/*
+           * No `session` prop on purpose (W1-T3): passing one would mean calling
+           * `auth()` here, and a layout that reads a request API opts every page
+           * under it out of static rendering (§6.8 AC2). `AccountMenu` fetches
+           * the session from `/api/auth/session` after hydration instead.
+           */}
+          <SessionProvider>
+            <SkipLink />
+            <SiteHeader />
+            <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex flex-1 flex-col">
+              {children}
+            </main>
+            <SiteFooter />
+          </SessionProvider>
         </NextIntlClientProvider>
       </body>
     </html>

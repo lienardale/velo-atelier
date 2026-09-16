@@ -1,0 +1,693 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildBikeSpec > builds the spec for the city-igh-8-hub-motor preset 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "swept",
+  },
+  "discipline": "city-hybrid",
+  "drive": "electric",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "igh",
+    "shifter": "grip",
+    "speeds": 8,
+    "transmission": "chain",
+  },
+  "eSystem": {
+    "batteryPosition": "rack",
+    "motorPosition": "hub-rear",
+  },
+  "frameStyle": "step-through",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for the emtb-mid-1x12 preset 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "post-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "riser",
+  },
+  "discipline": "mtb",
+  "drive": "electric",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "trigger",
+    "speeds": 12,
+    "transmission": "chain",
+  },
+  "eSystem": {
+    "batteryPosition": "integrated",
+    "motorPosition": "mid-drive",
+  },
+  "frameStyle": "diamond",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": true,
+  },
+  "suspension": {
+    "front": true,
+    "rear": true,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "29",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for the gravel-1x11 preset 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "flat-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "drop",
+  },
+  "discipline": "gravel",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "sti-integrated",
+    "speeds": 11,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "spd",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for the mtb-full-dropper-1x12 preset 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "post-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "riser",
+  },
+  "discipline": "mtb",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "trigger",
+    "speeds": 12,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": true,
+  },
+  "suspension": {
+    "front": true,
+    "rear": true,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "29",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for the mtb-hardtail-1x12 preset 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "post-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "riser",
+  },
+  "discipline": "mtb",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "trigger",
+    "speeds": 12,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "spd",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": true,
+    "rear": false,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "29",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for the road-disc-2x12 preset 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "flat-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "drop",
+  },
+  "discipline": "road",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 2,
+    "kind": "derailleur",
+    "shifter": "sti-integrated",
+    "speeds": 12,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "road-clipless",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for the road-rim-2x11 preset 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "rim-caliper",
+  },
+  "cockpit": {
+    "bar": "drop",
+  },
+  "discipline": "road",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 2,
+    "kind": "derailleur",
+    "shifter": "sti-integrated",
+    "speeds": 11,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "road-clipless",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: city-hybrid 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "flat",
+  },
+  "discipline": "city-hybrid",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "igh",
+    "shifter": "grip",
+    "speeds": 7,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "step-through",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: electric 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "flat",
+  },
+  "discipline": "city-hybrid",
+  "drive": "electric",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "igh",
+    "shifter": "grip",
+    "speeds": 7,
+    "transmission": "chain",
+  },
+  "eSystem": {
+    "batteryPosition": "integrated",
+    "motorPosition": "mid-drive",
+  },
+  "frameStyle": "step-through",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: electric mtb 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "post-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "riser",
+  },
+  "discipline": "mtb",
+  "drive": "electric",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "trigger",
+    "speeds": 12,
+    "transmission": "chain",
+  },
+  "eSystem": {
+    "batteryPosition": "integrated",
+    "motorPosition": "mid-drive",
+  },
+  "frameStyle": "diamond",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": true,
+    "rear": false,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "29",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: gravel 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "flat-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "drop",
+  },
+  "discipline": "gravel",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "sti-integrated",
+    "speeds": 11,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "spd",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: hub gears with a belt 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "flat",
+  },
+  "discipline": "city-hybrid",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "igh",
+    "shifter": "grip",
+    "speeds": 7,
+    "transmission": "belt",
+  },
+  "eSystem": null,
+  "frameStyle": "step-through",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: kids 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "flat",
+  },
+  "discipline": "kids",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "singlespeed",
+    "shifter": null,
+    "speeds": 1,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 406,
+    "label": "20",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: mtb 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "post-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "riser",
+  },
+  "discipline": "mtb",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "derailleur",
+    "shifter": "trigger",
+    "speeds": 12,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": true,
+    "rear": false,
+  },
+  "tires": {
+    "system": "tubeless",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "29",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: nothing answered 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "flat",
+  },
+  "discipline": "city-hybrid",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "igh",
+    "shifter": "grip",
+    "speeds": 7,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "step-through",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: road 1`] = `
+{
+  "brakes": {
+    "isDisc": true,
+    "mount": "flat-mount",
+    "type": "disc-hydraulic",
+  },
+  "cockpit": {
+    "bar": "drop",
+  },
+  "discipline": "road",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 2,
+    "kind": "derailleur",
+    "shifter": "sti-integrated",
+    "speeds": 11,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "diamond",
+  "pedals": "road-clipless",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;
+
+exports[`buildBikeSpec > builds the spec for: singlespeed 1`] = `
+{
+  "brakes": {
+    "isDisc": false,
+    "mount": null,
+    "type": "v-brake",
+  },
+  "cockpit": {
+    "bar": "flat",
+  },
+  "discipline": "city-hybrid",
+  "drive": "muscular",
+  "drivetrain": {
+    "chainrings": 1,
+    "kind": "singlespeed",
+    "shifter": null,
+    "speeds": 1,
+    "transmission": "chain",
+  },
+  "eSystem": null,
+  "frameStyle": "step-through",
+  "pedals": "flat",
+  "seatpost": {
+    "dropper": false,
+  },
+  "suspension": {
+    "front": false,
+    "rear": false,
+  },
+  "tires": {
+    "system": "clincher-tube",
+  },
+  "version": 1,
+  "wheel": {
+    "etrtoDiameter": 622,
+    "label": "700c",
+  },
+}
+`;

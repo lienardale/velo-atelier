@@ -1,0 +1,187 @@
+---
+slug: check-brakes-disc
+kind: check
+title: Check disc brakes
+summary: Pads, rotors, lever feel, caliper alignment and leaks — a full round of your disc brakes in fifteen minutes, with hardly any tools.
+status: full
+order: 20
+difficulty: 1
+minutes: 15
+partIds:
+  - brake-pads-front
+  - brake-pads-rear
+  - rotor-front
+  - rotor-rear
+  - brake-caliper-front
+  - brake-caliper-rear
+  - brake-lever-front
+  - brake-lever-rear
+  - brake-line-front
+  - brake-line-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-brake-pads-disc
+  - adjust-disc-caliper-alignment
+  - clean-disc-rotors-pads
+safety:
+  - A rotor that has just been braking can be hotter than 100 °C. Let it cool before touching it, and keep your fingers away from the rotor while the wheel turns.
+  - Never touch rotors or pad linings with greasy fingers. A trace of hand cream or lubricant is enough to lose most of your braking power.
+steps:
+  - id: pad-wear
+    title: Measure pad wear
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-disc
+    checkQuestion:
+      prompt: Does every pad still have at least 1 mm of lining, with no trace of grease?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-pads-front
+          reasonKey: pad-worn
+          guideSlug: replace-brake-pads-disc
+        - action: replace
+          partId: brake-pads-rear
+          reasonKey: pad-worn
+          guideSlug: replace-brake-pads-disc
+        - action: clean
+          partId: brake-pads-front
+          reasonKey: pad-contaminated
+          guideSlug: clean-disc-rotors-pads
+        - action: clean
+          partId: brake-pads-rear
+          reasonKey: pad-contaminated
+          guideSlug: clean-disc-rotors-pads
+  - id: rotor-true
+    title: Inspect the rotors
+    partIds: [rotor-front, rotor-rear]
+    illustration: rotor-true-check
+    checkQuestion:
+      prompt: Do the rotors spin without rubbing or wobbling, and without deep grooves?
+      skippable: false
+      ko:
+        - action: replace
+          partId: rotor-front
+          reasonKey: rotor-worn
+          guideSlug: replace-rotor
+        - action: replace
+          partId: rotor-rear
+          reasonKey: rotor-worn
+          guideSlug: replace-rotor
+        - action: inspect-shop
+          partId: rotor-front
+          reasonKey: rotor-warped
+        - action: inspect-shop
+          partId: rotor-rear
+          reasonKey: rotor-warped
+  - id: lever-feel
+    title: Test the lever feel
+    partIds: [brake-lever-front, brake-lever-rear, brake-line-front, brake-line-rear]
+    checkQuestion:
+      prompt: Does each lever turn firm before halfway, and stay firm?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: brake-line-front
+          reasonKey: lever-spongy
+        - action: inspect-shop
+          partId: brake-line-rear
+          reasonKey: lever-spongy
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+  - id: caliper-alignment
+    title: Check caliper alignment
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    checkQuestion:
+      prompt: Do the wheels spin freely, with no regular rub of the rotor on a pad?
+      skippable: true
+      ko:
+        - action: fix
+          partId: brake-caliper-front
+          reasonKey: caliper-rub
+          guideSlug: adjust-disc-caliper-alignment
+        - action: fix
+          partId: brake-caliper-rear
+          reasonKey: caliper-rub
+          guideSlug: adjust-disc-caliper-alignment
+  - id: hose-leak
+    title: Look for fluid leaks
+    partIds: [brake-line-front, brake-line-rear, brake-caliper-front, brake-caliper-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-hydraulic]
+    checkQuestion:
+      prompt: Are the hoses, levers and calipers dry, with no trace of oil?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: brake-line-front
+          reasonKey: hose-leak
+        - action: inspect-shop
+          partId: brake-line-rear
+          reasonKey: hose-leak
+---
+
+<Step id="pad-wear">
+
+Pads wear out silently: braking feels fine right up to the day the metal backing plate touches the rotor. Take the wheel out if you cannot see anything, or look into the caliper slot from above with a torch.
+
+Each pad is a metal backing plate covered with a friction lining. Measure the thickness of the **lining alone**: below 1 mm, replace both pads of that brake, even if only one is worn. A shiny, glazed or greasy lining brakes poorly and must be cleaned or replaced.
+
+<Warning level="info">
+
+The two pads of a caliper rarely wear at the same rate. That is normal; the thinner one decides.
+
+</Warning>
+
+</Step>
+
+<Step id="rotor-true">
+
+Lift the wheel and spin it slowly while looking down into the caliper slot. The gap between the rotor and each pad should stay the same all the way round: if the rotor wobbles and touches a pad once per turn, it is bent.
+
+Then, with the rotor cold and clean, run a finger across the braking track. Deep grooves or a pronounced lip on the outer edge mean the rotor is too thin. The minimum thickness is engraved on the rotor, often 1.5 mm; without a caliper gauge, a shop can measure it in a minute.
+
+</Step>
+
+<Step id="lever-feel">
+
+With the bike standing still, squeeze each lever hard, one after the other. The lever should turn firm before it reaches halfway and then stop moving, even if you keep squeezing for ten seconds. Then push the bike forward while braking: the wheel should lock.
+
+On a hydraulic brake, a soft lever that slowly sinks or reaches the handlebar means air or a leak in the system: bleeding is not covered by this site, so take it to a shop. On a mechanical brake, follow the cable: if it is frayed, rusty or sticky, it must be replaced.
+
+</Step>
+
+<Step id="caliper-alignment">
+
+Spin each wheel by hand and listen. A faint swish right after braking is normal; a regular rub, at the same spot on every turn or all the way round, is not.
+
+Look down into the caliper slot: the rotor should run through the middle, with daylight on both sides. If it brushes one pad without being bent, the caliper has simply shifted. While you are there, check that its mounting bolts are tight, without forcing them (tool: <Tool id="allen-keys" alt="multi-tool" />).
+
+</Step>
+
+<Step id="hose-leak">
+
+Wipe the hoses, levers and calipers with a clean rag, then squeeze both levers hard for a full minute. Now look closely at every joint: under the lever, where the hose enters the caliper, and along the hose wherever it rubs against the frame.
+
+The smallest drop of oil, a pinched, cracked or swollen hose, or a lever that returns slowly means a trip to the shop before you ride again.
+
+<Warning level="danger">
+
+A leak always ends up on the pads and the rotor. A leaking brake cannot be fixed at the roadside: do not ride with it.
+
+</Warning>
+
+</Step>

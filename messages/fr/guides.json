@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "listTitle": "Guides d’entretien et de réparation",
+    "listDescription": "Des guides pas à pas pour contrôler, régler, nettoyer et remplacer chaque pièce de votre vélo, avec les outils nécessaires et leurs alternatives."
+  },
+  "breadcrumb": {
+    "label": "Fil d’Ariane",
+    "home": "Accueil",
+    "guides": "Guides"
+  },
+  "list": {
+    "title": "Guides",
+    "intro": "Choisissez ce que vous voulez faire, ou filtrez par partie du vélo. Chaque guide liste les outils nécessaires et ce qui peut les remplacer.",
+    "count": "{count, plural, =0 {Aucun guide} one {# guide} other {# guides}}",
+    "empty": "Aucun guide ne correspond à ces filtres.",
+    "reset": "Effacer les filtres",
+    "cardLink": "Lire le guide"
+  },
+  "kinds": {
+    "check": "Contrôler",
+    "adjust": "Régler",
+    "clean": "Nettoyer",
+    "replace": "Remplacer",
+    "measure": "Mesurer"
+  },
+  "kindSections": {
+    "check": "Contrôler l’état du vélo",
+    "adjust": "Régler",
+    "clean": "Nettoyer",
+    "replace": "Remplacer une pièce",
+    "measure": "Mesurer et ajuster la position"
+  },
+  "difficulty": {
+    "label": "Difficulté",
+    "value": "{level, select, 1 {Facile} 2 {Intermédiaire} other {Avancé}}"
+  },
+  "duration": {
+    "label": "Durée",
+    "value": "{minutes, plural, one {# minute} other {# minutes}}"
+  },
+  "tools": {
+    "title": "Outils nécessaires",
+    "none": "Aucun outil : vos mains et vos yeux suffisent.",
+    "separator": "ou",
+    "alternatives": "À défaut : {tools}"
+  },
+  "stubBanner": "Ce guide est en cours de rédaction : seules les grandes étapes sont décrites pour l’instant.",
+  "safety": {
+    "title": "Sécurité"
+  },
+  "warning": {
+    "info": "À savoir",
+    "caution": "Attention",
+    "danger": "Danger"
+  },
+  "toc": {
+    "title": "Étapes",
+    "show": "Afficher les étapes"
+  },
+  "step": {
+    "label": "Étape {number}"
+  },
+  "appliesTo": {
+    "title": "Pour quels vélos ?",
+    "all": "Tous les vélos.",
+    "joinAll": "{left} et {right}",
+    "joinAny": "{left} ou {right}",
+    "negation": "sauf si {condition}",
+    "leaf": "{label} : {values}",
+    "leafNegated": "{label} : tout sauf {values}",
+    "paths": {
+      "drive": "Motorisation",
+      "discipline": "Pratique",
+      "wheel_label": "Taille de roue",
+      "wheel_etrtoDiameter": "Diamètre ETRTO (mm)",
+      "brakes_type": "Freins",
+      "brakes_isDisc": "Freins à disque",
+      "brakes_mount": "Fixation des étriers",
+      "drivetrain_kind": "Transmission",
+      "drivetrain_chainrings": "Plateaux",
+      "drivetrain_speeds": "Vitesses",
+      "drivetrain_transmission": "Entraînement",
+      "drivetrain_shifter": "Manettes",
+      "cockpit_bar": "Cintre",
+      "pedals": "Pédales",
+      "suspension_front": "Fourche suspendue",
+      "suspension_rear": "Suspension arrière",
+      "seatpost_dropper": "Tige de selle télescopique",
+      "tires_system": "Montage des pneus",
+      "eSystem_motorPosition": "Moteur",
+      "eSystem_batteryPosition": "Batterie",
+      "frameStyle": "Cadre"
+    },
+    "values": {
+      "drive": {
+        "muscular": "musculaire",
+        "electric": "électrique"
+      },
+      "discipline": {
+        "road": "route",
+        "gravel": "gravel",
+        "mtb": "VTT",
+        "city-hybrid": "ville et polyvalent",
+        "kids": "enfant"
+      },
+      "wheel_label": {
+        "700c": "700C",
+        "650b": "650B",
+        "29": "29 pouces",
+        "27_5": "27,5 pouces",
+        "26": "26 pouces",
+        "24": "24 pouces",
+        "20": "20 pouces",
+        "16": "16 pouces"
+      },
+      "brakes_type": {
+        "rim-caliper": "étrier sur jante",
+        "v-brake": "V-brake",
+        "cantilever": "cantilever",
+        "disc-mechanical": "disque mécanique",
+        "disc-hydraulic": "disque hydraulique"
+      },
+      "brakes_isDisc": {
+        "true": "oui",
+        "false": "non"
+      },
+      "brakes_mount": {
+        "flat-mount": "flat mount",
+        "post-mount": "post mount",
+        "is-mount": "IS"
+      },
+      "drivetrain_kind": {
+        "derailleur": "à dérailleur",
+        "igh": "moyeu à vitesses intégrées",
+        "singlespeed": "monovitesse"
+      },
+      "drivetrain_transmission": {
+        "chain": "chaîne",
+        "belt": "courroie"
+      },
+      "drivetrain_shifter": {
+        "sti-integrated": "intégrées aux leviers",
+        "trigger": "à gâchettes",
+        "grip": "rotatives",
+        "thumb": "au pouce",
+        "bar-end": "en bout de cintre",
+        "electronic": "électroniques"
+      },
+      "cockpit_bar": {
+        "drop": "cintre route",
+        "flat": "cintre plat",
+        "riser": "cintre relevé",
+        "swept": "cintre cintré vers l’arrière"
+      },
+      "pedals": {
+        "flat": "plates",
+        "spd": "automatiques SPD",
+        "road-clipless": "automatiques route",
+        "toe-clips": "cale-pieds",
+        "combo": "mixtes"
+      },
+      "suspension_front": {
+        "true": "oui",
+        "false": "non"
+      },
+      "suspension_rear": {
+        "true": "oui",
+        "false": "non"
+      },
+      "seatpost_dropper": {
+        "true": "oui",
+        "false": "non"
+      },
+      "tires_system": {
+        "clincher-tube": "avec chambre à air",
+        "tubeless": "tubeless"
+      },
+      "eSystem_motorPosition": {
+        "mid-drive": "au pédalier",
+        "hub-rear": "dans le moyeu arrière"
+      },
+      "eSystem_batteryPosition": {
+        "integrated": "intégrée au cadre",
+        "external-downtube": "sur le tube diagonal",
+        "rack": "sur le porte-bagages"
+      },
+      "frameStyle": {
+        "diamond": "classique",
+        "step-through": "ouvert"
+      }
+    }
+  },
+  "related": {
+    "title": "À lire ensuite"
+  },
+  "prevNext": {
+    "label": "Autres guides",
+    "previous": "Guide précédent",
+    "next": "Guide suivant"
+  },
+  "seeOnMyBike": "Voir sur mon vélo",
+  "filters": {
+    "label": "Filtrer les guides",
+    "kind": "Que voulez-vous faire ?",
+    "system": "Partie du vélo",
+    "allKinds": "Tout",
+    "allSystems": "Toutes les parties",
+    "forMyBike": "Pour mon vélo",
+    "forMyBikeHint": "Masque les guides qui ne concernent pas le vélo que vous avez décrit.",
+    "noBike": "Décrivez d’abord votre vélo pour filtrer les guides qui le concernent.",
+    "results": "{count, plural, =0 {Aucun guide} one {# guide affiché} other {# guides affichés}}"
+  },
+  "measure": {
+    "label": "Votre mesure",
+    "target": "Repère : {target}",
+    "saved": "Enregistrée sur cet appareil.",
+    "suffix": "{unit, select, mm {mm} cm {cm} bar {bar} other {%}}"
+  },
+  "og": {
+    "tagline": "Guide pas à pas"
+  },
+  "reasons": {
+    "pad-worn": "Plaquettes ou patins usés (moins de 1 mm de garniture).",
+    "pad-contaminated": "Plaquettes ou patins encrassés ou gras : le frein siffle ou freine mal.",
+    "rotor-worn": "Disque trop fin ou marqué de sillons profonds.",
+    "rotor-warped": "Disque voilé : il frotte à chaque tour de roue.",
+    "caliper-rub": "Étrier mal aligné : le disque frotte sur une plaquette.",
+    "lever-spongy": "Levier spongieux ou qui touche le cintre : il y a de l’air ou une fuite dans le circuit.",
+    "hose-leak": "Fuite de liquide sur la durite, le levier ou l’étrier.",
+    "brake-cable-frayed": "Câble de frein effiloché, rouillé ou qui coulisse mal.",
+    "brake-not-centered": "Frein sur jante décentré : un patin frotte ou touche en premier.",
+    "rim-brake-track-worn": "Flanc de jante usé : le témoin d’usure a disparu ou la surface est creusée.",
+    "rim-contaminated": "Surface de freinage de la jante grasse ou encrassée.",
+    "lever-reach-wrong": "Levier trop loin des doigts ou mal orienté.",
+    "chain-elongation": "Chaîne allongée au-delà de la limite d’usure : elle use la cassette et les plateaux.",
+    "chain-dirty": "Chaîne encrassée, sèche ou rouillée.",
+    "chain-stiff-link": "Maillon raide qui fait sauter la chaîne.",
+    "cassette-worn": "Dents de la cassette usées en aileron de requin : la chaîne saute.",
+    "chainring-worn": "Dents du plateau usées ou tordues.",
+    "hanger-bent": "Patte de dérailleur tordue : le dérailleur n’est plus parallèle aux pignons.",
+    "shifting-imprecise": "Passages de vitesses imprécis, bruyants ou lents.",
+    "front-shifting-imprecise": "Passages imprécis à l’avant, ou chaîne qui déraille entre les plateaux.",
+    "shift-cable-frayed": "Câble de vitesses effiloché, rouillé ou gaine abîmée.",
+    "drivetrain-dirty": "Transmission encrassée : pignons, plateaux et galets pleins de cambouis.",
+    "hub-gear-slipping": "Le moyeu à vitesses patine ou saute des rapports.",
+    "belt-worn": "Courroie usée, fissurée ou détendue.",
+    "bottom-bracket-play": "Jeu ou craquement au boîtier de pédalier.",
+    "crank-loose": "Manivelle qui bouge sur l’axe.",
+    "tire-worn": "Pneu usé : témoins d’usure atteints, gomme carrée ou trame visible.",
+    "tire-damaged": "Pneu coupé, hernie ou flanc craquelé.",
+    "tube-punctured": "Chambre à air crevée ou qui se dégonfle en quelques jours.",
+    "valve-damaged": "Valve tordue, obus qui fuit ou bouchon manquant.",
+    "sealant-dry": "Préventif tubeless sec : il ne rebouche plus les petites crevaisons.",
+    "wheel-out-of-true": "Roue voilée ou saut de jante visible.",
+    "spoke-broken": "Rayon cassé ou détendu.",
+    "hub-play": "Jeu dans le moyeu : la roue bouge latéralement.",
+    "hub-bearing-rough": "Roulements de moyeu qui grattent ou bloquent.",
+    "axle-not-secure": "Blocage rapide ou axe traversant mal serré.",
+    "headset-play": "Jeu dans la direction : la fourche cogne au freinage.",
+    "headset-rough": "Direction dure ou crantée.",
+    "stem-loose": "Potence ou cintre qui bouge.",
+    "bar-tape-worn": "Guidoline déchirée ou décollée.",
+    "grips-worn": "Poignées usées, qui tournent sur le cintre.",
+    "frame-crack": "Fissure, bosse ou déformation sur le cadre ou la fourche.",
+    "bolt-loose": "Vis de fixation desserrée.",
+    "frame-dirty": "Cadre sale qui cache l’état des pièces.",
+    "saddle-damaged": "Selle déchirée, rails tordus ou selle qui bouge.",
+    "seatpost-slipping": "Tige de selle qui descend en roulant.",
+    "dropper-malfunction": "Tige télescopique qui ne remonte pas ou s’enfonce seule.",
+    "pedal-bearing-play": "Pédale qui a du jeu ou tourne mal.",
+    "pedal-damaged": "Pédale tordue, picots arrachés ou mécanisme d’accroche usé.",
+    "cleat-worn": "Cales usées : le pied déchausse ou bouge trop.",
+    "stanchion-damaged": "Plongeurs rayés ou marqués.",
+    "suspension-leak": "Fuite d’huile au joint de la fourche ou de l’amortisseur.",
+    "sag-out-of-range": "Affaissement hors de la plage conseillée.",
+    "suspension-service-due": "Suspension à réviser : bruits, à-coups ou perte de réglages.",
+    "suspension-play": "Jeu dans les bagues ou les articulations de la suspension.",
+    "battery-damaged": "Batterie choquée, gonflée, fissurée ou qui chauffe.",
+    "battery-connector-dirty": "Contacts de batterie sales ou oxydés.",
+    "battery-mount-loose": "Batterie mal verrouillée sur son support.",
+    "motor-noise": "Bruit, claquement ou assistance irrégulière au moteur.",
+    "e-system-error": "Code d’erreur à l’écran ou assistance qui se coupe.",
+    "light-not-working": "Éclairage qui ne s’allume pas ou clignote.",
+    "reflector-missing": "Catadioptre ou sonnette manquant.",
+    "accessory-loose": "Garde-boue, porte-bagages ou béquille qui bouge ou frotte."
+  }
+}

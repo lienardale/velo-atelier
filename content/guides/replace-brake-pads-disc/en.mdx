@@ -1,0 +1,109 @@
+---
+slug: replace-brake-pads-disc
+kind: replace
+title: Replace disc brake pads
+summary: Take the wheel out, remove the worn pads, push the pistons back, fit the new pads and bed them in. Half an hour and a few tools are enough.
+status: full
+order: 10
+difficulty: 2
+minutes: 30
+partIds:
+  - brake-pads-front
+  - brake-pads-rear
+  - brake-caliper-front
+  - brake-caliper-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pad-spreader
+    alternatives: [tire-levers]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - adjust-disc-caliper-alignment
+  - clean-disc-rotors-pads
+safety:
+  - Buy pads made for your exact caliper model, in the compound the manufacturer specifies (resin or sintered metal). A pad that "more or less fits" can come loose under braking.
+  - "Never squeeze the brake lever while the wheel and pads are out: the pistons pop out and are hard to reseat."
+steps:
+  - id: remove-wheel
+    title: Take the wheel out
+    illustration: axle-qr-vs-thru
+  - id: remove-pads
+    title: Remove the worn pads
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: push-pistons
+    title: Push the pistons back
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: fit-pads
+    title: Fit the new pads
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-disc
+  - id: refit-wheel
+    title: Refit the wheel and check
+  - id: bed-in
+    title: Bed in the pads
+    partIds: [brake-pads-front, brake-pads-rear]
+---
+
+<Step id="remove-wheel">
+
+Put the bike in a work stand, or turn it upside down onto the saddle and handlebar. Open the quick-release lever and unscrew it a few turns, or unscrew the thru-axle completely, then lift the wheel out, guiding it so the rotor leaves the caliper straight.
+
+Lay the wheel flat with the rotor facing up, well away from any oil or chain lube.
+
+</Step>
+
+<Step id="remove-pads">
+
+Look at the caliper from behind: the pads are held by a pin or a through-bolt, often secured by a small clip. Pull the clip out with the <Tool id="pliers" alt="adjustable-wrench" />, then unscrew the pin with the <Tool id="allen-keys" alt="multi-tool" />.
+
+Pull both pads and their spring out, upwards or downwards depending on the caliper. Note which way round the spring sat, and keep the pin: it is almost always reused.
+
+</Step>
+
+<Step id="push-pistons">
+
+The pistons have crept forward as the pads wore; they must go back into the caliper to make room for thick new pads. Slide the <Tool id="pad-spreader" alt="tire-levers" /> into the slot and lever gently, pushing both pistons back at once.
+
+Never use a screwdriver or anything metal against the pistons: a scratched piston leaks. If a piston will not go back, or pops straight out again, stop and have the caliper checked.
+
+</Step>
+
+<Step id="fit-pads">
+
+Clean the inside of the caliper and the rotor with a rag dampened with isopropyl alcohol, and never touch the lining of the new pads with your fingers. Assemble both pads with their spring, linings facing each other, exactly like the old ones.
+
+Slide the assembly into the caliper, refit the pin and its clip, and tighten without forcing. Compare old and new one last time: the difference in thickness shows what you have gained.
+
+</Step>
+
+<Step id="refit-wheel">
+
+Refit the wheel, guiding the rotor between the two pads, then close the quick release or tighten the thru-axle to the specified torque. Pump the lever ten times or so: the pistons come back into contact and the lever turns firm again.
+
+Spin the wheel. A light rub usually disappears after a few stops; a clear rub means the caliper needs recentring. Finally, check that the wheel locks when you squeeze the lever while pushing the bike.
+
+</Step>
+
+<Step id="bed-in">
+
+New pads only reach full power once bedded in. On a flat, traffic-free road, build up speed and brake firmly, without locking the wheel, down to walking pace. Repeat about twenty times.
+
+Avoid braking to a complete stop during bedding-in: the hot lining would print onto the rotor. After those twenty stops, the lever should be firm and the braking smooth and powerful.
+
+<Warning level="caution">
+
+Until the pads are bedded in, braking is noticeably weaker. Do not ride down a mountain pass on new pads that have not been bedded in.
+
+</Warning>
+
+</Step>

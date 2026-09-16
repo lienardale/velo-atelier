@@ -1,0 +1,942 @@
+{
+  "frame": {
+    "label": "Frame",
+    "description": "The bike's structure: tubes, rear dropouts, bottom bracket shell and head tube."
+  },
+  "fork": {
+    "label": "Fork",
+    "description": "Holds the front wheel and turns with the handlebar; rigid or suspended."
+  },
+  "headset": {
+    "label": "Headset",
+    "description": "The bearings that let the fork turn inside the frame's head tube."
+  },
+  "wheel-front": {
+    "label": "Front wheel",
+    "description": "Hub, spokes and rim of the front wheel."
+  },
+  "wheel-rear": {
+    "label": "Rear wheel",
+    "description": "Hub, spokes and rim of the rear wheel, including the freehub body."
+  },
+  "tire-front": {
+    "label": "Front tyre",
+    "description": "The tyre fitted to the front rim."
+  },
+  "tire-rear": {
+    "label": "Rear tyre",
+    "description": "The tyre fitted to the rear rim; it wears faster than the front one."
+  },
+  "tube-front": {
+    "label": "Front inner tube",
+    "description": "The tube that holds the air inside the front tyre."
+  },
+  "tube-rear": {
+    "label": "Rear inner tube",
+    "description": "The tube that holds the air inside the rear tyre."
+  },
+  "sealant": {
+    "label": "Tubeless sealant",
+    "description": "The liquid that seals a tubeless setup and plugs small punctures."
+  },
+  "bottom-bracket": {
+    "label": "Bottom bracket",
+    "description": "The bearings the crank spindle turns in."
+  },
+  "crankset": {
+    "label": "Crankset",
+    "description": "The crank arms, their spindle and the chainrings."
+  },
+  "chainring": {
+    "label": "Chainring",
+    "description": "The toothed ring on the crankset that drives the chain."
+  },
+  "chain": {
+    "label": "Chain",
+    "description": "Carries your effort from the chainring to the sprockets; it stretches as it wears."
+  },
+  "belt": {
+    "label": "Belt",
+    "description": "Toothed belt that replaces the chain on some hub-geared bikes."
+  },
+  "cassette": {
+    "label": "Cassette",
+    "description": "The stack of rear sprockets that slides onto the freehub body."
+  },
+  "freewheel": {
+    "label": "Freewheel",
+    "description": "Sprocket block threaded onto the hub, on 5- to 7-speed drivetrains."
+  },
+  "rear-derailleur": {
+    "label": "Rear derailleur",
+    "description": "Moves the chain from one sprocket to the next."
+  },
+  "front-derailleur": {
+    "label": "Front derailleur",
+    "description": "Moves the chain between the chainrings."
+  },
+  "shifter-right": {
+    "label": "Right shifter",
+    "description": "Controls the rear gears (derailleur or hub)."
+  },
+  "shifter-left": {
+    "label": "Left shifter",
+    "description": "Controls the front derailleur."
+  },
+  "internal-gear-hub": {
+    "label": "Internal gear hub",
+    "description": "Rear hub that holds every gear inside, out of the dirt."
+  },
+  "shift-cables": {
+    "label": "Shift cables",
+    "description": "Cables and housing between the shifters and the derailleurs or hub."
+  },
+  "brake-lever-front": {
+    "label": "Front brake lever",
+    "description": "The left lever: it operates the front brake."
+  },
+  "brake-lever-rear": {
+    "label": "Rear brake lever",
+    "description": "The right lever: it operates the rear brake."
+  },
+  "brake-caliper-front": {
+    "label": "Front brake caliper",
+    "description": "The disc caliper, or the rim-brake arms, at the front."
+  },
+  "brake-caliper-rear": {
+    "label": "Rear brake caliper",
+    "description": "The disc caliper, or the rim-brake arms, at the rear."
+  },
+  "rotor-front": {
+    "label": "Front rotor",
+    "description": "The brake rotor bolted to the front hub."
+  },
+  "rotor-rear": {
+    "label": "Rear rotor",
+    "description": "The brake rotor bolted to the rear hub."
+  },
+  "brake-pads-front": {
+    "label": "Front pads",
+    "description": "Pads on a disc brake, brake shoes on a rim brake."
+  },
+  "brake-pads-rear": {
+    "label": "Rear pads",
+    "description": "Pads on a disc brake, brake shoes on a rim brake."
+  },
+  "brake-line-front": {
+    "label": "Front brake cable or hose",
+    "description": "Links lever and caliper: a cable if mechanical, a hose if hydraulic."
+  },
+  "brake-line-rear": {
+    "label": "Rear brake cable or hose",
+    "description": "Links lever and caliper: a cable if mechanical, a hose if hydraulic."
+  },
+  "handlebar": {
+    "label": "Handlebar",
+    "description": "The bar you steer with: drop, flat, riser or swept."
+  },
+  "stem": {
+    "label": "Stem",
+    "description": "Connects the handlebar to the fork steerer."
+  },
+  "grips-or-tape": {
+    "label": "Bar tape or grips",
+    "description": "Bar tape on a drop bar, grips on every other bar."
+  },
+  "saddle": {
+    "label": "Saddle",
+    "description": "The saddle and its rails."
+  },
+  "seatpost": {
+    "label": "Seatpost",
+    "description": "Holds the saddle in the seat tube; rigid or dropper."
+  },
+  "seat-clamp": {
+    "label": "Seat clamp",
+    "description": "Clamps the seatpost at the top of the seat tube."
+  },
+  "pedal-left": {
+    "label": "Left pedal",
+    "description": "Left-hand thread: it unscrews clockwise."
+  },
+  "pedal-right": {
+    "label": "Right pedal",
+    "description": "Normal thread, on the drive side."
+  },
+  "rear-shock": {
+    "label": "Rear shock",
+    "description": "The shock between the main frame and the rear triangle."
+  },
+  "e-motor": {
+    "label": "Motor",
+    "description": "The assist motor, at the cranks or in the rear hub."
+  },
+  "e-battery": {
+    "label": "Battery",
+    "description": "The battery that powers the motor."
+  },
+  "mudguards": {
+    "label": "Mudguards",
+    "description": "Keep water and mud thrown by the wheels off you."
+  },
+  "rack": {
+    "label": "Rack",
+    "description": "Rear carrier for panniers and baskets."
+  },
+  "kickstand": {
+    "label": "Kickstand",
+    "description": "Keeps the bike upright when parked."
+  },
+  "lights": {
+    "label": "Lights",
+    "description": "Front light and rear light."
+  },
+  "attr": {
+    "material": {
+      "label": "Material",
+      "help": "What the frame is made of, often printed on a sticker or the seat tube."
+    },
+    "rear-axle": {
+      "label": "Rear axle",
+      "help": "The axle standard the rear dropouts take: width and clamping type."
+    },
+    "bb-shell": {
+      "label": "Bottom bracket shell",
+      "help": "The standard of the frame's bottom bracket shell, threaded or press-fit."
+    },
+    "head-tube": {
+      "label": "Head tube",
+      "help": "The head tube standard: threaded 1\", straight 1-1/8\" or tapered."
+    },
+    "seatpost-diameter": {
+      "label": "Seatpost diameter",
+      "help": "Engraved on the seatpost (27.2, 30.9, 31.6 mm…) or measured with calipers."
+    },
+    "seat-clamp-diameter": {
+      "label": "Seat clamp diameter",
+      "help": "The outside diameter of the seat tube, where the clamp tightens."
+    },
+    "brake-mount": {
+      "label": "Brake mount",
+      "help": "How the caliper attaches: flat mount, post mount or IS (with an adapter)."
+    },
+    "max-rotor": {
+      "label": "Largest rotor",
+      "help": "The largest rotor diameter the manufacturer allows."
+    },
+    "max-tire-width": {
+      "label": "Widest tyre",
+      "help": "The widest tyre that fits with at least 4 mm of clearance."
+    },
+    "hanger-standard": {
+      "label": "Derailleur hanger standard",
+      "help": "UDH is the universal hanger; any other hanger is specific to its frame."
+    },
+    "belt-splitter": {
+      "label": "Belt splitter",
+      "help": "A belt cannot be opened, so the rear triangle must open to fit it."
+    },
+    "axle": {
+      "label": "Axle",
+      "help": "The wheel's axle type: quick release, thru-axle or nuts."
+    },
+    "steerer": {
+      "label": "Steerer",
+      "help": "The fork tube that goes up through the head tube: threaded, straight or tapered."
+    },
+    "travel-mm": {
+      "label": "Travel",
+      "help": "How far the suspension moves, in millimetres."
+    },
+    "spring": {
+      "label": "Spring",
+      "help": "Steel coil spring, or an air spring set with a shock pump."
+    },
+    "stanchion-mm": {
+      "label": "Stanchion diameter",
+      "help": "The diameter of the fork's shiny upper tubes."
+    },
+    "lockout": {
+      "label": "Lockout",
+      "help": "A lever or dial that makes the suspension nearly rigid."
+    },
+    "etrto-diameter": {
+      "label": "ETRTO diameter",
+      "help": "The three-digit number after the dash on the tyre sidewall (622, 584…)."
+    },
+    "rim-width": {
+      "label": "Inner rim width",
+      "help": "Printed on the rim sticker (e.g. 622x19) or measured between the hooks."
+    },
+    "rotor-interface": {
+      "label": "Hub rotor interface",
+      "help": "Six bolts or Centerlock (splines and a lockring) on the hub."
+    },
+    "tubeless-ready": {
+      "label": "Tubeless ready",
+      "help": "Marked \"tubeless ready\" or \"TLR\" on the rim or tyre."
+    },
+    "freehub": {
+      "label": "Freehub body",
+      "help": "The part of the hub the sprockets sit on: it decides which cassette fits."
+    },
+    "etrto-width": {
+      "label": "Tyre width",
+      "help": "The number before the dash on the sidewall (28-622 = 28 mm)."
+    },
+    "tread": {
+      "label": "Tread",
+      "help": "Smooth for the road, knobs for the trail."
+    },
+    "valve": {
+      "label": "Valve",
+      "help": "Presta (thin, with a lock nut), Schrader (car type) or Dunlop."
+    },
+    "valve-length": {
+      "label": "Valve length",
+      "help": "The deeper the rim, the longer the valve has to be."
+    },
+    "sealant-kind": {
+      "label": "Sealant type",
+      "help": "Latex based (seals better) or synthetic (dries out more slowly)."
+    },
+    "spindle": {
+      "label": "Spindle",
+      "help": "The spindle type joining the crank arms to the bottom bracket or motor."
+    },
+    "pedal-thread": {
+      "label": "Pedal thread",
+      "help": "9/16\" on nearly every bike, 1/2\" on one-piece cranks."
+    },
+    "chainrings": {
+      "label": "Chainrings",
+      "help": "Count the toothed rings next to the right crank arm."
+    },
+    "crank-length": {
+      "label": "Crank length",
+      "help": "Engraved on the inside of the crank arm (170, 172.5, 175 mm…)."
+    },
+    "teeth": {
+      "label": "Teeth",
+      "help": "Often engraved on the chainring; otherwise count the teeth."
+    },
+    "speeds": {
+      "label": "Speeds",
+      "help": "The number of rear sprockets, or of hub gears."
+    },
+    "e-rated": {
+      "label": "E-bike rated chain",
+      "help": "A reinforced chain built for a motor's torque."
+    },
+    "belt-line": {
+      "label": "Belt line",
+      "help": "CDX for sport, CDN for city riding; the two are not interchangeable."
+    },
+    "belt-teeth": {
+      "label": "Belt teeth",
+      "help": "Printed on the belt; it sets its length."
+    },
+    "range": {
+      "label": "Range",
+      "help": "Smallest and largest sprocket (e.g. 11-34)."
+    },
+    "largest-cog": {
+      "label": "Largest sprocket",
+      "help": "The tooth count of the cassette's biggest sprocket."
+    },
+    "brand": {
+      "label": "Brand",
+      "help": "The drivetrain brand, printed on the shifter or derailleur."
+    },
+    "actuation": {
+      "label": "Actuation",
+      "help": "By cable (mechanical), by fluid (hydraulic) or electronic."
+    },
+    "max-cog": {
+      "label": "Largest sprocket supported",
+      "help": "The largest sprocket the derailleur can reach, per the manufacturer."
+    },
+    "clutch": {
+      "label": "Clutch",
+      "help": "A switch or lever that tensions the chain and stops it slapping."
+    },
+    "hanger-model": {
+      "label": "Hanger model",
+      "help": "The hanger's part number, engraved on it or given by the frame brand."
+    },
+    "fd-mount": {
+      "label": "Front derailleur mount",
+      "help": "Welded tab (braze-on), a clamp around the tube, or direct mount."
+    },
+    "shifter-type": {
+      "label": "Shifter type",
+      "help": "Integrated brake lever, triggers, twist grip, thumb, bar-end or electronic."
+    },
+    "positions": {
+      "label": "Positions",
+      "help": "How many chainrings the left shifter can select."
+    },
+    "hub-brand": {
+      "label": "Hub brand",
+      "help": "Printed on the hub shell."
+    },
+    "routing": {
+      "label": "Cable routing",
+      "help": "Outside the frame or inside the tubes."
+    },
+    "pull": {
+      "label": "Cable pull",
+      "help": "How much cable the lever pulls: road (short), V-brake (long) or hydraulic."
+    },
+    "integrated": {
+      "label": "Integrated lever",
+      "help": "The brake lever also shifts gears."
+    },
+    "brake-type": {
+      "label": "Brake type",
+      "help": "Rim caliper, V-brake, cantilever, mechanical or hydraulic disc."
+    },
+    "mount": {
+      "label": "Caliper mount",
+      "help": "The caliper body: flat mount (bolts from below) or post mount (two vertical bolts)."
+    },
+    "adapter": {
+      "label": "Adapter",
+      "help": "The bracket between caliper and frame that allows a bigger rotor."
+    },
+    "rotor-size": {
+      "label": "Caliper rotor size",
+      "help": "The rotor diameter the caliper is positioned for."
+    },
+    "pad-type": {
+      "label": "Pad compound",
+      "help": "Resin (quiet), sintered metal (long-lasting), or rim-brake shoes."
+    },
+    "piston-count": {
+      "label": "Pistons",
+      "help": "Two pistons on most brakes, four for more power."
+    },
+    "fluid": {
+      "label": "Brake fluid",
+      "help": "Mineral oil (Shimano…) or DOT (SRAM…): never mix the two."
+    },
+    "diameter": {
+      "label": "Diameter",
+      "help": "Engraved on the rotor (140, 160, 180, 203 mm)."
+    },
+    "interface": {
+      "label": "Mounting",
+      "help": "Six bolts or Centerlock: must match the hub."
+    },
+    "pad-model": {
+      "label": "Pad model",
+      "help": "The manufacturer's reference, on the box or the back of the pad."
+    },
+    "pad-thickness": {
+      "label": "Pad thickness",
+      "help": "Replace below 1 mm of pad material on a disc brake."
+    },
+    "kind": {
+      "label": "Line type",
+      "help": "Cable in housing (mechanical) or fluid-filled hose (hydraulic)."
+    },
+    "bar-shape": {
+      "label": "Bar shape",
+      "help": "Drop, flat, riser or swept back towards you."
+    },
+    "bar-clamp": {
+      "label": "Bar clamp diameter",
+      "help": "The bar's diameter at its centre (25.4, 31.8 or 35 mm)."
+    },
+    "bar-width": {
+      "label": "Bar width",
+      "help": "End to end, or centre to centre on a drop bar."
+    },
+    "steerer-clamp": {
+      "label": "Steerer clamp",
+      "help": "Quill stem (older or kids' bikes) or a 1-1/8\" stem."
+    },
+    "stem-length": {
+      "label": "Stem length",
+      "help": "Measured from the steerer's centre to the bar's centre."
+    },
+    "cover": {
+      "label": "Cover",
+      "help": "Wrapped tape on a drop bar, grips on the others."
+    },
+    "saddle-width": {
+      "label": "Saddle width",
+      "help": "Chosen from the distance between your sit bones."
+    },
+    "rail": {
+      "label": "Rails",
+      "help": "Round 7 mm on most saddles, oval 7x9 mm on carbon ones."
+    },
+    "dropper": {
+      "label": "Dropper",
+      "help": "A bar remote lowers the saddle while riding."
+    },
+    "quick-release": {
+      "label": "Quick release",
+      "help": "A lever rather than a bolt to set the saddle height."
+    },
+    "pedal-type": {
+      "label": "Pedal type",
+      "help": "Flat, SPD, road clipless, toe clips or combo."
+    },
+    "cleat": {
+      "label": "Cleat",
+      "help": "The cleat bolted under the shoe, which must match the pedal."
+    },
+    "shock-mount": {
+      "label": "Shock mount",
+      "help": "Standard eyelet, or trunnion (mounted by the body)."
+    },
+    "eye-to-eye": {
+      "label": "Eye-to-eye",
+      "help": "The distance between the centres of the shock's two mounts."
+    },
+    "stroke": {
+      "label": "Stroke",
+      "help": "How far the shock itself can compress."
+    },
+    "motor-brand": {
+      "label": "Motor brand",
+      "help": "Printed on the motor casing or shown on the display."
+    },
+    "crank-interface": {
+      "label": "Crank interface",
+      "help": "The motor spindle's splines: specific to each brand."
+    },
+    "torque": {
+      "label": "Torque",
+      "help": "The motor's maximum torque, in newton-metres."
+    },
+    "battery-position": {
+      "label": "Battery position",
+      "help": "Inside the down tube, bolted on it, or on the rack."
+    },
+    "capacity": {
+      "label": "Capacity",
+      "help": "Printed on the battery label, in watt-hours."
+    },
+    "voltage": {
+      "label": "Voltage",
+      "help": "Printed on the battery label (usually 36 V)."
+    },
+    "mudguard-width": {
+      "label": "Mudguard width",
+      "help": "At least 10 mm wider than the tyre."
+    },
+    "rack-mount": {
+      "label": "Rack mount",
+      "help": "On the frame eyelets, or clamped to the seatpost."
+    },
+    "kickstand-mount": {
+      "label": "Kickstand mount",
+      "help": "Chainstay plate, centre mount or rear axle."
+    },
+    "light-power": {
+      "label": "Power source",
+      "help": "Batteries, a hub dynamo, or the e-bike's battery."
+    }
+  },
+  "values": {
+    "material": {
+      "aluminium": "Aluminium",
+      "steel": "Steel",
+      "carbon": "Carbon",
+      "titanium": "Titanium"
+    },
+    "rear-axle": {
+      "qr-10x130": "Quick release 10x130 (road)",
+      "qr-10x135": "Quick release 10x135",
+      "ta-12x142": "Thru-axle 12x142",
+      "ta-12x148-boost": "Thru-axle 12x148 Boost",
+      "nutted": "Nutted axle"
+    },
+    "axle": {
+      "qr-9x100": "Quick release 9x100",
+      "ta-12x100": "Thru-axle 12x100",
+      "ta-15x100": "Thru-axle 15x100",
+      "ta-15x110-boost": "Thru-axle 15x110 Boost",
+      "qr-10x130": "Quick release 10x130 (road)",
+      "qr-10x135": "Quick release 10x135",
+      "ta-12x142": "Thru-axle 12x142",
+      "ta-12x148-boost": "Thru-axle 12x148 Boost",
+      "nutted": "Nutted axle"
+    },
+    "bb-shell": {
+      "bsa-68": "BSA threaded 68 mm",
+      "bsa-73": "BSA threaded 73 mm",
+      "bb86": "BB86 (press-fit)",
+      "bb30": "BB30 (press-fit)",
+      "pf30": "PF30 (press-fit)",
+      "t47": "T47 (threaded)"
+    },
+    "head-tube": {
+      "threaded-1": "Threaded 1\"",
+      "straight-1-1-8": "Straight 1-1/8\"",
+      "tapered-1-1-8-1-5": "Tapered 1-1/8\" to 1.5\""
+    },
+    "steerer": {
+      "threaded-1": "Threaded 1\"",
+      "straight-1-1-8": "Straight 1-1/8\"",
+      "tapered-1-1-8-1-5": "Tapered 1-1/8\" to 1.5\""
+    },
+    "brake-mount": {
+      "flat-mount": "Flat mount",
+      "post-mount": "Post mount",
+      "is-mount": "IS (International Standard)"
+    },
+    "mount": {
+      "flat-mount": "Flat mount",
+      "post-mount": "Post mount"
+    },
+    "hanger-standard": {
+      "udh": "UDH (universal hanger)",
+      "classic": "Frame-specific hanger"
+    },
+    "spring": {
+      "coil": "Coil",
+      "air": "Air spring"
+    },
+    "etrto-diameter": {
+      "622": "622 mm (700c / 29\")",
+      "584": "584 mm (650b / 27.5\")",
+      "559": "559 mm (26\")",
+      "507": "507 mm (24\")",
+      "406": "406 mm (20\")",
+      "305": "305 mm (16\")"
+    },
+    "rim-width": {
+      "17": "17 mm",
+      "19": "19 mm",
+      "21": "21 mm",
+      "23": "23 mm",
+      "25": "25 mm",
+      "30": "30 mm"
+    },
+    "rotor-interface": {
+      "6-bolt": "Six-bolt",
+      "centerlock": "Centerlock"
+    },
+    "interface": {
+      "6-bolt": "Six-bolt",
+      "centerlock": "Centerlock"
+    },
+    "freehub": {
+      "hg": "Shimano HG",
+      "hg-l": "Shimano HG-L (12-speed road)",
+      "xd": "SRAM XD",
+      "xdr": "SRAM XDR",
+      "micro-spline": "Shimano Micro Spline",
+      "freewheel-thread": "Freewheel thread",
+      "igh": "Internal gear hub"
+    },
+    "tread": {
+      "slick": "Slick",
+      "knobby": "Knobby",
+      "semi-slick": "Semi-slick"
+    },
+    "valve": {
+      "presta": "Presta",
+      "schrader": "Schrader",
+      "dunlop": "Dunlop"
+    },
+    "sealant-kind": {
+      "latex": "Latex",
+      "synthetic": "Synthetic"
+    },
+    "spindle": {
+      "square-taper": "Square taper",
+      "isis": "ISIS",
+      "octalink": "Shimano Octalink",
+      "hollowtech-24": "Shimano Hollowtech II 24 mm",
+      "dub-28-99": "SRAM DUB 28.99 mm",
+      "bb30-30": "BB30 30 mm",
+      "bosch-spline": "Bosch spline",
+      "shimano-steps-spline": "Shimano STEPS spline",
+      "bafang-spline": "Bafang spline"
+    },
+    "crank-interface": {
+      "square-taper": "Square taper",
+      "isis": "ISIS",
+      "octalink": "Shimano Octalink",
+      "hollowtech-24": "Shimano Hollowtech II 24 mm",
+      "dub-28-99": "SRAM DUB 28.99 mm",
+      "bb30-30": "BB30 30 mm",
+      "bosch-spline": "Bosch spline",
+      "shimano-steps-spline": "Shimano STEPS spline",
+      "bafang-spline": "Bafang spline"
+    },
+    "pedal-thread": {
+      "9-16": "9/16\"",
+      "1-2": "1/2\" (one-piece crank)"
+    },
+    "chainrings": {
+      "1": "1 chainring",
+      "2": "2 chainrings",
+      "3": "3 chainrings"
+    },
+    "speeds": {
+      "single": "Single speed",
+      "6-7-8": "6-7-8 speed",
+      "3": "3 speed",
+      "5": "5 speed",
+      "6": "6 speed",
+      "7": "7 speed",
+      "8": "8 speed",
+      "9": "9 speed",
+      "10": "10 speed",
+      "11": "11 speed",
+      "12": "12 speed",
+      "13": "13 speed",
+      "14": "14 speed"
+    },
+    "belt-line": {
+      "gates-cdx": "Gates CDX",
+      "gates-cdn": "Gates CDN"
+    },
+    "range": {
+      "11-25": "11–25 teeth",
+      "11-28": "11–28 teeth",
+      "11-30": "11–30 teeth",
+      "11-32": "11–32 teeth",
+      "11-34": "11–34 teeth",
+      "11-36": "11–36 teeth",
+      "11-42": "11–42 teeth",
+      "10-42": "10–42 teeth",
+      "10-45": "10–45 teeth",
+      "10-51": "10–51 teeth",
+      "10-52": "10–52 teeth"
+    },
+    "brand": {
+      "shimano": "Shimano",
+      "sram": "SRAM",
+      "campagnolo": "Campagnolo",
+      "microshift": "microSHIFT"
+    },
+    "actuation": {
+      "mechanical": "Mechanical",
+      "electronic": "Electronic",
+      "hydraulic": "Hydraulic"
+    },
+    "fd-mount": {
+      "braze-on": "Braze-on (welded tab)",
+      "clamp-28-6": "28.6 mm clamp",
+      "clamp-31-8": "31.8 mm clamp",
+      "clamp-34-9": "34.9 mm clamp",
+      "direct-mount": "Direct mount"
+    },
+    "shifter-type": {
+      "sti-integrated": "Integrated brake lever",
+      "trigger": "Trigger",
+      "grip": "Twist grip",
+      "thumb": "Thumb shifter",
+      "bar-end": "Bar-end",
+      "electronic": "Electronic"
+    },
+    "positions": {
+      "2": "2 positions",
+      "3": "3 positions"
+    },
+    "hub-brand": {
+      "shimano": "Shimano",
+      "sturmey-archer": "Sturmey-Archer",
+      "rohloff": "Rohloff",
+      "enviolo": "Enviolo"
+    },
+    "routing": {
+      "external": "External",
+      "internal": "Internal"
+    },
+    "pull": {
+      "short-road": "Short (road, cantilever)",
+      "long-v-brake": "Long (V-brake)",
+      "hydraulic": "Hydraulic"
+    },
+    "brake-type": {
+      "rim-caliper": "Rim caliper",
+      "v-brake": "V-brake",
+      "cantilever": "Cantilever",
+      "disc-mechanical": "Mechanical disc",
+      "disc-hydraulic": "Hydraulic disc"
+    },
+    "adapter": {
+      "none": "None",
+      "+20": "+20 mm",
+      "+40": "+40 mm",
+      "is-to-post": "IS to post mount (160 mm)",
+      "is-to-post-180": "IS to post mount 180 mm",
+      "is-to-post-203": "IS to post mount 203 mm",
+      "is-to-flat": "IS to flat mount"
+    },
+    "rotor-size": {
+      "140": "140 mm",
+      "160": "160 mm",
+      "180": "180 mm",
+      "203": "203 mm"
+    },
+    "diameter": {
+      "140": "140 mm",
+      "160": "160 mm",
+      "180": "180 mm",
+      "203": "203 mm"
+    },
+    "pad-type": {
+      "resin": "Resin",
+      "sintered": "Sintered",
+      "rim-cartridge": "Cartridge shoes",
+      "rim-molded": "Moulded shoes"
+    },
+    "fluid": {
+      "mineral": "Mineral oil",
+      "dot": "DOT"
+    },
+    "kind": {
+      "cable": "Cable",
+      "hose": "Hose"
+    },
+    "bar-shape": {
+      "drop": "Drop bar",
+      "flat": "Flat bar",
+      "riser": "Riser bar",
+      "swept": "Swept-back bar"
+    },
+    "steerer-clamp": {
+      "quill-22-2": "22.2 mm quill",
+      "1-1-8": "1-1/8\""
+    },
+    "cover": {
+      "bar-tape": "Bar tape",
+      "grips": "Grips"
+    },
+    "rail": {
+      "round-7mm": "Round 7 mm",
+      "oval-7x9": "Oval 7x9 mm"
+    },
+    "pedal-type": {
+      "flat": "Flat",
+      "spd": "SPD",
+      "road-clipless": "Road clipless",
+      "toe-clips": "Toe clips",
+      "combo": "Combo"
+    },
+    "cleat": {
+      "none": "No cleat",
+      "spd": "SPD cleat",
+      "spd-sl": "SPD-SL cleat",
+      "look-keo": "Look Keo cleat"
+    },
+    "shock-mount": {
+      "standard-eye": "Standard eyelet",
+      "trunnion": "Trunnion"
+    },
+    "motor-brand": {
+      "bosch": "Bosch",
+      "shimano": "Shimano",
+      "yamaha": "Yamaha",
+      "brose": "Brose",
+      "bafang": "Bafang"
+    },
+    "battery-position": {
+      "integrated": "Integrated",
+      "external-downtube": "On the down tube",
+      "rack": "On the rack"
+    },
+    "rack-mount": {
+      "frame-eyelets": "Frame eyelets",
+      "seatpost-clamp": "Seatpost clamp"
+    },
+    "kickstand-mount": {
+      "chainstay-plate": "Chainstay plate",
+      "center": "Centre mount",
+      "rear-axle": "Rear axle"
+    },
+    "light-power": {
+      "battery": "Battery",
+      "dynamo": "Dynamo",
+      "e-bike": "E-bike battery"
+    }
+  },
+  "boolean": {
+    "true": "Yes",
+    "false": "No"
+  },
+  "systems": {
+    "frame": "Frame and fork",
+    "wheels": "Wheels",
+    "tires": "Tyres",
+    "drivetrain": "Drivetrain",
+    "brakes": "Brakes",
+    "cockpit": "Cockpit",
+    "saddle": "Saddle",
+    "pedals": "Pedals",
+    "suspension": "Suspension",
+    "e-system": "Electric assist",
+    "accessories": "Accessories"
+  },
+  "position": {
+    "front": "Front",
+    "rear": "Rear",
+    "left": "Left",
+    "right": "Right",
+    "none": "Centre"
+  },
+  "units": {
+    "mm": "{value} mm",
+    "in": "{value} in",
+    "g": "{value} g",
+    "Wh": "{value} Wh",
+    "V": "{value} V",
+    "Nm": "{value} N·m",
+    "count": "{value}",
+    "speeds": "{value} speed"
+  },
+  "retailers": {
+    "rosebikes": "Rose Bikes",
+    "alltricks": "Alltricks",
+    "decathlon": "Decathlon"
+  },
+  "measures": {
+    "saddle-height": {
+      "label": "Saddle height",
+      "help": "From the centre of the bottom bracket to the top of the saddle, along the seat tube."
+    },
+    "saddle-setback": {
+      "label": "Saddle setback",
+      "help": "The horizontal distance between the saddle nose and the bottom bracket."
+    },
+    "reach": {
+      "label": "Reach",
+      "help": "The horizontal distance from the saddle to where your hands rest on the bar."
+    },
+    "bar-drop": {
+      "label": "Saddle-to-bar drop",
+      "help": "The height of the saddle top minus the height of the handlebar."
+    },
+    "cleat-position": {
+      "label": "Cleat position",
+      "help": "Where to set the cleat so the ball of the foot sits over the pedal axle."
+    },
+    "tire-pressure": {
+      "label": "Tyre pressure",
+      "help": "The pressure for your weight, the tyre width and a tubeless or tubed setup."
+    },
+    "sag": {
+      "label": "Sag",
+      "help": "How far the suspension sinks with you on the bike, as a share of its travel."
+    },
+    "chain-wear": {
+      "label": "Chain wear",
+      "help": "How much the chain has stretched, measured with a checker or a ruler over 12 links."
+    }
+  },
+  "constraints": {
+    "oneOf": "{attribute}: {values}",
+    "atMost": "{attribute}: {value} at most",
+    "atLeast": "{attribute}: {value} at least",
+    "between": "{attribute}: between {min} and {max}"
+  }
+}

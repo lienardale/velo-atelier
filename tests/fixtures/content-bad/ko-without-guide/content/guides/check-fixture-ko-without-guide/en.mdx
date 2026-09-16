@@ -1,0 +1,29 @@
+---
+slug: check-fixture-ko-without-guide
+kind: check
+title: Test guide
+summary: A deliberately invalid document.
+status: full
+order: 1
+difficulty: 1
+minutes: 5
+partIds: [chain]
+tools: []
+related: []
+steps:
+  - id: inspect
+    title: Look
+    checkQuestion:
+      prompt: Is the chain in good shape?
+      skippable: false
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+---
+
+<Step id="inspect">
+
+Whenever you work on the chain, always start by looking closely at every link, every roller and every side plate. Look for rust, stiff links and dirt, and write down what you see before you move on to the next part of this guide.
+
+</Step>

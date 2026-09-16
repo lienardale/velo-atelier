@@ -1,0 +1,109 @@
+---
+slug: replace-brake-pads-disc
+kind: replace
+title: Remplacer les plaquettes de frein à disque
+summary: Déposer la roue, sortir les plaquettes usées, repousser les pistons, monter les neuves et les roder. Une demi-heure et quelques outils suffisent.
+status: full
+order: 10
+difficulty: 2
+minutes: 30
+partIds:
+  - brake-pads-front
+  - brake-pads-rear
+  - brake-caliper-front
+  - brake-caliper-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pad-spreader
+    alternatives: [tire-levers]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - adjust-disc-caliper-alignment
+  - clean-disc-rotors-pads
+safety:
+  - Achetez des plaquettes au modèle exact de votre étrier et du type prévu par le fabricant (résine ou métal fritté). Une plaquette qui « rentre à peu près » peut se déloger en freinant.
+  - "Ne serrez jamais le levier de frein quand la roue et les plaquettes sont démontées : les pistons sortent et se remettent mal en place."
+steps:
+  - id: remove-wheel
+    title: Déposer la roue
+    illustration: axle-qr-vs-thru
+  - id: remove-pads
+    title: Sortir les plaquettes usées
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: push-pistons
+    title: Repousser les pistons
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: fit-pads
+    title: Monter les plaquettes neuves
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-disc
+  - id: refit-wheel
+    title: Remonter la roue et contrôler
+  - id: bed-in
+    title: Roder les plaquettes
+    partIds: [brake-pads-front, brake-pads-rear]
+---
+
+<Step id="remove-wheel">
+
+Mettez le vélo sur un pied d’atelier ou retournez-le, posé sur la selle et le cintre. Ouvrez le levier du blocage rapide et dévissez-le de quelques tours, ou dévissez complètement l’axe traversant, puis sortez la roue en la guidant pour que le disque quitte l’étrier bien droit.
+
+Posez la roue à plat, disque vers le haut, loin de toute trace d’huile ou de lubrifiant chaîne.
+
+</Step>
+
+<Step id="remove-pads">
+
+Regardez l’étrier par l’arrière : les plaquettes sont tenues par une goupille ou une vis traversante, souvent bloquée par un petit clip. Retirez le clip avec la <Tool id="pliers" alt="adjustable-wrench" />, puis dévissez la goupille avec les <Tool id="allen-keys" alt="multi-tool" />.
+
+Tirez les deux plaquettes et leur ressort vers le haut, ou vers le bas selon l’étrier. Notez dans quel sens le ressort était monté, et gardez la goupille : elle se remonte presque toujours.
+
+</Step>
+
+<Step id="push-pistons">
+
+Les pistons ont avancé au fil de l’usure ; il faut les ramener au fond de l’étrier pour faire place à des plaquettes épaisses. Glissez l’<Tool id="pad-spreader" alt="tire-levers" /> dans la fente et écartez doucement, en poussant les deux pistons à la fois.
+
+N’utilisez jamais un tournevis ni rien de métallique contre les pistons : une rayure sur un piston crée une fuite. Si un piston refuse de rentrer ou ressort aussitôt, arrêtez-vous et faites vérifier l’étrier.
+
+</Step>
+
+<Step id="fit-pads">
+
+Nettoyez l’intérieur de l’étrier et le disque avec un chiffon imbibé d’alcool isopropylique, sans jamais toucher la garniture des plaquettes neuves avec les doigts. Assemblez les deux plaquettes avec leur ressort, garnitures face à face, comme les anciennes.
+
+Glissez l’ensemble dans l’étrier, remettez la goupille et son clip, puis serrez sans forcer. Comparez une dernière fois ancienne et neuve : la différence d’épaisseur montre ce que vous avez gagné.
+
+</Step>
+
+<Step id="refit-wheel">
+
+Remettez la roue en guidant le disque entre les deux plaquettes, puis refermez le blocage rapide ou revissez l’axe traversant au couple indiqué. Actionnez le levier une dizaine de fois : les pistons reviennent au contact et le levier redevient ferme.
+
+Faites tourner la roue. Un léger frottement disparaît en général après quelques freinages ; un frottement franc demande de recentrer l’étrier. Vérifiez enfin que la roue bloque bien quand vous serrez le levier en poussant le vélo.
+
+</Step>
+
+<Step id="bed-in">
+
+Des plaquettes neuves n’atteignent leur puissance qu’après rodage. Sur une route plate et sans circulation, prenez de la vitesse puis freinez franchement, sans bloquer la roue, jusqu’à rouler au pas. Recommencez vingt fois environ.
+
+Évitez de freiner jusqu’à l’arrêt complet pendant le rodage : la garniture chaude se marquerait sur le disque. Après ces vingt freinages, le levier doit être ferme et le freinage progressif et puissant.
+
+<Warning level="caution">
+
+Tant que le rodage n’est pas fait, le freinage est nettement plus faible. Ne descendez pas un col avec des plaquettes neuves non rodées.
+
+</Warning>
+
+</Step>

@@ -1,0 +1,187 @@
+---
+slug: check-brakes-disc
+kind: check
+title: Contrôler des freins à disque
+summary: Plaquettes, disques, sensation au levier, alignement des étriers et fuites — le tour complet de vos freins à disque en un quart d’heure, presque sans outils.
+status: full
+order: 20
+difficulty: 1
+minutes: 15
+partIds:
+  - brake-pads-front
+  - brake-pads-rear
+  - rotor-front
+  - rotor-rear
+  - brake-caliper-front
+  - brake-caliper-rear
+  - brake-lever-front
+  - brake-lever-rear
+  - brake-line-front
+  - brake-line-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-brake-pads-disc
+  - adjust-disc-caliper-alignment
+  - clean-disc-rotors-pads
+safety:
+  - Un disque qui vient de freiner peut dépasser 100 °C. Laissez-le refroidir avant de le toucher, et gardez les doigts loin du disque quand la roue tourne.
+  - Ne touchez ni les disques ni les garnitures avec des doigts gras. Une simple trace de crème ou de lubrifiant suffit à faire perdre une grande partie du freinage.
+steps:
+  - id: pad-wear
+    title: Mesurer l’usure des plaquettes
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-disc
+    checkQuestion:
+      prompt: Reste-t-il au moins 1 mm de garniture sur chaque plaquette, sans trace de gras ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-pads-front
+          reasonKey: pad-worn
+          guideSlug: replace-brake-pads-disc
+        - action: replace
+          partId: brake-pads-rear
+          reasonKey: pad-worn
+          guideSlug: replace-brake-pads-disc
+        - action: clean
+          partId: brake-pads-front
+          reasonKey: pad-contaminated
+          guideSlug: clean-disc-rotors-pads
+        - action: clean
+          partId: brake-pads-rear
+          reasonKey: pad-contaminated
+          guideSlug: clean-disc-rotors-pads
+  - id: rotor-true
+    title: Vérifier les disques
+    partIds: [rotor-front, rotor-rear]
+    illustration: rotor-true-check
+    checkQuestion:
+      prompt: Les disques tournent-ils sans frotter ni onduler, et sans sillon profond ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: rotor-front
+          reasonKey: rotor-worn
+          guideSlug: replace-rotor
+        - action: replace
+          partId: rotor-rear
+          reasonKey: rotor-worn
+          guideSlug: replace-rotor
+        - action: inspect-shop
+          partId: rotor-front
+          reasonKey: rotor-warped
+        - action: inspect-shop
+          partId: rotor-rear
+          reasonKey: rotor-warped
+  - id: lever-feel
+    title: Tester la sensation au levier
+    partIds: [brake-lever-front, brake-lever-rear, brake-line-front, brake-line-rear]
+    checkQuestion:
+      prompt: Chaque levier devient-il ferme avant d’arriver à mi-course, et le reste-t-il ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: brake-line-front
+          reasonKey: lever-spongy
+        - action: inspect-shop
+          partId: brake-line-rear
+          reasonKey: lever-spongy
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+  - id: caliper-alignment
+    title: Contrôler l’alignement des étriers
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    checkQuestion:
+      prompt: Les roues tournent-elles librement, sans frottement régulier du disque sur une plaquette ?
+      skippable: true
+      ko:
+        - action: fix
+          partId: brake-caliper-front
+          reasonKey: caliper-rub
+          guideSlug: adjust-disc-caliper-alignment
+        - action: fix
+          partId: brake-caliper-rear
+          reasonKey: caliper-rub
+          guideSlug: adjust-disc-caliper-alignment
+  - id: hose-leak
+    title: Chercher une fuite de liquide
+    partIds: [brake-line-front, brake-line-rear, brake-caliper-front, brake-caliper-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-hydraulic]
+    checkQuestion:
+      prompt: Les durites, les leviers et les étriers sont-ils secs, sans trace d’huile ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: brake-line-front
+          reasonKey: hose-leak
+        - action: inspect-shop
+          partId: brake-line-rear
+          reasonKey: hose-leak
+---
+
+<Step id="pad-wear">
+
+Les plaquettes s’usent en silence : le freinage reste correct jusqu’au jour où le support métallique touche le disque. Retirez la roue si vous ne voyez rien, ou regardez dans la fente de l’étrier avec une lampe, par le dessus.
+
+Chaque plaquette est un support métallique recouvert d’une garniture. Mesurez l’épaisseur de la **garniture seule** : en dessous de 1 mm, remplacez les deux plaquettes du même frein, même si une seule est usée. Une garniture brillante, vitrifiée ou tachée de gras freine mal et doit être nettoyée ou changée.
+
+<Warning level="info">
+
+Les deux plaquettes d’un étrier s’usent rarement de la même façon. C’est normal ; la plus fine décide.
+
+</Warning>
+
+</Step>
+
+<Step id="rotor-true">
+
+Soulevez la roue et faites-la tourner lentement en regardant la fente de l’étrier, par le dessus. L’écart entre le disque et chaque plaquette doit rester le même sur tout le tour : si le disque ondule et touche une plaquette une fois par tour, il est voilé.
+
+Passez ensuite le doigt, disque froid et propre, sur la piste de freinage. Des sillons profonds ou un rebord marqué sur l’extérieur signalent un disque trop fin. L’épaisseur minimale est gravée sur le disque, souvent 1,5 mm ; sans pied à coulisse, un atelier la mesure en une minute.
+
+</Step>
+
+<Step id="lever-feel">
+
+Vélo à l’arrêt, serrez fort chaque levier, l’un après l’autre. Le levier doit devenir ferme avant d’arriver à mi-course et ne plus bouger, même si vous maintenez la pression pendant dix secondes. Poussez ensuite le vélo en serrant : la roue doit se bloquer.
+
+Sur un frein hydraulique, un levier mou, qui s’enfonce peu à peu ou touche le cintre, révèle de l’air ou une fuite : la purge ne fait pas partie des guides du site, confiez-la à un atelier. Sur un frein mécanique, suivez le câble : effiloché, rouillé ou dur à coulisser, il doit être remplacé.
+
+</Step>
+
+<Step id="caliper-alignment">
+
+Faites tourner chaque roue à la main et écoutez. Un léger chuintement juste après un freinage est normal ; un frottement régulier, au même endroit à chaque tour ou tout le long du tour, ne l’est pas.
+
+Regardez la fente de l’étrier par le dessus : le disque doit passer au milieu, avec un jour visible des deux côtés. S’il frôle une plaquette sans être voilé, l’étrier est simplement décalé. Vérifiez au passage le serrage de ses vis de fixation, sans forcer (outil : <Tool id="allen-keys" alt="multi-tool" />).
+
+</Step>
+
+<Step id="hose-leak">
+
+Essuyez les durites, les leviers et les étriers avec un chiffon propre, puis serrez fort les deux leviers pendant une minute. Regardez ensuite de près chaque raccord : sous le levier, à l’entrée de l’étrier et le long de la durite, là où elle frotte sur le cadre.
+
+La moindre goutte d’huile, une durite pincée, craquelée ou gonflée, ou un levier qui revient lentement imposent un passage en atelier avant de rouler.
+
+<Warning level="danger">
+
+Une fuite finit toujours sur les plaquettes et le disque. Un frein qui fuit ne se répare pas au bord de la route : ne roulez pas avec.
+
+</Warning>
+
+</Step>

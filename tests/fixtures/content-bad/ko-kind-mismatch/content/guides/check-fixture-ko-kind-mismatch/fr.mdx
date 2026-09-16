@@ -1,0 +1,30 @@
+---
+slug: check-fixture-ko-kind-mismatch
+kind: check
+title: Guide de test
+summary: Un document volontairement invalide.
+status: full
+order: 1
+difficulty: 1
+minutes: 5
+partIds: [chain]
+tools: []
+related: []
+steps:
+  - id: inspect
+    title: Observer
+    checkQuestion:
+      prompt: La chaîne est-elle en bon état ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+          guideSlug: clean-chain
+---
+
+<Step id="inspect">
+
+Lorsque vous travaillez sur la chaîne, commencez toujours par observer attentivement chaque maillon, chaque rouleau et chaque plaque latérale. Cherchez la rouille, les maillons raides et les traces de saleté, puis notez ce que vous voyez avant de passer à la suite du guide.
+
+</Step>

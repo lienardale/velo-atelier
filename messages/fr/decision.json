@@ -1,0 +1,366 @@
+{
+  "drive": {
+    "title": "Votre vélo a-t-il une assistance électrique ?",
+    "help": "Cherchez une batterie et un moteur. La batterie est un bloc amovible fixé sur le tube diagonal ou posé sur le porte-bagages, ou bien un tube diagonal nettement épaissi avec une serrure. Le moteur est un boîtier volumineux autour de l’axe du pédalier, ou un moyeu arrière beaucoup plus gros que la normale d’où sort un câble. Sans rien de tout cela, le vélo est musculaire.",
+    "options": {
+      "muscular": {
+        "label": "Musculaire",
+        "description": "Aucune assistance : toute la puissance vient de vous."
+      },
+      "electric": {
+        "label": "Électrique",
+        "description": "Un moteur et une batterie assistent le pédalage."
+      }
+    }
+  },
+  "discipline": {
+    "title": "À quoi sert ce vélo ?",
+    "help": "Regardez le guidon et les pneus. Guidon qui s’enroule vers le bas et pneus étroits et lisses : route. Même guidon mais pneus larges et crantés : gravel. Guidon plat ou relevé avec une fourche télescopique : VTT. Garde-boue, porte-bagages, béquille ou éclairage montés d’origine : ville ou VTC. Roues de 24 pouces ou moins : vélo d’enfant.",
+    "options": {
+      "road": {
+        "label": "Route",
+        "description": "Guidon courbé, pneus fins, position penchée vers l’avant."
+      },
+      "gravel": {
+        "label": "Gravel",
+        "description": "Guidon courbé mais pneus larges : route et chemins."
+      },
+      "mtb": {
+        "label": "VTT",
+        "description": "Guidon plat ou relevé, pneus à crampons, suspension."
+      },
+      "city-hybrid": {
+        "label": "Ville ou VTC",
+        "description": "Position droite, garde-boue et porte-bagages, usage quotidien."
+      },
+      "kids": {
+        "label": "Enfant",
+        "description": "Petites roues de 16 à 24 pouces, souvent une seule vitesse."
+      }
+    }
+  },
+  "wheel-size": {
+    "title": "Quelle est la taille des roues ?",
+    "help": "Ne vous fiez pas au marquage en pouces seul : lisez le nombre ETRTO inscrit sur le flanc du pneu, juste après le tiret, par exemple 40-622. 622 = 700C ou 29 pouces, 584 = 650B ou 27,5 pouces, 559 = 26 pouces, 507 = 24 pouces, 406 = 20 pouces, 305 = 16 pouces.",
+    "options": {
+      "16": {
+        "label": "16 pouces",
+        "description": "ETRTO 305 — premiers vélos, avec ou sans stabilisateurs."
+      },
+      "20": {
+        "label": "20 pouces",
+        "description": "ETRTO 406 — vélos d’enfant et BMX."
+      },
+      "24": {
+        "label": "24 pouces",
+        "description": "ETRTO 507 — grands vélos d’enfant."
+      },
+      "26": {
+        "label": "26 pouces",
+        "description": "ETRTO 559 — VTT et VTC d’avant 2010."
+      },
+      "29": {
+        "label": "29 pouces",
+        "description": "ETRTO 622 — le 700C des VTT."
+      },
+      "700c": {
+        "label": "700C",
+        "description": "ETRTO 622 — la taille des vélos de route, gravel et VTC."
+      },
+      "650b": {
+        "label": "650B",
+        "description": "ETRTO 584 — des pneus larges sur un diamètre plus petit."
+      },
+      "27-5": {
+        "label": "27,5 pouces",
+        "description": "ETRTO 584 — le 650B des VTT."
+      }
+    }
+  },
+  "brake-type": {
+    "title": "Quels freins équipent ce vélo ?",
+    "help": "Y a-t-il un disque au centre de la roue ? Si oui, suivez le conduit qui arrive à l’étrier : une gaine de câble classique indique un disque mécanique, une durite fine et rigide vissée sur l’étrier un disque hydraulique. Sans disque, regardez au niveau de la jante : deux bras verticaux reliés par un câble transversal sont des V-brakes, deux bras courts reliés par un câble en triangle des cantilevers, une seule pièce en arche au-dessus du pneu un étrier. Frein à rétropédalage ou à tambour : choisissez V-brake, ces freins ne sont pas couverts par le site.",
+    "options": {
+      "rim-caliper": {
+        "label": "Étrier sur jante",
+        "description": "Une seule pièce en arche au-dessus du pneu."
+      },
+      "v-brake": {
+        "label": "V-brake",
+        "description": "Deux bras verticaux de chaque côté de la jante."
+      },
+      "cantilever": {
+        "label": "Cantilever",
+        "description": "Deux bras courts reliés par un câble en triangle."
+      },
+      "disc-mechanical": {
+        "label": "Disque mécanique",
+        "description": "Disque à la roue, commandé par un câble."
+      },
+      "disc-hydraulic": {
+        "label": "Disque hydraulique",
+        "description": "Disque à la roue, commandé par une durite d’huile."
+      }
+    }
+  },
+  "brake-mount": {
+    "title": "Comment les étriers de frein sont-ils fixés ?",
+    "help": "Regardez le sens des vis de l’étrier. Deux vis qui entrent par le dessous du cadre ou de la fourche, parallèlement au disque : flat mount. Deux vis verticales qui traversent l’étrier par le dessus : post mount. Deux vis horizontales qui traversent deux pattes percées, presque toujours avec un adaptateur : IS.",
+    "options": {
+      "flat-mount": {
+        "label": "Flat mount",
+        "description": "Vis par le dessous. Route et gravel récents."
+      },
+      "post-mount": {
+        "label": "Post mount",
+        "description": "Deux vis verticales dans l’étrier. VTT et VTC."
+      },
+      "is-mount": {
+        "label": "IS (International Standard)",
+        "description": "Deux pattes percées horizontalement, avec adaptateur."
+      }
+    }
+  },
+  "cockpit": {
+    "title": "Quelle est la forme du guidon ?",
+    "help": "Posez la main dessus. Le guidon s’enroule vers le bas et vers l’avant : cintre route. Il est droit d’un bout à l’autre : cintre plat. Il remonte de chaque côté de la potence : cintre relevé. Il revient franchement vers vous en formant un arc : cintre rétro, dit hollandais.",
+    "options": {
+      "drop": {
+        "label": "Cintre route",
+        "description": "Plusieurs positions : en haut, aux cocottes ou en bas."
+      },
+      "flat": {
+        "label": "Cintre plat",
+        "description": "Droit, position légèrement penchée vers l’avant."
+      },
+      "riser": {
+        "label": "Cintre relevé",
+        "description": "Remonte vers le pilote, position plus haute. VTT."
+      },
+      "swept": {
+        "label": "Cintre rétro",
+        "description": "Très recourbé vers l’arrière, dos droit. Ville."
+      }
+    }
+  },
+  "drivetrain": {
+    "title": "Comment les vitesses sont-elles gérées ?",
+    "help": "Comptez les plateaux à l’avant, au niveau du pédalier : un, deux ou trois. Si le moyeu arrière est gros et lisse et ne porte qu’un seul pignon, les vitesses sont dans le moyeu. S’il n’y a aucune manette au guidon et un seul pignon arrière, le vélo est à vitesse unique.",
+    "options": {
+      "derailleur-1x": {
+        "label": "Dérailleur, 1 plateau",
+        "description": "Un seul plateau devant, un dérailleur arrière."
+      },
+      "derailleur-2x": {
+        "label": "Dérailleur, 2 plateaux",
+        "description": "Deux plateaux et un dérailleur avant."
+      },
+      "derailleur-3x": {
+        "label": "Dérailleur, 3 plateaux",
+        "description": "Trois plateaux, typique des VTC et des VTT anciens."
+      },
+      "igh": {
+        "label": "Moyeu à vitesses intégrées",
+        "description": "Les vitesses sont enfermées dans le moyeu arrière."
+      },
+      "singlespeed": {
+        "label": "Vitesse unique",
+        "description": "Un plateau, un pignon, aucune manette."
+      }
+    }
+  },
+  "transmission": {
+    "title": "Chaîne ou courroie ?",
+    "help": "Une chaîne est métallique, articulée maillon par maillon, et se graisse. Une courroie est une bande souple en caoutchouc renforcé, avec des dents régulières, qui ne se graisse jamais. Une courroie impose un cadre ouvrable : cherchez la vis d’ouverture sur la base arrière droite.",
+    "options": {
+      "chain": {
+        "label": "Chaîne",
+        "description": "Métallique, à graisser et à remplacer quand elle s’allonge."
+      },
+      "belt": {
+        "label": "Courroie",
+        "description": "Bande crantée en caoutchouc, silencieuse et sans graissage."
+      }
+    }
+  },
+  "speeds": {
+    "title": "Combien de vitesses à l’arrière ?",
+    "help": "Comptez les pignons de la cassette, à l’arrière. Avec un moyeu à vitesses intégrées, le nombre est écrit sur la manette ou sur le corps du moyeu. En cas de doute, comptez les crans de la manette.",
+    "options": {
+      "3": {
+        "label": "3 vitesses",
+        "description": "Moyeu intégré classique, vélo de ville."
+      },
+      "5": {
+        "label": "5 vitesses",
+        "description": "Moyeu intégré ancien."
+      },
+      "7": {
+        "label": "7 vitesses",
+        "description": "Moyeu intégré courant, ou cassette d’entrée de gamme."
+      },
+      "8": {
+        "label": "8 vitesses",
+        "description": "Le plus répandu sur les VTC et les moyeux intégrés."
+      },
+      "9": {
+        "label": "9 vitesses",
+        "description": "Cassette de VTC ou de VTT des années 2000."
+      },
+      "10": {
+        "label": "10 vitesses",
+        "description": "Cassette route ou VTT de la génération précédente."
+      },
+      "11": {
+        "label": "11 vitesses",
+        "description": "Cassette route et gravel courante, ou moyeu haut de gamme."
+      },
+      "12": {
+        "label": "12 vitesses",
+        "description": "Cassette VTT et route récente."
+      },
+      "13": {
+        "label": "13 vitesses",
+        "description": "Groupes gravel très récents."
+      },
+      "14": {
+        "label": "14 vitesses",
+        "description": "Moyeu à vitesses intégrées haut de gamme."
+      }
+    }
+  },
+  "shifter": {
+    "title": "Quelles sont les commandes de vitesses ?",
+    "help": "Regardez ce que vous poussez pour changer de vitesse. Le levier de frein bascule latéralement : commandes intégrées. Deux petits leviers sous le guidon : manettes à gâchettes. Une bague qui tourne autour de la poignée : poignée tournante. Un levier au-dessus du guidon poussé au pouce : manette au pouce. Une manette à l’extrémité du cintre : manette de bout de cintre. Des boutons sans câble de dérailleur, avec une batterie : commandes électroniques.",
+    "options": {
+      "sti-integrated": {
+        "label": "Commandes intégrées",
+        "description": "Frein et vitesses sur le même levier. Cintre route."
+      },
+      "trigger": {
+        "label": "Manettes à gâchettes",
+        "description": "Deux gâchettes sous le guidon, au pouce et à l’index."
+      },
+      "grip": {
+        "label": "Poignée tournante",
+        "description": "On tourne la poignée pour changer de vitesse."
+      },
+      "thumb": {
+        "label": "Manette au pouce",
+        "description": "Un levier au-dessus du guidon, poussé au pouce."
+      },
+      "bar-end": {
+        "label": "Manette de bout de cintre",
+        "description": "À l’extrémité du cintre route, en cyclotourisme."
+      },
+      "electronic": {
+        "label": "Commandes électroniques",
+        "description": "Des boutons : le dérailleur est motorisé."
+      }
+    }
+  },
+  "pedals": {
+    "title": "Quelles pédales ?",
+    "help": "Regardez la surface d’appui. Une plateforme large avec des picots : pédales plates. Un petit mécanisme métallique encastré, avec une cale à deux vis sous la chaussure : SPD. Une grande cale triangulaire en plastique sous la chaussure : automatique route. Une cage métallique avec une sangle : cale-pieds. Une face plate et une face automatique : mixtes.",
+    "options": {
+      "flat": {
+        "label": "Plates",
+        "description": "Plateforme simple, avec n’importe quelle chaussure."
+      },
+      "spd": {
+        "label": "Automatiques VTT (SPD)",
+        "description": "Cale à deux vis encastrée : on peut marcher avec."
+      },
+      "road-clipless": {
+        "label": "Automatiques route",
+        "description": "Grande cale à trois vis, large appui, marche difficile."
+      },
+      "toe-clips": {
+        "label": "Cale-pieds",
+        "description": "Cage et sangle, sans chaussure spécifique."
+      },
+      "combo": {
+        "label": "Mixtes",
+        "description": "Une face plate, une face automatique."
+      }
+    }
+  },
+  "suspension": {
+    "title": "Le vélo est-il suspendu ?",
+    "help": "Une fourche télescopique a deux tubes lisses qui coulissent l’un dans l’autre, juste au-dessus de la roue avant. Un amortisseur arrière est un petit vérin placé entre le tube de selle et le triangle arrière. Sans l’un ni l’autre, le vélo est rigide.",
+    "options": {
+      "rigid": {
+        "label": "Rigide",
+        "description": "Aucune suspension."
+      },
+      "front": {
+        "label": "Fourche suspendue",
+        "description": "Suspension à l’avant seulement, dit semi-rigide."
+      },
+      "full": {
+        "label": "Tout suspendu",
+        "description": "Fourche télescopique et amortisseur arrière."
+      }
+    }
+  },
+  "seatpost": {
+    "title": "La tige de selle est-elle télescopique ?",
+    "help": "Une tige télescopique descend quand on appuie sur un levier, en général au guidon à gauche, relié à un câble qui entre dans la tige ou dans le cadre. Une tige fixe n’a ni levier ni câble : seul le collier la maintient.",
+    "options": {
+      "rigid": {
+        "label": "Tige fixe",
+        "description": "Hauteur réglée une fois pour toutes avec le collier."
+      },
+      "dropper": {
+        "label": "Tige télescopique",
+        "description": "Elle descend d’une pression sur un levier au guidon."
+      }
+    }
+  },
+  "tire-system": {
+    "title": "Les pneus ont-ils une chambre à air ?",
+    "help": "Dévissez le capuchon de la valve. Un obus de valve démontable, la mention « tubeless » sur le flanc du pneu ou sur la jante, et des traces de liquide préventif à l’intérieur indiquent un montage tubeless. Sinon, il y a une chambre à air.",
+    "options": {
+      "clincher-tube": {
+        "label": "Avec chambre à air",
+        "description": "Le montage le plus courant, réparable avec une rustine."
+      },
+      "tubeless": {
+        "label": "Tubeless",
+        "description": "Sans chambre, avec du liquide préventif à l’intérieur."
+      }
+    }
+  },
+  "e-motor": {
+    "title": "Où se trouve le moteur ?",
+    "help": "Regardez le pédalier : un boîtier large et anguleux autour de l’axe des manivelles est un moteur pédalier. Si le pédalier est de taille normale et que le moyeu arrière est très gros, avec un câble qui en sort, le moteur est dans la roue arrière.",
+    "options": {
+      "mid-drive": {
+        "label": "Moteur pédalier",
+        "description": "Au centre du vélo, il entraîne la chaîne."
+      },
+      "hub-rear": {
+        "label": "Moteur dans la roue arrière",
+        "description": "Un gros moyeu arrière d’où sort un câble."
+      }
+    }
+  },
+  "e-battery": {
+    "title": "Où est placée la batterie ?",
+    "help": "Une batterie intégrée est glissée dans le tube diagonal et se reconnaît à une trappe ou à une serrure. Une batterie externe est un bloc boulonné à l’extérieur du tube diagonal. Une batterie de porte-bagages est posée à l’arrière, au-dessus de la roue.",
+    "options": {
+      "integrated": {
+        "label": "Intégrée au cadre",
+        "description": "Dans le tube diagonal, avec une serrure."
+      },
+      "external-downtube": {
+        "label": "Sur le tube diagonal",
+        "description": "Bloc amovible boulonné à l’extérieur."
+      },
+      "rack": {
+        "label": "Sur le porte-bagages",
+        "description": "À l’arrière, au-dessus de la roue."
+      }
+    }
+  }
+}

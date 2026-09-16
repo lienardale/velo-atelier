@@ -1,7 +1,8 @@
+import { withContentCollections } from "@content-collections/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-// `withContentCollections` is added by W1-T4 once `content-collections.ts` exists.
+// `withContentCollections` compiles content/** at build time (content-collections.ts, W1-T4).
 const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts");
 
 const config: NextConfig = {
@@ -45,4 +46,4 @@ const config: NextConfig = {
   },
 };
 
-export default withNextIntl(config);
+export default withContentCollections(withNextIntl(config)) as unknown as NextConfig;

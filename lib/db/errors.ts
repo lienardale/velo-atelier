@@ -13,7 +13,45 @@
 
 export interface KnownPrismaError {
   code: string;
-  meta?: { target?: unknown };
+  meta?: {
+    target?: unknown;
+    /**
+     * Prisma 7 with a driver adapter (`@prisma/adapter-pg`) reports the
+     * violation through the adapter instead of filling `target` — verified
+     * against a real P2002 in `tests/integration/auth.test.ts`:
+     *
+     *   meta.driverAdapterError.cause = {
+     *     kind: 'UniqueConstraintViolation',
+     *     constraint: { index: 'User_email_key' },   // or { fields: ['email'] }
+     *     table: 'User', originalCode: '23505', …
+     *   }
+     *
+     * and `meta.target` is absent entirely. Reading only `target` would make
+     * `isUniqueViolation(error, 'email')` false for every real duplicate, and
+     * `signUpAction` would answer with a 500 instead of `errors.emailTaken`.
+     */
+    driverAdapterError?: unknown;
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** `meta.driverAdapterError.cause.constraint` → the index name or the column list. */
+function adapterConstraintTargets(meta: KnownPrismaError["meta"]): string[] {
+  const adapterError = meta?.driverAdapterError;
+  if (!isRecord(adapterError)) return [];
+  const cause = adapterError.cause;
+  if (!isRecord(cause)) return [];
+  const constraint = cause.constraint;
+  if (typeof constraint === "string") return [constraint];
+  if (!isRecord(constraint)) return [];
+  if (typeof constraint.index === "string") return [constraint.index];
+  if (Array.isArray(constraint.fields)) {
+    return constraint.fields.filter((field): field is string => typeof field === "string");
+  }
+  return [];
 }
 
 /** Any Prisma "known request error" (`P____`). */
@@ -33,7 +71,7 @@ export function uniqueViolationTargets(error: unknown): string[] {
   const target = error.meta?.target;
   if (Array.isArray(target)) return target.filter((t) => typeof t === "string").map(lower);
   if (typeof target === "string") return [lower(target)];
-  return [];
+  return adapterConstraintTargets(error.meta).map(lower);
 }
 
 function lower(value: string): string {

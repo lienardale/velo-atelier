@@ -1,0 +1,104 @@
+{
+  "allen-keys": {
+    "label": "Clés Allen"
+  },
+  "multi-tool": {
+    "label": "Multi-outil"
+  },
+  "torx-keys": {
+    "label": "Clés Torx"
+  },
+  "torque-wrench": {
+    "label": "Clé dynamométrique"
+  },
+  "adjustable-wrench": {
+    "label": "Clé à molette"
+  },
+  "pedal-wrench": {
+    "label": "Clé à pédales"
+  },
+  "phillips-screwdriver": {
+    "label": "Tournevis cruciforme"
+  },
+  "flat-screwdriver": {
+    "label": "Tournevis plat"
+  },
+  "pliers": {
+    "label": "Pince"
+  },
+  "cable-cutter": {
+    "label": "Coupe-câble"
+  },
+  "tire-levers": {
+    "label": "Démonte-pneus"
+  },
+  "floor-pump": {
+    "label": "Pompe à pied avec manomètre"
+  },
+  "mini-pump": {
+    "label": "Mini-pompe"
+  },
+  "pressure-gauge": {
+    "label": "Manomètre"
+  },
+  "valve-core-tool": {
+    "label": "Démonte-obus"
+  },
+  "sealant-injector": {
+    "label": "Seringue à préventif"
+  },
+  "chain-checker": {
+    "label": "Contrôleur d'usure de chaîne"
+  },
+  "steel-ruler": {
+    "label": "Réglet métallique"
+  },
+  "chain-tool": {
+    "label": "Dérive-chaîne"
+  },
+  "quick-link-pliers": {
+    "label": "Pince à maillon rapide"
+  },
+  "chain-whip": {
+    "label": "Fouet à chaîne"
+  },
+  "cassette-lockring-tool": {
+    "label": "Démonte-cassette"
+  },
+  "bottom-bracket-tool": {
+    "label": "Clé de boîtier de pédalier"
+  },
+  "crank-puller": {
+    "label": "Arrache-manivelle"
+  },
+  "pad-spreader": {
+    "label": "Écarteur de pistons"
+  },
+  "tape-measure": {
+    "label": "Mètre ruban"
+  },
+  "shock-pump": {
+    "label": "Pompe haute pression pour suspension"
+  },
+  "zip-tie": {
+    "label": "Collier de serrage"
+  },
+  "work-stand": {
+    "label": "Pied d'atelier"
+  },
+  "degreaser": {
+    "label": "Dégraissant"
+  },
+  "chain-lube": {
+    "label": "Lubrifiant chaîne"
+  },
+  "isopropyl-alcohol": {
+    "label": "Alcool isopropylique"
+  },
+  "brush": {
+    "label": "Brosse"
+  },
+  "rags": {
+    "label": "Chiffons propres"
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "chain-cassette-speeds": {
+    "message": "The chain is not made for the cassette's number of speeds.",
+    "fix": "Buy a chain with the same speed count as the cassette."
+  },
+  "chain-freewheel-speeds": {
+    "message": "The chain does not match the freewheel's number of speeds.",
+    "fix": "A 5- to 8-speed freewheel needs a 6-7-8-speed chain."
+  },
+  "derailleur-cassette-speeds": {
+    "message": "The rear derailleur and the cassette have different speed counts.",
+    "fix": "Pick a derailleur and a cassette with the same speed count."
+  },
+  "shifter-derailleur-speeds": {
+    "message": "The shifter and the rear derailleur have different speed counts.",
+    "fix": "The shifter needs exactly as many clicks as the derailleur has speeds."
+  },
+  "shifter-hub-speeds": {
+    "message": "The shifter does not match the hub's number of gears.",
+    "fix": "Use the shifter made for this hub, same brand and same gear count."
+  },
+  "shifter-derailleur-brand": {
+    "message": "The shifter and the derailleur pull cable differently.",
+    "fix": "Stay within one brand; up to 10 speeds, microSHIFT and Shimano can be mixed."
+  },
+  "shifter-derailleur-actuation": {
+    "message": "A mechanical shifter cannot drive an electronic derailleur, or the other way round.",
+    "fix": "Shifter and derailleur must both be mechanical or both electronic."
+  },
+  "front-shifter-chainrings": {
+    "message": "The left shifter does not have as many positions as the crankset has chainrings.",
+    "fix": "Use a 2-position left shifter for a double, a 3-position one for a triple."
+  },
+  "derailleur-max-cog": {
+    "message": "The largest sprocket is bigger than the rear derailleur can reach.",
+    "fix": "Pick a tighter cassette, or a derailleur with a longer cage."
+  },
+  "cassette-freehub": {
+    "message": "This cassette does not fit this freehub body.",
+    "fix": "Buy a cassette for the wheel's freehub body, or change the body."
+  },
+  "cassette-speeds-freehub": {
+    "message": "This freehub body does not take a cassette with this many speeds.",
+    "fix": "Check which cassettes the freehub body accepts."
+  },
+  "freewheel-body": {
+    "message": "A freewheel threads onto a threaded hub, not onto a cassette body.",
+    "fix": "Buy a cassette for this hub, or a wheel with a threaded hub."
+  },
+  "hanger-standard": {
+    "message": "This derailleur needs a UDH hanger the frame does not have.",
+    "fix": "Check the frame takes a UDH hanger, or pick a conventional derailleur."
+  },
+  "caliper-rotor-size": {
+    "message": "The caliper is not positioned for this rotor diameter.",
+    "fix": "Change the caliper adapter for this diameter, or buy a rotor of the current size."
+  },
+  "rotor-caliper-mount": {
+    "message": "This rotor size is unusual for this caliper mount.",
+    "fix": "Check an adapter exists for this combination before buying."
+  },
+  "rotor-frame-max": {
+    "message": "The rear rotor is larger than the frame allows.",
+    "fix": "Stay at or below the frame maker's maximum rotor size."
+  },
+  "rotor-fork-max": {
+    "message": "The front rotor is larger than the fork allows.",
+    "fix": "Stay at or below the fork maker's maximum rotor size."
+  },
+  "rotor-hub-interface": {
+    "message": "This rotor does not bolt to this hub (6-bolt and Centerlock differ).",
+    "fix": "Buy a rotor with the hub's mounting, or a Centerlock-to-6-bolt adapter."
+  },
+  "caliper-frame-mount": {
+    "message": "This caliper does not fit this brake mount.",
+    "fix": "Pick a caliper with the same mount, or the matching adapter."
+  },
+  "lever-caliper-actuation": {
+    "message": "A mechanical lever cannot operate a hydraulic caliper, or the other way round.",
+    "fix": "Lever and caliper must both be mechanical or both hydraulic."
+  },
+  "lever-pull-ratio": {
+    "message": "The lever does not pull the right amount of cable for this brake.",
+    "fix": "A V-brake needs a long-pull lever; a road caliper or cantilever needs a short-pull one."
+  },
+  "mech-disc-lever-pull": {
+    "message": "The mechanical disc caliper and the lever have different cable pull.",
+    "fix": "Buy the road (short pull) or mountain (long pull) version that matches the lever."
+  },
+  "wheel-axle-frame": {
+    "message": "The rear wheel's axle does not match the frame's dropouts.",
+    "fix": "Buy a wheel with the frame's axle standard, or swap the hub end caps if possible."
+  },
+  "wheel-axle-fork": {
+    "message": "The front wheel's axle does not match the fork.",
+    "fix": "Buy a wheel with the fork's axle standard, or swap the hub end caps if possible."
+  },
+  "tire-diameter-wheel": {
+    "message": "The tyre diameter does not match the rim.",
+    "fix": "The tyre's second ETRTO number (e.g. 622) must match the rim."
+  },
+  "tire-rim-width": {
+    "message": "This tyre is too narrow or too wide for the rim's width.",
+    "fix": "Pick a tyre width inside the range recommended for this rim."
+  },
+  "tubeless-rim-tire": {
+    "message": "A tubeless setup needs a tubeless-ready rim.",
+    "fix": "Use a tubeless-ready rim, or go back to inner tubes."
+  },
+  "tire-frame-clearance": {
+    "message": "The rear tyre is wider than the frame clears.",
+    "fix": "Stay below the frame's maximum width, with at least 4 mm of room."
+  },
+  "tire-fork-clearance": {
+    "message": "The front tyre is wider than the fork clears.",
+    "fix": "Stay below the fork's maximum width, with at least 4 mm of room."
+  },
+  "headset-frame": {
+    "message": "The headset does not match the frame's head tube.",
+    "fix": "Buy a headset for the head tube standard (threaded, straight or tapered)."
+  },
+  "stem-steerer": {
+    "message": "This stem does not clamp onto this fork steerer.",
+    "fix": "A threaded steerer needs a quill stem; a straight or tapered one needs a 1-1/8\" stem."
+  },
+  "stem-bar-clamp": {
+    "message": "The handlebar diameter does not match the stem clamp.",
+    "fix": "Use a bar and stem with the same clamp diameter (31.8 or 35 mm…)."
+  },
+  "seatpost-frame-diameter": {
+    "message": "The seatpost is too big for the seat tube.",
+    "fix": "Measure the seat tube's inner diameter and buy a post of that size."
+  },
+  "seatpost-frame-shim": {
+    "message": "The seatpost is thinner than the seat tube: it needs a shim.",
+    "fix": "Buy the right post size, or a matching shim."
+  },
+  "seat-clamp-frame": {
+    "message": "The seat clamp does not match the seat tube's diameter.",
+    "fix": "Measure the outside diameter at the top of the seat tube."
+  },
+  "bb-shell-frame": {
+    "message": "This bottom bracket does not fit this frame.",
+    "fix": "Buy a bottom bracket for the frame's shell standard (BSA, BB86, T47…)."
+  },
+  "bb-spindle-crank": {
+    "message": "The crank spindle does not match the bottom bracket.",
+    "fix": "Bottom bracket and crankset must share a spindle standard (Hollowtech II, DUB, square taper…)."
+  },
+  "pedal-thread-crank": {
+    "message": "The pedal thread does not match the crank arm.",
+    "fix": "Buy pedals with the crank's thread (9/16\" almost everywhere)."
+  },
+  "belt-frame-splitter": {
+    "message": "A belt only fits a frame whose rear triangle opens.",
+    "fix": "Check the frame has a belt splitter; otherwise stay with a chain."
+  },
+  "e-chain-rated": {
+    "message": "This chain is not built for a motor's torque.",
+    "fix": "Buy a chain marked for e-bikes (E-Bike, EPT…): it will wear more slowly."
+  },
+  "e-crank-interface": {
+    "message": "These cranks do not fit this motor's spindle.",
+    "fix": "Buy cranks made for the motor's splines (Bosch, Shimano STEPS, Bafang…)."
+  }
+}

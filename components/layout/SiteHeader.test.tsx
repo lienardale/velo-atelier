@@ -1,9 +1,31 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { renderWithIntl } from "@/tests/_helpers/intl";
 
 import { SiteHeader } from "./SiteHeader";
+
+// The header renders `<AccountMenu>` (W1-T3), whose sign-out button imports the
+// connexion server actions. In the browser those are a network reference, not
+// code; in a jsdom test the module is really evaluated, and it pulls in
+// `server-only` (which only Next's bundler can resolve) and `next-auth/lib/env.js`
+// (which imports `next/server`, a specifier Node cannot resolve because `next`'s
+// package.json has no `exports` map — next-auth's own source carries a
+// `@ts-expect-error` about it). Stubbing the action module is the browser's view.
+vi.mock("@/app/[locale]/(auth)/connexion/actions", () => ({
+  loginAction: vi.fn(),
+  googleSignInAction: vi.fn(),
+  signOutAction: vi.fn(async () => ({ ok: true, data: true })),
+}));
+
+// `useSession()` needs a `<SessionProvider>`, and a real one would fetch
+// `/api/auth/session` — which msw refuses (`onUnhandledRequest: 'error'`).
+// The header's own tests are about the header; `AccountMenu.test.tsx` is where
+// both session states are exercised.
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: null, status: "unauthenticated" }),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 describe("SiteHeader", () => {
   it("is the sticky banner, hidden from print", async () => {

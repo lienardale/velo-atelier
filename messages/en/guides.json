@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "listTitle": "Maintenance and repair guides",
+    "listDescription": "Step-by-step guides to check, adjust, clean and replace every part of your bike, with the tools you need and what can stand in for them."
+  },
+  "breadcrumb": {
+    "label": "Breadcrumb",
+    "home": "Home",
+    "guides": "Guides"
+  },
+  "list": {
+    "title": "Guides",
+    "intro": "Pick what you want to do, or filter by part of the bike. Every guide lists the tools it needs and what can stand in for them.",
+    "count": "{count, plural, =0 {No guides} one {# guide} other {# guides}}",
+    "empty": "No guide matches these filters.",
+    "reset": "Clear filters",
+    "cardLink": "Read the guide"
+  },
+  "kinds": {
+    "check": "Check",
+    "adjust": "Adjust",
+    "clean": "Clean",
+    "replace": "Replace",
+    "measure": "Measure"
+  },
+  "kindSections": {
+    "check": "Check the bike",
+    "adjust": "Adjust",
+    "clean": "Clean",
+    "replace": "Replace a part",
+    "measure": "Measure and fit"
+  },
+  "difficulty": {
+    "label": "Difficulty",
+    "value": "{level, select, 1 {Easy} 2 {Intermediate} other {Advanced}}"
+  },
+  "duration": {
+    "label": "Time",
+    "value": "{minutes, plural, one {# minute} other {# minutes}}"
+  },
+  "tools": {
+    "title": "Tools you need",
+    "none": "No tools: your hands and eyes are enough.",
+    "separator": "or else",
+    "alternatives": "Otherwise: {tools}"
+  },
+  "stubBanner": "This guide is still being written: only the main steps are described for now.",
+  "safety": {
+    "title": "Safety"
+  },
+  "warning": {
+    "info": "Good to know",
+    "caution": "Caution",
+    "danger": "Danger"
+  },
+  "toc": {
+    "title": "Steps",
+    "show": "Show the steps"
+  },
+  "step": {
+    "label": "Step {number}"
+  },
+  "appliesTo": {
+    "title": "Which bikes?",
+    "all": "Every bike.",
+    "joinAll": "{left} and {right}",
+    "joinAny": "{left} or {right}",
+    "negation": "unless {condition}",
+    "leaf": "{label}: {values}",
+    "leafNegated": "{label}: anything but {values}",
+    "paths": {
+      "drive": "Drive",
+      "discipline": "Riding style",
+      "wheel_label": "Wheel size",
+      "wheel_etrtoDiameter": "ETRTO diameter (mm)",
+      "brakes_type": "Brakes",
+      "brakes_isDisc": "Disc brakes",
+      "brakes_mount": "Caliper mount",
+      "drivetrain_kind": "Drivetrain",
+      "drivetrain_chainrings": "Chainrings",
+      "drivetrain_speeds": "Speeds",
+      "drivetrain_transmission": "Final drive",
+      "drivetrain_shifter": "Shifters",
+      "cockpit_bar": "Handlebar",
+      "pedals": "Pedals",
+      "suspension_front": "Suspension fork",
+      "suspension_rear": "Rear suspension",
+      "seatpost_dropper": "Dropper seatpost",
+      "tires_system": "Tyre setup",
+      "eSystem_motorPosition": "Motor",
+      "eSystem_batteryPosition": "Battery",
+      "frameStyle": "Frame"
+    },
+    "values": {
+      "drive": {
+        "muscular": "pedal-only",
+        "electric": "e-bike"
+      },
+      "discipline": {
+        "road": "road bike",
+        "gravel": "gravel bike",
+        "mtb": "mountain bike",
+        "city-hybrid": "city and hybrid",
+        "kids": "kids’ bike"
+      },
+      "wheel_label": {
+        "700c": "700C",
+        "650b": "650B",
+        "29": "29-inch",
+        "27_5": "27.5-inch",
+        "26": "26-inch",
+        "24": "24-inch",
+        "20": "20-inch",
+        "16": "16-inch"
+      },
+      "brakes_type": {
+        "rim-caliper": "rim caliper",
+        "v-brake": "V-brake",
+        "cantilever": "cantilever brakes",
+        "disc-mechanical": "mechanical disc",
+        "disc-hydraulic": "hydraulic disc"
+      },
+      "brakes_isDisc": {
+        "true": "yes",
+        "false": "no"
+      },
+      "brakes_mount": {
+        "flat-mount": "flat mount",
+        "post-mount": "post mount",
+        "is-mount": "IS mount"
+      },
+      "drivetrain_kind": {
+        "derailleur": "derailleur gears",
+        "igh": "internal gear hub",
+        "singlespeed": "single-speed"
+      },
+      "drivetrain_transmission": {
+        "chain": "chain drive",
+        "belt": "belt drive"
+      },
+      "drivetrain_shifter": {
+        "sti-integrated": "integrated in the brake levers",
+        "trigger": "trigger shifters",
+        "grip": "grip shift",
+        "thumb": "thumb shifters",
+        "bar-end": "bar-end shifters",
+        "electronic": "electronic shifting"
+      },
+      "cockpit_bar": {
+        "drop": "drop bar",
+        "flat": "flat bar",
+        "riser": "riser bar",
+        "swept": "swept-back bar"
+      },
+      "pedals": {
+        "flat": "flat pedals",
+        "spd": "SPD clipless",
+        "road-clipless": "road clipless",
+        "toe-clips": "toe clips",
+        "combo": "dual-sided combo"
+      },
+      "suspension_front": {
+        "true": "yes",
+        "false": "no"
+      },
+      "suspension_rear": {
+        "true": "yes",
+        "false": "no"
+      },
+      "seatpost_dropper": {
+        "true": "yes",
+        "false": "no"
+      },
+      "tires_system": {
+        "clincher-tube": "with inner tube",
+        "tubeless": "tubeless tyres"
+      },
+      "eSystem_motorPosition": {
+        "mid-drive": "mid-drive motor",
+        "hub-rear": "rear hub"
+      },
+      "eSystem_batteryPosition": {
+        "integrated": "integrated in the frame",
+        "external-downtube": "on the down tube",
+        "rack": "on the rack"
+      },
+      "frameStyle": {
+        "diamond": "diamond frame",
+        "step-through": "step-through frame"
+      }
+    }
+  },
+  "related": {
+    "title": "Read next"
+  },
+  "prevNext": {
+    "label": "More guides",
+    "previous": "Previous guide",
+    "next": "Next guide"
+  },
+  "seeOnMyBike": "See it on my bike",
+  "filters": {
+    "label": "Filter the guides",
+    "kind": "What do you want to do?",
+    "system": "Part of the bike",
+    "allKinds": "Everything",
+    "allSystems": "Every part",
+    "forMyBike": "For my bike",
+    "forMyBikeHint": "Hides the guides that do not apply to the bike you described.",
+    "noBike": "Describe your bike first to filter the guides that apply to it.",
+    "results": "{count, plural, =0 {No guides} one {# guide shown} other {# guides shown}}"
+  },
+  "measure": {
+    "label": "Your measurement",
+    "target": "Target: {target}",
+    "saved": "Saved on this device.",
+    "suffix": "{unit, select, mm {mm} cm {cm} bar {bar} other {%}}"
+  },
+  "og": {
+    "tagline": "Step-by-step guide"
+  },
+  "reasons": {
+    "pad-worn": "Pads or brake blocks worn (less than 1 mm of lining left).",
+    "pad-contaminated": "Pads contaminated or oily: the brake squeals or loses power.",
+    "rotor-worn": "Rotor too thin or deeply grooved.",
+    "rotor-warped": "Rotor bent: it rubs once per wheel turn.",
+    "caliper-rub": "Caliper misaligned: the rotor rubs on a pad.",
+    "lever-spongy": "Spongy lever, or one that reaches the bar: air or a leak in the system.",
+    "hose-leak": "Fluid leaking from the hose, the lever or the caliper.",
+    "brake-cable-frayed": "Brake cable frayed, rusty or sticky.",
+    "brake-not-centered": "Rim brake off-centre: one block rubs or touches first.",
+    "rim-brake-track-worn": "Rim braking surface worn: the wear indicator is gone or the surface is concave.",
+    "rim-contaminated": "Rim braking surface greasy or dirty.",
+    "lever-reach-wrong": "Lever too far from the fingers or badly angled.",
+    "chain-elongation": "Chain stretched past its wear limit: it is wearing the cassette and chainrings.",
+    "chain-dirty": "Chain dirty, dry or rusty.",
+    "chain-stiff-link": "Stiff link that makes the chain skip.",
+    "cassette-worn": "Cassette teeth worn into shark fins: the chain skips.",
+    "chainring-worn": "Chainring teeth worn or bent.",
+    "hanger-bent": "Derailleur hanger bent: the derailleur is no longer parallel to the sprockets.",
+    "shifting-imprecise": "Shifting imprecise, noisy or slow.",
+    "front-shifting-imprecise": "Front shifting imprecise, or the chain drops between the chainrings.",
+    "shift-cable-frayed": "Shift cable frayed, rusty, or housing damaged.",
+    "drivetrain-dirty": "Drivetrain dirty: sprockets, chainrings and jockey wheels full of grime.",
+    "hub-gear-slipping": "The gear hub slips or skips gears.",
+    "belt-worn": "Belt worn, cracked or slack.",
+    "bottom-bracket-play": "Play or creaking in the bottom bracket.",
+    "crank-loose": "Crank arm moving on the spindle.",
+    "tire-worn": "Tyre worn: wear indicators reached, squared-off tread or casing showing.",
+    "tire-damaged": "Tyre cut, bulging or with a cracked sidewall.",
+    "tube-punctured": "Inner tube punctured or losing air within a few days.",
+    "valve-damaged": "Valve bent, leaking core or missing cap.",
+    "sealant-dry": "Tubeless sealant dried out: it no longer seals small punctures.",
+    "wheel-out-of-true": "Wheel out of true, sideways or up and down.",
+    "spoke-broken": "Spoke broken or loose.",
+    "hub-play": "Play in the hub: the wheel moves sideways.",
+    "hub-bearing-rough": "Hub bearings rough or binding.",
+    "axle-not-secure": "Quick release or thru-axle not properly closed.",
+    "headset-play": "Play in the headset: the fork knocks under braking.",
+    "headset-rough": "Headset stiff or notchy.",
+    "stem-loose": "Stem or handlebar moving.",
+    "bar-tape-worn": "Bar tape torn or unwrapping.",
+    "grips-worn": "Grips worn or turning on the bar.",
+    "frame-crack": "Crack, dent or deformation on the frame or fork.",
+    "bolt-loose": "Mounting bolt loose.",
+    "frame-dirty": "Dirty frame hiding the state of the parts.",
+    "saddle-damaged": "Saddle torn, bent rails or saddle moving.",
+    "seatpost-slipping": "Seatpost slipping down while riding.",
+    "dropper-malfunction": "Dropper post not returning or sinking on its own.",
+    "pedal-bearing-play": "Pedal with play or rough rotation.",
+    "pedal-damaged": "Pedal bent, pins missing or worn retention.",
+    "cleat-worn": "Cleats worn: the foot unclips or floats too much.",
+    "stanchion-damaged": "Stanchions scratched or marked.",
+    "suspension-leak": "Oil leaking at the fork or shock seal.",
+    "sag-out-of-range": "Sag outside the recommended range.",
+    "suspension-service-due": "Suspension due for a service: noises, harshness or lost settings.",
+    "suspension-play": "Play in the suspension bushings or pivots.",
+    "battery-damaged": "Battery dropped, swollen, cracked or running hot.",
+    "battery-connector-dirty": "Battery contacts dirty or corroded.",
+    "battery-mount-loose": "Battery not locked firmly in its mount.",
+    "motor-noise": "Noise, knocking or irregular assistance from the motor.",
+    "e-system-error": "Error code on the display or assistance cutting out.",
+    "light-not-working": "Light not switching on or flickering.",
+    "reflector-missing": "Reflector or bell missing.",
+    "accessory-loose": "Mudguard, rack or kickstand loose or rubbing."
+  }
+}

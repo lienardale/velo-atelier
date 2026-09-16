@@ -1,0 +1,268 @@
+{
+  "ill-drive": {
+    "alt": "Two bikes side by side: on the left a muscle-powered bike, on the right an electric bike with a battery on the down tube and a motor at the crank."
+  },
+  "ill-discipline": {
+    "alt": "Five bike silhouettes in a row: road, gravel, mountain, city and kids."
+  },
+  "ill-discipline-road": {
+    "alt": "Silhouette of a road bike with curved bars and narrow tyres."
+  },
+  "ill-discipline-gravel": {
+    "alt": "Silhouette of a gravel bike with curved bars and wide tyres."
+  },
+  "ill-discipline-mtb": {
+    "alt": "Silhouette of a mountain bike with a telescopic fork and knobbly tyres."
+  },
+  "ill-discipline-city-hybrid": {
+    "alt": "Silhouette of a city bike with a low frame, mudguards and a rack."
+  },
+  "ill-discipline-kids": {
+    "alt": "Silhouette of a small-wheeled kids' bike."
+  },
+  "ill-wheel-size": {
+    "alt": "Close-up of a tyre sidewall with the ETRTO marking 40-622 circled."
+  },
+  "ill-wheel-size-700c": {
+    "alt": "A 700C wheel, 622 mm rim diameter."
+  },
+  "ill-wheel-size-650b": {
+    "alt": "A 650B wheel, 584 mm rim diameter."
+  },
+  "ill-wheel-size-29": {
+    "alt": "A 29 inch mountain-bike wheel, 622 mm rim diameter."
+  },
+  "ill-wheel-size-27-5": {
+    "alt": "A 27.5 inch mountain-bike wheel, 584 mm rim diameter."
+  },
+  "ill-wheel-size-26": {
+    "alt": "A 26 inch wheel, 559 mm rim diameter."
+  },
+  "ill-wheel-size-24": {
+    "alt": "A 24 inch wheel, 507 mm rim diameter."
+  },
+  "ill-wheel-size-20": {
+    "alt": "A 20 inch wheel, 406 mm rim diameter."
+  },
+  "ill-wheel-size-16": {
+    "alt": "A 16 inch wheel, 305 mm rim diameter."
+  },
+  "ill-brake-type": {
+    "alt": "Four brakes compared: rim caliper, V-brake, cantilever and a disc brake with its hose."
+  },
+  "ill-brake-type-rim-caliper": {
+    "alt": "A caliper brake arching over the tyre."
+  },
+  "ill-brake-type-v-brake": {
+    "alt": "A V-brake: two upright arms joined by a crossing cable."
+  },
+  "ill-brake-type-cantilever": {
+    "alt": "A cantilever brake: two short arms and a triangular straddle wire."
+  },
+  "ill-brake-type-disc-mechanical": {
+    "alt": "A disc brake caliper pulled by a cable in its housing."
+  },
+  "ill-brake-type-disc-hydraulic": {
+    "alt": "A disc brake caliper fed by an oil hose."
+  },
+  "ill-brake-mount": {
+    "alt": "Three caliper mounts seen from the side — flat mount, post mount and IS — with the direction of the bolts."
+  },
+  "ill-cockpit": {
+    "alt": "Four handlebars seen head-on: drop, flat, riser and swept-back."
+  },
+  "ill-cockpit-drop": {
+    "alt": "A drop bar curling downwards."
+  },
+  "ill-cockpit-flat": {
+    "alt": "A flat bar, straight from end to end."
+  },
+  "ill-cockpit-riser": {
+    "alt": "A riser bar rising on either side of the stem."
+  },
+  "ill-cockpit-swept": {
+    "alt": "A swept-back bar curving strongly towards the rider."
+  },
+  "ill-drivetrain": {
+    "alt": "Cranksets with one, two and three chainrings, next to an internal gear hub."
+  },
+  "ill-drivetrain-derailleur-1x": {
+    "alt": "A crankset with a single chainring."
+  },
+  "ill-drivetrain-derailleur-2x": {
+    "alt": "A two-chainring crankset with its front derailleur."
+  },
+  "ill-drivetrain-derailleur-3x": {
+    "alt": "A three-chainring crankset."
+  },
+  "ill-drivetrain-igh": {
+    "alt": "A large, smooth internal gear hub with a single sprocket."
+  },
+  "ill-drivetrain-singlespeed": {
+    "alt": "A singlespeed drivetrain: one chainring, one sprocket."
+  },
+  "ill-transmission": {
+    "alt": "A chain and a belt side by side, with the frame splitter bolt."
+  },
+  "ill-speeds": {
+    "alt": "A cassette seen from the side, its sprockets numbered one by one."
+  },
+  "ill-shifter": {
+    "alt": "Six shifters compared: integrated, trigger, grip, thumb, bar-end and electronic."
+  },
+  "ill-shifter-sti-integrated": {
+    "alt": "A road brake lever that swings sideways to change gear."
+  },
+  "ill-shifter-trigger": {
+    "alt": "A trigger shifter under the bar."
+  },
+  "ill-shifter-grip": {
+    "alt": "A twisting grip shifter around the bar."
+  },
+  "ill-shifter-thumb": {
+    "alt": "A thumb shifter above the bar."
+  },
+  "ill-shifter-bar-end": {
+    "alt": "A shifter at the end of a drop bar."
+  },
+  "ill-shifter-electronic": {
+    "alt": "An electronic shifter with buttons and no gear cable."
+  },
+  "ill-pedals": {
+    "alt": "Five pedals seen at an angle: flat, SPD, road, toe clips and combination."
+  },
+  "ill-pedals-flat": {
+    "alt": "A flat pedal with pins."
+  },
+  "ill-pedals-spd": {
+    "alt": "A mountain clipless pedal with its two-bolt cleat."
+  },
+  "ill-pedals-road-clipless": {
+    "alt": "A road clipless pedal with its large triangular cleat."
+  },
+  "ill-pedals-toe-clips": {
+    "alt": "A pedal with a toe clip cage and strap."
+  },
+  "ill-pedals-combo": {
+    "alt": "A combination pedal: one flat face, one clipless face."
+  },
+  "ill-suspension": {
+    "alt": "A telescopic fork at the front and a shock between the seat tube and the rear triangle."
+  },
+  "ill-seatpost": {
+    "alt": "A dropper seatpost with its bar lever and cable."
+  },
+  "ill-tire-system": {
+    "alt": "A valve taken apart: the removable core and sealant of a tubeless set-up, an inner tube beside it."
+  },
+  "ill-e-motor": {
+    "alt": "A mid-drive motor around the crank axle, next to a motor inside the rear hub."
+  },
+  "ill-e-battery": {
+    "alt": "Three battery positions: integrated in the down tube, bolted onto it, or sitting on the rear rack."
+  },
+  "pad-wear-disc": {
+    "alt": "Disc brake pad seen from the side: the metal backing plate, the friction lining and the 1 mm wear limit.",
+    "callouts": {
+      "1": "Metal backing plate",
+      "2": "Friction lining",
+      "3": "Wear limit: 1 mm"
+    }
+  },
+  "pad-wear-rim": {
+    "alt": "Rim brake block: the wear grooves and the rim braking surface.",
+    "callouts": {
+      "1": "Wear grooves",
+      "2": "Rim braking surface"
+    }
+  },
+  "rotor-true-check": {
+    "alt": "Rotor inside the caliper seen from above: the gap between rotor and pads, the rotor, and the engraved minimum thickness.",
+    "callouts": {
+      "1": "Rotor-to-pad gap",
+      "2": "Rotor",
+      "3": "Engraved minimum thickness"
+    }
+  },
+  "chain-wear-checker": {
+    "alt": "Chain checker resting on a chain: the 0.5 % side, the 0.75 % side and a chain roller.",
+    "callouts": {
+      "1": "0.5 % side",
+      "2": "0.75 % side",
+      "3": "Chain roller"
+    }
+  },
+  "derailleur-limit-screws-h-l-b": {
+    "alt": "Rear derailleur seen from behind: the H and L limit screws and the B-tension screw.",
+    "callouts": {
+      "1": "H screw (smallest sprocket stop)",
+      "2": "L screw (largest sprocket stop)",
+      "3": "B screw (jockey-to-sprocket gap)"
+    }
+  },
+  "barrel-adjuster": {
+    "alt": "Barrel adjuster where the housing meets the derailleur.",
+    "callouts": {
+      "1": "Barrel adjuster",
+      "2": "Cable housing"
+    }
+  },
+  "saddle-height-heel-method": {
+    "alt": "Rider seated with the heel on the pedal at the bottom of the stroke, leg straight.",
+    "callouts": {
+      "1": "Heel on the pedal",
+      "2": "Straight leg",
+      "3": "Crank in line with the seat tube"
+    }
+  },
+  "cleat-ball-of-foot": {
+    "alt": "Shoe on the pedal: the ball of the foot directly above the pedal axle.",
+    "callouts": {
+      "1": "Ball of the foot",
+      "2": "Pedal axle"
+    }
+  },
+  "sag-measure-oring": {
+    "alt": "Fork stanchion with its O-ring pushed down and the travel markings.",
+    "callouts": {
+      "1": "O-ring",
+      "2": "Travel markings"
+    }
+  },
+  "axle-qr-vs-thru": {
+    "alt": "Lever quick release next to a screwed thru-axle.",
+    "callouts": {
+      "1": "Quick-release lever",
+      "2": "Thru-axle"
+    }
+  },
+  "headset-threaded-vs-threadless": {
+    "alt": "Threaded headset with locknut next to a threadless headset with a clamp-on stem.",
+    "callouts": {
+      "1": "Locknut",
+      "2": "Stem clamp bolts",
+      "3": "Top cap"
+    }
+  },
+  "ebike-battery-connector": {
+    "alt": "E-bike battery connector: the contacts and the key lock.",
+    "callouts": {
+      "1": "Electrical contacts",
+      "2": "Key lock"
+    }
+  },
+  "tire-lever-technique": {
+    "alt": "Two tyre levers under the bead: the first hooked to a spoke, the second sliding around the rim.",
+    "callouts": {
+      "1": "First lever hooked to a spoke",
+      "2": "Second lever"
+    }
+  },
+  "presta-valve-core": {
+    "alt": "Presta valve: the lock nut and the removable core.",
+    "callouts": {
+      "1": "Lock nut",
+      "2": "Removable core"
+    }
+  }
+}

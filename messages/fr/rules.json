@@ -1,0 +1,166 @@
+{
+  "chain-cassette-speeds": {
+    "message": "La chaîne n'est pas faite pour le nombre de vitesses de la cassette.",
+    "fix": "Prenez une chaîne du même nombre de vitesses que la cassette."
+  },
+  "chain-freewheel-speeds": {
+    "message": "La chaîne ne correspond pas au nombre de vitesses de la roue libre.",
+    "fix": "Une roue libre 5 à 8 vitesses demande une chaîne 6-7-8 vitesses."
+  },
+  "derailleur-cassette-speeds": {
+    "message": "Le dérailleur arrière et la cassette n'ont pas le même nombre de vitesses.",
+    "fix": "Choisissez un dérailleur et une cassette du même nombre de vitesses."
+  },
+  "shifter-derailleur-speeds": {
+    "message": "La manette et le dérailleur arrière n'ont pas le même nombre de vitesses.",
+    "fix": "La manette doit avoir exactement autant de crans que le dérailleur a de vitesses."
+  },
+  "shifter-hub-speeds": {
+    "message": "La manette ne correspond pas au nombre de vitesses du moyeu.",
+    "fix": "Prenez la manette prévue pour ce moyeu, de la même marque et du même nombre de vitesses."
+  },
+  "shifter-derailleur-brand": {
+    "message": "La manette et le dérailleur ne tirent pas le câble de la même façon.",
+    "fix": "Restez dans la même marque ; jusqu'à 10 vitesses, microSHIFT et Shimano se mélangent."
+  },
+  "shifter-derailleur-actuation": {
+    "message": "Une manette mécanique ne commande pas un dérailleur électronique, et inversement.",
+    "fix": "Manette et dérailleur doivent être tous deux mécaniques ou tous deux électroniques."
+  },
+  "front-shifter-chainrings": {
+    "message": "La manette gauche n'a pas autant de positions que le pédalier a de plateaux.",
+    "fix": "Prenez une manette gauche à 2 positions pour un double, à 3 pour un triple."
+  },
+  "derailleur-max-cog": {
+    "message": "Le plus grand pignon dépasse ce que le dérailleur arrière peut monter.",
+    "fix": "Choisissez une cassette plus serrée, ou un dérailleur à chape plus longue."
+  },
+  "cassette-freehub": {
+    "message": "Cette cassette ne se monte pas sur ce corps de roue libre.",
+    "fix": "Prenez une cassette pour le corps de roue libre de la roue, ou changez le corps."
+  },
+  "cassette-speeds-freehub": {
+    "message": "Ce corps de roue libre n'accepte pas une cassette de ce nombre de vitesses.",
+    "fix": "Vérifiez la liste des cassettes compatibles avec le corps de roue libre."
+  },
+  "freewheel-body": {
+    "message": "Une roue libre se visse sur un moyeu fileté, pas sur un corps de cassette.",
+    "fix": "Prenez une cassette pour ce moyeu, ou une roue avec un moyeu fileté."
+  },
+  "hanger-standard": {
+    "message": "Ce dérailleur demande une patte UDH que le cadre n'a pas.",
+    "fix": "Vérifiez que le cadre accepte une patte UDH, ou choisissez un dérailleur classique."
+  },
+  "caliper-rotor-size": {
+    "message": "L'étrier n'est pas positionné pour ce diamètre de disque.",
+    "fix": "Changez l'adaptateur de l'étrier pour ce diamètre, ou prenez un disque de la taille actuelle."
+  },
+  "rotor-caliper-mount": {
+    "message": "Ce diamètre de disque est inhabituel pour cette fixation d'étrier.",
+    "fix": "Vérifiez qu'un adaptateur existe pour cette combinaison avant d'acheter."
+  },
+  "rotor-frame-max": {
+    "message": "Le disque arrière est plus grand que ce que le cadre autorise.",
+    "fix": "Restez au diamètre maximal indiqué par le fabricant du cadre."
+  },
+  "rotor-fork-max": {
+    "message": "Le disque avant est plus grand que ce que la fourche autorise.",
+    "fix": "Restez au diamètre maximal indiqué par le fabricant de la fourche."
+  },
+  "rotor-hub-interface": {
+    "message": "Ce disque ne se fixe pas sur ce moyeu (6 trous et Centerlock sont différents).",
+    "fix": "Prenez un disque de la même fixation que le moyeu, ou un adaptateur Centerlock vers 6 trous."
+  },
+  "caliper-frame-mount": {
+    "message": "Cet étrier ne se fixe pas sur ce support de frein.",
+    "fix": "Choisissez un étrier de la même fixation, ou l'adaptateur prévu."
+  },
+  "lever-caliper-actuation": {
+    "message": "Un levier mécanique ne commande pas un étrier hydraulique, et inversement.",
+    "fix": "Levier et étrier doivent être tous deux mécaniques ou tous deux hydrauliques."
+  },
+  "lever-pull-ratio": {
+    "message": "Le levier ne tire pas la bonne longueur de câble pour ce frein.",
+    "fix": "Un V-brake demande un levier à tirage long ; un étrier route ou un cantilever, un tirage court."
+  },
+  "mech-disc-lever-pull": {
+    "message": "L'étrier à disque mécanique n'a pas le même tirage que le levier.",
+    "fix": "Prenez la version route (tirage court) ou VTT (tirage long) qui correspond au levier."
+  },
+  "wheel-axle-frame": {
+    "message": "L'axe de la roue arrière ne correspond pas aux pattes du cadre.",
+    "fix": "Prenez une roue au standard d'axe du cadre, ou changez les embouts du moyeu si c'est possible."
+  },
+  "wheel-axle-fork": {
+    "message": "L'axe de la roue avant ne correspond pas à la fourche.",
+    "fix": "Prenez une roue au standard d'axe de la fourche, ou changez les embouts du moyeu si c'est possible."
+  },
+  "tire-diameter-wheel": {
+    "message": "Le diamètre du pneu ne correspond pas à la jante.",
+    "fix": "Le second nombre ETRTO du pneu (ex. 622) doit être celui de la jante."
+  },
+  "tire-rim-width": {
+    "message": "Ce pneu est trop étroit ou trop large pour la largeur de la jante.",
+    "fix": "Choisissez une largeur de pneu dans la plage recommandée pour cette jante."
+  },
+  "tubeless-rim-tire": {
+    "message": "Un montage tubeless demande une jante compatible tubeless.",
+    "fix": "Utilisez une jante tubeless ready, ou revenez à un montage avec chambre à air."
+  },
+  "tire-frame-clearance": {
+    "message": "Le pneu arrière est plus large que ce que le cadre laisse passer.",
+    "fix": "Restez sous la largeur maximale du cadre, avec au moins 4 mm de marge."
+  },
+  "tire-fork-clearance": {
+    "message": "Le pneu avant est plus large que ce que la fourche laisse passer.",
+    "fix": "Restez sous la largeur maximale de la fourche, avec au moins 4 mm de marge."
+  },
+  "headset-frame": {
+    "message": "Le jeu de direction ne correspond pas à la douille du cadre.",
+    "fix": "Prenez un jeu de direction au standard de la douille (fileté, droit ou conique)."
+  },
+  "stem-steerer": {
+    "message": "Cette potence ne se serre pas sur ce pivot de fourche.",
+    "fix": "Un pivot fileté demande une potence à plongeur ; un pivot droit ou conique, une potence 1-1/8 pouce."
+  },
+  "stem-bar-clamp": {
+    "message": "Le diamètre du cintre ne correspond pas au serrage de la potence.",
+    "fix": "Prenez un cintre et une potence du même diamètre de serrage (31,8 ou 35 mm…)."
+  },
+  "seatpost-frame-diameter": {
+    "message": "La tige de selle est trop grosse pour le tube de selle.",
+    "fix": "Mesurez le diamètre intérieur du tube de selle et prenez la même taille de tige."
+  },
+  "seatpost-frame-shim": {
+    "message": "La tige de selle est plus fine que le tube de selle : il faudra une bague de réduction.",
+    "fix": "Prenez la bonne taille de tige, ou une bague de réduction (shim) adaptée."
+  },
+  "seat-clamp-frame": {
+    "message": "Le collier de selle n'a pas le diamètre du tube de selle.",
+    "fix": "Mesurez le diamètre extérieur du haut du tube de selle."
+  },
+  "bb-shell-frame": {
+    "message": "Ce boîtier de pédalier ne se monte pas dans ce cadre.",
+    "fix": "Prenez un boîtier au standard de la boîte de pédalier du cadre (BSA, BB86, T47…)."
+  },
+  "bb-spindle-crank": {
+    "message": "L'axe du pédalier ne correspond pas au boîtier.",
+    "fix": "Boîtier et pédalier doivent utiliser le même axe (Hollowtech II, DUB, carré…)."
+  },
+  "pedal-thread-crank": {
+    "message": "Le filetage de la pédale ne correspond pas à la manivelle.",
+    "fix": "Prenez des pédales au filetage des manivelles (9/16 pouce presque partout)."
+  },
+  "belt-frame-splitter": {
+    "message": "Une courroie ne se monte que sur un cadre dont le triangle arrière s'ouvre.",
+    "fix": "Vérifiez que le cadre a une ouverture pour courroie, sinon restez à la chaîne."
+  },
+  "e-chain-rated": {
+    "message": "Cette chaîne n'est pas prévue pour le couple d'un moteur.",
+    "fix": "Prenez une chaîne marquée e-bike (E-Bike, EPT…) : elle s'usera moins vite."
+  },
+  "e-crank-interface": {
+    "message": "Ces manivelles ne se montent pas sur l'axe de ce moteur.",
+    "fix": "Prenez des manivelles prévues pour les cannelures du moteur (Bosch, Shimano STEPS, Bafang…)."
+  }
+}

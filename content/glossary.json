@@ -1,0 +1,271 @@
+{
+  "$comment": [
+    "FR/EN terminology every content author uses (§5.7). 'part:<partId>' terms must appear in parts.<partId>.label in both locales (tests/integration/content/parity.test.ts); 'term:' entries are vocabulary only. Notes explain the choice when the word is easy to get wrong."
+  ],
+  "terms": [
+    {
+      "id": "part:frame",
+      "fr": "cadre",
+      "en": "frame",
+      "note": {
+        "fr": "Le cadre : tubes supérieur, diagonal, de selle, bases et haubans.",
+        "en": "The frame: top tube, down tube, seat tube, chainstays and seatstays."
+      }
+    },
+    {
+      "id": "part:fork",
+      "fr": "fourche",
+      "en": "fork",
+      "note": {
+        "fr": "Rigide ou suspendue ; « plongeurs » pour les tubes qui coulissent.",
+        "en": "Rigid or suspension; 'stanchions' are the sliding tubes."
+      }
+    },
+    {
+      "id": "part:headset",
+      "fr": "jeu de direction",
+      "en": "headset",
+      "note": {
+        "fr": "Les roulements qui font tourner la fourche dans le cadre. Pas « direction » seul.",
+        "en": "The bearings the fork turns in. Not 'steering'."
+      }
+    },
+    {
+      "id": "part:tire-front",
+      "fr": "pneu",
+      "en": "tyre",
+      "note": {
+        "fr": "Orthographe britannique « tyre » dans l’anglais du site.",
+        "en": "British spelling 'tyre' throughout the English site."
+      }
+    },
+    {
+      "id": "part:tire-rear",
+      "fr": "pneu",
+      "en": "tyre"
+    },
+    {
+      "id": "part:tube-front",
+      "fr": "chambre à air",
+      "en": "inner tube"
+    },
+    {
+      "id": "part:tube-rear",
+      "fr": "chambre à air",
+      "en": "inner tube"
+    },
+    {
+      "id": "part:bottom-bracket",
+      "fr": "boîtier de pédalier",
+      "en": "bottom bracket",
+      "note": {
+        "fr": "L’axe et les roulements du pédalier, logés dans le cadre.",
+        "en": "The axle and bearings of the cranks, inside the frame."
+      }
+    },
+    {
+      "id": "part:crankset",
+      "fr": "pédalier",
+      "en": "crankset",
+      "note": {
+        "fr": "Manivelles et plateaux. « Pédalier » désigne l’ensemble, pas le boîtier.",
+        "en": "Crank arms and chainrings. Not the bottom bracket."
+      }
+    },
+    {
+      "id": "part:chainring",
+      "fr": "plateau",
+      "en": "chainring",
+      "note": {
+        "fr": "À l’avant ; « pignon » est réservé à l’arrière.",
+        "en": "At the front; 'sprocket' is reserved for the rear."
+      }
+    },
+    {
+      "id": "part:chain",
+      "fr": "chaîne",
+      "en": "chain"
+    },
+    {
+      "id": "part:cassette",
+      "fr": "cassette",
+      "en": "cassette",
+      "note": {
+        "fr": "Pignons montés sur un corps de roue libre ; distincte de la roue libre vissée.",
+        "en": "Sprockets slid onto a freehub body; not a threaded freewheel."
+      }
+    },
+    {
+      "id": "part:freewheel",
+      "fr": "roue libre",
+      "en": "freewheel",
+      "note": {
+        "fr": "Bloc de pignons vissé sur le moyeu (5 à 7 vitesses).",
+        "en": "Threaded sprocket block on the hub (5 to 7 speeds)."
+      }
+    },
+    {
+      "id": "part:rear-derailleur",
+      "fr": "dérailleur arrière",
+      "en": "rear derailleur"
+    },
+    {
+      "id": "part:front-derailleur",
+      "fr": "dérailleur avant",
+      "en": "front derailleur"
+    },
+    {
+      "id": "part:internal-gear-hub",
+      "fr": "moyeu à vitesses intégrées",
+      "en": "internal gear hub"
+    },
+    {
+      "id": "part:brake-caliper-front",
+      "fr": "étrier",
+      "en": "caliper",
+      "note": {
+        "fr": "L’étrier porte les plaquettes (disque) ou les patins (jante).",
+        "en": "The caliper holds the pads (disc) or blocks (rim)."
+      }
+    },
+    {
+      "id": "part:brake-caliper-rear",
+      "fr": "étrier",
+      "en": "caliper"
+    },
+    {
+      "id": "part:brake-pads-front",
+      "fr": "plaquettes",
+      "en": "pads",
+      "note": {
+        "fr": "« Plaquettes » pour le disque, « patins » pour la jante.",
+        "en": "'Pads' for disc brakes, 'brake blocks' for rim brakes."
+      }
+    },
+    {
+      "id": "part:brake-pads-rear",
+      "fr": "plaquettes",
+      "en": "pads"
+    },
+    {
+      "id": "part:rotor-front",
+      "fr": "disque",
+      "en": "rotor"
+    },
+    {
+      "id": "part:rotor-rear",
+      "fr": "disque",
+      "en": "rotor"
+    },
+    {
+      "id": "part:handlebar",
+      "fr": "cintre",
+      "en": "handlebar",
+      "note": {
+        "fr": "Pas « guidon » dans les libellés : le guidon est l’ensemble du poste de pilotage.",
+        "en": "The bar itself."
+      }
+    },
+    {
+      "id": "part:stem",
+      "fr": "potence",
+      "en": "stem"
+    },
+    {
+      "id": "part:seatpost",
+      "fr": "tige de selle",
+      "en": "seatpost"
+    },
+    {
+      "id": "part:seat-clamp",
+      "fr": "collier de selle",
+      "en": "seat clamp"
+    },
+    {
+      "id": "part:saddle",
+      "fr": "selle",
+      "en": "saddle"
+    },
+    {
+      "id": "term:brake-blocks",
+      "fr": "patins",
+      "en": "brake blocks",
+      "note": {
+        "fr": "Garnitures des freins sur jante, par opposition aux plaquettes des freins à disque.",
+        "en": "Rim brake linings, as opposed to disc brake pads."
+      }
+    },
+    {
+      "id": "term:sprocket",
+      "fr": "pignon",
+      "en": "sprocket",
+      "note": {
+        "fr": "Une couronne de la cassette ou de la roue libre.",
+        "en": "One cog of the cassette or freewheel."
+      }
+    },
+    {
+      "id": "term:freehub",
+      "fr": "corps de roue libre",
+      "en": "freehub body",
+      "note": {
+        "fr": "La partie du moyeu arrière qui reçoit la cassette.",
+        "en": "The part of the rear hub the cassette slides onto."
+      }
+    },
+    {
+      "id": "term:hose",
+      "fr": "durite",
+      "en": "hose",
+      "note": {
+        "fr": "Le conduit d’un frein hydraulique ; « gaine » pour un câble.",
+        "en": "A hydraulic brake line; 'housing' for a cable."
+      }
+    },
+    {
+      "id": "term:housing",
+      "fr": "gaine",
+      "en": "housing"
+    },
+    {
+      "id": "term:barrel-adjuster",
+      "fr": "tendeur de câble",
+      "en": "barrel adjuster"
+    },
+    {
+      "id": "term:limit-screws",
+      "fr": "vis de butée",
+      "en": "limit screws"
+    },
+    {
+      "id": "term:hanger",
+      "fr": "patte de dérailleur",
+      "en": "derailleur hanger"
+    },
+    {
+      "id": "term:quick-release",
+      "fr": "blocage rapide",
+      "en": "quick release"
+    },
+    {
+      "id": "term:thru-axle",
+      "fr": "axe traversant",
+      "en": "thru-axle"
+    },
+    {
+      "id": "term:sag",
+      "fr": "affaissement (sag)",
+      "en": "sag"
+    },
+    {
+      "id": "term:bed-in",
+      "fr": "rodage",
+      "en": "bedding-in"
+    },
+    {
+      "id": "term:valve-core",
+      "fr": "obus de valve",
+      "en": "valve core"
+    }
+  ]
+}

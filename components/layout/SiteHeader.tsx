@@ -1,6 +1,7 @@
 import { Bike } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { AccountMenu } from "@/components/layout/AccountMenu";
 import { Link } from "@/lib/i18n/navigation";
 
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -19,7 +20,7 @@ const sheetLink =
  * it reads NO request API (no cookies, headers or session), so every static
  * route stays static. The request-dependent pieces are client islands:
  * `MyBikeLink` (local or demo bike, from localStorage), `LocaleSwitcher`, and
- * the account menu W1-T3 adds next to the switcher.
+ * and `AccountMenu` (the session, fetched after hydration).
  *
  * ≥ lg: logo, inline nav, switcher. < lg: 44×44 menu button opening the
  * `MobileNav` sheet, logo, switcher — never wider than 320 px.
@@ -72,15 +73,19 @@ export function SiteHeader(): React.JSX.Element {
           className="flex min-h-[var(--tap-min)] shrink-0 items-center gap-2 rounded-md px-1 font-display text-base font-semibold tracking-tight text-ink sm:text-lg"
         >
           <Bike aria-hidden="true" className="size-6 text-accent" />
-          <span>{t("site.name")}</span>
+          {/* 320 px cannot fit menu, wordmark, switcher and account (§6.5); the
+              link keeps its aria-label, so only the visual wordmark goes. */}
+          <span className="hidden min-[360px]:inline">{t("site.name")}</span>
         </Link>
 
         <nav aria-label={t("nav.label")} className="ml-4 hidden lg:block">
           <ul className="flex items-center gap-1">{links(desktopLink)}</ul>
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <LocaleSwitcher />
+          {/* Client island (W1-T3): the header itself still reads no request API. */}
+          <AccountMenu />
         </div>
       </div>
     </header>

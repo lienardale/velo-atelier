@@ -35,9 +35,15 @@
  *   "no horizontal overflow"). Opt out for one test with
  *   `test.info().annotations.push({ type: "allow-horizontal-overflow" })`.
  */
-import { expect, test as base, type BrowserContext } from "@playwright/test";
-import { encode } from "next-auth/jwt";
+import { createHash } from "node:crypto";
 
+import { expect, test as base, type BrowserContext, type TestInfo } from "@playwright/test";
+
+import {
+  mintSessionToken,
+  SESSION_MAX_AGE_S,
+  sessionCookieNameFor,
+} from "../../lib/auth/session-cookie";
 import { DEMO_USER, DEMO_USER_EN, type DemoUserSeed } from "../../prisma/seed-data";
 
 export { DEMO_USER, DEMO_USER_EN, expect };
@@ -128,13 +134,11 @@ export interface SessionUser {
   sessionVersion?: number;
 }
 
-const SESSION_MAX_AGE = 30 * 24 * 3600;
+const SESSION_MAX_AGE = SESSION_MAX_AGE_S;
 
 /** Auth.js v5 names the cookie by scheme: the `__Secure-` prefix is used on https only. */
 export function sessionCookieName(baseURL: string): string {
-  return new URL(baseURL).protocol === "https:"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
+  return sessionCookieNameFor(new URL(baseURL).protocol === "https:");
 }
 
 /**
@@ -146,20 +150,18 @@ export function sessionCookieName(baseURL: string): string {
 export async function encodeSessionToken(user: SessionUser, cookieName: string): Promise<string> {
   const secret = process.env.AUTH_SECRET;
   if (!secret) throw new Error("AUTH_SECRET is not set (playwright.config.ts loads .env.test)");
-  return encode({
-    token: {
-      sub: user.id,
+  // The same minting the app uses when it re-issues a cookie after a password
+  // change, so the fixture and production cannot drift apart.
+  return mintSessionToken(
+    {
       id: user.id,
       email: user.email,
       name: user.name ?? null,
       locale: user.locale ?? "fr",
       sessionVersion: user.sessionVersion ?? 0,
-      checkedAt: Date.now(),
     },
-    secret,
-    salt: cookieName,
-    maxAge: SESSION_MAX_AGE,
-  });
+    { secret, cookieName, maxAge: SESSION_MAX_AGE },
+  );
 }
 
 /** Sign `context` in as `user` by writing the session cookie for `baseURL`. */
@@ -202,10 +204,31 @@ interface E2EFixtures {
   noHorizontalOverflow: void;
 }
 
+/**
+ * A client address unique to this test (and this retry), inside 198.18.0.0/15 —
+ * the range RFC 2544 reserves for benchmarking, so it can never be a real visitor.
+ *
+ * Why: e2e runs `next start`, where `NODE_ENV` is `production`, so the app keeps
+ * every rate limit on — correctly. Without this, every test in a run shares
+ * 127.0.0.1's buckets: `signupPerIp` allows 5 sign-ups an hour, so the 6th test
+ * that registers a user is refused and every later one times out waiting for a
+ * redirect. `lib/security/ip.ts` reads `x-real-ip` before `x-forwarded-for`, so
+ * this header gives each test its own bucket while the real limiter still runs.
+ * The limiter itself is tested in `tests/security/rate-limit.test.ts`.
+ */
+export function testClientIp(testInfo: Pick<TestInfo, "testId" | "retry">): string {
+  const digest = createHash("sha256").update(`${testInfo.testId}#${testInfo.retry}`).digest();
+  return `198.${18 + (digest[0] % 2)}.${digest[1]}.${digest[2]}`;
+}
+
 // The fixture callback Playwright documents as `use` is named `provide` here:
 // eslint-plugin-react-hooks reads any `use(...)` call as React 19's `use` hook.
 export const test = base.extend<E2EFixtures & E2EOptions>({
   webgl: [true, { option: true }],
+
+  extraHTTPHeaders: async ({ extraHTTPHeaders }, provide, testInfo) => {
+    await provide({ ...extraHTTPHeaders, "x-real-ip": testClientIp(testInfo) });
+  },
 
   signedInContext: async ({ context, baseURL }, provide) => {
     await provide((user = DEMO_USER) =>

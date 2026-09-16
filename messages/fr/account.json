@@ -1,0 +1,55 @@
+{
+  "title": "Mon compte",
+  "subtitle": "Vos informations, votre mot de passe et la suppression de votre compte.",
+  "metaTitle": "Mon compte",
+  "metaDescription": "Gérez votre profil, votre mot de passe et vos données sur vélo-atelier.",
+  "signedInWith": {
+    "password": "Connexion par e-mail et mot de passe.",
+    "google": "Connexion avec Google.",
+    "both": "Connexion par e-mail et mot de passe, ou avec Google."
+  },
+  "profile": {
+    "title": "Profil",
+    "description": "Le nom affiché dans le menu et la langue de l’interface.",
+    "email": "Adresse e-mail",
+    "emailHint": "L’adresse ne peut pas être modifiée pour l’instant.",
+    "name": "Prénom ou pseudo",
+    "locale": "Langue",
+    "submit": "Enregistrer",
+    "submitting": "Enregistrement…",
+    "saved": "Profil enregistré."
+  },
+  "password": {
+    "changeTitle": "Changer de mot de passe",
+    "changeDescription": "Après un changement, vos autres appareils sont déconnectés dans les cinq minutes.",
+    "setTitle": "Définir un mot de passe",
+    "setDescription": "Votre compte se connecte avec Google. Ajoutez un mot de passe pour pouvoir vous connecter sans lui.",
+    "current": "Mot de passe actuel",
+    "next": "Nouveau mot de passe",
+    "submitChange": "Changer le mot de passe",
+    "submitSet": "Définir le mot de passe",
+    "submitting": "Enregistrement…",
+    "changed": "Mot de passe modifié.",
+    "set": "Mot de passe défini."
+  },
+  "delete": {
+    "title": "Supprimer mon compte",
+    "description": "Vos vélos, vos contrôles et vos listes sont supprimés définitivement. Cette action est irréversible.",
+    "open": "Supprimer mon compte",
+    "dialogTitle": "Supprimer définitivement votre compte ?",
+    "dialogDescription": "Tout est effacé : {bikes} et l’historique de vos contrôles. Il n’y a pas de corbeille.",
+    "bikesCount": "{count, plural, =0 {aucun vélo} one {# vélo} other {# vélos}}",
+    "confirmLabelPassword": "Tapez votre mot de passe pour confirmer",
+    "confirmLabelWord": "Tapez SUPPRIMER pour confirmer",
+    "confirmWord": "SUPPRIMER",
+    "cancel": "Annuler",
+    "confirm": "Supprimer définitivement",
+    "submitting": "Suppression…"
+  },
+  "myBikes": {
+    "title": "Mes vélos",
+    "placeholder": "Vos vélos enregistrés apparaîtront ici.",
+    "metaTitle": "Mes vélos",
+    "metaDescription": "Les vélos enregistrés sur votre compte vélo-atelier."
+  }
+}

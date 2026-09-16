@@ -1,0 +1,55 @@
+{
+  "title": "My account",
+  "subtitle": "Your details, your password, and deleting your account.",
+  "metaTitle": "My account",
+  "metaDescription": "Manage your profile, your password and your data on vélo-atelier.",
+  "signedInWith": {
+    "password": "Signs in with email and password.",
+    "google": "Signs in with Google.",
+    "both": "Signs in with email and password, or with Google."
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "The name shown in the menu, and the language of the interface.",
+    "email": "Email address",
+    "emailHint": "The address cannot be changed for now.",
+    "name": "First name or nickname",
+    "locale": "Language",
+    "submit": "Save",
+    "submitting": "Saving…",
+    "saved": "Profile saved."
+  },
+  "password": {
+    "changeTitle": "Change password",
+    "changeDescription": "After a change, your other devices are signed out within five minutes.",
+    "setTitle": "Set a password",
+    "setDescription": "Your account signs in with Google. Add a password so you can sign in without it.",
+    "current": "Current password",
+    "next": "New password",
+    "submitChange": "Change password",
+    "submitSet": "Set password",
+    "submitting": "Saving…",
+    "changed": "Password changed.",
+    "set": "Password set."
+  },
+  "delete": {
+    "title": "Delete my account",
+    "description": "Your bikes, checkups and lists are deleted for good. This cannot be undone.",
+    "open": "Delete my account",
+    "dialogTitle": "Permanently delete your account?",
+    "dialogDescription": "Everything goes: {bikes} and the history of your checkups. There is no bin to restore from.",
+    "bikesCount": "{count, plural, =0 {no bike} one {# bike} other {# bikes}}",
+    "confirmLabelPassword": "Type your password to confirm",
+    "confirmLabelWord": "Type DELETE to confirm",
+    "confirmWord": "DELETE",
+    "cancel": "Cancel",
+    "confirm": "Delete permanently",
+    "submitting": "Deleting…"
+  },
+  "myBikes": {
+    "title": "My bikes",
+    "placeholder": "The bikes saved on your account will show up here.",
+    "metaTitle": "My bikes",
+    "metaDescription": "The bikes saved on your vélo-atelier account."
+  }
+}

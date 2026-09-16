@@ -1,0 +1,30 @@
+---
+slug: check-fixture-short-step
+kind: check
+title: Test guide
+summary: A deliberately invalid document.
+status: full
+order: 1
+difficulty: 1
+minutes: 5
+partIds: [chain]
+tools: []
+related: []
+steps:
+  - id: inspect
+    title: Look
+    checkQuestion:
+      prompt: Is the chain in good shape?
+      skippable: false
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+          guideSlug: replace-chain
+---
+
+<Step id="inspect">
+
+Look at the chain.
+
+</Step>

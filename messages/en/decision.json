@@ -1,0 +1,366 @@
+{
+  "drive": {
+    "title": "Does your bike have electric assistance?",
+    "help": "Look for a battery and a motor. The battery is a removable block bolted to the down tube or sitting on the rear rack, or a noticeably fat down tube with a key lock. The motor is a bulky housing around the crank axle, or a rear hub much larger than usual with a cable coming out of it. None of that, and the bike is muscle-powered.",
+    "options": {
+      "muscular": {
+        "label": "Muscle-powered",
+        "description": "No assistance: all the power comes from you."
+      },
+      "electric": {
+        "label": "Electric",
+        "description": "A motor and a battery assist your pedalling."
+      }
+    }
+  },
+  "discipline": {
+    "title": "What is this bike for?",
+    "help": "Look at the bars and the tyres. Bars curling down and narrow, smooth tyres: road. Same bars but wide, knobbly tyres: gravel. Flat or raised bars with a telescopic fork: mountain bike. Mudguards, a rack, a kickstand or factory-fitted lights: city or hybrid. Wheels of 24 inches or less: a kid's bike.",
+    "options": {
+      "road": {
+        "label": "Road",
+        "description": "Curved bars, narrow tyres, leaning forward."
+      },
+      "gravel": {
+        "label": "Gravel",
+        "description": "Curved bars but wide tyres: roads and tracks."
+      },
+      "mtb": {
+        "label": "Mountain bike",
+        "description": "Flat or raised bars, knobbly tyres, suspension."
+      },
+      "city-hybrid": {
+        "label": "City or hybrid",
+        "description": "Upright, mudguards and a rack, everyday riding."
+      },
+      "kids": {
+        "label": "Kids",
+        "description": "Small 16 to 24 inch wheels, usually a single gear."
+      }
+    }
+  },
+  "wheel-size": {
+    "title": "What size are the wheels?",
+    "help": "Do not trust the inch marking alone: read the ETRTO number printed on the tyre sidewall, right after the dash, for example 40-622. 622 = 700C or 29 inch, 584 = 650B or 27.5 inch, 559 = 26 inch, 507 = 24 inch, 406 = 20 inch, 305 = 16 inch.",
+    "options": {
+      "16": {
+        "label": "16 inch",
+        "description": "ETRTO 305 — first bikes, with or without stabilisers."
+      },
+      "20": {
+        "label": "20 inch",
+        "description": "ETRTO 406 — kids' bikes and BMX."
+      },
+      "24": {
+        "label": "24 inch",
+        "description": "ETRTO 507 — bigger kids' bikes."
+      },
+      "26": {
+        "label": "26 inch",
+        "description": "ETRTO 559 — mountain and hybrid bikes made before 2010."
+      },
+      "29": {
+        "label": "29 inch",
+        "description": "ETRTO 622 — the mountain-bike name for 700C."
+      },
+      "700c": {
+        "label": "700C",
+        "description": "ETRTO 622 — the size of road, gravel and hybrid bikes."
+      },
+      "650b": {
+        "label": "650B",
+        "description": "ETRTO 584 — wider tyres on a smaller diameter."
+      },
+      "27-5": {
+        "label": "27.5 inch",
+        "description": "ETRTO 584 — the mountain-bike name for 650B."
+      }
+    }
+  },
+  "brake-type": {
+    "title": "Which brakes does this bike have?",
+    "help": "Is there a disc at the centre of the wheel? If so, follow what reaches the caliper: an ordinary cable housing means a mechanical disc, a thin rigid hose screwed into the caliper means a hydraulic disc. With no disc, look at the rim: two upright arms joined by a crossing cable are V-brakes, two short arms joined by a triangular straddle wire are cantilevers, a single arch above the tyre is a caliper. Coaster or drum brakes: pick V-brake, this site does not cover them.",
+    "options": {
+      "rim-caliper": {
+        "label": "Rim caliper",
+        "description": "A single arch above the tyre."
+      },
+      "v-brake": {
+        "label": "V-brake",
+        "description": "Two upright arms either side of the rim."
+      },
+      "cantilever": {
+        "label": "Cantilever",
+        "description": "Two short arms joined by a triangular straddle wire."
+      },
+      "disc-mechanical": {
+        "label": "Mechanical disc",
+        "description": "A disc at the wheel, pulled by a cable."
+      },
+      "disc-hydraulic": {
+        "label": "Hydraulic disc",
+        "description": "A disc at the wheel, driven by an oil hose."
+      }
+    }
+  },
+  "brake-mount": {
+    "title": "How are the brake calipers mounted?",
+    "help": "Look at which way the caliper bolts go in. Two bolts entering from under the frame or fork, parallel to the disc: flat mount. Two vertical bolts passing down through the caliper: post mount. Two horizontal bolts through a pair of drilled tabs, almost always with an adapter: IS.",
+    "options": {
+      "flat-mount": {
+        "label": "Flat mount",
+        "description": "Bolts from underneath. Recent road and gravel."
+      },
+      "post-mount": {
+        "label": "Post mount",
+        "description": "Two vertical bolts in the caliper. Mountain and hybrid."
+      },
+      "is-mount": {
+        "label": "IS (International Standard)",
+        "description": "Two horizontally drilled tabs, with an adapter."
+      }
+    }
+  },
+  "cockpit": {
+    "title": "What shape are the handlebars?",
+    "help": "Put a hand on them. The bar curls down and forward: drop bar. It is straight from end to end: flat bar. It rises on either side of the stem: riser bar. It sweeps firmly back towards you in an arc: swept-back, Dutch-style bar.",
+    "options": {
+      "drop": {
+        "label": "Drop bar",
+        "description": "Several positions: on the tops, the hoods or the drops."
+      },
+      "flat": {
+        "label": "Flat bar",
+        "description": "Straight, leaning slightly forward."
+      },
+      "riser": {
+        "label": "Riser bar",
+        "description": "Rises towards the rider, a taller position. Mountain bikes."
+      },
+      "swept": {
+        "label": "Swept-back bar",
+        "description": "Strongly curved back, upright riding. City bikes."
+      }
+    }
+  },
+  "drivetrain": {
+    "title": "How are the gears arranged?",
+    "help": "Count the chainrings at the front, on the crankset: one, two or three. If the rear hub is large and smooth and carries a single sprocket, the gears are inside the hub. If there is no shifter on the bars and a single rear sprocket, the bike is singlespeed.",
+    "options": {
+      "derailleur-1x": {
+        "label": "Derailleur, 1 chainring",
+        "description": "One chainring at the front, a rear derailleur."
+      },
+      "derailleur-2x": {
+        "label": "Derailleur, 2 chainrings",
+        "description": "Two chainrings and a front derailleur."
+      },
+      "derailleur-3x": {
+        "label": "Derailleur, 3 chainrings",
+        "description": "Three chainrings, typical of hybrids and older mountain bikes."
+      },
+      "igh": {
+        "label": "Internal gear hub",
+        "description": "The gears are sealed inside the rear hub."
+      },
+      "singlespeed": {
+        "label": "Singlespeed",
+        "description": "One chainring, one sprocket, no shifter."
+      }
+    }
+  },
+  "transmission": {
+    "title": "Chain or belt?",
+    "help": "A chain is metal, jointed link by link, and needs lubricating. A belt is a flexible reinforced rubber band with even teeth that is never lubricated. A belt needs a frame that opens: look for the splitter bolt on the right-hand chainstay.",
+    "options": {
+      "chain": {
+        "label": "Chain",
+        "description": "Metal, lubricated, replaced once it has stretched."
+      },
+      "belt": {
+        "label": "Belt",
+        "description": "A toothed rubber band, quiet and never greased."
+      }
+    }
+  },
+  "speeds": {
+    "title": "How many gears at the rear?",
+    "help": "Count the sprockets on the cassette at the rear. With an internal gear hub, the number is printed on the shifter or on the hub shell. When in doubt, count the clicks on the shifter.",
+    "options": {
+      "3": {
+        "label": "3 speeds",
+        "description": "A classic internal hub on a city bike."
+      },
+      "5": {
+        "label": "5 speeds",
+        "description": "An older internal hub."
+      },
+      "7": {
+        "label": "7 speeds",
+        "description": "A common internal hub, or an entry-level cassette."
+      },
+      "8": {
+        "label": "8 speeds",
+        "description": "The most common choice on hybrids and internal hubs."
+      },
+      "9": {
+        "label": "9 speeds",
+        "description": "A hybrid or 2000s mountain-bike cassette."
+      },
+      "10": {
+        "label": "10 speeds",
+        "description": "A road or mountain cassette from the previous generation."
+      },
+      "11": {
+        "label": "11 speeds",
+        "description": "A common road and gravel cassette, or a high-end hub."
+      },
+      "12": {
+        "label": "12 speeds",
+        "description": "A recent mountain and road cassette."
+      },
+      "13": {
+        "label": "13 speeds",
+        "description": "Very recent gravel groupsets."
+      },
+      "14": {
+        "label": "14 speeds",
+        "description": "A high-end internal gear hub."
+      }
+    }
+  },
+  "shifter": {
+    "title": "What are the shifters?",
+    "help": "Look at what you push to change gear. The brake lever swings sideways: integrated shifters. Two small levers under the bar: trigger shifters. A collar that rotates around the grip: grip shifter. A lever above the bar pushed with the thumb: thumb shifter. A lever at the very end of a drop bar: bar-end shifter. Buttons with no gear cable and a battery: electronic shifting.",
+    "options": {
+      "sti-integrated": {
+        "label": "Integrated shifters",
+        "description": "Brake and gears on one lever. Drop bars."
+      },
+      "trigger": {
+        "label": "Trigger shifters",
+        "description": "Two triggers under the bar, thumb and finger."
+      },
+      "grip": {
+        "label": "Grip shifter",
+        "description": "You twist the grip to change gear."
+      },
+      "thumb": {
+        "label": "Thumb shifter",
+        "description": "A lever above the bar, pushed with the thumb."
+      },
+      "bar-end": {
+        "label": "Bar-end shifter",
+        "description": "At the end of a drop bar, popular for touring."
+      },
+      "electronic": {
+        "label": "Electronic shifting",
+        "description": "Buttons only: the derailleur is motorised."
+      }
+    }
+  },
+  "pedals": {
+    "title": "Which pedals?",
+    "help": "Look at the surface you stand on. A wide platform with pins: flat pedals. A small metal mechanism set into the body, with a two-bolt cleat under the shoe: SPD. A large triangular plastic cleat under the shoe: road clipless. A metal cage with a strap: toe clips. One flat face and one clipless face: combination pedals.",
+    "options": {
+      "flat": {
+        "label": "Flat",
+        "description": "A plain platform, with any shoes."
+      },
+      "spd": {
+        "label": "Mountain clipless (SPD)",
+        "description": "A recessed two-bolt cleat you can still walk on."
+      },
+      "road-clipless": {
+        "label": "Road clipless",
+        "description": "A large three-bolt cleat, wide support, awkward to walk in."
+      },
+      "toe-clips": {
+        "label": "Toe clips",
+        "description": "A cage and a strap, no special shoes."
+      },
+      "combo": {
+        "label": "Combination",
+        "description": "One flat face, one clipless face."
+      }
+    }
+  },
+  "suspension": {
+    "title": "Is the bike suspended?",
+    "help": "A telescopic fork has two smooth tubes sliding into one another just above the front wheel. A rear shock is a small damper between the seat tube and the rear triangle. With neither, the bike is rigid.",
+    "options": {
+      "rigid": {
+        "label": "Rigid",
+        "description": "No suspension at all."
+      },
+      "front": {
+        "label": "Suspension fork",
+        "description": "Suspension at the front only, known as a hardtail."
+      },
+      "full": {
+        "label": "Full suspension",
+        "description": "A telescopic fork and a rear shock."
+      }
+    }
+  },
+  "seatpost": {
+    "title": "Is the seatpost a dropper?",
+    "help": "A dropper post goes down when you press a lever, usually on the left of the bar, connected by a cable running into the post or the frame. A rigid post has no lever and no cable: only the clamp holds it.",
+    "options": {
+      "rigid": {
+        "label": "Rigid post",
+        "description": "Height set once with the seat clamp."
+      },
+      "dropper": {
+        "label": "Dropper post",
+        "description": "It drops at the press of a lever on the bar."
+      }
+    }
+  },
+  "tire-system": {
+    "title": "Do the tyres have inner tubes?",
+    "help": "Unscrew the valve cap. A removable valve core, the word “tubeless” on the tyre sidewall or the rim, and traces of sealant inside all point to a tubeless set-up. Otherwise there is an inner tube.",
+    "options": {
+      "clincher-tube": {
+        "label": "With inner tubes",
+        "description": "The most common set-up, patchable at the roadside."
+      },
+      "tubeless": {
+        "label": "Tubeless",
+        "description": "No tube, with sealant sloshing inside."
+      }
+    }
+  },
+  "e-motor": {
+    "title": "Where is the motor?",
+    "help": "Look at the crankset: a wide, angular housing around the crank axle is a mid-drive motor. If the crankset is a normal size and the rear hub is very large with a cable coming out of it, the motor is in the rear wheel.",
+    "options": {
+      "mid-drive": {
+        "label": "Mid-drive motor",
+        "description": "At the centre of the bike, driving the chain."
+      },
+      "hub-rear": {
+        "label": "Rear hub motor",
+        "description": "A large rear hub with a cable coming out of it."
+      }
+    }
+  },
+  "e-battery": {
+    "title": "Where is the battery?",
+    "help": "An integrated battery slides into the down tube and shows as a hatch or a key lock. An external battery is a block bolted to the outside of the down tube. A rack battery sits at the back, above the wheel.",
+    "options": {
+      "integrated": {
+        "label": "Integrated in the frame",
+        "description": "Inside the down tube, behind a lock."
+      },
+      "external-downtube": {
+        "label": "On the down tube",
+        "description": "A removable block bolted on the outside."
+      },
+      "rack": {
+        "label": "On the rear rack",
+        "description": "At the back, above the wheel."
+      }
+    }
+  }
+}

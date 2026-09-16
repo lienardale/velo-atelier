@@ -1,0 +1,949 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildBuyingGuide snapshots > a cassette for the demo gravel bike (en) 1`] = `
+{
+  "candidateTemplate": {
+    "attributes": {
+      "freehub": "hg-l",
+      "largest-cog": 42,
+      "range": "11-42",
+      "speeds": 11,
+    },
+    "partId": "cassette",
+  },
+  "constraints": [
+    {
+      "allowed": [
+        11,
+      ],
+      "attribute": "speeds",
+      "because": {
+        "attribute": "speeds",
+        "partId": "chain",
+        "value": 11,
+      },
+      "label": "Speeds: 11 speed",
+      "max": null,
+      "min": null,
+      "ruleId": "chain-cassette-speeds",
+      "severity": "error",
+    },
+    {
+      "allowed": [
+        11,
+      ],
+      "attribute": "speeds",
+      "because": {
+        "attribute": "speeds",
+        "partId": "rear-derailleur",
+        "value": 11,
+      },
+      "label": "Speeds: 11 speed",
+      "max": null,
+      "min": null,
+      "ruleId": "derailleur-cassette-speeds",
+      "severity": "error",
+    },
+    {
+      "allowed": null,
+      "attribute": "largest-cog",
+      "because": {
+        "attribute": "max-cog",
+        "partId": "rear-derailleur",
+        "value": 42,
+      },
+      "label": "Largest sprocket: 42 at most",
+      "max": 42,
+      "min": null,
+      "ruleId": "derailleur-max-cog",
+      "severity": "warning",
+    },
+    {
+      "allowed": [
+        "hg",
+        "hg-l",
+      ],
+      "attribute": "freehub",
+      "because": {
+        "attribute": "freehub",
+        "partId": "wheel-rear",
+        "value": "hg-l",
+      },
+      "label": "Freehub body: Shimano HG / Shimano HG-L (12-speed road)",
+      "max": null,
+      "min": null,
+      "ruleId": "cassette-freehub",
+      "severity": "error",
+    },
+    {
+      "allowed": [
+        8,
+        9,
+        10,
+        11,
+        12,
+      ],
+      "attribute": "speeds",
+      "because": {
+        "attribute": "freehub",
+        "partId": "wheel-rear",
+        "value": "hg-l",
+      },
+      "label": "Speeds: 8 speed / 9 speed / 10 speed / 11 speed / 12 speed",
+      "max": null,
+      "min": null,
+      "ruleId": "cassette-speeds-freehub",
+      "severity": "error",
+    },
+  ],
+  "label": "Cassette",
+  "partId": "cassette",
+  "questions": [
+    {
+      "askedBecause": null,
+      "attribute": "range",
+      "help": "Smallest and largest sprocket (e.g. 11-34).",
+      "kind": "enum",
+      "label": "Range",
+      "max": null,
+      "min": null,
+      "options": [
+        {
+          "label": "11–25 teeth",
+          "value": "11-25",
+        },
+        {
+          "label": "11–28 teeth",
+          "value": "11-28",
+        },
+        {
+          "label": "11–30 teeth",
+          "value": "11-30",
+        },
+        {
+          "label": "11–32 teeth",
+          "value": "11-32",
+        },
+        {
+          "label": "11–34 teeth",
+          "value": "11-34",
+        },
+        {
+          "label": "11–36 teeth",
+          "value": "11-36",
+        },
+        {
+          "label": "11–42 teeth",
+          "value": "11-42",
+        },
+        {
+          "label": "10–42 teeth",
+          "value": "10-42",
+        },
+        {
+          "label": "10–45 teeth",
+          "value": "10-45",
+        },
+        {
+          "label": "10–51 teeth",
+          "value": "10-51",
+        },
+        {
+          "label": "10–52 teeth",
+          "value": "10-52",
+        },
+      ],
+      "partId": "cassette",
+      "unit": null,
+    },
+    {
+      "askedBecause": null,
+      "attribute": "largest-cog",
+      "help": "The tooth count of the cassette's biggest sprocket.",
+      "kind": "number",
+      "label": "Largest sprocket",
+      "max": 42,
+      "min": 21,
+      "options": null,
+      "partId": "cassette",
+      "unit": "count",
+    },
+    {
+      "askedBecause": null,
+      "attribute": "freehub",
+      "help": "The part of the hub the sprockets sit on: it decides which cassette fits.",
+      "kind": "enum",
+      "label": "Freehub body",
+      "max": null,
+      "min": null,
+      "options": [
+        {
+          "label": "Shimano HG",
+          "value": "hg",
+        },
+        {
+          "label": "Shimano HG-L (12-speed road)",
+          "value": "hg-l",
+        },
+      ],
+      "partId": "cassette",
+      "unit": null,
+    },
+  ],
+  "searchQueries": {
+    "alltricks": "cassette 11 speed 11-42 hg-l",
+    "decathlon": "cassette 11 speed 11-42 hg-l",
+    "rosebikes": "cassette 11 speed 11-42 hg-l",
+  },
+}
+`;
+
+exports[`buildBuyingGuide snapshots > a cassette for the demo gravel bike (fr) 1`] = `
+{
+  "candidateTemplate": {
+    "attributes": {
+      "freehub": "hg-l",
+      "largest-cog": 42,
+      "range": "11-42",
+      "speeds": 11,
+    },
+    "partId": "cassette",
+  },
+  "constraints": [
+    {
+      "allowed": [
+        11,
+      ],
+      "attribute": "speeds",
+      "because": {
+        "attribute": "speeds",
+        "partId": "chain",
+        "value": 11,
+      },
+      "label": "Vitesses : 11 vitesses",
+      "max": null,
+      "min": null,
+      "ruleId": "chain-cassette-speeds",
+      "severity": "error",
+    },
+    {
+      "allowed": [
+        11,
+      ],
+      "attribute": "speeds",
+      "because": {
+        "attribute": "speeds",
+        "partId": "rear-derailleur",
+        "value": 11,
+      },
+      "label": "Vitesses : 11 vitesses",
+      "max": null,
+      "min": null,
+      "ruleId": "derailleur-cassette-speeds",
+      "severity": "error",
+    },
+    {
+      "allowed": null,
+      "attribute": "largest-cog",
+      "because": {
+        "attribute": "max-cog",
+        "partId": "rear-derailleur",
+        "value": 42,
+      },
+      "label": "Plus grand pignon : 42 au maximum",
+      "max": 42,
+      "min": null,
+      "ruleId": "derailleur-max-cog",
+      "severity": "warning",
+    },
+    {
+      "allowed": [
+        "hg",
+        "hg-l",
+      ],
+      "attribute": "freehub",
+      "because": {
+        "attribute": "freehub",
+        "partId": "wheel-rear",
+        "value": "hg-l",
+      },
+      "label": "Corps de roue libre : Shimano HG / Shimano HG-L (route 12 v)",
+      "max": null,
+      "min": null,
+      "ruleId": "cassette-freehub",
+      "severity": "error",
+    },
+    {
+      "allowed": [
+        8,
+        9,
+        10,
+        11,
+        12,
+      ],
+      "attribute": "speeds",
+      "because": {
+        "attribute": "freehub",
+        "partId": "wheel-rear",
+        "value": "hg-l",
+      },
+      "label": "Vitesses : 8 vitesses / 9 vitesses / 10 vitesses / 11 vitesses / 12 vitesses",
+      "max": null,
+      "min": null,
+      "ruleId": "cassette-speeds-freehub",
+      "severity": "error",
+    },
+  ],
+  "label": "Cassette",
+  "partId": "cassette",
+  "questions": [
+    {
+      "askedBecause": null,
+      "attribute": "range",
+      "help": "Le plus petit et le plus grand pignon (ex. 11-34).",
+      "kind": "enum",
+      "label": "Étagement",
+      "max": null,
+      "min": null,
+      "options": [
+        {
+          "label": "11–25 dents",
+          "value": "11-25",
+        },
+        {
+          "label": "11–28 dents",
+          "value": "11-28",
+        },
+        {
+          "label": "11–30 dents",
+          "value": "11-30",
+        },
+        {
+          "label": "11–32 dents",
+          "value": "11-32",
+        },
+        {
+          "label": "11–34 dents",
+          "value": "11-34",
+        },
+        {
+          "label": "11–36 dents",
+          "value": "11-36",
+        },
+        {
+          "label": "11–42 dents",
+          "value": "11-42",
+        },
+        {
+          "label": "10–42 dents",
+          "value": "10-42",
+        },
+        {
+          "label": "10–45 dents",
+          "value": "10-45",
+        },
+        {
+          "label": "10–51 dents",
+          "value": "10-51",
+        },
+        {
+          "label": "10–52 dents",
+          "value": "10-52",
+        },
+      ],
+      "partId": "cassette",
+      "unit": null,
+    },
+    {
+      "askedBecause": null,
+      "attribute": "largest-cog",
+      "help": "Le nombre de dents du plus grand pignon de la cassette.",
+      "kind": "number",
+      "label": "Plus grand pignon",
+      "max": 42,
+      "min": 21,
+      "options": null,
+      "partId": "cassette",
+      "unit": "count",
+    },
+    {
+      "askedBecause": null,
+      "attribute": "freehub",
+      "help": "Le support des pignons sur le moyeu : il décide quelle cassette se monte.",
+      "kind": "enum",
+      "label": "Corps de roue libre",
+      "max": null,
+      "min": null,
+      "options": [
+        {
+          "label": "Shimano HG",
+          "value": "hg",
+        },
+        {
+          "label": "Shimano HG-L (route 12 v)",
+          "value": "hg-l",
+        },
+      ],
+      "partId": "cassette",
+      "unit": null,
+    },
+  ],
+  "searchQueries": {
+    "alltricks": "cassette 11 vitesses 11-42 hg-l",
+    "decathlon": "cassette 11 vitesses 11-42 hg-l",
+    "rosebikes": "cassette 11 vitesses 11-42 hg-l",
+  },
+}
+`;
+
+exports[`buildBuyingGuide snapshots > a front tyre, a rear rotor and a frame on a road disc bike (en) 1`] = `
+[
+  {
+    "allowed": [
+      622,
+    ],
+    "attribute": "etrto-diameter",
+    "because": {
+      "attribute": "etrto-diameter",
+      "partId": "wheel-front",
+      "value": 622,
+    },
+    "label": "ETRTO diameter: 622 mm (700c / 29")",
+    "max": null,
+    "min": null,
+    "ruleId": "tire-diameter-wheel-front",
+    "severity": "error",
+  },
+  {
+    "allowed": null,
+    "attribute": "etrto-width",
+    "because": {
+      "attribute": "rim-width",
+      "partId": "wheel-front",
+      "value": 19,
+    },
+    "label": "Tyre width: between 28 mm and 40 mm",
+    "max": 40,
+    "min": 28,
+    "ruleId": "tire-rim-width-front",
+    "severity": "warning",
+  },
+  {
+    "allowed": null,
+    "attribute": "etrto-width",
+    "because": {
+      "attribute": "max-tire-width",
+      "partId": "fork",
+      "value": 32,
+    },
+    "label": "Tyre width: 32 mm at most",
+    "max": 32,
+    "min": null,
+    "ruleId": "tire-fork-clearance",
+    "severity": "error",
+  },
+]
+`;
+
+exports[`buildBuyingGuide snapshots > a front tyre, a rear rotor and a frame on a road disc bike (en) 2`] = `
+[
+  {
+    "allowed": [
+      160,
+    ],
+    "attribute": "diameter",
+    "because": {
+      "attribute": "rotor-size",
+      "partId": "brake-caliper-rear",
+      "value": 160,
+    },
+    "label": "Diameter: 160 mm",
+    "max": null,
+    "min": null,
+    "ruleId": "caliper-rotor-size-rear",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      140,
+      160,
+    ],
+    "attribute": "diameter",
+    "because": {
+      "attribute": "mount",
+      "partId": "brake-caliper-rear",
+      "value": "flat-mount",
+    },
+    "label": "Diameter: 140 mm / 160 mm",
+    "max": null,
+    "min": null,
+    "ruleId": "rotor-caliper-mount-rear",
+    "severity": "warning",
+  },
+  {
+    "allowed": null,
+    "attribute": "diameter",
+    "because": {
+      "attribute": "max-rotor",
+      "partId": "frame",
+      "value": 160,
+    },
+    "label": "Diameter: 160 mm at most",
+    "max": 160,
+    "min": null,
+    "ruleId": "rotor-frame-max",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "centerlock",
+    ],
+    "attribute": "interface",
+    "because": {
+      "attribute": "rotor-interface",
+      "partId": "wheel-rear",
+      "value": "centerlock",
+    },
+    "label": "Mounting: Centerlock",
+    "max": null,
+    "min": null,
+    "ruleId": "rotor-hub-interface-rear",
+    "severity": "error",
+  },
+]
+`;
+
+exports[`buildBuyingGuide snapshots > a front tyre, a rear rotor and a frame on a road disc bike (en) 3`] = `
+[
+  {
+    "allowed": [
+      "udh",
+      "classic",
+    ],
+    "attribute": "hanger-standard",
+    "because": {
+      "attribute": "hanger-standard",
+      "partId": "rear-derailleur",
+      "value": "classic",
+    },
+    "label": "Derailleur hanger standard: UDH (universal hanger) / Frame-specific hanger",
+    "max": null,
+    "min": null,
+    "ruleId": "hanger-standard",
+    "severity": "warning",
+  },
+  {
+    "allowed": null,
+    "attribute": "max-rotor",
+    "because": {
+      "attribute": "diameter",
+      "partId": "rotor-rear",
+      "value": 180,
+    },
+    "label": "Largest rotor: 180 mm at least",
+    "max": null,
+    "min": 180,
+    "ruleId": "rotor-frame-max",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "flat-mount",
+    ],
+    "attribute": "brake-mount",
+    "because": {
+      "attribute": "mount",
+      "partId": "brake-caliper-rear",
+      "value": "flat-mount",
+    },
+    "label": "Brake mount: Flat mount",
+    "max": null,
+    "min": null,
+    "ruleId": "caliper-frame-mount",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "ta-12x142",
+    ],
+    "attribute": "rear-axle",
+    "because": {
+      "attribute": "axle",
+      "partId": "wheel-rear",
+      "value": "ta-12x142",
+    },
+    "label": "Rear axle: Thru-axle 12x142",
+    "max": null,
+    "min": null,
+    "ruleId": "wheel-axle-frame",
+    "severity": "error",
+  },
+  {
+    "allowed": null,
+    "attribute": "max-tire-width",
+    "because": {
+      "attribute": "etrto-width",
+      "partId": "tire-rear",
+      "value": 28,
+    },
+    "label": "Widest tyre: 28 mm at least",
+    "max": null,
+    "min": 28,
+    "ruleId": "tire-frame-clearance",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "tapered-1-1-8-1-5",
+    ],
+    "attribute": "head-tube",
+    "because": {
+      "attribute": "head-tube",
+      "partId": "headset",
+      "value": "tapered-1-1-8-1-5",
+    },
+    "label": "Head tube: Tapered 1-1/8" to 1.5"",
+    "max": null,
+    "min": null,
+    "ruleId": "headset-frame",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "bb86",
+    ],
+    "attribute": "bb-shell",
+    "because": {
+      "attribute": "bb-shell",
+      "partId": "bottom-bracket",
+      "value": "bb86",
+    },
+    "label": "Bottom bracket shell: BB86 (press-fit)",
+    "max": null,
+    "min": null,
+    "ruleId": "bb-shell-frame",
+    "severity": "error",
+  },
+]
+`;
+
+exports[`buildBuyingGuide snapshots > a front tyre, a rear rotor and a frame on a road disc bike (fr) 1`] = `
+[
+  {
+    "allowed": [
+      622,
+    ],
+    "attribute": "etrto-diameter",
+    "because": {
+      "attribute": "etrto-diameter",
+      "partId": "wheel-front",
+      "value": 622,
+    },
+    "label": "Diamètre ETRTO : 622 mm (700c / 29 pouces)",
+    "max": null,
+    "min": null,
+    "ruleId": "tire-diameter-wheel-front",
+    "severity": "error",
+  },
+  {
+    "allowed": null,
+    "attribute": "etrto-width",
+    "because": {
+      "attribute": "rim-width",
+      "partId": "wheel-front",
+      "value": 19,
+    },
+    "label": "Largeur du pneu : entre 28 mm et 40 mm",
+    "max": 40,
+    "min": 28,
+    "ruleId": "tire-rim-width-front",
+    "severity": "warning",
+  },
+  {
+    "allowed": null,
+    "attribute": "etrto-width",
+    "because": {
+      "attribute": "max-tire-width",
+      "partId": "fork",
+      "value": 32,
+    },
+    "label": "Largeur du pneu : 32 mm au maximum",
+    "max": 32,
+    "min": null,
+    "ruleId": "tire-fork-clearance",
+    "severity": "error",
+  },
+]
+`;
+
+exports[`buildBuyingGuide snapshots > a front tyre, a rear rotor and a frame on a road disc bike (fr) 2`] = `
+[
+  {
+    "allowed": [
+      160,
+    ],
+    "attribute": "diameter",
+    "because": {
+      "attribute": "rotor-size",
+      "partId": "brake-caliper-rear",
+      "value": 160,
+    },
+    "label": "Diamètre : 160 mm",
+    "max": null,
+    "min": null,
+    "ruleId": "caliper-rotor-size-rear",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      140,
+      160,
+    ],
+    "attribute": "diameter",
+    "because": {
+      "attribute": "mount",
+      "partId": "brake-caliper-rear",
+      "value": "flat-mount",
+    },
+    "label": "Diamètre : 140 mm / 160 mm",
+    "max": null,
+    "min": null,
+    "ruleId": "rotor-caliper-mount-rear",
+    "severity": "warning",
+  },
+  {
+    "allowed": null,
+    "attribute": "diameter",
+    "because": {
+      "attribute": "max-rotor",
+      "partId": "frame",
+      "value": 160,
+    },
+    "label": "Diamètre : 160 mm au maximum",
+    "max": 160,
+    "min": null,
+    "ruleId": "rotor-frame-max",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "centerlock",
+    ],
+    "attribute": "interface",
+    "because": {
+      "attribute": "rotor-interface",
+      "partId": "wheel-rear",
+      "value": "centerlock",
+    },
+    "label": "Fixation : Centerlock",
+    "max": null,
+    "min": null,
+    "ruleId": "rotor-hub-interface-rear",
+    "severity": "error",
+  },
+]
+`;
+
+exports[`buildBuyingGuide snapshots > a front tyre, a rear rotor and a frame on a road disc bike (fr) 3`] = `
+[
+  {
+    "allowed": [
+      "udh",
+      "classic",
+    ],
+    "attribute": "hanger-standard",
+    "because": {
+      "attribute": "hanger-standard",
+      "partId": "rear-derailleur",
+      "value": "classic",
+    },
+    "label": "Standard de patte de dérailleur : UDH (patte universelle) / Patte spécifique au cadre",
+    "max": null,
+    "min": null,
+    "ruleId": "hanger-standard",
+    "severity": "warning",
+  },
+  {
+    "allowed": null,
+    "attribute": "max-rotor",
+    "because": {
+      "attribute": "diameter",
+      "partId": "rotor-rear",
+      "value": 180,
+    },
+    "label": "Disque maximal : 180 mm au minimum",
+    "max": null,
+    "min": 180,
+    "ruleId": "rotor-frame-max",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "flat-mount",
+    ],
+    "attribute": "brake-mount",
+    "because": {
+      "attribute": "mount",
+      "partId": "brake-caliper-rear",
+      "value": "flat-mount",
+    },
+    "label": "Fixation de frein : Flat mount",
+    "max": null,
+    "min": null,
+    "ruleId": "caliper-frame-mount",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "ta-12x142",
+    ],
+    "attribute": "rear-axle",
+    "because": {
+      "attribute": "axle",
+      "partId": "wheel-rear",
+      "value": "ta-12x142",
+    },
+    "label": "Axe arrière : Axe traversant 12x142",
+    "max": null,
+    "min": null,
+    "ruleId": "wheel-axle-frame",
+    "severity": "error",
+  },
+  {
+    "allowed": null,
+    "attribute": "max-tire-width",
+    "because": {
+      "attribute": "etrto-width",
+      "partId": "tire-rear",
+      "value": 28,
+    },
+    "label": "Pneu le plus large : 28 mm au minimum",
+    "max": null,
+    "min": 28,
+    "ruleId": "tire-frame-clearance",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "tapered-1-1-8-1-5",
+    ],
+    "attribute": "head-tube",
+    "because": {
+      "attribute": "head-tube",
+      "partId": "headset",
+      "value": "tapered-1-1-8-1-5",
+    },
+    "label": "Douille de direction : Conique 1-1/8 à 1,5 pouce",
+    "max": null,
+    "min": null,
+    "ruleId": "headset-frame",
+    "severity": "error",
+  },
+  {
+    "allowed": [
+      "bb86",
+    ],
+    "attribute": "bb-shell",
+    "because": {
+      "attribute": "bb-shell",
+      "partId": "bottom-bracket",
+      "value": "bb86",
+    },
+    "label": "Boîtier (boîte de pédalier) : BB86 (emboîté)",
+    "max": null,
+    "min": null,
+    "ruleId": "bb-shell-frame",
+    "severity": "error",
+  },
+]
+`;
+
+exports[`buildBuyingGuide snapshots > a seatpost for a bike nobody has measured (en) 1`] = `
+{
+  "candidateTemplate": {
+    "attributes": {
+      "dropper": false,
+    },
+    "partId": "seatpost",
+  },
+  "constraints": [],
+  "label": "Seatpost",
+  "partId": "seatpost",
+  "questions": [
+    {
+      "askedBecause": "seatpost-frame-diameter",
+      "attribute": "seatpost-diameter",
+      "help": "Engraved on the seatpost (27.2, 30.9, 31.6 mm…) or measured with calipers.",
+      "kind": "number",
+      "label": "Seatpost diameter",
+      "max": 35,
+      "min": 22,
+      "options": null,
+      "partId": "frame",
+      "unit": "mm",
+    },
+    {
+      "askedBecause": null,
+      "attribute": "seatpost-diameter",
+      "help": "Engraved on the seatpost (27.2, 30.9, 31.6 mm…) or measured with calipers.",
+      "kind": "number",
+      "label": "Seatpost diameter",
+      "max": 35,
+      "min": 22,
+      "options": null,
+      "partId": "seatpost",
+      "unit": "mm",
+    },
+  ],
+  "searchQueries": {
+    "alltricks": "seatpost",
+    "decathlon": "seatpost",
+    "rosebikes": "seatpost",
+  },
+}
+`;
+
+exports[`buildBuyingGuide snapshots > a seatpost for a bike nobody has measured (fr) 1`] = `
+{
+  "candidateTemplate": {
+    "attributes": {
+      "dropper": false,
+    },
+    "partId": "seatpost",
+  },
+  "constraints": [],
+  "label": "Tige de selle",
+  "partId": "seatpost",
+  "questions": [
+    {
+      "askedBecause": "seatpost-frame-diameter",
+      "attribute": "seatpost-diameter",
+      "help": "Gravé sur la tige de selle (27,2, 30,9, 31,6 mm…) ou mesuré au pied à coulisse.",
+      "kind": "number",
+      "label": "Diamètre de tige de selle",
+      "max": 35,
+      "min": 22,
+      "options": null,
+      "partId": "frame",
+      "unit": "mm",
+    },
+    {
+      "askedBecause": null,
+      "attribute": "seatpost-diameter",
+      "help": "Gravé sur la tige de selle (27,2, 30,9, 31,6 mm…) ou mesuré au pied à coulisse.",
+      "kind": "number",
+      "label": "Diamètre de tige de selle",
+      "max": 35,
+      "min": 22,
+      "options": null,
+      "partId": "seatpost",
+      "unit": "mm",
+    },
+  ],
+  "searchQueries": {
+    "alltricks": "tige de selle",
+    "decathlon": "tige de selle",
+    "rosebikes": "tige de selle",
+  },
+}
+`;

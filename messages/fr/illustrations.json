@@ -1,0 +1,268 @@
+{
+  "ill-drive": {
+    "alt": "Deux vélos côte à côte : à gauche un vélo musculaire, à droite un vélo électrique avec une batterie sur le tube diagonal et un moteur au pédalier."
+  },
+  "ill-discipline": {
+    "alt": "Cinq silhouettes de vélos alignées : route, gravel, VTT, ville et enfant."
+  },
+  "ill-discipline-road": {
+    "alt": "Silhouette d’un vélo de route, guidon courbé et pneus fins."
+  },
+  "ill-discipline-gravel": {
+    "alt": "Silhouette d’un vélo de gravel, guidon courbé et pneus larges."
+  },
+  "ill-discipline-mtb": {
+    "alt": "Silhouette d’un VTT, fourche télescopique et pneus à crampons."
+  },
+  "ill-discipline-city-hybrid": {
+    "alt": "Silhouette d’un vélo de ville, cadre bas, garde-boue et porte-bagages."
+  },
+  "ill-discipline-kids": {
+    "alt": "Silhouette d’un vélo d’enfant à petites roues."
+  },
+  "ill-wheel-size": {
+    "alt": "Flanc de pneu en gros plan, le marquage ETRTO 40-622 entouré."
+  },
+  "ill-wheel-size-700c": {
+    "alt": "Roue de 700C, diamètre de jante 622 millimètres."
+  },
+  "ill-wheel-size-650b": {
+    "alt": "Roue de 650B, diamètre de jante 584 millimètres."
+  },
+  "ill-wheel-size-29": {
+    "alt": "Roue de VTT de 29 pouces, diamètre de jante 622 millimètres."
+  },
+  "ill-wheel-size-27-5": {
+    "alt": "Roue de VTT de 27,5 pouces, diamètre de jante 584 millimètres."
+  },
+  "ill-wheel-size-26": {
+    "alt": "Roue de 26 pouces, diamètre de jante 559 millimètres."
+  },
+  "ill-wheel-size-24": {
+    "alt": "Roue de 24 pouces, diamètre de jante 507 millimètres."
+  },
+  "ill-wheel-size-20": {
+    "alt": "Roue de 20 pouces, diamètre de jante 406 millimètres."
+  },
+  "ill-wheel-size-16": {
+    "alt": "Roue de 16 pouces, diamètre de jante 305 millimètres."
+  },
+  "ill-brake-type": {
+    "alt": "Quatre freins comparés : étrier sur jante, V-brake, cantilever et frein à disque avec sa durite."
+  },
+  "ill-brake-type-rim-caliper": {
+    "alt": "Frein à étrier en arche au-dessus du pneu."
+  },
+  "ill-brake-type-v-brake": {
+    "alt": "V-brake : deux bras verticaux reliés par un câble transversal."
+  },
+  "ill-brake-type-cantilever": {
+    "alt": "Cantilever : deux bras courts et un câble en triangle."
+  },
+  "ill-brake-type-disc-mechanical": {
+    "alt": "Étrier de frein à disque tiré par un câble sous gaine."
+  },
+  "ill-brake-type-disc-hydraulic": {
+    "alt": "Étrier de frein à disque alimenté par une durite d’huile."
+  },
+  "ill-brake-mount": {
+    "alt": "Trois fixations d’étrier vues de côté : flat mount, post mount et IS, avec le sens des vis."
+  },
+  "ill-cockpit": {
+    "alt": "Quatre guidons vus de face : cintre route, cintre plat, cintre relevé et cintre rétro."
+  },
+  "ill-cockpit-drop": {
+    "alt": "Cintre route qui s’enroule vers le bas."
+  },
+  "ill-cockpit-flat": {
+    "alt": "Cintre plat, droit d’un bout à l’autre."
+  },
+  "ill-cockpit-riser": {
+    "alt": "Cintre relevé qui remonte de chaque côté de la potence."
+  },
+  "ill-cockpit-swept": {
+    "alt": "Cintre rétro fortement recourbé vers l’arrière."
+  },
+  "ill-drivetrain": {
+    "alt": "Pédalier à un, deux et trois plateaux, à côté d’un moyeu à vitesses intégrées."
+  },
+  "ill-drivetrain-derailleur-1x": {
+    "alt": "Pédalier à un seul plateau."
+  },
+  "ill-drivetrain-derailleur-2x": {
+    "alt": "Pédalier à deux plateaux avec son dérailleur avant."
+  },
+  "ill-drivetrain-derailleur-3x": {
+    "alt": "Pédalier à trois plateaux."
+  },
+  "ill-drivetrain-igh": {
+    "alt": "Moyeu arrière à vitesses intégrées, gros et lisse, avec un seul pignon."
+  },
+  "ill-drivetrain-singlespeed": {
+    "alt": "Transmission à vitesse unique : un plateau et un pignon."
+  },
+  "ill-transmission": {
+    "alt": "Une chaîne et une courroie côte à côte, avec la vis d’ouverture du cadre."
+  },
+  "ill-speeds": {
+    "alt": "Cassette vue de côté, les pignons numérotés un par un."
+  },
+  "ill-shifter": {
+    "alt": "Six commandes de vitesses comparées : intégrée, gâchettes, poignée tournante, pouce, bout de cintre et électronique."
+  },
+  "ill-shifter-sti-integrated": {
+    "alt": "Levier de frein route qui bascule latéralement pour changer de vitesse."
+  },
+  "ill-shifter-trigger": {
+    "alt": "Manette à gâchettes sous le guidon."
+  },
+  "ill-shifter-grip": {
+    "alt": "Poignée tournante autour du guidon."
+  },
+  "ill-shifter-thumb": {
+    "alt": "Manette au pouce au-dessus du guidon."
+  },
+  "ill-shifter-bar-end": {
+    "alt": "Manette placée au bout du cintre route."
+  },
+  "ill-shifter-electronic": {
+    "alt": "Commande électronique à boutons, sans câble de dérailleur."
+  },
+  "ill-pedals": {
+    "alt": "Cinq pédales vues de trois quarts : plate, SPD, route, cale-pieds et mixte."
+  },
+  "ill-pedals-flat": {
+    "alt": "Pédale plate à picots."
+  },
+  "ill-pedals-spd": {
+    "alt": "Pédale automatique VTT avec sa cale à deux vis."
+  },
+  "ill-pedals-road-clipless": {
+    "alt": "Pédale automatique route avec sa grande cale triangulaire."
+  },
+  "ill-pedals-toe-clips": {
+    "alt": "Pédale à cale-pieds, cage et sangle."
+  },
+  "ill-pedals-combo": {
+    "alt": "Pédale mixte : une face plate, une face automatique."
+  },
+  "ill-suspension": {
+    "alt": "Fourche télescopique à l’avant et amortisseur entre le tube de selle et le triangle arrière."
+  },
+  "ill-seatpost": {
+    "alt": "Tige de selle télescopique avec son levier au guidon et son câble."
+  },
+  "ill-tire-system": {
+    "alt": "Valve démontée : obus de valve amovible et liquide préventif d’un montage tubeless, chambre à air à côté."
+  },
+  "ill-e-motor": {
+    "alt": "Moteur pédalier autour de l’axe des manivelles, à côté d’un moteur dans le moyeu arrière."
+  },
+  "ill-e-battery": {
+    "alt": "Trois emplacements de batterie : intégrée au tube diagonal, boulonnée dessus, ou posée sur le porte-bagages."
+  },
+  "pad-wear-disc": {
+    "alt": "Plaquette de frein à disque vue de profil : le support métallique, la garniture, et la limite d’usure de 1 mm.",
+    "callouts": {
+      "1": "Support métallique",
+      "2": "Garniture",
+      "3": "Limite d’usure : 1 mm"
+    }
+  },
+  "pad-wear-rim": {
+    "alt": "Patin de frein sur jante : les rainures d’usure et la surface de freinage de la jante.",
+    "callouts": {
+      "1": "Rainures témoins d’usure",
+      "2": "Surface de freinage de la jante"
+    }
+  },
+  "rotor-true-check": {
+    "alt": "Disque dans l’étrier vu d’en haut : l’écart entre disque et plaquettes, le disque, et l’épaisseur minimale gravée.",
+    "callouts": {
+      "1": "Écart disque-plaquette",
+      "2": "Disque",
+      "3": "Épaisseur minimale gravée"
+    }
+  },
+  "chain-wear-checker": {
+    "alt": "Indicateur d’usure posé sur une chaîne : côté 0,5 %, côté 0,75 %, et un rouleau de chaîne.",
+    "callouts": {
+      "1": "Côté 0,5 %",
+      "2": "Côté 0,75 %",
+      "3": "Rouleau de chaîne"
+    }
+  },
+  "derailleur-limit-screws-h-l-b": {
+    "alt": "Dérailleur arrière vu de dos : les vis de butée H et L, et la vis B.",
+    "callouts": {
+      "1": "Vis H (butée petit pignon)",
+      "2": "Vis L (butée grand pignon)",
+      "3": "Vis B (écart galet-pignon)"
+    }
+  },
+  "barrel-adjuster": {
+    "alt": "Tendeur de câble à l’arrivée de la gaine sur le dérailleur.",
+    "callouts": {
+      "1": "Tendeur de câble",
+      "2": "Gaine"
+    }
+  },
+  "saddle-height-heel-method": {
+    "alt": "Cycliste assis, talon posé sur la pédale en bas de course, jambe tendue.",
+    "callouts": {
+      "1": "Talon sur la pédale",
+      "2": "Jambe tendue",
+      "3": "Manivelle dans l’axe du tube de selle"
+    }
+  },
+  "cleat-ball-of-foot": {
+    "alt": "Chaussure sur la pédale : la base du gros orteil à l’aplomb de l’axe de pédale.",
+    "callouts": {
+      "1": "Base du gros orteil",
+      "2": "Axe de pédale"
+    }
+  },
+  "sag-measure-oring": {
+    "alt": "Plongeur de fourche avec son joint torique repoussé et les graduations de course.",
+    "callouts": {
+      "1": "Joint torique",
+      "2": "Graduations de course"
+    }
+  },
+  "axle-qr-vs-thru": {
+    "alt": "Blocage rapide à levier à côté d’un axe traversant vissé.",
+    "callouts": {
+      "1": "Levier de blocage rapide",
+      "2": "Axe traversant"
+    }
+  },
+  "headset-threaded-vs-threadless": {
+    "alt": "Jeu de direction fileté à contre-écrou à côté d’un jeu de direction Aheadset avec potence à serrage.",
+    "callouts": {
+      "1": "Contre-écrou",
+      "2": "Vis de serrage de potence",
+      "3": "Capot supérieur"
+    }
+  },
+  "ebike-battery-connector": {
+    "alt": "Connecteur de batterie de vélo électrique : les contacts et le verrou à clé.",
+    "callouts": {
+      "1": "Contacts électriques",
+      "2": "Verrou à clé"
+    }
+  },
+  "tire-lever-technique": {
+    "alt": "Deux démonte-pneus glissés sous la tringle : le premier accroché à un rayon, le second fait le tour.",
+    "callouts": {
+      "1": "Premier démonte-pneu accroché au rayon",
+      "2": "Second démonte-pneu"
+    }
+  },
+  "presta-valve-core": {
+    "alt": "Valve Presta : l’écrou de blocage et l’obus démontable.",
+    "callouts": {
+      "1": "Écrou de blocage",
+      "2": "Obus démontable"
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "allen-keys": {
+    "label": "Allen keys"
+  },
+  "multi-tool": {
+    "label": "Multi-tool"
+  },
+  "torx-keys": {
+    "label": "Torx keys"
+  },
+  "torque-wrench": {
+    "label": "Torque wrench"
+  },
+  "adjustable-wrench": {
+    "label": "Adjustable wrench"
+  },
+  "pedal-wrench": {
+    "label": "Pedal wrench"
+  },
+  "phillips-screwdriver": {
+    "label": "Phillips screwdriver"
+  },
+  "flat-screwdriver": {
+    "label": "Flat screwdriver"
+  },
+  "pliers": {
+    "label": "Pliers"
+  },
+  "cable-cutter": {
+    "label": "Cable cutter"
+  },
+  "tire-levers": {
+    "label": "Tyre levers"
+  },
+  "floor-pump": {
+    "label": "Floor pump with gauge"
+  },
+  "mini-pump": {
+    "label": "Mini pump"
+  },
+  "pressure-gauge": {
+    "label": "Pressure gauge"
+  },
+  "valve-core-tool": {
+    "label": "Valve core tool"
+  },
+  "sealant-injector": {
+    "label": "Sealant injector"
+  },
+  "chain-checker": {
+    "label": "Chain checker"
+  },
+  "steel-ruler": {
+    "label": "Steel ruler"
+  },
+  "chain-tool": {
+    "label": "Chain tool"
+  },
+  "quick-link-pliers": {
+    "label": "Quick-link pliers"
+  },
+  "chain-whip": {
+    "label": "Chain whip"
+  },
+  "cassette-lockring-tool": {
+    "label": "Cassette lockring tool"
+  },
+  "bottom-bracket-tool": {
+    "label": "Bottom bracket tool"
+  },
+  "crank-puller": {
+    "label": "Crank puller"
+  },
+  "pad-spreader": {
+    "label": "Pad spreader"
+  },
+  "tape-measure": {
+    "label": "Tape measure"
+  },
+  "shock-pump": {
+    "label": "Shock pump"
+  },
+  "zip-tie": {
+    "label": "Zip tie"
+  },
+  "work-stand": {
+    "label": "Work stand"
+  },
+  "degreaser": {
+    "label": "Degreaser"
+  },
+  "chain-lube": {
+    "label": "Chain lube"
+  },
+  "isopropyl-alcohol": {
+    "label": "Isopropyl alcohol"
+  },
+  "brush": {
+    "label": "Brush"
+  },
+  "rags": {
+    "label": "Clean rags"
+  }
+}

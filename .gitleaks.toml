@@ -32,4 +32,14 @@ regexes = [
   '''velo:velo@(localhost|127\.0\.0\.1|db|postgres)''',
   '''dev-only-change-me[0-9]*''',
   '''Demo-Velo-Atelier-2026!''',
+  # next-intl message KEY names ("illustrations.ill-drive.alt"), flagged by
+  # generic-api-key because the field is called altKey. A key name, never a value.
+  '''^illustrations\.[a-z0-9-]+\.alt$''',
+  # The two fixed passwords the auth tests sign up with (account.spec.ts,
+  # PasswordStrength.test.tsx, …). They protect throwaway accounts in the _test DB.
+  '''^Guidon-Tandem-47!?$''',
+  '''^Chaine-Cassette-58\??$''',
+  # React's opaque $ACTION_KEY form field, captured from a local submission as a
+  # fixture in tests/security/mass-assignment.test.ts. Not a credential.
+  '''^k633219618129704ac9f52375340a517d$''',
 ]
