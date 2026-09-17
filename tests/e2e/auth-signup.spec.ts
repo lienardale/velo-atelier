@@ -78,6 +78,16 @@ forEachLocale((locale) => {
     signupEmail,
   }) => {
     await page.goto(href(locale, "/inscription"));
+    // Submit only once React owns the form. Submitting DURING hydration made React
+    // queue the submit, reset the controlled password field while hydrating, then
+    // replay the submit with an empty password — a different server error, so this
+    // test failed every time on WebKit and once on Chromium in CI. What this test
+    // proves is the server gate, not hydration timing; whether text typed before
+    // hydration survives is tracked separately for W4-T3 (.debug/003).
+    await page.waitForFunction(() => {
+      const form = document.querySelector('[data-testid="sign-up-form"]');
+      return form !== null && Object.keys(form).some((key) => key.startsWith("__reactProps"));
+    });
 
     // Fill the DOM directly and submit the form element: no React change
     // handler, no meter, no client-side gate of any kind.

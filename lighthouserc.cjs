@@ -75,6 +75,16 @@ const contentAssertions = {
 };
 
 /** Bike pages: a WebGL canvas rendered in software. */
+/**
+ * Sign-in / sign-up are `noindex` on purpose (tests/e2e/auth-*.spec.ts), so the SEO
+ * category — dominated by `is-crawlable` — cannot and must not reach 0.95 there.
+ * Everything else still applies.
+ */
+const authAssertions = {
+  ...contentAssertions,
+  "categories:seo": "off",
+};
+
 const bikeAssertions = {
   ...contentAssertions,
   "categories:performance": ["error", { minScore: 0.7 }],
@@ -108,20 +118,41 @@ module.exports = {
           disabled: false,
         },
         chromeFlags: GL_FLAGS.join(" "),
+        // Applied ("devtools") throttling, not Lighthouse's default simulation. Same
+        // mobile network and 4x CPU profile, but the browser really runs under it.
+        // Measured on W1's content pages (.debug/003): simulated LCP 3.6 s vs applied
+        // LCP 1.5-1.6 s (TBT 20-30 ms, perf 0.99-1.0). Locally the first paint came
+        // AFTER the JS chunks had already loaded, so the simulation hung the whole
+        // script download on the LCP and replayed it over slow 4G — a model artifact
+        // that tracked time-to-interactive, not what a visitor sees. The thresholds
+        // stay exactly as §7 sets them; the three runs + median absorb the extra
+        // variance of applied throttling.
+        throttlingMethod: "devtools",
         // Auth and analytics are out of scope for a Lighthouse pass.
         skipAudits: ["uses-http2"],
       },
     },
     assert: {
-      // Median of the runs, so one slow cold start cannot fail a PR.
-      aggregationMethod: "median",
+      // LHCI refuses any other assert option next to `assertMatrix` ("Cannot use
+      // assertMatrix with other options"), so each entry carries its own
+      // aggregation: the median of the runs, so one slow cold start cannot fail a PR.
       assertMatrix: [
         {
           matchingUrlPattern: ".*/(velo|bike)/.*",
+          aggregationMethod: "median",
           assertions: bikeAssertions,
         },
         {
-          matchingUrlPattern: ".*",
+          matchingUrlPattern: ".*/(connexion|sign-in|inscription|sign-up)(\\?.*)?$",
+          aggregationMethod: "median",
+          assertions: authAssertions,
+        },
+        {
+          // Everything EXCEPT the 3D and auth pages: LHCI applies EVERY matching
+          // entry, so a plain `.*` would hold those pages to this bar as well.
+          matchingUrlPattern:
+            "^(?!.*/(velo|bike)/)(?!.*/(connexion|sign-in|inscription|sign-up)(\\?.*)?$).*$",
+          aggregationMethod: "median",
           assertions: contentAssertions,
         },
       ],

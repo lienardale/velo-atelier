@@ -271,6 +271,10 @@ jobs:
       ENABLE_TEST_PAGES: "1"
       NEXT_PUBLIC_TEST_HOOKS: "1"
       NEXT_PUBLIC_DEMO_LOGIN: "1"
+      # Inlined at build time: canonical, hreflang and og:url are prerendered from it.
+      # This artifact is served on :3100 by the e2e and lighthouse jobs; any other
+      # origin makes Lighthouse's canonical audit fail (.debug/003).
+      NEXT_PUBLIC_SITE_URL: http://localhost:3100
       POSTGRES_URL: postgresql://velo:velo@localhost:5432/velo_atelier_test
       POSTGRES_URL_NON_POOLING: postgresql://velo:velo@localhost:5432/velo_atelier_test
     services:
