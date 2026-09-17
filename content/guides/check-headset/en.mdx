@@ -1,0 +1,103 @@
+---
+slug: check-headset
+kind: check
+title: Check the headset and fork
+summary: Play under braking, notchy steering, a misaligned stem and a damaged fork — ten minutes to check what holds your front wheel and your handlebar.
+status: full
+order: 50
+difficulty: 1
+minutes: 10
+partIds:
+  - headset
+  - fork
+  - stem
+  - handlebar
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - adjust-headset-preload
+  - check-frame-bolts
+  - check-suspension
+safety:
+  - On a carbon fork or stem, never tighten a bolt without a torque wrench, to the torque printed on the part. Overtightening cracks the steerer without any visible sign.
+  - After a crash onto the front of the bike, have the fork checked before riding, even if it looks intact.
+steps:
+  - id: headset-play
+    title: Feel for play under braking
+    partIds: [headset, fork]
+    illustration: headset-threaded-vs-threadless
+    checkQuestion:
+      prompt: With the front brake on, when you rock the bike back and forth, do you feel no knock or movement under the stem?
+      skippable: false
+      ko:
+        - action: fix
+          partId: headset
+          reasonKey: headset-play
+          guideSlug: adjust-headset-preload
+  - id: headset-rough
+    title: Turn the bars with the wheel lifted
+    partIds: [headset]
+    checkQuestion:
+      prompt: With the front wheel off the ground, do the bars turn freely from side to side, with no tight spot or notch in the centre?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: headset
+          reasonKey: headset-rough
+  - id: bar-alignment
+    title: Check the stem and handlebar
+    partIds: [stem, handlebar]
+    checkQuestion:
+      prompt: Is the stem lined up with the wheel, and does the handlebar stay put in the stem and on the steerer when you force it?
+      skippable: false
+      ko:
+        - action: fix
+          partId: stem
+          reasonKey: stem-loose
+          guideSlug: adjust-headset-preload
+  - id: fork-condition
+    title: Inspect the fork
+    partIds: [fork]
+    checkQuestion:
+      prompt: Is the fork straight and intact, with no cracks, dents, star-shaped paint chips or damaged dropouts?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: fork
+          reasonKey: frame-crack
+---
+
+<Step id="headset-play">
+
+The headset is the pair of bearings the fork turns in inside the frame. Set too loose, it lets the fork knock every time you brake and wears out quickly.
+
+Stand beside the bike, squeeze the front brake hard and rock the bike back and forth. Rest your other hand across the top of the head tube and the stem, or on the upper cup: any knock or shift you feel under your fingers is play. Do not confuse it with a suspension fork flexing or pads moving in the caliper: play gives a small, sharp clunk.
+
+</Step>
+
+<Step id="headset-rough">
+
+Lift the front of the bike by the frame so the wheel is off the ground, then gently turn the handlebar from one stop to the other. It should turn freely, with no effort and no catching, and even flop to one side on its own when you let go.
+
+Bars that lock into the straight-ahead position with a small notch point to pitted bearings. Friction that slows the turning comes from an adjustment that is too tight or from rusty bearings. If adjusting changes nothing, replacing headset bearings often takes press tools: that is a job for a shop.
+
+</Step>
+
+<Step id="bar-alignment">
+
+Stand over the front wheel, grip it between your knees and look down: the stem should be in line with the tyre. Now try to turn the handlebar without moving the wheel, then push down hard on the bar, as you would on a descent.
+
+Nothing should move: neither the stem on the fork steerer nor the handlebar in the stem. A bar that slips under braking makes you fall. Realigning is done with the stem bolts loosened, then tightened again in a criss-cross pattern and small steps to the torque shown on the stem: it is the last step of adjusting the headset.
+
+</Step>
+
+<Step id="fork-condition">
+
+Clean the fork, then look at it in good light: both blades, the crown, the dropouts that hold the wheel, and where it enters the frame. Run your fingers over it to feel for dents.
+
+A bent fork shows from the side: the blades are no longer in line with the head tube. On aluminium or steel, look for fine cracks and ripples; on carbon, look for star-shaped paint chips and areas that sound dull when tapped with a coin. At the slightest doubt, do not ride, and have it checked.
+
+</Step>

@@ -1,0 +1,55 @@
+---
+slug: replace-shift-cable
+kind: replace
+title: Replace a gear cable
+summary: Pull the old cable out of the shifter, replace damaged housing, thread the new cable, clamp it at the derailleur and adjust the shifting. This guide is still being written.
+status: stub
+order: 80
+difficulty: 2
+minutes: 40
+partIds:
+  - shift-cables
+  - shifter-right
+  - shifter-left
+appliesTo:
+  all:
+    - path: drivetrain.kind
+      in: [derailleur, igh]
+    - path: drivetrain.shifter
+      notIn: [electronic]
+tools:
+  - toolId: cable-cutter
+    alternatives: []
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - check-cables-hoses
+  - adjust-rear-derailleur
+  - adjust-front-derailleur
+steps:
+  - id: remove-old
+    title: Pull out the old cable
+    partIds: [shift-cables, shifter-right, shifter-left]
+  - id: cut-housing
+    title: Replace the housing
+    partIds: [shift-cables]
+  - id: thread-cable
+    title: Thread the new cable
+    partIds: [shift-cables, shifter-right, shifter-left]
+  - id: clamp-cable
+    title: Clamp the cable at the derailleur
+    partIds: [shift-cables]
+  - id: index-gears
+    title: Adjust the shifting
+    partIds: [shift-cables]
+---
+
+<Step id="remove-old">
+
+Without pedalling, click the shifter all the way to the smallest cog at the back, or to the small chainring at the front: the cable is now slack and its head sits opposite the exit. Undo the bolt that clamps the cable at the derailleur and cut off the end cap with the <Tool id="cable-cutter" />.
+
+Find where the cable leaves the shifter: under a screwed cover, under the hood of a road lever or at the end of a trigger shifter. Push the cable from the derailleur towards the shifter, and pull it out by its head. Note how the housing is routed before removing it.
+
+</Step>

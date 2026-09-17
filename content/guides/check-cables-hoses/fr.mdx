@@ -1,0 +1,155 @@
+---
+slug: check-cables-hoses
+kind: check
+title: Contrôler les câbles, les gaines et les durites
+summary: Câbles effilochés ou grippés, gaines fendues, durites pincées ou qui suintent — les liaisons entre vos mains et vos freins ou vos vitesses, vérifiées une à une.
+status: full
+order: 80
+difficulty: 1
+minutes: 10
+partIds:
+  - brake-line-front
+  - brake-line-rear
+  - shift-cables
+tools:
+  - toolId: rags
+    alternatives: []
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+related:
+  - replace-brake-cable
+  - replace-shift-cable
+  - check-brakes-disc
+  - check-brakes-rim
+safety:
+  - Un câble de frein qui casse ne prévient pas. Au moindre brin effiloché sur un câble de frein, ne roulez plus avant de l’avoir remplacé.
+  - Le liquide de frein DOT attaque la peinture et irrite la peau. Si une durite suinte, essuyez avec un chiffon, lavez-vous les mains et ne roulez pas.
+steps:
+  - id: brake-cables
+    title: Inspecter les câbles de frein
+    partIds: [brake-line-front, brake-line-rear]
+    appliesTo:
+      path: brakes.type
+      notIn: [disc-hydraulic]
+    checkQuestion:
+      prompt: Les câbles de frein sont-ils intacts sur toute leur partie visible, sans brin cassé ni rouille, avec un embout serti au bout ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+  - id: brake-housing
+    title: Contrôler les gaines de frein
+    partIds: [brake-line-front, brake-line-rear]
+    appliesTo:
+      path: brakes.type
+      notIn: [disc-hydraulic]
+    checkQuestion:
+      prompt: Les gaines sont-elles sans fissure ni pli, bien en place dans leurs butées, et le levier revient-il vite sans frottement ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+  - id: brake-hoses
+    title: Inspecter les durites hydrauliques
+    partIds: [brake-line-front, brake-line-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-hydraulic]
+    checkQuestion:
+      prompt: Les durites sont-elles sèches, souples et sans pincement, entaille ni frottement contre le cadre ou la roue ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: brake-line-front
+          reasonKey: hose-leak
+        - action: inspect-shop
+          partId: brake-line-rear
+          reasonKey: hose-leak
+  - id: shift-cables
+    title: Inspecter les câbles de vitesses
+    partIds: [shift-cables]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [derailleur, igh]
+        - path: drivetrain.shifter
+          notIn: [electronic]
+    illustration: barrel-adjuster
+    checkQuestion:
+      prompt: Les câbles de vitesses sont-ils intacts et propres, et les manettes passent-elles les vitesses sans devoir forcer ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: shift-cables
+          reasonKey: shift-cable-frayed
+          guideSlug: replace-shift-cable
+  - id: shift-housing
+    title: Contrôler les gaines de vitesses
+    partIds: [shift-cables]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [derailleur, igh]
+        - path: drivetrain.shifter
+          notIn: [electronic]
+    checkQuestion:
+      prompt: Les gaines de vitesses sont-elles entières, sans pli serré, et gardent-elles leur forme quand vous tournez le guidon ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: shift-cables
+          reasonKey: shift-cable-frayed
+          guideSlug: replace-shift-cable
+---
+
+<Step id="brake-cables">
+
+Un frein à câble, sur jante ou à disque mécanique, dépend d’un fil d’acier tressé. Suivez chaque câble de frein depuis le levier jusqu’au frein, et regardez surtout les endroits où il sort à l’air libre : sous le levier, à l’entrée de chaque gaine et sous la vis qui le pince sur le frein.
+
+Un seul brin cassé suffit : le câble va s’effilocher de plus en plus vite puis rompre au freinage. Des traces de rouille, un câble plat ou écrasé au-delà de la vis de fixation, ou un bout sans embout qui s’ouvre en balai demandent aussi un remplacement. Sous un levier route, repliez doucement la cocotte pour voir la tête du câble.
+
+</Step>
+
+<Step id="brake-housing">
+
+La gaine est le tube souple qui guide le câble. Suivez-la en entier : une fissure dans le plastique, un pli marqué ou une spirale métallique visible font frotter le câble, qui rouille et freine mal. Chaque bout de gaine doit être bien enfoncé dans sa butée, avec un embout métallique.
+
+Actionnez ensuite chaque levier lentement puis relâchez-le : il doit revenir vite et d’un seul mouvement. Un levier paresseux, qui remonte par à-coups ou reste à mi-course, signale un câble qui frotte dans sa gaine. Le plus souvent, remplacer ensemble câble et gaines suffit à retrouver un freinage franc et léger.
+
+</Step>
+
+<Step id="brake-hoses">
+
+Sur un frein hydraulique, une durite remplace le câble et contient de l’huile minérale ou du liquide DOT, selon la marque. Suivez chaque durite du levier à l’étrier, en passant les doigts sur toute sa longueur : elle doit être souple, sèche et sans renflement.
+
+Cherchez les endroits où elle frotte contre le cadre, la fourche ou le pneu, et où un collier la pince trop fort. Une durite entaillée, écrasée ou pliée à angle vif peut céder. Regardez aussi les raccords au levier et à l’étrier : la moindre trace grasse est une fuite. Le remplacement d’une durite impose une purge du circuit : c’est un travail d’atelier.
+
+</Step>
+
+<Step id="shift-cables">
+
+Passez sur le plus petit pignon, sans pédaler, pour détendre le câble arrière, puis suivez chaque câble de vitesses depuis la manette jusqu’au dérailleur ou au moyeu. Comme pour les freins, regardez surtout les parties à l’air libre, sous le boîtier de pédalier et à l’entrée du dérailleur.
+
+Un brin cassé, de la rouille ou un câble noirci de cambouis rendent les passages lents et imprécis ; le câble finit par casser au pire moment. Si les passages deviennent durs sans raison, ou si le tendeur de câble est déjà vissé ou dévissé au maximum, le câble et les gaines sont probablement à changer ensemble.
+
+</Step>
+
+<Step id="shift-housing">
+
+Les gaines de vitesses sont plus rigides que celles des freins et ne doivent jamais faire d’angle serré. Suivez-les depuis les manettes : chaque courbe doit rester douce, et chaque bout doit être enfoncé dans sa butée ou dans le dérailleur, avec un embout.
+
+Tournez maintenant le guidon à fond d’un côté puis de l’autre en regardant les gaines : elles ne doivent ni se tendre au point de tirer sur le câble, ni se coincer, ni frotter la roue. Si une vitesse change toute seule quand vous braquez, une gaine est trop courte ou mal placée. Une gaine fendue ou écrasée se remplace avec le câble.
+
+</Step>

@@ -193,7 +193,7 @@
     }
   },
   "derailleur-limit-screws-h-l-b": {
-    "alt": "Dérailleur arrière vu de dos : les vis de butée H et L, et la vis B.",
+    "alt": "Dérailleur arrière de profil : les vis de butée H et L côte à côte sur le corps, et la vis B en appui sur la patte.",
     "callouts": {
       "1": "Vis H (butée petit pignon)",
       "2": "Vis L (butée grand pignon)",

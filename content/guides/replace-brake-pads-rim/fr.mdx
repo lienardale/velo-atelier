@@ -1,0 +1,89 @@
+---
+slug: replace-brake-pads-rim
+kind: replace
+title: Remplacer les patins de frein sur jante
+summary: Ouvrir le frein, sortir les patins usés ou leurs gommes, monter les neufs à la bonne hauteur avec un léger pincement, puis régler le câble. Vingt minutes et une clé Allen.
+status: full
+order: 20
+difficulty: 2
+minutes: 20
+partIds:
+  - brake-pads-front
+  - brake-pads-rear
+  - brake-caliper-front
+  - brake-caliper-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [false]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-rim
+  - adjust-rim-brake-centering
+  - clean-rim-braking-surface
+safety:
+  - Achetez des patins prévus pour votre frein et pour la matière de vos jantes. Une jante carbone exige des patins carbone, et des patins pour aluminium ne freinent presque plus dessus sous la pluie.
+  - Sur un porte-patin à cartouche, le côté fermé doit toujours être tourné vers l’avant du vélo. Monté à l’envers, la gomme peut sortir de son logement au premier freinage appuyé.
+steps:
+  - id: open-brake
+    title: Ouvrir le frein
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: remove-pads
+    title: Déposer les patins usés
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-rim
+  - id: fit-pads
+    title: Monter les patins neufs
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: position-pads
+    title: Placer les patins sur la jante
+    partIds: [brake-pads-front, brake-pads-rear, brake-caliper-front, brake-caliper-rear]
+  - id: test-brake
+    title: Refermer et essayer le frein
+    partIds: [brake-caliper-front, brake-caliper-rear]
+---
+
+<Step id="open-brake">
+
+Commencez par identifier votre frein. Un frein route à étrier a un petit levier de déblocage sur le côté : relevez-le. Sur un V-brake, pincez les deux bras l’un vers l’autre et sortez la « nouille », le tube métallique courbe, de son logement. Sur un cantilever, décrochez le câble transversal d’un des bras.
+
+Les bras s’écartent et laissent de la place pour travailler. Nettoyez la piste de freinage de la jante avec un chiffon imbibé d’alcool isopropylique : des patins neufs posés sur une jante grasse freinent mal et se glacent dès les premiers kilomètres.
+
+</Step>
+
+<Step id="remove-pads">
+
+Comparez vos patins à des neufs : quand les rainures ont presque disparu, il est temps. Sur un frein route, les patins sont souvent des gommes glissées dans un porte-patin en métal et tenues par une petite vis : ôtez la vis avec les <Tool id="allen-keys" alt="multi-tool" />, puis faites glisser l’ancienne gomme vers l’arrière, en vous aidant d’une pince si elle colle.
+
+Sur un V-brake ou un cantilever, le patin entier se démonte : desserrez l’écrou qui le tient au bras et sortez-le, en gardant dans l’ordre les rondelles bombées et creuses. Elles permettent d’orienter le patin et se remontent exactement dans le même ordre.
+
+</Step>
+
+<Step id="fit-pads">
+
+Sur un porte-patin à cartouche, glissez la gomme neuve depuis l’extrémité ouverte, dans le bon sens : les gommes sont souvent marquées gauche et droite, avec une flèche indiquant le sens de rotation de la roue. Le côté fermé du porte-patin est vers l’avant du vélo. Revissez la petite vis de maintien, qui empêche la gomme de glisser.
+
+Pour un patin complet, passez sa tige dans le bras avec les rondelles dans le même ordre qu’avant, et serrez à peine l’écrou : le patin doit encore pouvoir bouger à la main. Ne touchez pas la surface de freinage des patins neufs avec des doigts gras.
+
+</Step>
+
+<Step id="position-pads">
+
+Refermez provisoirement le frein, puis serrez doucement le levier. Réglez chaque patin pour qu’il touche la piste de freinage bien à plat, sur toute sa longueur, à environ 1 mm sous le bord de la jante. Jamais le pneu, jamais sous le flanc.
+
+Donnez un léger pincement : l’avant du patin doit toucher la jante un peu avant l’arrière, avec environ 1 mm d’écart au talon. Une carte fine glissée à l’arrière du patin pendant le serrage aide à le tenir. Maintenez le patin en position en serrant l’écrou fermement, au couple indiqué par le fabricant du frein, en l’empêchant de tourner.
+
+</Step>
+
+<Step id="test-brake">
+
+Refermez le levier de déblocage ou remettez la nouille en place : c’est l’oubli le plus fréquent, et le plus dangereux. Des patins neufs sont plus épais que les anciens ; si le frein touche la jante en permanence, vissez d’un ou deux tours le tendeur de câble, ou dévissez-le si le levier est trop mou.
+
+Faites tourner la roue : elle doit tourner librement, sans frottement. Serrez fort le levier : il doit être ferme bien avant le cintre, et les deux patins doivent arriver en même temps sur la jante. Si un côté touche avant l’autre, recentrez le frein. Essayez enfin le freinage à faible vitesse avant de repartir.
+
+</Step>

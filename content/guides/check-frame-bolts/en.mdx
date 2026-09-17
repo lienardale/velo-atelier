@@ -1,0 +1,168 @@
+---
+slug: check-frame-bolts
+kind: check
+title: Check the frame, cockpit and bolts
+summary: Frame cracks, stem and handlebar bolts, bar tape or grips, saddle and seatpost, accessories — a lap of the bike with an Allen key in hand.
+status: full
+order: 110
+difficulty: 1
+minutes: 15
+partIds:
+  - frame
+  - stem
+  - handlebar
+  - grips-or-tape
+  - saddle
+  - seatpost
+  - seat-clamp
+  - mudguards
+  - rack
+  - kickstand
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - clean-frame
+  - check-headset
+  - replace-saddle
+  - measure-saddle-height
+safety:
+  - On carbon parts, and on any bolt with a torque printed next to it, tighten with a torque wrench. "Good and tight by hand" is often twice too much and cracks carbon.
+steps:
+  - id: frame-inspect
+    title: Inspect the frame
+    partIds: [frame]
+    checkQuestion:
+      prompt: Once clean, is the frame free of cracks, dents, ripples or suspicious paint chips at the tube junctions?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: frame
+          reasonKey: frame-crack
+        - action: clean
+          partId: frame
+          reasonKey: frame-dirty
+          guideSlug: clean-frame
+  - id: cockpit-bolts
+    title: Check the stem and handlebar bolts
+    partIds: [stem, handlebar]
+    illustration: headset-threaded-vs-threadless
+    checkQuestion:
+      prompt: Are all the stem and handlebar bolts present and tight, with the bar staying put when you push hard on it?
+      skippable: false
+      ko:
+        - action: fix
+          partId: stem
+          reasonKey: stem-loose
+          guideSlug: adjust-headset-preload
+  - id: bar-tape
+    title: Check the bar tape
+    partIds: [grips-or-tape]
+    appliesTo:
+      path: cockpit.bar
+      in: [drop]
+    checkQuestion:
+      prompt: Is the bar tape whole and well stuck down, with a plug in each end of the handlebar?
+      skippable: true
+      ko:
+        - action: replace
+          partId: grips-or-tape
+          reasonKey: bar-tape-worn
+          guideSlug: replace-bar-tape
+  - id: grips
+    title: Check the grips
+    partIds: [grips-or-tape]
+    appliesTo:
+      path: cockpit.bar
+      notIn: [drop]
+    checkQuestion:
+      prompt: Do the grips hold without turning, are they whole, and is each end of the handlebar plugged?
+      skippable: true
+      ko:
+        - action: replace
+          partId: grips-or-tape
+          reasonKey: grips-worn
+          guideSlug: replace-grips
+  - id: saddle-seatpost
+    title: Check the saddle and seatpost
+    partIds: [saddle, seatpost, seat-clamp]
+    checkQuestion:
+      prompt: Is the saddle straight and firm, with intact rails, and does the seatpost stay put, above its minimum insertion mark?
+      skippable: false
+      ko:
+        - action: replace
+          partId: saddle
+          reasonKey: saddle-damaged
+          guideSlug: replace-saddle
+        - action: inspect-shop
+          partId: seatpost
+          reasonKey: seatpost-slipping
+  - id: accessories
+    title: Check the accessories
+    partIds: [mudguards, rack, kickstand]
+    checkQuestion:
+      prompt: Are the mudguards, rack and kickstand firmly fixed, with no missing bolts and nothing rubbing on the wheel?
+      skippable: true
+      ko:
+        - action: inspect-shop
+          partId: mudguards
+          reasonKey: accessory-loose
+        - action: inspect-shop
+          partId: rack
+          reasonKey: accessory-loose
+        - action: inspect-shop
+          partId: kickstand
+          reasonKey: accessory-loose
+---
+
+<Step id="frame-inspect">
+
+A clean frame is far easier to inspect than a dirty one: wipe it down with a damp rag first. Then, in good light, look at the areas under the most stress: around the head tube, under the down tube, around the bottom bracket, the chainstays and seatstays near the rear dropouts, and the welds.
+
+A fine crack, often outlined by a line of rust or dirt, a dent, a bent tube or paint crazing in a star pattern, especially on carbon, means you stop riding at once. While you are there, check that the bottle cage and derailleur hanger bolts are tight. At the slightest doubt about the frame, do not ride.
+
+</Step>
+
+<Step id="cockpit-bolts">
+
+The stem holds the handlebar with one or more bolts at the front, and clamps the fork steerer with two bolts at the side. Check that none is missing and that the gap between the stem and its faceplate is the same at the top and at the bottom.
+
+Tighten each bolt with a torque wrench to the value printed on the stem, often 4 to 6 Nm, in a criss-cross pattern and small steps. Then push down hard on both sides of the handlebar and pull it towards you: nothing should turn or slip. Do the same with the brake levers and shifters, which must not move on the bar.
+
+</Step>
+
+<Step id="bar-tape">
+
+Bar tape protects your hands and the handlebar. Run your hands along its whole length: it should be neither torn, nor peeling, nor slippery. Look closely under the hoods and at the top of the bar, where it tends to unwind, and at the finishing tape.
+
+Check too that each end of the handlebar has its plug. An open bar end can cause a serious wound in a crash, like a hole punch. Damaged bar tape cannot really be repaired: it is replaced, which is also a chance to check the housing that runs underneath.
+
+</Step>
+
+<Step id="grips">
+
+Grab each grip in your fist and try to twist it around the bar, then pull it outwards. It must not move: a grip that turns or slides at the wrong moment makes you lose control. On lock-on grips, tighten the small clamp bolt, without forcing it.
+
+A split, torn or sticky grip needs replacing. Check too that each end of the handlebar is closed off, by the grip itself or by a plug. An open bar end can cause a serious wound in a crash, and ergonomic grips must stay angled to support your palm.
+
+</Step>
+
+<Step id="saddle-seatpost">
+
+Stand beside the bike, take the saddle by its nose and its back and try to twist and tilt it. It should not move. Look underneath: the rails must be straight and intact, and the seatpost clamp bolts tight.
+
+Then mark the height of the seatpost with a piece of tape, ride for a few days and check it has not slipped down. Loosen the clamp once: the post should carry a minimum insertion mark, which must never show above the frame. A post that slips despite correct tightening goes to a shop.
+
+</Step>
+
+<Step id="accessories">
+
+Accessories work loose with vibration, especially on a loaded bike. Take the front and rear mudguards, the rack and the kickstand one at a time and shake them: nothing should rattle, lean or touch the tyre. Check that every fixing bolt is present, and tighten it without forcing.
+
+A rubbing mudguard can jam in the wheel and lock it; a mudguard stay that sticks out must have its end cap. Spin the wheels to check that nothing rubs. A broken tab, a cracked rack or a bolt that no longer tightens into the frame needs repairing.
+
+</Step>

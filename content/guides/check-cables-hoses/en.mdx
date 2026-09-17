@@ -1,0 +1,155 @@
+---
+slug: check-cables-hoses
+kind: check
+title: Check cables, housing and hoses
+summary: Frayed or sticky cables, split housing, pinched or weeping hoses — the links between your hands and your brakes and gears, checked one by one.
+status: full
+order: 80
+difficulty: 1
+minutes: 10
+partIds:
+  - brake-line-front
+  - brake-line-rear
+  - shift-cables
+tools:
+  - toolId: rags
+    alternatives: []
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+related:
+  - replace-brake-cable
+  - replace-shift-cable
+  - check-brakes-disc
+  - check-brakes-rim
+safety:
+  - A brake cable gives no warning before it snaps. If a single strand of a brake cable is frayed, do not ride until it has been replaced.
+  - DOT brake fluid strips paint and irritates skin. If a hose is weeping, wipe it with a rag, wash your hands and do not ride.
+steps:
+  - id: brake-cables
+    title: Inspect the brake cables
+    partIds: [brake-line-front, brake-line-rear]
+    appliesTo:
+      path: brakes.type
+      notIn: [disc-hydraulic]
+    checkQuestion:
+      prompt: Are the brake cables intact along their whole visible length, with no broken strands or rust, and a crimped end cap?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+  - id: brake-housing
+    title: Check the brake housing
+    partIds: [brake-line-front, brake-line-rear]
+    appliesTo:
+      path: brakes.type
+      notIn: [disc-hydraulic]
+    checkQuestion:
+      prompt: Is the housing free of cracks and kinks, seated in its stops, and does the lever spring back quickly without friction?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+  - id: brake-hoses
+    title: Inspect the hydraulic hoses
+    partIds: [brake-line-front, brake-line-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-hydraulic]
+    checkQuestion:
+      prompt: Are the hoses dry and supple, with no pinching, cuts or rubbing against the frame or the wheel?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: brake-line-front
+          reasonKey: hose-leak
+        - action: inspect-shop
+          partId: brake-line-rear
+          reasonKey: hose-leak
+  - id: shift-cables
+    title: Inspect the gear cables
+    partIds: [shift-cables]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [derailleur, igh]
+        - path: drivetrain.shifter
+          notIn: [electronic]
+    illustration: barrel-adjuster
+    checkQuestion:
+      prompt: Are the gear cables intact and clean, and do the shifters change gear without forcing?
+      skippable: false
+      ko:
+        - action: replace
+          partId: shift-cables
+          reasonKey: shift-cable-frayed
+          guideSlug: replace-shift-cable
+  - id: shift-housing
+    title: Check the gear housing
+    partIds: [shift-cables]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [derailleur, igh]
+        - path: drivetrain.shifter
+          notIn: [electronic]
+    checkQuestion:
+      prompt: Is the gear housing whole, with no tight bends, and does it keep its shape when you turn the handlebar?
+      skippable: false
+      ko:
+        - action: replace
+          partId: shift-cables
+          reasonKey: shift-cable-frayed
+          guideSlug: replace-shift-cable
+---
+
+<Step id="brake-cables">
+
+A cable brake, whether rim or mechanical disc, depends on a braided steel wire. Follow each brake cable from the lever to the brake, paying most attention to where it is exposed: under the lever, at the mouth of each piece of housing and under the bolt that clamps it at the brake.
+
+One broken strand is enough: the cable frays faster and faster and then snaps under braking. Rust, a cable flattened or crushed beyond the clamp bolt, or a loose end with no cap splaying out like a broom also call for replacement. Under a road lever, gently fold back the hood to see the cable head.
+
+</Step>
+
+<Step id="brake-housing">
+
+The housing is the flexible tube that guides the cable. Follow it all the way: a crack in the plastic, a sharp kink or a visible metal coil makes the cable drag, rust and brake poorly. Each end of housing should sit fully in its stop, with a metal ferrule.
+
+Then pull each lever slowly and release it: it should come back quickly in one smooth movement. A lazy lever that returns in jerks or stays halfway points to a cable dragging in its housing. Most of the time, replacing cable and housing together is enough to get crisp, light braking back.
+
+</Step>
+
+<Step id="brake-hoses">
+
+On a hydraulic brake, a hose takes the place of the cable and holds mineral oil or DOT fluid, depending on the brand. Follow each hose from lever to caliper, running your fingers along its whole length: it should be supple, dry and free of swellings.
+
+Look for places where it rubs on the frame, the fork or the tyre, and where a tie clamps it too hard. A cut, crushed or sharply kinked hose can fail. Look at the fittings at the lever and the caliper too: the slightest oily trace is a leak. Replacing a hose means bleeding the system: that is a job for a shop.
+
+</Step>
+
+<Step id="shift-cables">
+
+Shift onto the smallest cog without pedalling to slacken the rear cable, then follow each gear cable from the shifter to the derailleur or the hub. As with the brakes, focus on the exposed sections, under the bottom bracket and where the cable enters the derailleur.
+
+A broken strand, rust or a cable blackened with grime makes shifting slow and vague; the cable eventually snaps at the worst moment. If shifting has become stiff for no reason, or the barrel adjuster is already screwed fully in or out, the cable and housing probably need replacing together.
+
+</Step>
+
+<Step id="shift-housing">
+
+Gear housing is stiffer than brake housing and must never make a tight bend. Follow it from the shifters: every curve should stay gentle, and each end should sit in its stop or in the derailleur, with a ferrule.
+
+Now turn the handlebar fully one way and then the other while watching the housing: it should neither stretch enough to pull on the cable, nor snag, nor rub on the wheel. If a gear changes by itself when you steer, a length of housing is too short or badly routed. Split or crushed housing is replaced along with the cable.
+
+</Step>

@@ -1,0 +1,104 @@
+---
+slug: check-bottom-bracket
+kind: check
+title: Check the crankset and bottom bracket
+summary: Loose crank arms, play or rough bearings in the bottom bracket, loose chainring bolts — hunting down the creaks that spoil every pedal stroke.
+status: full
+order: 60
+difficulty: 1
+minutes: 10
+partIds:
+  - crankset
+  - bottom-bracket
+  - chainring
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-drivetrain
+  - check-pedals
+steps:
+  - id: crank-arms
+    title: Check the crank arms are secure
+    partIds: [crankset]
+    checkQuestion:
+      prompt: Is each crank arm solid on the axle, with no shift or knock when you force it?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: crankset
+          reasonKey: crank-loose
+  - id: bb-play
+    title: Feel for play in the bottom bracket
+    partIds: [bottom-bracket]
+    appliesTo:
+      not:
+        path: eSystem.motorPosition
+        in: [mid-drive]
+    checkQuestion:
+      prompt: When you pull and push both crank arms towards the frame, do you feel no sideways play?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: bottom-bracket
+          reasonKey: bottom-bracket-play
+  - id: bb-bearings
+    title: Feel the bearings with the chain off
+    partIds: [bottom-bracket]
+    appliesTo:
+      not:
+        path: eSystem.motorPosition
+        in: [mid-drive]
+    checkQuestion:
+      prompt: With the chain resting beside the chainring, do the cranks turn freely, with no grinding or tight spot?
+      skippable: true
+      ko:
+        - action: inspect-shop
+          partId: bottom-bracket
+          reasonKey: bottom-bracket-play
+  - id: chainring-bolts
+    title: Check the chainring bolts
+    partIds: [chainring, crankset]
+    illustration: ill-drivetrain
+    checkQuestion:
+      prompt: Are all the chainring bolts present and tight, with no chainring moving on the crank?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: crankset
+          reasonKey: bolt-loose
+---
+
+<Step id="crank-arms">
+
+Set one crank arm forward, horizontal, and push down hard on it with one hand while the other holds the opposite arm or the frame. Repeat on the other side, then with the arm pointing down.
+
+A properly fitted crank arm does not move at all relative to the axle. A small shift, a knock on every pedal stroke or a fixing bolt that has backed out means the arm is working loose: ride as little as possible, as it ruins its interface within a few kilometres and can fall off. On an e-bike with a mid-drive motor, the arms are fitted straight onto the motor axle: the check is the same.
+
+</Step>
+
+<Step id="bb-play">
+
+The bottom bracket is the axle and bearings housed in the frame, between the two crank arms. Take one arm in each hand, near the pedals, and pull them towards you, then push them towards the frame, firmly but without jerking.
+
+If both arms move together relative to the frame with a small knock, the bottom bracket has play. Do not confuse this with a single arm moving on the axle: that was the previous step. Depending on the type of bottom bracket, threaded or press-fit, adjusting or replacing it needs dedicated tools and often a press: it is a shop repair.
+
+</Step>
+
+<Step id="bb-bearings">
+
+Bottom bracket bearings suffer mostly from water and mud. To feel them on their own, remove the drag of the chain: shift onto the smallest cog, push the chain inside the small chainring with a rag so it rests on the bottom bracket shell, then turn the cranks by hand.
+
+They should spin freely, with no grinding or vibration in your fingers. New sealed bearings drag a little, which is normal; grit, a tight spot or a sharp click are not. A creak when pedalling hard can also come from the pedals, the seatpost or the chainring bolts: check those before blaming the bottom bracket.
+
+</Step>
+
+<Step id="chainring-bolts">
+
+The chainrings are fixed to the right-hand crank arm, or to a spider, by several small bolts, or by a central lockring on direct-mount cranksets. They are the most common source of rhythmic creaks under effort.
+
+Look at every chainring bolt: none should be missing. Try tightening them with the right Allen key, without forcing, holding the nut behind with a suitable tool if it spins. Then push the chainring towards the wheel and back towards the frame: it should not move. A bolt that no longer tightens, or a bent chainring, is a job for a shop.
+
+</Step>

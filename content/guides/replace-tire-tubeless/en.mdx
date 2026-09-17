@@ -1,0 +1,56 @@
+---
+slug: replace-tire-tubeless
+kind: replace
+title: Fit a tubeless tyre and refresh the sealant
+summary: Remove the tubeless tyre, clean the rim, refit the tyre, add sealant through the valve and seat the beads. This guide is still being written.
+status: stub
+order: 40
+difficulty: 2
+minutes: 40
+partIds:
+  - tire-front
+  - tire-rear
+  - sealant
+appliesTo:
+  path: tires.system
+  in: [tubeless]
+tools:
+  - toolId: tire-levers
+    alternatives: []
+  - toolId: floor-pump
+    alternatives: [mini-pump]
+  - toolId: valve-core-tool
+    alternatives: [pliers]
+  - toolId: sealant-injector
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-wheels-tires
+  - replace-tube-tire
+safety:
+  - "Never exceed the tyre's or the rim's maximum pressure to seat the beads: no more than 5 bar on a hookless rim."
+steps:
+  - id: remove-tire
+    title: Remove the tyre
+    partIds: [tire-front, tire-rear]
+  - id: clean-rim
+    title: Clean the rim and check the rim tape
+  - id: fit-tire
+    title: Refit the tyre
+    partIds: [tire-front, tire-rear]
+  - id: add-sealant
+    title: Add the sealant
+    partIds: [sealant]
+  - id: seat-bead
+    title: Seat the beads and spread the sealant
+    partIds: [tire-front, tire-rear, sealant]
+---
+
+<Step id="add-sealant">
+
+The cleanest way to add sealant is through the valve. Deflate the tyre fully, turn the wheel so the valve is at the top, then remove the core with the <Tool id="valve-core-tool" alt="pliers" />. Wait a few seconds for any sealant already inside to run down.
+
+Inject the amount given on the bottle with the <Tool id="sealant-injector" />, according to the tyre width: a mountain bike tyre needs far more than a road tyre. Screw the core back in, pump up, then spin and shake the wheel in every direction to spread the liquid over the whole inside surface.
+
+</Step>

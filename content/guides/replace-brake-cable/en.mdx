@@ -1,0 +1,56 @@
+---
+slug: replace-brake-cable
+kind: replace
+title: Replace a brake cable and housing
+summary: Remove the old cable, cut new housing, thread the new cable, tension and clamp it at the brake, then crimp an end cap. This guide is still being written.
+status: stub
+order: 70
+difficulty: 2
+minutes: 40
+partIds:
+  - brake-line-front
+  - brake-line-rear
+  - brake-lever-front
+  - brake-lever-rear
+appliesTo:
+  path: brakes.type
+  notIn: [disc-hydraulic]
+tools:
+  - toolId: cable-cutter
+    alternatives: []
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - check-cables-hoses
+  - check-brakes-rim
+  - adjust-brake-lever-reach
+safety:
+  - Use brake cable and brake housing, never gear housing. Gear housing can burst under the load of hard braking.
+  - Before riding, squeeze the lever very hard about ten times to settle the cable, then check that the clamp bolt has not let the cable slip.
+steps:
+  - id: remove-old
+    title: Remove the old cable
+    partIds: [brake-line-front, brake-line-rear]
+  - id: cut-housing
+    title: Cut the new housing
+    partIds: [brake-line-front, brake-line-rear]
+  - id: thread-cable
+    title: Thread the new cable
+    partIds: [brake-line-front, brake-line-rear, brake-lever-front, brake-lever-rear]
+  - id: clamp-cable
+    title: Tension and clamp the cable
+    partIds: [brake-line-front, brake-line-rear]
+  - id: crimp-test
+    title: Crimp the end cap and test the brake
+    partIds: [brake-line-front, brake-line-rear]
+---
+
+<Step id="clamp-cable">
+
+Screw the barrel adjuster on the lever or the brake almost fully in, then back it out one turn: that leaves you adjustment in both directions. Hold the brake arms squeezed against the rim, or the mechanical caliper's arm closed, and pull the cable tight with the pliers to take up the slack.
+
+Tighten the cable clamp bolt with the <Tool id="allen-keys" alt="multi-tool" />, firmly but without crushing the strands. Release the brake, then set the gap of the blocks or pads with the barrel adjuster: the lever should turn firm well before it reaches the handlebar.
+
+</Step>

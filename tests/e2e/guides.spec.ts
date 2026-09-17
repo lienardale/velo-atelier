@@ -49,11 +49,16 @@ function readGuide(slug: string, locale: Locale): GuideFrontmatter {
   return GuideFrontmatterSchema.parse(parsed?.data);
 }
 
-/** The first guide (by slug) of every kind on disk. */
+/**
+ * The first FULL guide (by slug) of every kind on disk. A stub renders a single
+ * step body by design (§5.7), so it cannot stand for "renders every step".
+ */
 const onePerKind = new Map<string, string>();
 for (const slug of readdirSync(GUIDES_DIR).sort()) {
   const kind = slug.split("-")[0];
-  if (!onePerKind.has(kind)) onePerKind.set(kind, slug);
+  if (!onePerKind.has(kind) && readGuide(slug, "fr").status === "full") {
+    onePerKind.set(kind, slug);
+  }
 }
 
 forEachLocale((locale) => {

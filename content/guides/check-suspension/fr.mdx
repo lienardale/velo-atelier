@@ -1,0 +1,173 @@
+---
+slug: check-suspension
+kind: check
+title: Contrôler les suspensions et la tige télescopique
+summary: Plongeurs et joints, affaissement, jeu dans les bagues et les articulations, amortisseur arrière et tige de selle télescopique — un contrôle régulier, sans rien démonter.
+status: full
+order: 100
+difficulty: 2
+minutes: 20
+partIds:
+  - fork
+  - rear-shock
+  - seatpost
+appliesTo:
+  any:
+    - path: suspension.front
+      in: [true]
+    - path: suspension.rear
+      in: [true]
+    - path: seatpost.dropper
+      in: [true]
+tools:
+  - toolId: shock-pump
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+  - toolId: zip-tie
+    alternatives: []
+related:
+  - adjust-suspension-sag
+  - check-headset
+  - check-frame-bolts
+safety:
+  - Ne dépassez jamais la pression maximale inscrite sur la fourche ou l’amortisseur, et n’ouvrez ni la chambre à air ni la cartouche d’amortissement. Elles restent sous pression même vidées.
+steps:
+  - id: fork-stanchions
+    title: Inspecter les plongeurs et les joints de fourche
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    checkQuestion:
+      prompt: Une fois essuyés, les plongeurs sont-ils lisses, sans rayure ni marque, et les joints ne laissent-ils qu’un film d’huile très fin ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: fork
+          reasonKey: stanchion-damaged
+        - action: inspect-shop
+          partId: fork
+          reasonKey: suspension-service-due
+  - id: fork-sag
+    title: Mesurer l’affaissement de la fourche
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    illustration: sag-measure-oring
+    checkQuestion:
+      prompt: Assis sur le vélo en position, la fourche s’enfonce-t-elle d’environ 15 à 25 % de son débattement ?
+      skippable: true
+      ko:
+        - action: adjust
+          partId: fork
+          reasonKey: sag-out-of-range
+          guideSlug: adjust-suspension-sag
+  - id: fork-play
+    title: Chercher du jeu dans la fourche
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    checkQuestion:
+      prompt: Frein avant serré, sans jeu dans le jeu de direction, les fourreaux sont-ils sans claquement quand vous poussez le vélo d’avant en arrière ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: fork
+          reasonKey: suspension-play
+  - id: shock-condition
+    title: Inspecter l’amortisseur et les articulations
+    partIds: [rear-shock]
+    appliesTo:
+      path: suspension.rear
+      in: [true]
+    checkQuestion:
+      prompt: L’amortisseur est-il propre et sec, et la roue arrière soulevée ne présente-t-elle aucun jeu latéral dans les articulations ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: rear-shock
+          reasonKey: suspension-leak
+        - action: inspect-shop
+          partId: rear-shock
+          reasonKey: suspension-play
+  - id: shock-sag
+    title: Mesurer l’affaissement de l’amortisseur
+    partIds: [rear-shock]
+    appliesTo:
+      path: suspension.rear
+      in: [true]
+    checkQuestion:
+      prompt: Assis sur le vélo en position, l’amortisseur s’enfonce-t-il d’environ 25 à 30 % de sa course ?
+      skippable: true
+      ko:
+        - action: adjust
+          partId: rear-shock
+          reasonKey: sag-out-of-range
+          guideSlug: adjust-suspension-sag
+  - id: dropper
+    title: Tester la tige de selle télescopique
+    partIds: [seatpost]
+    appliesTo:
+      path: seatpost.dropper
+      in: [true]
+    checkQuestion:
+      prompt: La tige descend-elle et remonte-t-elle entièrement à chaque appui sur la commande, sans s’enfoncer seule ni bouger dans le fourreau ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: seatpost
+          reasonKey: dropper-malfunction
+---
+
+<Step id="fork-stanchions">
+
+Les plongeurs sont les tubes brillants qui coulissent dans le bas de la fourche. Essuyez-les avec un chiffon propre, puis regardez-les sous une bonne lumière, sur tout le tour. La moindre rayure ou marque d’impact use les joints et laisse entrer la poussière.
+
+Appuyez plusieurs fois sur le guidon pour faire travailler la fourche, puis essuyez de nouveau. Un léger film d’huile est normal : il lubrifie les joints. Un anneau d’huile épais, de la poussière collée ou une fourche qui grince et accroche demandent un entretien. Le fabricant donne un intervalle d’entretien en heures de roulage ; une fois passé, l’atelier le fait.
+
+</Step>
+
+<Step id="fork-sag">
+
+L’affaissement, ou « sag », est la part du débattement qu’utilise votre seul poids. Poussez le joint torique du plongeur contre le joint, ou serrez un collier fin à cet endroit s’il n’y en a pas. Montez doucement sur le vélo, en tenue de sortie, appuyé contre un mur, et prenez votre position de pilotage sans rebondir.
+
+Descendez sans appuyer sur la fourche et mesurez la distance entre le joint et le joint torique. Divisez-la par le débattement de la fourche, inscrit sur le fourreau ou dans la notice : entre 15 et 20 % pour une pratique cross-country, entre 20 et 25 % en trail et enduro. Hors de cette plage, la pression d’air se règle.
+
+</Step>
+
+<Step id="fork-play">
+
+Commencez par vérifier le jeu de direction, sinon les deux se confondent. Serrez ensuite fort le frein avant et poussez le vélo d’avant en arrière, en posant l’autre main à l’endroit où les plongeurs entrent dans les fourreaux.
+
+Une fourche saine s’enfonce un peu, sans bruit. Un claquement sec ou un mouvement d’avant en arrière des plongeurs dans les fourreaux révèle des bagues usées. Tenez aussi la roue et tordez le guidon : une torsion légère est normale, un choc net ne l’est pas. Les bagues se remplacent en atelier, avec des outils dédiés.
+
+</Step>
+
+<Step id="shock-condition">
+
+Essuyez l’amortisseur arrière et regardez sa partie brillante, là où il coulisse : elle doit être lisse, sans rayure, et sèche, à part un film très fin. De l’huile qui coule le long du corps, ou un amortisseur qui ne remonte plus aussi vite, annonce un entretien.
+
+Soulevez ensuite l’arrière du vélo par la selle et secouez la roue de gauche à droite en tenant le cadre : aucun claquement ne doit venir des axes de l’amortisseur ni des articulations du triangle arrière. Si une vis d’articulation vous semble desserrée, ne la resserrez pas au hasard : chaque vis a son couple, et l’atelier vérifie aussi les roulements.
+
+</Step>
+
+<Step id="shock-sag">
+
+Sur l’amortisseur, l’affaissement se mesure sur sa course, la longueur dont il peut rentrer, et non sur le débattement de la roue. La course est inscrite sur l’amortisseur ou dans la fiche du vélo. Poussez le joint torique contre le joint, montez sur le vélo en tenue de sortie, appuyé contre un mur, et prenez votre position sans rebondir.
+
+Descendez doucement, mesurez la distance entre le joint et le joint torique, puis divisez-la par la course : un amortisseur doit s’enfoncer d’environ 25 à 30 %. Certains cadres indiquent leur propre valeur, par un repère gradué sur l’amortisseur. Hors de la plage, réglez la pression d’air à la pompe haute pression.
+
+</Step>
+
+<Step id="dropper">
+
+Asseyez-vous et appuyez sur la commande : la tige doit descendre sous votre poids jusqu’en bas. Levez-vous, appuyez de nouveau : elle doit remonter entièrement, à vitesse régulière, jusqu’à sa butée. Recommencez en l’arrêtant à mi-hauteur.
+
+Une fois en haut, la tige ne doit pas s’enfoncer quand vous vous asseyez sans toucher la commande. Prenez aussi la selle et tournez-la légèrement de gauche à droite : un petit jeu en rotation est normal sur certains modèles, un claquement de haut en bas ne l’est pas. Si la commande est molle, le câble se retend ; les autres pannes passent par l’atelier.
+
+</Step>

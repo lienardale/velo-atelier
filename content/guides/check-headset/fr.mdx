@@ -1,0 +1,103 @@
+---
+slug: check-headset
+kind: check
+title: Contrôler le jeu de direction et la fourche
+summary: Jeu au freinage, direction crantée, potence mal alignée et fourche abîmée — dix minutes pour vérifier ce qui tient votre roue avant et votre guidon.
+status: full
+order: 50
+difficulty: 1
+minutes: 10
+partIds:
+  - headset
+  - fork
+  - stem
+  - handlebar
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - adjust-headset-preload
+  - check-frame-bolts
+  - check-suspension
+safety:
+  - Sur une fourche ou une potence en carbone, ne serrez aucune vis sans clé dynamométrique, au couple gravé sur la pièce. Un serrage excessif fissure le pivot sans que cela se voie.
+  - Après une chute sur l’avant, faites contrôler la fourche avant de rouler, même si elle vous semble intacte.
+steps:
+  - id: headset-play
+    title: Chercher du jeu au freinage
+    partIds: [headset, fork]
+    illustration: headset-threaded-vs-threadless
+    checkQuestion:
+      prompt: Frein avant serré, en poussant le vélo d’avant en arrière, ne sentez-vous aucun claquement ni mouvement sous la potence ?
+      skippable: false
+      ko:
+        - action: fix
+          partId: headset
+          reasonKey: headset-play
+          guideSlug: adjust-headset-preload
+  - id: headset-rough
+    title: Tourner le guidon roue levée
+    partIds: [headset]
+    checkQuestion:
+      prompt: Roue avant soulevée, le guidon tourne-t-il librement d’un côté à l’autre, sans point dur ni cran au centre ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: headset
+          reasonKey: headset-rough
+  - id: bar-alignment
+    title: Vérifier la potence et le cintre
+    partIds: [stem, handlebar]
+    checkQuestion:
+      prompt: La potence est-elle alignée avec la roue, et le cintre ne tourne-t-il ni dans la potence ni autour du pivot quand vous forcez ?
+      skippable: false
+      ko:
+        - action: fix
+          partId: stem
+          reasonKey: stem-loose
+          guideSlug: adjust-headset-preload
+  - id: fork-condition
+    title: Inspecter la fourche
+    partIds: [fork]
+    checkQuestion:
+      prompt: La fourche est-elle droite et intacte, sans fissure, bosse, éclat de peinture en étoile ni patte abîmée ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: fork
+          reasonKey: frame-crack
+---
+
+<Step id="headset-play">
+
+Le jeu de direction, ce sont les deux roulements qui laissent tourner la fourche dans le cadre. Réglé trop lâche, il laisse la fourche cogner à chaque freinage et s’abîme vite.
+
+Tenez-vous à côté du vélo, serrez fort le frein avant et poussez le vélo d’avant en arrière. Posez l’autre main à cheval sur le haut du tube de direction et la potence, ou sur la cuvette supérieure : le moindre claquement ou décalage que vous sentez sous les doigts est du jeu. Ne confondez pas avec la souplesse d’une fourche suspendue ou le mouvement des plaquettes : le jeu donne un petit choc net.
+
+</Step>
+
+<Step id="headset-rough">
+
+Soulevez l’avant du vélo par le cadre pour que la roue ne touche plus le sol, puis tournez doucement le guidon d’une butée à l’autre. Il doit tourner librement, sans effort et sans accroche, et même retomber seul sur le côté quand vous le lâchez.
+
+Un guidon qui se bloque dans la position droite, avec un petit cran, signale des roulements marqués. Un frottement qui freine la rotation vient d’un réglage trop serré ou de roulements rouillés. Si un réglage ne change rien, remplacer les roulements du jeu de direction demande souvent des outils de presse : c’est une affaire d’atelier.
+
+</Step>
+
+<Step id="bar-alignment">
+
+Mettez-vous au-dessus de la roue avant, bloquez-la entre vos genoux et regardez vers le bas : la potence doit être dans l’axe du pneu. Tentez alors de tourner le guidon sans bouger la roue, puis appuyez fort sur le cintre vers le bas, comme en descente.
+
+Rien ne doit bouger : ni la potence autour du pivot de fourche, ni le cintre dans la potence. Un cintre qui glisse au freinage fait tomber. Le réalignement se fait vis de potence desserrées, puis resserrées au couple indiqué sur la potence, en croisant et par petites étapes : c’est la dernière étape du réglage du jeu de direction.
+
+</Step>
+
+<Step id="fork-condition">
+
+Nettoyez la fourche, puis regardez-la sous une bonne lumière : les deux fourreaux, la couronne, les pattes où se fixe la roue, et la zone où elle entre dans le cadre. Passez les doigts dessus pour sentir les bosses.
+
+Une fourche tordue se voit de profil : les fourreaux ne sont plus dans l’alignement du tube de direction. Sur l’aluminium ou l’acier, cherchez les fissures fines et les plis ; sur le carbone, les éclats de peinture en étoile et les zones qui sonnent creux quand on les tapote avec une pièce. Au moindre doute, ne roulez pas et faites-la contrôler.
+
+</Step>

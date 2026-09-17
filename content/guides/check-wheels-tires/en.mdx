@@ -1,0 +1,207 @@
+---
+slug: check-wheels-tires
+kind: check
+title: Check wheels and tyres
+summary: Tyre wear, pressure that holds, tubeless sealant, buckled wheels, hub play and axle security — everything that connects you to the ground.
+status: full
+order: 40
+difficulty: 1
+minutes: 15
+partIds:
+  - tire-front
+  - tire-rear
+  - tube-front
+  - tube-rear
+  - sealant
+  - wheel-front
+  - wheel-rear
+tools:
+  - toolId: floor-pump
+    alternatives: [mini-pump]
+  - toolId: pressure-gauge
+    alternatives: [floor-pump]
+  - toolId: zip-tie
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-tube-tire
+  - replace-tire-tubeless
+  - measure-tire-pressure
+safety:
+  - "Never exceed the maximum pressure printed on the tyre sidewall, nor the rim's own limit: on a hookless rim it is capped at 5 bar."
+steps:
+  - id: tread-sidewalls
+    title: Inspect the tread and sidewalls
+    partIds: [tire-front, tire-rear]
+    appliesTo:
+      path: tires.system
+      in: [clincher-tube]
+    checkQuestion:
+      prompt: Do the tyres still have tread, with no cuts, bulges, cracks or visible casing?
+      skippable: false
+      ko:
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-worn
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-worn
+          guideSlug: replace-tube-tire
+  - id: tread-sidewalls-tubeless
+    title: Inspect tubeless tyres
+    partIds: [tire-front, tire-rear]
+    appliesTo:
+      path: tires.system
+      in: [tubeless]
+    checkQuestion:
+      prompt: Do the tyres still have tread, with no cuts, bulges, cracks or sealant weeping through the sidewall?
+      skippable: false
+      ko:
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-worn
+          guideSlug: replace-tire-tubeless
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-worn
+          guideSlug: replace-tire-tubeless
+  - id: pressure-hold
+    title: Check that pressure holds
+    partIds: [tube-front, tube-rear]
+    appliesTo:
+      path: tires.system
+      in: [clincher-tube]
+    illustration: presta-valve-core
+    checkQuestion:
+      prompt: After two days without riding, have the tyres kept almost all their pressure, with straight, secure valves?
+      skippable: true
+      ko:
+        - action: replace
+          partId: tube-front
+          reasonKey: tube-punctured
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tube-rear
+          reasonKey: tube-punctured
+          guideSlug: replace-tube-tire
+  - id: sealant
+    title: Check the tubeless sealant
+    partIds: [sealant]
+    appliesTo:
+      path: tires.system
+      in: [tubeless]
+    checkQuestion:
+      prompt: Can you still hear liquid sealant moving in each tyre, and was it last topped up less than a few months ago?
+      skippable: true
+      ko:
+        - action: replace
+          partId: sealant
+          reasonKey: sealant-dry
+          guideSlug: replace-tire-tubeless
+  - id: wheel-true
+    title: Check for buckles and loose spokes
+    partIds: [wheel-front, wheel-rear]
+    checkQuestion:
+      prompt: Does each wheel spin straight, with no visible wobble or hop, and with every spoke tight?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: wheel-out-of-true
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: wheel-out-of-true
+  - id: hub-play
+    title: Feel for play in the hubs
+    partIds: [wheel-front, wheel-rear]
+    checkQuestion:
+      prompt: When you push the rim from side to side, is the wheel free of play, and does it spin for a long time without a grinding noise?
+      skippable: false
+      ko:
+        - action: fix
+          partId: wheel-front
+          reasonKey: hub-play
+          guideSlug: adjust-hub-bearing-preload
+        - action: fix
+          partId: wheel-rear
+          reasonKey: hub-play
+          guideSlug: adjust-hub-bearing-preload
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: hub-bearing-rough
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: hub-bearing-rough
+  - id: axle-secure
+    title: Check the axles are secure
+    partIds: [wheel-front, wheel-rear]
+    illustration: axle-qr-vs-thru
+    checkQuestion:
+      prompt: Does each quick release close hard enough to mark your palm, or is each thru-axle screwed fully home, with no wheel rattling when you lift and drop the bike?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: axle-not-secure
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: axle-not-secure
+---
+
+<Step id="tread-sidewalls">
+
+Spin each wheel slowly and look at the tyre all the way round, in the middle and then on both sidewalls. Many road tyres have small wear-indicator dimples in the tread: once they have gone, the tyre is worn. A rear tyre whose centre has turned flat, or squared off, is worn too.
+
+Next look for deep cuts and for stones or glass stuck in the rubber, which you can pick out with the tip of a knife. A bulge in the sidewall, fine regular cracks from age or sunlight, or the fabric casing showing through the rubber all call for a new tyre: it can burst without warning.
+
+</Step>
+
+<Step id="tread-sidewalls-tubeless">
+
+Spin each wheel slowly and look at the tyre all the way round, in the middle and then on both sidewalls. Rounded or torn-off knobs and a smooth tread reduce grip, especially in corners and in the wet.
+
+On a tubeless tyre, small dried white or grey spots on the rubber are punctures the sealant has already plugged; that is normal. A sidewall where sealant keeps weeping out, a cut longer than a few millimetres, a bulge or regular cracking all call for a new tyre: a repair plug is only a get-you-home fix.
+
+</Step>
+
+<Step id="pressure-hold">
+
+Pump both tyres to your usual pressure, write it down, and read it again two days later with the gauge on your floor pump. An inner tube always loses a little air, but a drop of more than about half a bar in two days points to a slow puncture or a leaking valve.
+
+Look at the valve: it should stick straight out of the rim. A leaning valve shows the tyre has crept round the rim and will eventually tear the valve out. On a Presta valve, check that the lock nut screws down and that the removable core is tight: a leaking core can be tightened by hand or replaced.
+
+</Step>
+
+<Step id="sealant">
+
+Liquid sealant plugs small punctures, but it dries out: depending on the heat, it needs topping up every two to six months. Turn the wheel so the valve is at the top, then shake it up and down next to your ear: a sloshing sound means there is liquid left.
+
+If you hear nothing, deflate the tyre, remove the valve core and dip a thin stick, such as a spare spoke, down to the lowest point: if it comes out dry, or the sealant has turned into a rubbery lump, add more. Write the date on the rim with a marker or in your app.
+
+</Step>
+
+<Step id="wheel-true">
+
+Lift the wheel and spin it while watching a fixed point: the brake block, the caliper, or a zip tie fastened to the fork or frame right next to the rim. The gap should stay the same all the way round. A side-to-side wobble of more than a millimetre or two, or a rim that hops up and down, is corrected by re-tensioning the spokes.
+
+Then squeeze the spokes in pairs all the way round: they should all feel equally tight. A slack, clicking or broken spoke weakens the whole wheel. Truing needs a spoke key and experience: take it to a shop.
+
+</Step>
+
+<Step id="hub-play">
+
+Hold the bike with one hand, take the rim at the top with the other and push it firmly from side to side. A faint knock, or movement you can feel in your fingers, means play in the hub bearings; first check that the axle is properly tightened.
+
+Then spin the wheel by hand with the brake open: it should keep turning for a long time, with no clicking or gritty feel. A cup-and-cone hub, recognisable by the adjusting nuts on each side of the axle, can be adjusted at home. A cartridge-bearing hub that grinds, or play that cannot be adjusted out, is a job for a shop.
+
+</Step>
+
+<Step id="axle-secure">
+
+A badly secured wheel can pull out of the fork under braking. A quick release is not screwed like a nut: set the nut on the far side so the lever starts to resist halfway through its travel, then close it firmly. It should leave a mark in your palm. The closed lever points backwards, away from the rotor and from obstacles.
+
+A thru-axle screws fully into the fork or frame, to the torque printed on it when there is one, and then its lever folds away. Now lift the bike a few centimetres and let it drop: no wheel should rattle. If a quick release no longer closes firmly or a thread binds, have it checked.
+
+</Step>

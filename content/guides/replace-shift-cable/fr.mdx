@@ -1,0 +1,55 @@
+---
+slug: replace-shift-cable
+kind: replace
+title: Remplacer un câble de vitesses
+summary: Sortir l’ancien câble de la manette, remplacer les gaines abîmées, passer le câble neuf, le pincer sur le dérailleur et régler les passages. Ce guide est en cours de rédaction.
+status: stub
+order: 80
+difficulty: 2
+minutes: 40
+partIds:
+  - shift-cables
+  - shifter-right
+  - shifter-left
+appliesTo:
+  all:
+    - path: drivetrain.kind
+      in: [derailleur, igh]
+    - path: drivetrain.shifter
+      notIn: [electronic]
+tools:
+  - toolId: cable-cutter
+    alternatives: []
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - check-cables-hoses
+  - adjust-rear-derailleur
+  - adjust-front-derailleur
+steps:
+  - id: remove-old
+    title: Sortir l’ancien câble
+    partIds: [shift-cables, shifter-right, shifter-left]
+  - id: cut-housing
+    title: Remplacer les gaines
+    partIds: [shift-cables]
+  - id: thread-cable
+    title: Passer le câble neuf
+    partIds: [shift-cables, shifter-right, shifter-left]
+  - id: clamp-cable
+    title: Pincer le câble sur le dérailleur
+    partIds: [shift-cables]
+  - id: index-gears
+    title: Régler les passages
+    partIds: [shift-cables]
+---
+
+<Step id="remove-old">
+
+Sans pédaler, cliquez la manette jusqu’au plus petit pignon à l’arrière, ou jusqu’au petit plateau à l’avant : le câble est alors détendu et sa tête est en face de la sortie. Desserrez la vis qui pince le câble sur le dérailleur et coupez l’embout avec le <Tool id="cable-cutter" />.
+
+Repérez la sortie du câble sur la manette : sous un cache vissé, sous la cocotte d’un levier route ou au bout d’une manette à gâchette. Poussez le câble depuis le dérailleur vers la manette, et tirez-le par sa tête. Notez le trajet des gaines avant de les retirer.
+
+</Step>

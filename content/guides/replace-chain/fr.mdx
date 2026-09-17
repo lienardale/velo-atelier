@@ -1,0 +1,101 @@
+---
+slug: replace-chain
+kind: replace
+title: Remplacer la chaîne
+summary: Choisir la bonne chaîne, ouvrir l’ancienne, couper la neuve à la bonne longueur, la passer dans le dérailleur et la fermer avec un maillon rapide. Une demi-heure, et une transmission qui dure deux fois plus longtemps.
+status: full
+order: 50
+difficulty: 2
+minutes: 30
+partIds:
+  - chain
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: chain-tool
+    alternatives: [multi-tool]
+  - toolId: quick-link-pliers
+    alternatives: [pliers]
+  - toolId: chain-checker
+    alternatives: [steel-ruler]
+  - toolId: rags
+    alternatives: []
+  - toolId: chain-lube
+    alternatives: []
+related:
+  - check-drivetrain
+  - clean-chain
+  - replace-cassette
+safety:
+  - Une chaîne mal fermée s’ouvre sous l’effort et fait chuter. Vérifiez que le maillon rapide est enclenché à fond, et ne réutilisez jamais un axe de chaîne Shimano déjà sorti.
+  - Les maillons rapides des chaînes 11 et 12 vitesses sont souvent prévus pour un seul montage. Au doute, utilisez-en un neuf.
+steps:
+  - id: choose-chain
+    title: Choisir la chaîne
+    partIds: [chain]
+    illustration: chain-wear-checker
+  - id: remove-old
+    title: Ouvrir et retirer l’ancienne chaîne
+    partIds: [chain]
+  - id: size-new
+    title: Mettre la chaîne neuve à longueur
+    partIds: [chain]
+  - id: route-chain
+    title: Passer la chaîne dans la transmission
+    partIds: [chain]
+  - id: join-chain
+    title: Fermer la chaîne
+    partIds: [chain]
+  - id: test-chain
+    title: Essayer toutes les vitesses
+    partIds: [chain]
+---
+
+<Step id="choose-chain">
+
+Une chaîne se choisit d’abord au nombre de vitesses de la cassette : une chaîne 11 vitesses est plus étroite qu’une 9 vitesses, et une chaîne trop large frotte et saute. Les chaînes 12 vitesses ne sont pas toujours interchangeables entre marques : suivez la compatibilité donnée par le fabricant de votre transmission.
+
+Avant d’acheter, mesurez l’usure de l’ancienne. Si elle dépassait 0,75 %, ou 0,5 % sur une transmission 11 vitesses et plus, la cassette est peut-être usée aussi : une chaîne neuve qui saute sous l’effort sur les pignons les plus utilisés le confirmera. Les monovitesses et les moyeux à vitesses utilisent des chaînes plus larges, souvent vendues pour « 1 vitesse ».
+
+</Step>
+
+<Step id="remove-old">
+
+Placez la chaîne sur le petit plateau et le plus petit pignon, pour la détendre. Si elle a un maillon rapide, reconnaissable à ses flasques différentes, pincez-le avec la <Tool id="quick-link-pliers" alt="pliers" /> en rapprochant les deux maillons voisins : il s’ouvre.
+
+Sans maillon rapide, placez n’importe quel maillon dans le <Tool id="chain-tool" alt="multi-tool" /> et vissez jusqu’à pousser l’axe complètement hors du maillon. Retirez la chaîne en la tirant par une extrémité. Gardez-la à portée de main : elle vous servira de modèle pour la longueur.
+
+</Step>
+
+<Step id="size-new">
+
+La méthode la plus simple : posez l’ancienne et la neuve côte à côte sur une table et comptez les maillons, pas les centimètres, puisque l’ancienne s’est allongée. Coupez la neuve au même nombre de maillons, en comptant le maillon rapide, avec le dérive-chaîne.
+
+Si l’ancienne était à la mauvaise longueur, ou pour un vélo neuf à dérailleur : passez la chaîne neuve sur le grand plateau et le grand pignon sans la faire passer dans le dérailleur, rejoignez les deux bouts, puis ajoutez deux maillons, soit un maillon intérieur et un extérieur. Les transmissions SRAM Eagle 12 vitesses ont leur propre méthode, décrite par le fabricant. Sur un monovitesse ou un moyeu à vitesses, la chaîne doit juste permettre de reculer la roue pour la tendre.
+
+</Step>
+
+<Step id="route-chain">
+
+Passez la chaîne par l’arrière, sur le plus petit pignon, puis faites-la descendre dans la chape du dérailleur : devant le galet du haut, derrière le galet du bas, en restant à l’intérieur des petites languettes métalliques de la chape. Une chaîne qui passe par-dessus une languette frotte et casse le dérailleur.
+
+Remontez-la ensuite jusqu’au plateau, en passant dans le dérailleur avant s’il y en a un, entre ses deux plaques. Posez-la sur le petit plateau, sans la tendre. Si la chaîne porte des inscriptions ou une flèche, placez-les vers l’extérieur du vélo, comme demandé par la plupart des fabricants.
+
+</Step>
+
+<Step id="join-chain">
+
+Rapprochez les deux bouts sous le vélo, là où la chaîne n’est pas tendue. Un bout de fil de fer plié en crochet entre deux maillons les retient pendant que vous travaillez. Engagez les deux moitiés du maillon rapide, une dans chaque bout, puis emboîtez-les. Certains maillons ont une flèche de sens de rotation.
+
+Retirez le crochet, placez le maillon rapide en haut, entre le plateau et le pignon, bloquez la roue arrière avec le frein et appuyez fort sur la pédale : le maillon s’enclenche avec un clic. Avec un axe Shimano, poussez-le au dérive-chaîne jusqu’à ce qu’il dépasse autant que ses voisins, puis cassez sa partie guide à la pince.
+
+</Step>
+
+<Step id="test-chain">
+
+Faites tourner le pédalier en arrière en regardant la chaîne passer dans le dérailleur : un maillon raide fait sauter le galet. Pliez-le doucement de gauche à droite pour le libérer. Vérifiez que le maillon rapide est bien fermé, ses axes au fond des encoches.
+
+Passez ensuite toutes les vitesses, sur le grand et le petit plateau. Sur le grand plateau et le grand pignon, la chape du dérailleur ne doit pas être tendue à l’horizontale ; sur le petit plateau et le petit pignon, la chaîne ne doit pas pendre. Essuyez l’huile de protection en surface si elle est collante, et roulez prudemment les premiers kilomètres, en appuyant progressivement.
+
+</Step>

@@ -1,0 +1,173 @@
+---
+slug: check-suspension
+kind: check
+title: Check suspension and dropper post
+summary: Stanchions and seals, sag, play in the bushings and pivots, the rear shock and the dropper post — a regular check, without taking anything apart.
+status: full
+order: 100
+difficulty: 2
+minutes: 20
+partIds:
+  - fork
+  - rear-shock
+  - seatpost
+appliesTo:
+  any:
+    - path: suspension.front
+      in: [true]
+    - path: suspension.rear
+      in: [true]
+    - path: seatpost.dropper
+      in: [true]
+tools:
+  - toolId: shock-pump
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+  - toolId: zip-tie
+    alternatives: []
+related:
+  - adjust-suspension-sag
+  - check-headset
+  - check-frame-bolts
+safety:
+  - Never exceed the maximum pressure printed on the fork or shock, and never open the air spring or the damper cartridge. They stay under pressure even when deflated.
+steps:
+  - id: fork-stanchions
+    title: Inspect the fork stanchions and seals
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    checkQuestion:
+      prompt: Once wiped, are the stanchions smooth, with no scratches or marks, and do the seals leave only a very thin film of oil?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: fork
+          reasonKey: stanchion-damaged
+        - action: inspect-shop
+          partId: fork
+          reasonKey: suspension-service-due
+  - id: fork-sag
+    title: Measure fork sag
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    illustration: sag-measure-oring
+    checkQuestion:
+      prompt: Sitting on the bike in riding position, does the fork compress by about 15 to 25% of its travel?
+      skippable: true
+      ko:
+        - action: adjust
+          partId: fork
+          reasonKey: sag-out-of-range
+          guideSlug: adjust-suspension-sag
+  - id: fork-play
+    title: Feel for play in the fork
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    checkQuestion:
+      prompt: With the front brake on and no play in the headset, do the lowers stay free of knocking when you rock the bike back and forth?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: fork
+          reasonKey: suspension-play
+  - id: shock-condition
+    title: Inspect the shock and pivots
+    partIds: [rear-shock]
+    appliesTo:
+      path: suspension.rear
+      in: [true]
+    checkQuestion:
+      prompt: Is the shock clean and dry, and with the rear wheel lifted, is there no sideways play in the pivots?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: rear-shock
+          reasonKey: suspension-leak
+        - action: inspect-shop
+          partId: rear-shock
+          reasonKey: suspension-play
+  - id: shock-sag
+    title: Measure shock sag
+    partIds: [rear-shock]
+    appliesTo:
+      path: suspension.rear
+      in: [true]
+    checkQuestion:
+      prompt: Sitting on the bike in riding position, does the shock compress by about 25 to 30% of its stroke?
+      skippable: true
+      ko:
+        - action: adjust
+          partId: rear-shock
+          reasonKey: sag-out-of-range
+          guideSlug: adjust-suspension-sag
+  - id: dropper
+    title: Test the dropper post
+    partIds: [seatpost]
+    appliesTo:
+      path: seatpost.dropper
+      in: [true]
+    checkQuestion:
+      prompt: Does the post drop and return fully every time you press the lever, without sinking on its own or moving in its outer tube?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: seatpost
+          reasonKey: dropper-malfunction
+---
+
+<Step id="fork-stanchions">
+
+The stanchions are the shiny tubes that slide into the lower part of the fork. Wipe them with a clean rag, then look at them in good light, all the way round. Any scratch or impact mark wears the seals and lets dirt in.
+
+Push down on the handlebar a few times to work the fork, then wipe again. A light film of oil is normal: it lubricates the seals. A thick ring of oil, caked-on dirt, or a fork that squeaks and sticks needs servicing. The maker gives a service interval in riding hours; once it has passed, a shop does the job.
+
+</Step>
+
+<Step id="fork-sag">
+
+Sag is the share of travel your weight alone uses up. Push the O-ring on the stanchion down against the seal, or fit a thin zip tie there if there is none. Get on the bike gently, in your riding kit, leaning against a wall, and take your riding position without bouncing.
+
+Get off without pushing on the fork and measure the distance between the seal and the O-ring. Divide it by the fork's travel, printed on the lower leg or in the manual: 15 to 20% for cross-country riding, 20 to 25% for trail and enduro. Outside that range, adjust the air pressure.
+
+</Step>
+
+<Step id="fork-play">
+
+Check the headset first, otherwise the two are easily confused. Then squeeze the front brake hard and rock the bike back and forth, with your other hand where the stanchions enter the lowers.
+
+A healthy fork compresses slightly and silently. A sharp knock, or the stanchions moving back and forth inside the lowers, points to worn bushings. Also hold the wheel and twist the handlebar: slight flex is normal, a clear clunk is not. Bushings are replaced at a shop, with dedicated tools.
+
+</Step>
+
+<Step id="shock-condition">
+
+Wipe the rear shock and look at its shiny sliding section: it should be smooth, unscratched and dry apart from a very thin film. Oil running down the body, or a shock that no longer rebounds as quickly, means it is due a service.
+
+Then lift the back of the bike by the saddle and shake the wheel from side to side while holding the frame: no knocking should come from the shock mounts or the pivots of the rear triangle. If a pivot bolt seems loose, do not just tighten it at random: each bolt has its own torque, and a shop checks the bearings too.
+
+</Step>
+
+<Step id="shock-sag">
+
+On a shock, sag is measured against its stroke, the length it can compress, not against wheel travel. The stroke is printed on the shock or in the bike's specification. Push the O-ring against the seal, get on the bike in riding kit, leaning against a wall, and take your position without bouncing.
+
+Get off gently, measure the distance between the seal and the O-ring, and divide it by the stroke: a shock should compress by about 25 to 30%. Some frames give their own value with a graduated scale on the shock. Outside the range, adjust the air pressure with the shock pump.
+
+</Step>
+
+<Step id="dropper">
+
+Sit down and press the lever: the post should drop under your weight all the way down. Stand up and press again: it should rise fully, at an even speed, up to its stop. Repeat, stopping it halfway.
+
+Once at the top, the post must not sink when you sit down without touching the lever. Take the saddle and twist it gently from side to side: a little rotational play is normal on some models, an up-and-down knock is not. If the lever feels slack, the cable can be re-tensioned; any other fault is a job for a shop.
+
+</Step>

@@ -1,0 +1,123 @@
+---
+slug: check-e-system
+kind: check
+title: Check an e-bike battery and motor
+summary: Battery condition and mounting, clean contacts, motor noises, speed sensor and error codes — an outside check of the assist system, without ever opening it.
+status: full
+order: 90
+difficulty: 1
+minutes: 15
+partIds:
+  - e-battery
+  - e-motor
+appliesTo:
+  path: drive
+  in: [electric]
+tools:
+  - toolId: rags
+    alternatives: []
+  - toolId: brush
+    alternatives: [rags]
+related:
+  - clean-ebike-dos-donts
+  - check-drivetrain
+safety:
+  - "Never open a battery or a motor. A lithium-ion battery that has been dropped, or that is swollen, cracked or heats up, can catch fire: stop charging it, store it outdoors away from anything flammable and contact a dealer."
+  - Switch the system off and remove the battery before cleaning or touching the contacts, and never point a water jet at the motor or the battery.
+steps:
+  - id: battery-case
+    title: Inspect the battery casing
+    partIds: [e-battery]
+    checkQuestion:
+      prompt: Is the battery casing intact, with no cracks, dents or swelling, and does it stay barely warm while charging?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-battery
+          reasonKey: battery-damaged
+  - id: battery-mount
+    title: Check the battery lock
+    partIds: [e-battery]
+    checkQuestion:
+      prompt: Does the battery lock in with a clear click, with no play or rattle when you shake the bike, and does the key turn smoothly?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-battery
+          reasonKey: battery-mount-loose
+  - id: battery-contacts
+    title: Check the electrical contacts
+    partIds: [e-battery]
+    illustration: ebike-battery-connector
+    checkQuestion:
+      prompt: Are the contacts on the battery and its mount clean, dry and shiny, with no green corrosion or burn marks?
+      skippable: false
+      ko:
+        - action: clean
+          partId: e-battery
+          reasonKey: battery-connector-dirty
+          guideSlug: clean-ebike-dos-donts
+        - action: inspect-shop
+          partId: e-battery
+          reasonKey: battery-damaged
+  - id: motor-noise
+    title: Listen to the motor
+    partIds: [e-motor]
+    checkQuestion:
+      prompt: When riding with assist, is the motor smooth, with no knocking, grinding or cutting out, and no play in the cranks or the motor wheel?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-motor
+          reasonKey: motor-noise
+  - id: display-sensor
+    title: Check the display and speed sensor
+    partIds: [e-motor]
+    checkQuestion:
+      prompt: Does the display start with no error code, and does the displayed speed stay steady while riding?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-motor
+          reasonKey: e-system-error
+---
+
+<Step id="battery-case">
+
+The battery is the most expensive and most sensitive part of an e-bike. Remove it from its mount with the key and set it down on a clean surface. Look at every face in good light and run your fingers along the edges.
+
+A crack, a dent from a fall, a casing that bulges or warps, an unusual smell, or a battery that gets hot to the touch while charging are all warning signs. If you see one, do not put it back on the bike and do not charge it again: leave it outdoors, away from anything that burns, and take it to a dealer for that brand.
+
+</Step>
+
+<Step id="battery-mount">
+
+Put the battery back into its housing or onto its mount until it clicks, then remove the key. Pull firmly on the battery in every direction: it should neither come out nor move. Then lift the back of the bike a few centimetres and let it drop: nothing should rattle from the battery.
+
+A battery that moves wears its contacts, cuts the assist over bumps and can fall off while you ride. Check too that the lock turns without forcing and that the mount is firmly bolted to the frame or the rack. A sticking lock or a cracked mount is replaced by a dealer, with original parts.
+
+</Step>
+
+<Step id="battery-contacts">
+
+Switch the system off and remove the battery. Look at the metal contacts on the battery and on the mount on the bike: they should be clean, dry and shiny. Dust, mud or a green trace of corrosion make a poor connection, cause the assist to cut out and create heat.
+
+Clean them with a dry cloth and a soft brush, never with a metal object, pressurised water or a degreaser. Let them air-dry before refitting the battery. A blackened, melted or bent contact is not a cleaning matter: it is an electrical fault, to be checked by a dealer before you ride.
+
+</Step>
+
+<Step id="motor-noise">
+
+On a quiet road, ride for a few minutes in each assist mode, pushing hard and then gently on the pedals. A healthy motor pushes smoothly with a light, steady hum. Listen for knocking, grinding or rubbing, and note whether the assist cuts out now and then.
+
+With the bike stopped, take both crank arms and rock them towards the frame: on a mid-drive motor, play there comes from the motor bearings. On a rear hub motor, rock the wheel by the rim instead. A motor is not something to take apart yourself: noises and play go to a dealer for that brand.
+
+</Step>
+
+<Step id="display-sensor">
+
+Switch the system on: the display should start normally and show no error code or warning symbol. Write down any code you see, as it saves the shop time. Check that the cables running from the display and the control unit are neither pinched nor torn.
+
+Many e-bikes measure speed with a magnet on a spoke or on the rotor, passing a sensor on the frame. If it has moved, the displayed speed jumps or drops to zero and the assist cuts out. Line the magnet up with the sensor again, at the distance given in the manual, often a few millimetres. An error code that keeps coming back goes to a dealer.
+
+</Step>

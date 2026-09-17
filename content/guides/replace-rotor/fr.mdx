@@ -1,0 +1,57 @@
+---
+slug: replace-rotor
+kind: replace
+title: Remplacer un disque de frein
+summary: Sortir la roue, déposer le disque usé ou voilé, monter le neuf dans le bon sens et au bon couple, puis roder le freinage. Ce guide est en cours de rédaction.
+status: stub
+order: 130
+difficulty: 2
+minutes: 30
+partIds:
+  - rotor-front
+  - rotor-rear
+  - wheel-front
+  - wheel-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: torx-keys
+    alternatives: [multi-tool]
+  - toolId: cassette-lockring-tool
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - replace-brake-pads-disc
+  - clean-disc-rotors-pads
+safety:
+  - Un disque neuf doit avoir le même diamètre et le même montage que l’ancien. Un disque plus grand sans adaptateur ne freine que sur une partie des plaquettes.
+  - Ne touchez pas la piste de freinage avec les doigts, et nettoyez-la à l’alcool isopropylique avant de remonter la roue. Un disque gras ne freine presque plus.
+steps:
+  - id: remove-wheel
+    title: Sortir la roue
+    partIds: [wheel-front, wheel-rear]
+  - id: remove-rotor
+    title: Déposer l’ancien disque
+    partIds: [rotor-front, rotor-rear]
+  - id: fit-rotor
+    title: Monter le disque neuf
+    partIds: [rotor-front, rotor-rear]
+  - id: bed-in
+    title: Roder le freinage
+    partIds: [rotor-front, rotor-rear]
+---
+
+<Step id="fit-rotor">
+
+Regardez la flèche gravée sur le disque neuf : elle indique le sens de rotation de la roue en marche avant, et doit être visible côté extérieur. Sur un disque à six vis, posez-le sur le moyeu, puis engagez les six vis à la main avec les <Tool id="torx-keys" alt="multi-tool" />.
+
+Serrez-les en étoile, par petites étapes, jusqu’au couple indiqué par le fabricant du disque ou du moyeu, avec la <Tool id="torque-wrench" />. Un disque Center Lock se fixe par un écrou unique, serré avec l’outil cannelé adapté. Nettoyez enfin toute la piste à l’alcool isopropylique.
+
+</Step>

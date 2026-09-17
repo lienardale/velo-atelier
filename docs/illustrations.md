@@ -60,9 +60,11 @@ npx tsx scripts/gen-illustration-placeholders.ts
 
 ## Status
 
-The 14 guide drawings ship as placeholders (dashed frame + id + callouts in
-place): `pad-wear-disc`, `pad-wear-rim`, `rotor-true-check`,
-`chain-wear-checker`, `derailleur-limit-screws-h-l-b`, `barrel-adjuster`,
-`saddle-height-heel-method`, `cleat-ball-of-foot`, `sag-measure-oring`,
-`axle-qr-vs-thru`, `headset-threaded-vs-threadless`, `ebike-battery-connector`,
-`tire-lever-technique`, `presta-valve-core`. W2-T4a/b draw them.
+The 14 guide drawings are final (W2-T4a): `pad-wear-disc`, `pad-wear-rim`,
+`rotor-true-check`, `chain-wear-checker`, `derailleur-limit-screws-h-l-b`,
+`barrel-adjuster`, `saddle-height-heel-method`, `cleat-ball-of-foot`,
+`sag-measure-oring`, `axle-qr-vs-thru`, `headset-threaded-vs-threadless`,
+`ebike-battery-connector`, `tire-lever-technique`, `presta-valve-core`. They
+share the secondary styles in `components/illustrations/guide-shapes.ts`
+(`tint`, `solid`, `leader`, `fine`): part outlines use the frame's 2 px stroke,
+leader lines run from each numbered callout to what it names.
