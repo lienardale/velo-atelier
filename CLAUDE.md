@@ -186,7 +186,13 @@ Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
   `--project=<name>` (equals form): `--project` is variadic and eats a spec path.
   `PLAYWRIGHT_PORT` moves the whole run (one per worktree): `AUTH_URL` and
   `NEXT_PUBLIC_SITE_URL` are derived from it, and `.env.test`'s pinned `:3100`
-  never wins — only a value exported in the shell does.
+  never wins — only a value exported in the shell does. A test database's name
+  must end in `_test` (`assertTestDatabaseUrl`).
+- **A green local e2e run does not mean CI is green.** CI's Linux Chromium is a
+  different browser build with software GL, and at least one input API scrolls
+  on macOS while doing nothing there (`.debug/005`). Reproduce a CI-only failure
+  with `npm run e2e:docker -- <playwright args>` (`scripts/ci/e2e-docker.sh`),
+  which runs the CI image on the compose network; build on the host first.
 - Bundle budget is a per-wave ratchet: `perf.budgets.json` ceilings are re-pinned
   at each wave integration to measured + 10 % (sizes print as KiB).
   `npx tsx scripts/perf/bundle-budget.ts --json` prints the raw gzip bytes and
