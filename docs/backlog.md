@@ -122,6 +122,18 @@ Rear suspension is visual only — no linkage simulation.
 Preview deployments share a single `preview` Neon branch. Per-PR branches need a
 create/destroy hook and a quota conversation.
 
+### The rate limiter logs a P2025 on every normal first attempt
+
+`lib/security/rate-limit.ts` decides on the row returned by each request's own
+conditional `UPDATE … WHERE` (that atomicity is the point — see `.debug/003`), and
+swallows the P2025 when no row matched. But `lib/db/prisma.ts` sets
+`log: ["error"]`, so the Prisma client logs it _before_ our code handles it: CI's
+e2e output is full of "An operation failed because it depends on one or more
+records that were required but not found." on a completely normal path. Harmless,
+but it makes a real error indistinguishable from an expected one in production
+logs. Fix by moving to `{ emit: "event", level: "error" }` and dropping P2025
+from the known conditional-update call sites — not by reintroducing a read.
+
 ### Home first-load JS is 56 KiB above its target
 
 `/[locale]` measures 186.3 KiB gzip against a 130 kB target (§7.3) — the
