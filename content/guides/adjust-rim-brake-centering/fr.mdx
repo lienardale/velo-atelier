@@ -1,0 +1,51 @@
+---
+slug: adjust-rim-brake-centering
+kind: adjust
+title: "Centrer un frein sur jante"
+summary: "Aligner les patins sur la jante, les pincer légèrement vers l’avant, centrer les bras avec les vis de rappel et retendre le câble. Pour un frein qui frotte ou touche d’un seul côté."
+status: stub
+order: 60
+difficulty: 2
+minutes: 20
+partIds:
+  - brake-caliper-front
+  - brake-caliper-rear
+  - brake-pads-front
+  - brake-pads-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [false]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+related:
+  - check-brakes-rim
+  - replace-brake-pads-rim
+  - clean-rim-braking-surface
+safety:
+  - "Un patin qui touche le pneu peut l’entailler et le faire éclater. Vérifiez que chaque patin porte entièrement sur la jante, jamais sur le flanc du pneu."
+steps:
+  - id: pad-alignment
+    title: "Aligner les patins sur la jante"
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-rim
+  - id: toe-in
+    title: "Pincer les patins vers l’avant"
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: centering
+    title: "Centrer les bras"
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: cable-tension
+    title: "Régler la tension du câble"
+    partIds: [brake-caliper-front, brake-caliper-rear]
+---
+
+<Step id="centering">
+
+Serrez le levier et regardez quel patin touche la jante en premier. Sur un V-brake ou un cantilever, chaque bras porte une petite vis de rappel : avec le <Tool id="phillips-screwdriver" alt="multi-tool" />, vissez-la d’un quart de tour du côté du patin trop proche, ou dévissez celle de l’autre côté, jusqu’à ce que les deux patins touchent en même temps.
+
+Sur un étrier route, desserrez légèrement l’écrou de fixation avec les <Tool id="allen-keys" alt="multi-tool" />, centrez l’étrier à la main puis resserrez. Laissez 1 à 2 mm entre chaque patin et la jante.
+
+</Step>

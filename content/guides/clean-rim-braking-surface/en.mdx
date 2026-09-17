@@ -1,0 +1,52 @@
+---
+slug: clean-rim-braking-surface
+kind: clean
+title: "Clean the rim braking surface"
+summary: "Remove the black grime from the rim sidewalls and brake blocks, pick out embedded metal chips, then test the brakes. For rim brakes that squeal or slip."
+status: stub
+order: 40
+difficulty: 1
+minutes: 15
+partIds:
+  - wheel-front
+  - wheel-rear
+  - brake-pads-front
+  - brake-pads-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [false]
+tools:
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+  - toolId: brush
+    alternatives: [rags]
+related:
+  - check-brakes-rim
+  - replace-brake-pads-rim
+  - adjust-rim-brake-centering
+safety:
+  - "A rim whose wear indicator has gone, or whose braking track is dished, can burst under tyre pressure. Do not clean it to keep it: have it replaced."
+steps:
+  - id: inspect-rim
+    title: "Inspect the rim"
+    partIds: [wheel-front, wheel-rear]
+  - id: clean-rim
+    title: "Clean the rim sidewalls"
+    partIds: [wheel-front, wheel-rear]
+  - id: clean-blocks
+    title: "Clean the brake blocks"
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-rim
+  - id: test-brakes
+    title: "Test the brakes"
+---
+
+<Step id="clean-rim">
+
+Dampen <Tool id="rags" /> with <Tool id="isopropyl-alcohol" /> and wipe the braking track on both sides of the rim while turning the wheel, until the rag no longer turns black. Avoid anything greasy, polish or lube.
+
+Then scrub the surface of the brake blocks with a <Tool id="brush" alt="rags" /> and pick out small embedded metal chips with a toothpick: they score the rim. Test the brakes at low speed before riding off.
+
+</Step>

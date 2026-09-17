@@ -44,21 +44,25 @@ const ILL_T = { fr: frIllustrations, en: enIllustrations } as unknown as Record<
   Record<string, { alt: string }>
 >;
 
-function readGuide(slug: string, locale: Locale): GuideFrontmatter {
+function readGuide(slug: string, locale: Locale): GuideFrontmatter & { body: string } {
   const parsed = parseFrontmatter(readFileSync(join(GUIDES_DIR, slug, `${locale}.mdx`), "utf8"));
-  return GuideFrontmatterSchema.parse(parsed?.data);
+  return { ...GuideFrontmatterSchema.parse(parsed?.data), body: parsed?.body ?? "" };
 }
 
 /**
- * The first FULL guide (by slug) of every kind on disk. A stub renders a single
- * step body by design (§5.7), so it cannot stand for "renders every step".
+ * The first FULL guide (by slug) of every kind on disk, and the first stub. A stub
+ * renders a single step body by design (§5.7), so the every-step assertions only
+ * hold for full guides; the stub gets its own test.
  */
 const onePerKind = new Map<string, string>();
+let firstStub: string | undefined;
 for (const slug of readdirSync(GUIDES_DIR).sort()) {
   const kind = slug.split("-")[0];
-  if (!onePerKind.has(kind) && readGuide(slug, "fr").status === "full") {
-    onePerKind.set(kind, slug);
+  if (readGuide(slug, "fr").status === "stub") {
+    firstStub ??= slug;
+    continue;
   }
+  if (!onePerKind.has(kind)) onePerKind.set(kind, slug);
 }
 
 forEachLocale((locale) => {
@@ -126,7 +130,7 @@ forEachLocale((locale) => {
         await expect(svg.locator("title")).toHaveText(ILL_T[locale][step.illustration!].alt);
       }
 
-      if (guide.kind === "adjust") {
+      if (guide.body.includes("<Measure ")) {
         await expect(page.locator("[data-testid=measure-figure]").first()).toBeVisible();
       }
 
@@ -147,6 +151,20 @@ forEachLocale((locale) => {
       expect(errors, errors.join("\n")).toEqual([]);
     });
   }
+
+  test(`a stub guide shows its banner and its single step, and is not indexed (${locale})`, async ({
+    page,
+  }) => {
+    test.skip(firstStub === undefined, "no stub guide on disk");
+    const slug = firstStub!;
+    const guide = readGuide(slug, locale);
+    const response = await page.goto(href(locale, "/guides/[slug]", { slug }));
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(guide.title);
+    await expect(page.getByTestId("stub-banner")).toContainText(t.stubBanner);
+    await expect(page.locator("[data-step-id]")).toHaveCount(1);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
 
   test(`the table of contents jumps to a step (${locale})`, async ({ page }) => {
     const slug = onePerKind.values().next().value!;

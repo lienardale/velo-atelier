@@ -1,0 +1,70 @@
+---
+slug: measure-chain-wear
+kind: measure
+title: Measure chain wear
+summary: Measure how far the chain has stretched with a wear checker or a steel ruler, and know when to replace it before it wears out the cassette and chainrings.
+status: full
+order: 50
+difficulty: 1
+minutes: 10
+partIds:
+  - chain
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: chain-checker
+    alternatives: [steel-ruler]
+  - toolId: steel-ruler
+    alternatives: [tape-measure]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-chain
+  - clean-chain
+  - replace-cassette
+steps:
+  - id: prepare
+    title: Wipe the chain and put it under tension
+  - id: checker
+    title: Measure with a chain checker
+    illustration: chain-wear-checker
+  - id: ruler
+    title: Measure with a steel ruler
+  - id: decide
+    title: Decide what to replace
+---
+
+<Step id="prepare">
+
+Wipe about twenty links of the chain with <Tool id="rags" />: grime between the rollers throws the measurement off. Shift onto the big chainring and a middle sprocket, so that the top run of the chain is under tension.
+
+Always measure on the top run, between the chainring and the cassette, never on the lower run hanging under the derailleur. A chain wears by getting longer: the pins and rollers develop play, and the pitch between links grows.
+
+</Step>
+
+<Step id="checker">
+
+Place the <Tool id="chain-checker" alt="steel-ruler" /> on the top run: hook the fixed tooth into a roller and let the other end drop in without pushing. Measure at three different places along the chain.
+
+On an 11- or 12-speed drivetrain, replace the chain as soon as the checker drops in fully on the 0.5 % side. On 10 speeds or fewer, wait until it drops in on the 0.75 % side. If it does not drop in on either side, the chain is fine.
+
+</Step>
+
+<Step id="ruler">
+
+Without a checker, a steel ruler does the job. Put the zero of the <Tool id="steel-ruler" alt="tape-measure" /> on the centre of a pin and count 12 full links, which is 24 pins. On a new chain, the centre of the 24th pin sits exactly at 304.8 mm, one foot.
+
+Read where the centre of that pin sits, to the nearest half millimetre. At 306.3 mm or more, an 11- or 12-speed chain needs replacing; at 307.1 mm or more, a chain of 10 speeds or fewer. Write the value down to follow the wear from one check to the next.
+
+<Measure id="chain-wear" unit="mm" target="304.8 mm when new" />
+
+</Step>
+
+<Step id="decide">
+
+A chain replaced at the wear limit needs nothing more than a new chain. If it went well past the limit, around 1 %, about 307.8 mm on the ruler, the cassette and sometimes the chainrings are worn too: a new chain will skip on the sprockets you use most.
+
+In that case, plan a new cassette along with the chain. To follow wear without surprises, measure every 500 km on a road bike, more often on a mountain bike or in wet weather, and every time you clean the chain.
+
+</Step>

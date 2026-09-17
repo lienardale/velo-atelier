@@ -1,0 +1,53 @@
+---
+slug: clean-disc-rotors-pads
+kind: clean
+title: "Clean disc rotors and pads"
+summary: "Degrease the rotors with isopropyl alcohol, remove and lightly sand contaminated pads, then bed them in. For brakes that squeal or lose bite."
+status: stub
+order: 30
+difficulty: 2
+minutes: 30
+partIds:
+  - rotor-front
+  - rotor-rear
+  - brake-pads-front
+  - brake-pads-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - replace-brake-pads-disc
+  - adjust-disc-caliper-alignment
+safety:
+  - "Pads soaked with oil or brake fluid cannot be saved: replace them. After any cleaning, bed the pads in again before riding fast."
+steps:
+  - id: clean-rotors
+    title: "Degrease the rotors"
+    partIds: [rotor-front, rotor-rear]
+  - id: remove-pads
+    title: "Remove the pads"
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: sand-pads
+    title: "Lightly sand the pads"
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: refit-bed-in
+    title: "Refit and bed in"
+---
+
+<Step id="clean-rotors">
+
+Dampen <Tool id="rags" /> with <Tool id="isopropyl-alcohol" /> and wipe both faces of the rotor while turning the wheel, until the rag comes away clean. Do not touch the braking surface with your fingers again, and never use chain degreaser or polish.
+
+If the brake still squeals, remove the pads with the <Tool id="allen-keys" alt="multi-tool" />, sand their surface on fine sandpaper laid flat, clean them with alcohol, refit them and bed them in.
+
+</Step>

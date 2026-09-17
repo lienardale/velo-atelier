@@ -1,8 +1,10 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { demoSpec, filterGuides } from "@/lib/content/filter";
 import { toSummary } from "@/lib/content/guides";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+import { specFor } from "@/tests/_fakes/domain/build";
 import { setNavigationState } from "@/tests/_fakes/session";
 import { diskGuides } from "@/tests/_helpers/guides";
 import { renderWithIntl } from "@/tests/_helpers/intl";
@@ -18,6 +20,12 @@ const guides = diskGuides()
 
 const cards = () =>
   screen.queryAllByRole("article").map((card) => card.getAttribute("data-guide-slug"));
+
+// The corpus grows wave by wave: expected lists come from the filter over the guides
+// on disk (unit-tested in tests/unit/content/filter.test.ts), anchored on W1 guides.
+const sorted = (list: ReadonlyArray<string | null>) => [...list].sort();
+const expectedSlugs = (filter: Parameters<typeof filterGuides>[1]) =>
+  sorted(filterGuides(guides, filter).map((guide) => guide.slug));
 
 afterEach(() => {
   window.localStorage.clear();
@@ -38,7 +46,8 @@ describe("GuideFilters", () => {
   it("reads the filter from the URL and ignores unknown values", async () => {
     setNavigationState({ search: "kind=clean&system=bogus" });
     await renderWithIntl(<GuideFilters guides={guides} />);
-    expect(cards()).toEqual(["clean-chain"]);
+    expect(cards()).toContain("clean-chain");
+    expect(sorted(cards())).toEqual(expectedSlugs({ kind: "clean" }));
     expect(screen.getByRole("combobox", { name: "Que voulez-vous faire ?" })).toHaveValue("clean");
     expect(screen.getByRole("combobox", { name: "Partie du vélo" })).toHaveValue("");
   });
@@ -88,7 +97,9 @@ describe("GuideFilters", () => {
 
     setNavigationState({ search: "bike=local" });
     await renderWithIntl(<GuideFilters guides={guides} />);
-    expect(cards()).toEqual(["clean-chain"]);
+    expect(cards()).toContain("clean-chain");
+    expect(cards()).not.toContain("check-brakes-disc"); // the road bike has rim brakes
+    expect(sorted(cards())).toEqual(expectedSlugs({ spec: specFor("road-rim-2x11") }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Pour mon vélo" }));
     expect(replace.mock.lastCall?.[2]).toBe("/fr/guides");
   });
@@ -97,7 +108,9 @@ describe("GuideFilters", () => {
     setNavigationState({ search: "bike=demo" });
     await renderWithIntl(<GuideFilters guides={guides} />, { locale: "en" });
     expect(screen.getByRole("checkbox", { name: "For my bike" })).toBeChecked();
-    expect(cards()).toHaveLength(guides.length); // the gravel demo bike has disc brakes and a chain
+    // the gravel demo bike has disc brakes and a chain
+    expect(cards()).toEqual(expect.arrayContaining(["check-brakes-disc", "clean-chain"]));
+    expect(sorted(cards())).toEqual(expectedSlugs({ spec: demoSpec() }));
   });
 
   it("treats unreadable storage as no guest bike", async () => {

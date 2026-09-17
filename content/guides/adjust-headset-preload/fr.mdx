@@ -1,0 +1,45 @@
+---
+slug: adjust-headset-preload
+kind: adjust
+title: "Régler le jeu de direction"
+summary: "Supprimer le jeu d’une direction Aheadset en réglant la précontrainte par le capot supérieur, sans la rendre dure. Pour une fourche qui cogne au freinage."
+status: stub
+order: 80
+difficulty: 2
+minutes: 20
+partIds:
+  - headset
+  - stem
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - check-headset
+  - measure-reach-and-drop
+safety:
+  - "Après le réglage, serrez les vis de potence au couple indiqué et vérifiez que le cintre ne tourne pas quand vous bloquez la roue avant entre vos genoux."
+steps:
+  - id: detect-play
+    title: "Détecter le jeu"
+    partIds: [headset]
+    illustration: headset-threaded-vs-threadless
+  - id: loosen-stem
+    title: "Desserrer la potence"
+    partIds: [stem]
+  - id: set-preload
+    title: "Régler la précontrainte"
+    partIds: [headset]
+  - id: align-tighten
+    title: "Aligner et resserrer la potence"
+    partIds: [stem]
+---
+
+<Step id="set-preload">
+
+Desserrez les vis de serrage de la potence sur le pivot avec les <Tool id="allen-keys" alt="multi-tool" />. Vissez ensuite la vis du capot supérieur d’un quart de tour à la fois, en serrant le frein avant et en poussant le vélo d’avant en arrière, jusqu’à ce que le cognement disparaisse.
+
+Soulevez l’avant : le guidon doit tourner librement, sans point dur. Alignez la potence sur la roue, puis serrez ses vis en alternance au couple gravé avec la <Tool id="torque-wrench" />.
+
+</Step>

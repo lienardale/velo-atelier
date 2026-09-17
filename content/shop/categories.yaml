@@ -1,0 +1,117 @@
+# Shop categories — the grid on /acheter (FR) and /shop (EN), §5.5.
+#
+# Each category is a starting point for the three retailers of
+# lib/domain/data/retailers.ts: the page builds one outbound link per retailer
+# from `query` (search retailers) or from the retailer's category URL for the
+# first of `partIds` it knows (Alltricks), falling back to its generic page.
+# No affiliate id, no tracking: plain links, `rel="noopener noreferrer nofollow"`.
+#
+#   id        kebab-case, unique, never contains a dot (it may become a message key segment)
+#   label     Localized<string>, the card title
+#   hint      Localized<string>, one line under the title
+#   partIds   PartIds (lib/domain/data/parts) this category sells; the first one is the main one
+#   query     Localized<string>, the search text sent to search retailers (plain words, no brand)
+#   retailers the retailer ids the card links to, in display order
+#
+# Localized YAML is the only place prose lives outside messages/ (lib/i18n/localized.ts).
+# Content licence: CC BY-SA 4.0 (content/LICENSE).
+
+categories:
+  - id: chains
+    label: { fr: Chaînes, en: Chains }
+    hint:
+      fr: Au bon nombre de vitesses, avec un maillon rapide adapté.
+      en: For your number of speeds, with a matching quick link.
+    partIds: [chain]
+    query: { fr: chaîne vélo, en: bike chain }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: cassettes
+    label: { fr: Cassettes et roues libres, en: Cassettes and freewheels }
+    hint:
+      fr: Même nombre de vitesses que la chaîne, corps de roue libre compatible.
+      en: Same number of speeds as the chain, compatible freehub body.
+    partIds: [cassette, freewheel]
+    query: { fr: cassette vélo, en: bike cassette }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: brake-pads
+    label: { fr: Plaquettes et patins de frein, en: Brake pads }
+    hint:
+      fr: Plaquettes au modèle exact de l’étrier, patins au type de frein sur jante.
+      en: Disc pads for your exact caliper model, rim pads for your brake type.
+    partIds: [brake-pads-front, brake-pads-rear]
+    query: { fr: plaquettes de frein vélo, en: bike brake pads }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: rotors
+    label: { fr: Disques de frein, en: Brake rotors }
+    hint:
+      fr: Diamètre et fixation (6 trous ou Center Lock) identiques à l’ancien disque.
+      en: Same diameter and mount (6-bolt or Center Lock) as the old rotor.
+    partIds: [rotor-front, rotor-rear]
+    query: { fr: disque de frein vélo, en: bike brake rotor }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: tires
+    label: { fr: Pneus, en: Tyres }
+    hint:
+      fr: Même diamètre ETRTO que la jante, largeur adaptée à la jante et au cadre.
+      en: Same ETRTO diameter as the rim, width that suits the rim and frame.
+    partIds: [tire-front, tire-rear]
+    query: { fr: pneu vélo, en: bike tyre }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: tubes-sealant
+    label: { fr: Chambres à air et préventif, en: Inner tubes and sealant }
+    hint:
+      fr: Chambre à la taille du pneu et au type de valve ; préventif pour le tubeless.
+      en: Tube matching the tyre size and valve type; sealant for tubeless.
+    partIds: [tube-front, tube-rear, sealant]
+    query: { fr: chambre à air vélo, en: bike inner tube }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: cables-housing
+    label: { fr: Câbles et gaines, en: Cables and housing }
+    hint:
+      fr: Câbles de frein et de vitesses ne sont pas interchangeables, pas plus que leurs gaines.
+      en: Brake and gear cables are not interchangeable, and neither is their housing.
+    partIds: [shift-cables, brake-line-front, brake-line-rear]
+    query: { fr: câble gaine vélo, en: bike cable housing }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: grips-bar-tape
+    label: { fr: Poignées et guidoline, en: Grips and bar tape }
+    hint:
+      fr: Poignées pour cintre plat, guidoline pour cintre route.
+      en: Grips for flat bars, bar tape for drop bars.
+    partIds: [grips-or-tape]
+    query: { fr: poignées guidoline vélo, en: bike grips bar tape }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: saddles
+    label: { fr: Selles, en: Saddles }
+    hint:
+      fr: Choisie d’après la largeur de vos ischions et votre position.
+      en: Chosen from your sit-bone width and riding position.
+    partIds: [saddle]
+    query: { fr: selle vélo, en: bike saddle }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: pedals
+    label: { fr: Pédales, en: Pedals }
+    hint:
+      fr: Plates, automatiques SPD ou route ; filetage 9/16 pouce sur presque tous les vélos adultes.
+      en: Flat, SPD or road clipless; 9/16 inch thread on almost every adult bike.
+    partIds: [pedal-left, pedal-right]
+    query: { fr: pédales vélo, en: bike pedals }
+    retailers: [rosebikes, alltricks, decathlon]
+
+  - id: lights
+    label: { fr: Éclairage, en: Lights }
+    hint:
+      fr: Un feu avant blanc et un feu arrière rouge, obligatoires la nuit.
+      en: A white front light and a red rear light, required at night.
+    partIds: [lights]
+    query: { fr: éclairage vélo, en: bike lights }
+    retailers: [rosebikes, alltricks, decathlon]

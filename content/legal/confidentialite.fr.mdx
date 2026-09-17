@@ -1,0 +1,74 @@
+---
+title: Politique de confidentialité
+summary: Quelles données velo-atelier conserve, pourquoi, où, combien de temps, et comment les supprimer. Pas de publicité, pas de mesure d’audience, uniquement des cookies nécessaires.
+updatedAt: 2026-09-17
+---
+
+## En bref
+
+- Sans compte, **rien ne quitte votre navigateur** : votre vélo, vos contrôles et votre liste de réparations restent dans le stockage local de votre appareil.
+- Avec un compte, le site conserve votre adresse e-mail, l’empreinte de votre mot de passe et les vélos que vous enregistrez, pour vous les rendre sur tous vos appareils.
+- Aucune publicité, aucun outil de mesure d’audience, aucun traceur tiers, aucune revente de données.
+- Vous pouvez supprimer votre compte et toutes ses données à tout moment depuis la page Compte.
+
+## Responsable du traitement
+
+L’éditeur du site, désigné dans les [mentions légales](/fr/mentions-legales) : TODO-PROPRIÉTAIRE : prénom et nom. Pour exercer vos droits : TODO-PROPRIÉTAIRE : adresse e-mail privée de contact. N’utilisez pas les tickets GitHub publics pour une demande qui contient des données personnelles.
+
+## Les données, leur usage et leur base légale
+
+### Sans compte
+
+Le vélo que vous décrivez, ses mesures, vos contrôles et votre liste de réparations sont enregistrés uniquement dans le stockage local de votre navigateur (clés commençant par `va:`). Ils ne sont pas envoyés au serveur, sauf si vous créez un compte puis choisissez de les importer. Vous les effacez en vidant les données du site dans votre navigateur.
+
+Quand vous changez de langue, votre choix est gardé dans le cookie `NEXT_LOCALE`.
+
+### Avec un compte
+
+| Données                                                                                                                                                       | Pourquoi                                                                    | Base légale                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Adresse e-mail, nom affiché (facultatif), langue préférée                                                                                                     | Vous identifier et afficher le site dans votre langue                       | Exécution du service que vous demandez en créant un compte |
+| Mot de passe, conservé uniquement sous forme d’empreinte bcrypt                                                                                               | Vous connecter ; personne, pas même l’éditeur, ne peut lire le mot de passe | Exécution du service                                       |
+| Si vous utilisez Google : identifiant du compte Google, nom, adresse e-mail vérifiée, adresse de la photo de profil et jetons de connexion fournis par Google | Vous connecter avec Google                                                  | Exécution du service                                       |
+| Vos vélos : réponses au questionnaire, pièces, mesures de position, contrôles, listes de réparations                                                          | Vous les rendre sur tous vos appareils                                      | Exécution du service                                       |
+| Compteurs de tentatives de connexion et d’inscription, indexés par une empreinte salée et non réversible de l’adresse IP ou de l’e-mail                       | Limiter les attaques par essais successifs de mots de passe                 | Intérêt légitime : la sécurité des comptes                 |
+
+Le site n’utilise pas vos données pour de la publicité, du profilage ou des statistiques, et ne les transmet à personne d’autre que les prestataires ci-dessous.
+
+## Prestataires et lieu de stockage
+
+- **Vercel Inc.** héberge l’application ; les pages et les fonctions s’exécutent dans la région de Paris (cdg1). Comme tout hébergeur, Vercel reçoit l’adresse IP des visiteurs et conserve des journaux techniques pendant une durée limitée, selon ses propres conditions.
+- **Neon** héberge la base de données sur l’infrastructure Amazon Web Services, région de Francfort (eu-central-1).
+- **Google** intervient uniquement si vous choisissez « Continuer avec Google », selon sa propre politique de confidentialité.
+
+Vercel et Neon sont des sociétés établies aux États-Unis. Les données sont stockées dans l’Union européenne, mais un accès depuis l’extérieur de l’Union ne peut être exclu ; il est encadré par les engagements contractuels de ces prestataires (clauses contractuelles types de la Commission européenne).
+
+## Durées de conservation
+
+- **Compte et vélos :** tant que le compte existe. Supprimer le compte efface immédiatement l’utilisateur et, en cascade, ses comptes Google liés, ses vélos, ses contrôles et ses listes.
+- **Cookie de session :** 30 jours au plus, renouvelé quand vous revenez sur le site.
+- **Compteurs de sécurité :** chaque compteur ne vaut que pour une fenêtre de 15 minutes à une heure et repart de zéro ensuite ; il ne contient ni adresse IP ni e-mail en clair, seulement une empreinte non réversible.
+- **Stockage local du navigateur :** jusqu’à ce que vous l’effaciez, ou jusqu’à son import dans un compte, qui le supprime du navigateur.
+
+## Cookies
+
+Le site ne dépose que des cookies strictement nécessaires à son fonctionnement. Ils sont exemptés de consentement, c’est pourquoi aucun bandeau ne vous est présenté.
+
+| Cookie                                                         | Rôle                                                                                                                                                                                     | Durée                              |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `authjs.session-token` (préfixé `__Secure-` en HTTPS)          | Garder votre session ouverte, uniquement si vous êtes connecté                                                                                                                           | 30 jours au plus                   |
+| `NEXT_LOCALE`                                                  | Retenir la langue choisie                                                                                                                                                                | Jusqu’à la fermeture du navigateur |
+| `authjs.csrf-token`, `authjs.callback-url` (préfixés en HTTPS) | Protéger la connexion contre les requêtes forgées et vous ramener à la page d’origine ; le système de connexion peut les poser dès sa première réponse, même si vous n’êtes pas connecté | Jusqu’à la fermeture du navigateur |
+| `authjs.pkce.code_verifier`                                    | Sécuriser l’échange avec Google, uniquement pendant une connexion avec Google                                                                                                            | 15 minutes au plus                 |
+
+Aucun cookie de mesure d’audience, de publicité ou de réseau social n’est déposé.
+
+## Vos droits
+
+Vous disposez d’un droit d’accès, de rectification, d’effacement, de limitation, d’opposition et de portabilité de vos données. La page Compte vous permet de modifier votre nom et votre mot de passe et de supprimer votre compte vous-même. Pour toute autre demande, écrivez au contact indiqué plus haut.
+
+Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la CNIL : [cnil.fr](https://www.cnil.fr).
+
+## Sécurité
+
+Le site est servi uniquement en HTTPS. Les mots de passe sont conservés sous forme d’empreinte bcrypt, les tentatives de connexion sont limitées, et le code est public : chacun peut le relire et signaler une faille par le [formulaire privé du dépôt](https://github.com/lienardale/velo-atelier/security/advisories/new).

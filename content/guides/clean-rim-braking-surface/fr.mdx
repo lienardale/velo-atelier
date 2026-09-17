@@ -1,0 +1,52 @@
+---
+slug: clean-rim-braking-surface
+kind: clean
+title: "Nettoyer la surface de freinage des jantes"
+summary: "Retirer le cambouis noir des flancs de jante et des patins, dégager les éclats de métal incrustés, puis vérifier le freinage. Pour des freins sur jante qui crissent ou glissent."
+status: stub
+order: 40
+difficulty: 1
+minutes: 15
+partIds:
+  - wheel-front
+  - wheel-rear
+  - brake-pads-front
+  - brake-pads-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [false]
+tools:
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+  - toolId: brush
+    alternatives: [rags]
+related:
+  - check-brakes-rim
+  - replace-brake-pads-rim
+  - adjust-rim-brake-centering
+safety:
+  - "Une jante dont le témoin d’usure a disparu ou dont le flanc est creusé peut éclater sous la pression du pneu : ne la nettoyez pas pour la garder, faites-la remplacer."
+steps:
+  - id: inspect-rim
+    title: "Inspecter la jante"
+    partIds: [wheel-front, wheel-rear]
+  - id: clean-rim
+    title: "Nettoyer les flancs de jante"
+    partIds: [wheel-front, wheel-rear]
+  - id: clean-blocks
+    title: "Nettoyer les patins"
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-rim
+  - id: test-brakes
+    title: "Tester le freinage"
+---
+
+<Step id="clean-rim">
+
+Imbibez des <Tool id="rags" /> d’<Tool id="isopropyl-alcohol" /> et frottez la bande de freinage de chaque côté de la jante, en tournant la roue, jusqu’à ce que le chiffon ne noircisse plus. Évitez tout produit gras, lustrant ou lubrifiant.
+
+Grattez ensuite la surface des patins avec la <Tool id="brush" alt="rags" /> et retirez à la pointe d’un cure-dent les petits éclats de métal incrustés, qui rayent la jante. Testez le freinage à faible vitesse avant de repartir.
+
+</Step>

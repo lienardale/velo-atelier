@@ -1,0 +1,49 @@
+---
+slug: clean-ebike-dos-donts
+kind: clean
+title: "Nettoyer un vélo électrique : à faire et à éviter"
+summary: "Retirer la batterie, laver sans jet puissant, nettoyer les contacts à sec et tout sécher avant de remettre la batterie. Ce qui protège le moteur et l’électronique."
+status: stub
+order: 60
+difficulty: 1
+minutes: 20
+partIds:
+  - e-motor
+  - e-battery
+appliesTo:
+  path: drive
+  in: [electric]
+tools:
+  - toolId: brush
+    alternatives: [rags]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-e-system
+  - clean-frame
+safety:
+  - "Éteignez le système et retirez la batterie avant de laver le vélo. N’immergez jamais la batterie ni le moteur, et n’utilisez jamais de nettoyeur haute pression."
+  - "Une batterie tombée, fissurée, gonflée ou qui chauffe ne doit plus être chargée ni utilisée : rangez-la à l’écart de tout ce qui brûle et faites-la contrôler."
+steps:
+  - id: remove-battery
+    title: "Éteindre et retirer la batterie"
+    partIds: [e-battery]
+  - id: wash-gently
+    title: "Laver sans jet puissant"
+    partIds: [e-motor]
+  - id: clean-contacts
+    title: "Nettoyer les contacts"
+    partIds: [e-battery]
+    illustration: ebike-battery-connector
+  - id: dry-refit
+    title: "Sécher et remettre la batterie"
+    partIds: [e-battery]
+---
+
+<Step id="wash-gently">
+
+Batterie retirée et système éteint, lavez le vélo à l’éponge avec de l’eau tiède savonneuse, ou avec un arrosage doux. Ne dirigez jamais d’eau sur le moteur, l’écran, les prises ou le logement de la batterie, et bannissez le nettoyeur haute pression, qui force l’eau dans les joints.
+
+Nettoyez les contacts de la batterie à sec, avec un pinceau ou la <Tool id="brush" alt="rags" />, puis séchez tout le vélo avec des <Tool id="rags" /> avant de remettre la batterie.
+
+</Step>

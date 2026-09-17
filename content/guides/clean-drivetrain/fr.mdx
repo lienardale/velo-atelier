@@ -1,0 +1,59 @@
+---
+slug: clean-drivetrain
+kind: clean
+title: "Nettoyer toute la transmission"
+summary: "Dégraisser la cassette, les plateaux, les galets du dérailleur et la chaîne, rincer, sécher puis relubrifier. Le grand nettoyage à faire quelques fois par an."
+status: stub
+order: 20
+difficulty: 2
+minutes: 45
+partIds:
+  - chain
+  - chainring
+  - cassette
+  - freewheel
+  - rear-derailleur
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: work-stand
+    alternatives: []
+  - toolId: degreaser
+    alternatives: [isopropyl-alcohol]
+  - toolId: brush
+    alternatives: [rags]
+  - toolId: rags
+    alternatives: []
+  - toolId: chain-lube
+    alternatives: []
+related:
+  - clean-chain
+  - check-drivetrain
+  - measure-chain-wear
+safety:
+  - "Protégez les disques, les plaquettes et les jantes avec un chiffon avant d’appliquer le dégraissant : un produit gras sur une surface de freinage fait perdre le freinage."
+steps:
+  - id: protect-brakes
+    title: "Protéger les freins et préparer le vélo"
+  - id: degrease-cassette
+    title: "Dégraisser la cassette"
+    partIds: [cassette, freewheel]
+  - id: clean-chainrings
+    title: "Nettoyer les plateaux"
+    partIds: [chainring]
+  - id: clean-jockey-wheels
+    title: "Nettoyer les galets du dérailleur"
+    partIds: [rear-derailleur]
+  - id: rinse-lube
+    title: "Rincer, sécher et lubrifier la chaîne"
+    partIds: [chain]
+---
+
+<Step id="protect-brakes">
+
+Installez le vélo sur un <Tool id="work-stand" /> et glissez un chiffon plié autour de chaque disque ou de chaque patin de frein. Appliquez le <Tool id="degreaser" alt="isopropyl-alcohol" /> sur la cassette, les plateaux et les galets du dérailleur, laissez agir quelques minutes, puis frottez chaque pièce avec la <Tool id="brush" alt="rags" /> en tournant les pédales en arrière.
+
+Rincez à l’eau claire, sans nettoyeur haute pression, séchez avec des <Tool id="rags" /> puis lubrifiez la chaîne maillon par maillon comme dans le guide dédié.
+
+</Step>

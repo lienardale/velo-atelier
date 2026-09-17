@@ -1,0 +1,92 @@
+---
+slug: measure-reach-and-drop
+kind: measure
+title: Mesurer la distance selle-cintre et la différence de hauteur
+summary: Mesurer à quelle distance et à quelle hauteur se trouve le cintre par rapport à la selle, comparer aux repères de votre pratique, puis ajuster avec les entretoises et la potence.
+status: full
+order: 30
+difficulty: 2
+minutes: 40
+partIds:
+  - stem
+  - handlebar
+  - saddle
+tools:
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+  - toolId: steel-ruler
+    alternatives: [tape-measure]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - measure-saddle-height
+  - measure-saddle-setback
+  - adjust-headset-preload
+safety:
+  - "Après avoir déplacé la potence, vérifiez que la direction n’a pas de jeu et que la potence est dans l’axe de la roue avant, puis serrez au couple indiqué : une potence mal serrée peut tourner en roulant."
+steps:
+  - id: prepare
+    title: Préparer le vélo et régler la selle d’abord
+  - id: measure-reach
+    title: Mesurer la distance selle-cintre
+    partIds: [saddle, handlebar]
+  - id: measure-drop
+    title: Mesurer la différence de hauteur
+    partIds: [saddle, handlebar]
+  - id: compare
+    title: Comparer aux repères de votre pratique
+  - id: adjust
+    title: Ajuster la potence et les entretoises
+    partIds: [stem, handlebar]
+---
+
+<Step id="prepare">
+
+Réglez d’abord la hauteur et le recul de selle : la position du cintre se mesure depuis la selle, et chaque changement de selle fausse la mesure. Posez ensuite le vélo sur un sol plat, pneus gonflés, contre un mur ou sur un pied d’atelier, roue avant droite.
+
+Repérez sur quelle partie du cintre vous tenez le plus souvent les mains : les cocottes des leviers sur un cintre route, les poignées sur un cintre plat. C’est ce point que vous allez mesurer.
+
+<Illustration
+  id="ill-cockpit"
+  caption="La forme du cintre change le point où l’on pose les mains."
+/>
+
+</Step>
+
+<Step id="measure-reach">
+
+Tendez le <Tool id="tape-measure" alt="steel-ruler" /> du bec de selle jusqu’au milieu de l’endroit où vous posez les mains, en suivant une ligne droite. Notez la distance en millimètres.
+
+Faites la même mesure de l’autre côté du cintre : les deux valeurs doivent être égales. Un écart de plus de quelques millimètres signale un cintre tourné dans la potence ou des leviers montés de travers.
+
+<Measure id="reach" unit="mm" />
+
+</Step>
+
+<Step id="measure-drop">
+
+Posez le <Tool id="steel-ruler" alt="tape-measure" /> à plat en travers de la selle, au milieu de sa longueur, et mesurez la hauteur du dessus de la selle jusqu’au sol. Mesurez ensuite la hauteur du dessus du cintre jusqu’au sol, au point où vous posez les mains.
+
+La différence entre les deux hauteurs est la différence selle-cintre. Notez aussi dans quel sens elle va : cintre plus bas ou plus haut que la selle.
+
+<Measure id="bar-drop" unit="mm" />
+
+</Step>
+
+<Step id="compare">
+
+Des repères courants, à ajuster à votre souplesse : sur un vélo de route, cintre 4 à 10 cm plus bas que la selle ; en gravel, 2 à 6 cm plus bas ; en VTT, à peu près à la même hauteur, 2 cm au-dessus ou en dessous ; sur un vélo de ville, 0 à 6 cm plus haut que la selle. Un vélo d’enfant garde le cintre entre 2 cm plus bas et 4 cm plus haut.
+
+Des mains engourdies, une nuque ou des lombaires douloureuses indiquent souvent un cintre trop bas ou trop loin. Un vélo qui paraît instable ou une position très droite qui fatigue le dos en montée indiquent l’inverse.
+
+</Step>
+
+<Step id="adjust">
+
+Pour monter ou descendre le cintre sur une potence Aheadset, desserrez les vis de serrage de la potence puis le capot supérieur avec les <Tool id="allen-keys" alt="multi-tool" />, déplacez des entretoises de dessous vers dessus la potence ou l’inverse, puis remontez le capot. Retourner la potence change aussi la hauteur. Pour rapprocher le cintre, il faut une potence plus courte.
+
+Réglez le jeu de direction en serrant le capot juste assez, alignez la potence sur la roue avant, puis serrez les vis de potence en alternance au couple gravé, avec la <Tool id="torque-wrench" />. Changez un seul centimètre à la fois et roulez avant de continuer.
+
+</Step>

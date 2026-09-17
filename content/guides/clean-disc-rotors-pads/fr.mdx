@@ -1,0 +1,53 @@
+---
+slug: clean-disc-rotors-pads
+kind: clean
+title: "Nettoyer les disques et les plaquettes"
+summary: "Dégraisser les disques à l’alcool isopropylique, sortir et poncer légèrement les plaquettes encrassées, puis les roder. Pour des freins qui sifflent ou freinent mal."
+status: stub
+order: 30
+difficulty: 2
+minutes: 30
+partIds:
+  - rotor-front
+  - rotor-rear
+  - brake-pads-front
+  - brake-pads-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - replace-brake-pads-disc
+  - adjust-disc-caliper-alignment
+safety:
+  - "Des plaquettes imbibées d’huile ou de liquide de frein ne se récupèrent pas : remplacez-les. Après tout nettoyage, rodez de nouveau les plaquettes avant de rouler vite."
+steps:
+  - id: clean-rotors
+    title: "Dégraisser les disques"
+    partIds: [rotor-front, rotor-rear]
+  - id: remove-pads
+    title: "Sortir les plaquettes"
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: sand-pads
+    title: "Poncer légèrement les plaquettes"
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: refit-bed-in
+    title: "Remonter et roder"
+---
+
+<Step id="clean-rotors">
+
+Imbibez des <Tool id="rags" /> d’<Tool id="isopropyl-alcohol" /> et frottez chaque face du disque, en tournant la roue, jusqu’à ce que le chiffon ressorte propre. Ne touchez plus la surface de freinage avec les doigts, et n’utilisez jamais de dégraissant chaîne ni de produit lustrant.
+
+Si le frein siffle encore, sortez les plaquettes avec les <Tool id="allen-keys" alt="multi-tool" />, poncez leur surface sur du papier de verre fin posé à plat, nettoyez-les à l’alcool, remontez-les puis rodez-les.
+
+</Step>

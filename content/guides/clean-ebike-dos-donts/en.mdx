@@ -1,0 +1,49 @@
+---
+slug: clean-ebike-dos-donts
+kind: clean
+title: "Cleaning an e-bike: dos and don’ts"
+summary: "Remove the battery, wash without a strong jet, clean the contacts dry and dry everything before refitting the battery. What keeps the motor and electronics safe."
+status: stub
+order: 60
+difficulty: 1
+minutes: 20
+partIds:
+  - e-motor
+  - e-battery
+appliesTo:
+  path: drive
+  in: [electric]
+tools:
+  - toolId: brush
+    alternatives: [rags]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-e-system
+  - clean-frame
+safety:
+  - "Switch the system off and remove the battery before washing the bike. Never submerge the battery or the motor, and never use a pressure washer."
+  - "A battery that has been dropped, is cracked or swollen, or gets hot must not be charged or used again. Store it away from anything flammable and have it checked."
+steps:
+  - id: remove-battery
+    title: "Switch off and remove the battery"
+    partIds: [e-battery]
+  - id: wash-gently
+    title: "Wash without a strong jet"
+    partIds: [e-motor]
+  - id: clean-contacts
+    title: "Clean the contacts"
+    partIds: [e-battery]
+    illustration: ebike-battery-connector
+  - id: dry-refit
+    title: "Dry and refit the battery"
+    partIds: [e-battery]
+---
+
+<Step id="wash-gently">
+
+With the battery out and the system off, wash the bike with a sponge and warm soapy water, or a gentle hose. Never aim water at the motor, the display, the connectors or the battery housing, and never use a pressure washer, which forces water past the seals.
+
+Clean the battery contacts dry, with a small paintbrush or a <Tool id="brush" alt="rags" />, then dry the whole bike with <Tool id="rags" /> before refitting the battery.
+
+</Step>

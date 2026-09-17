@@ -1,0 +1,59 @@
+---
+slug: clean-drivetrain
+kind: clean
+title: "Clean the whole drivetrain"
+summary: "Degrease the cassette, chainrings, derailleur jockey wheels and chain, rinse, dry and lube again. The deep clean to do a few times a year."
+status: stub
+order: 20
+difficulty: 2
+minutes: 45
+partIds:
+  - chain
+  - chainring
+  - cassette
+  - freewheel
+  - rear-derailleur
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: work-stand
+    alternatives: []
+  - toolId: degreaser
+    alternatives: [isopropyl-alcohol]
+  - toolId: brush
+    alternatives: [rags]
+  - toolId: rags
+    alternatives: []
+  - toolId: chain-lube
+    alternatives: []
+related:
+  - clean-chain
+  - check-drivetrain
+  - measure-chain-wear
+safety:
+  - "Cover the rotors, pads and rims with a rag before applying degreaser. Anything greasy on a braking surface takes your brakes away."
+steps:
+  - id: protect-brakes
+    title: "Protect the brakes and prepare the bike"
+  - id: degrease-cassette
+    title: "Degrease the cassette"
+    partIds: [cassette, freewheel]
+  - id: clean-chainrings
+    title: "Clean the chainrings"
+    partIds: [chainring]
+  - id: clean-jockey-wheels
+    title: "Clean the jockey wheels"
+    partIds: [rear-derailleur]
+  - id: rinse-lube
+    title: "Rinse, dry and lube the chain"
+    partIds: [chain]
+---
+
+<Step id="protect-brakes">
+
+Put the bike in a <Tool id="work-stand" /> and tuck a folded rag around each rotor or brake block. Apply <Tool id="degreaser" alt="isopropyl-alcohol" /> to the cassette, chainrings and jockey wheels, leave it for a few minutes, then scrub every part with a <Tool id="brush" alt="rags" /> while turning the pedals backwards.
+
+Rinse with clean water, never a pressure washer, dry with <Tool id="rags" />, then lube the chain link by link as described in the chain guide.
+
+</Step>

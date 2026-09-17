@@ -37,7 +37,7 @@
     "db:migrate": "prisma migrate dev && prisma generate",
     "db:seed": "prisma db seed",
     "db:setup": "bash scripts/db/local.sh --seed",
-    "content:check": "tsx scripts/content-check.ts",
+    "content:check": "tsx scripts/content-check.ts --strict",
     "content:build": "content-collections build && tsx scripts/content-check.ts --emit",
     "content:new": "tsx scripts/content-new.ts",
     "geom:report": "tsx scripts/geometry-report.ts",

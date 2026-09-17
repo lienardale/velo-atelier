@@ -1,0 +1,96 @@
+---
+slug: measure-saddle-setback
+kind: measure
+title: Mesurer le recul de selle et placer les cales
+summary: Mettre la selle à niveau, mesurer son recul par rapport au pédalier, vérifier le genou à l’aplomb de la pédale et placer les cales sous la base du gros orteil.
+status: full
+order: 20
+difficulty: 2
+minutes: 40
+partIds:
+  - saddle
+  - pedal-left
+  - pedal-right
+tools:
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+  - toolId: steel-ruler
+    alternatives: [tape-measure]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - measure-saddle-height
+  - measure-reach-and-drop
+  - adjust-cleats
+steps:
+  - id: level-saddle
+    title: Mettre la selle à niveau
+    partIds: [saddle]
+  - id: measure-setback
+    title: Mesurer le recul de selle
+    partIds: [saddle]
+  - id: knee-over-pedal
+    title: Vérifier le genou au-dessus de la pédale
+    partIds: [saddle]
+  - id: cleat-position
+    title: Placer les cales sous le pied
+    partIds: [pedal-left, pedal-right]
+    appliesTo:
+      path: pedals
+      in: [spd, road-clipless, combo]
+    illustration: cleat-ball-of-foot
+  - id: recheck
+    title: Revérifier la hauteur et rouler
+---
+
+<Step id="level-saddle">
+
+Posez le vélo sur un sol plat, roues droites, calé contre un mur ou sur un pied d’atelier. Posez le <Tool id="steel-ruler" alt="tape-measure" /> sur la selle, du bec à l’arrière : il doit être horizontal. Un niveau à bulle ou l’application niveau d’un téléphone posé sur la règle aide beaucoup.
+
+Si la selle pique du nez ou remonte, desserrez la vis de la tête de tige avec les <Tool id="allen-keys" alt="multi-tool" />, corrigez l’inclinaison, puis resserrez. Une selle qui pique du nez fait glisser vers l’avant et charge les mains.
+
+</Step>
+
+<Step id="measure-setback">
+
+Tournez le pédalier pour que les manivelles soient verticales. Suspendez un fil lesté, une ficelle avec une clé au bout par exemple, contre le bec de selle, et laissez-le s’immobiliser devant le pédalier.
+
+Mesurez horizontalement la distance entre ce fil et le centre de l’axe du pédalier : c’est le recul de selle. Notez-le avant de changer quoi que ce soit, pour pouvoir revenir en arrière.
+
+<Measure id="saddle-setback" unit="mm" />
+
+</Step>
+
+<Step id="knee-over-pedal">
+
+Asseyez-vous normalement sur le vélo, en chaussures de vélo, le vélo tenu droit. Placez les manivelles à l’horizontale, pied droit en avant, avant du pied sur la pédale comme en roulant.
+
+Laissez pendre le fil lesté depuis l’avant de la rotule, sous la bosse de l’os : il doit tomber à peu près sur l’axe de la pédale, à un centimètre près dans un sens ou dans l’autre. S’il tombe devant, reculez la selle sur ses rails ; s’il tombe derrière, avancez-la. Déplacez-la de 5 mm à la fois et resserrez au couple indiqué avec la <Tool id="torque-wrench" />.
+
+<Warning level="info">
+
+Cette méthode est un repère de départ, pas une règle absolue : une personne aux longues cuisses, ou qui roule en triathlon, finit souvent un peu plus en avant.
+
+</Warning>
+
+</Step>
+
+<Step id="cleat-position">
+
+Sur des pédales automatiques, la cale se règle d’après le pied. Chaussure aux pieds, repérez au toucher la bosse à la base du gros orteil et marquez-la sur le côté de la chaussure avec un ruban adhésif ; faites de même pour la base du petit orteil.
+
+Déplacez la cale d’avant en arrière jusqu’à ce que cette bosse se trouve juste au-dessus de l’axe de la pédale, ou quelques millimètres devant. Réglez l’angle pour que le pied garde sa position naturelle, talon ni rentré ni sorti, puis serrez les vis de cale fermement.
+
+<Measure id="cleat-position" unit="mm" />
+
+</Step>
+
+<Step id="recheck">
+
+Déplacer la selle vers l’arrière augmente la distance jusqu’au pédalier, et changer les cales modifie la hauteur de jambe. Revérifiez donc la hauteur de selle, talon sur la pédale, après tout changement.
+
+Roulez ensuite une ou deux sorties avant d’affiner. Une douleur à l’avant du genou peut venir d’une selle trop avancée, un engourdissement des orteils d’une cale trop en avant. Corrigez un seul réglage à la fois pour savoir lequel a aidé.
+
+</Step>

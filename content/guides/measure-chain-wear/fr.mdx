@@ -1,0 +1,70 @@
+---
+slug: measure-chain-wear
+kind: measure
+title: Mesurer l’usure de la chaîne
+summary: Mesurer l’allongement de la chaîne à l’indicateur d’usure ou au réglet, et savoir quand la remplacer avant qu’elle n’use la cassette et les plateaux.
+status: full
+order: 50
+difficulty: 1
+minutes: 10
+partIds:
+  - chain
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: chain-checker
+    alternatives: [steel-ruler]
+  - toolId: steel-ruler
+    alternatives: [tape-measure]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-chain
+  - clean-chain
+  - replace-cassette
+steps:
+  - id: prepare
+    title: Essuyer et tendre la chaîne
+  - id: checker
+    title: Mesurer à l’indicateur d’usure
+    illustration: chain-wear-checker
+  - id: ruler
+    title: Mesurer au réglet
+  - id: decide
+    title: Décider quoi remplacer
+---
+
+<Step id="prepare">
+
+Essuyez la chaîne avec des <Tool id="rags" /> sur une vingtaine de maillons : la saleté entre les rouleaux fausse la mesure. Passez la chaîne sur le grand plateau et un pignon du milieu, pour que le brin supérieur soit bien tendu.
+
+Mesurez toujours sur le brin supérieur, entre le plateau et la cassette, jamais sur le brin inférieur qui pend sous le dérailleur. Une chaîne s’use en s’allongeant : les axes et les rouleaux prennent du jeu, et le pas entre deux maillons grandit.
+
+</Step>
+
+<Step id="checker">
+
+Posez le <Tool id="chain-checker" alt="steel-ruler" /> sur le brin supérieur : accrochez l’ergot fixe dans un rouleau et laissez retomber l’autre extrémité sans forcer. Faites la mesure à trois endroits différents de la chaîne.
+
+Sur une transmission 11 ou 12 vitesses, la chaîne est à remplacer dès que l’indicateur entre complètement du côté 0,5 %. Sur 10 vitesses et moins, attendez qu’il entre du côté 0,75 %. S’il n’entre d’aucun côté, la chaîne est en bon état.
+
+</Step>
+
+<Step id="ruler">
+
+Sans indicateur, un réglet métallique suffit. Posez le zéro du <Tool id="steel-ruler" alt="tape-measure" /> au centre d’un axe de maillon et comptez 12 maillons complets, soit 24 axes. Sur une chaîne neuve, le centre du 24e axe tombe exactement à 304,8 mm, un pied.
+
+Lisez la position du centre de cet axe au demi-millimètre près. À 306,3 mm ou plus, une chaîne 11 ou 12 vitesses est à remplacer ; à 307,1 mm ou plus, une chaîne 10 vitesses et moins. Notez la valeur pour suivre l’usure d’une fois sur l’autre.
+
+<Measure id="chain-wear" unit="mm" target="304,8 mm neuve" />
+
+</Step>
+
+<Step id="decide">
+
+Une chaîne remplacée à la limite d’usure ne demande qu’une chaîne neuve. Si elle a largement dépassé la limite, vers 1 % soit environ 307,8 mm au réglet, la cassette et parfois les plateaux sont usés eux aussi : une chaîne neuve sautera sur les pignons les plus utilisés.
+
+Dans ce cas, prévoyez la cassette avec la chaîne. Pour suivre l’usure sans surprise, mesurez tous les 500 km sur un vélo de route, plus souvent en VTT ou par temps de pluie, et à chaque nettoyage de chaîne.
+
+</Step>

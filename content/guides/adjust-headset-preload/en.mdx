@@ -1,0 +1,45 @@
+---
+slug: adjust-headset-preload
+kind: adjust
+title: "Adjust headset preload"
+summary: "Remove play from a threadless headset by setting the preload with the top cap, without making it stiff. For a fork that knocks when you brake."
+status: stub
+order: 80
+difficulty: 2
+minutes: 20
+partIds:
+  - headset
+  - stem
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - check-headset
+  - measure-reach-and-drop
+safety:
+  - "After adjusting, tighten the stem bolts to the specified torque and check that the bar does not turn when you hold the front wheel between your knees."
+steps:
+  - id: detect-play
+    title: "Detect the play"
+    partIds: [headset]
+    illustration: headset-threaded-vs-threadless
+  - id: loosen-stem
+    title: "Loosen the stem"
+    partIds: [stem]
+  - id: set-preload
+    title: "Set the preload"
+    partIds: [headset]
+  - id: align-tighten
+    title: "Align and tighten the stem"
+    partIds: [stem]
+---
+
+<Step id="set-preload">
+
+Loosen the stem clamp bolts on the steerer with the <Tool id="allen-keys" alt="multi-tool" />. Then tighten the top cap bolt a quarter turn at a time, holding the front brake on and rocking the bike back and forth, until the knocking disappears.
+
+Lift the front end: the bar should turn freely, with no tight spot. Line the stem up with the wheel, then tighten its bolts in turn to the printed torque with the <Tool id="torque-wrench" />.
+
+</Step>
