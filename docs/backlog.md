@@ -35,6 +35,19 @@ _To pick up_ (W4-T1): honour `x-vercel-forwarded-for` only when `VERCEL` is set,
 `x-real-ip` / `x-forwarded-for` only behind an explicitly configured trusted proxy
 (an env flag the e2e web server also sets, since the fixture uses `x-real-ip`).
 
+### Rate-limit buckets for IPv6
+
+Per-IP buckets key on the full address. An attacker with an IPv6 /64 — routine for a
+single host — rotates addresses and gets a fresh bucket each time; only the soft
+per-e-mail bucket still applies. _To pick up_ (W4-T1): key IPv6 buckets on the /64.
+
+### Account deletion confirmed by a word
+
+`deleteAccountAction` accepts the account's password OR the word `SUPPRIMER` / `DELETE`
+(§4 specifies both). A stolen session cookie can therefore delete an account that has a
+password without knowing it. _To pick up_: require the password when the account has
+one, and a fresh Google sign-in (`lib/auth/reauth.ts`) when it does not.
+
 ### Sign-out racing a document load in another tab
 
 Once a JWT session is at least a day old, a full page load in another tab can land

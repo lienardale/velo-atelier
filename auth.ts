@@ -30,11 +30,15 @@
  */
 
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import { cookies } from "next/headers";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 import { authConfig, LOCALE_COOKIE, localeFromCookie } from "@/auth.config";
 import { authorizeCredentials } from "@/lib/auth/authorize";
+import { guardedSignIn } from "@/lib/auth/oauth-link-guard";
+import { loginUrl } from "@/lib/auth/safe-callback-url";
+import { decodeSessionClaims, presentSessionCookie } from "@/lib/auth/session-cookie";
 import { refreshSessionToken } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/db/prisma";
 import { clientIp } from "@/lib/security/ip";
@@ -73,6 +77,31 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
 
+    /**
+     * authConfig's check (Google `email_verified`) first, then the linking guard:
+     * with a session cookie present, Auth.js would link an unknown Google account to
+     * whoever that cookie names — even a stolen or revoked one (lib/auth/oauth-link-guard.ts).
+     */
+    signIn: guardedSignIn({
+      baseSignIn: (params) => authConfig.callbacks!.signIn!(params as never),
+      sessionUserId: sessionCookieUserId,
+      lookups: {
+        linkedUserId: async (providerAccountId) =>
+          (
+            await prisma.account.findUnique({
+              where: { provider_providerAccountId: { provider: "google", providerAccountId } },
+              select: { userId: true },
+            })
+          )?.userId ?? null,
+        userEmail: async (id) =>
+          (await prisma.user.findUnique({ where: { id }, select: { email: true } }))?.email ?? null,
+      },
+      refusalUrl: async () =>
+        loginUrl(localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value), {
+          error: "OAuthAccountNotLinked",
+        }),
+    }) as NonNullable<typeof authConfig.callbacks>["signIn"],
+
     /** The whole decision table lives in `lib/auth/jwt.ts`, where it is testable. */
     jwt: ({ token, user, account, trigger }) =>
       refreshSessionToken({ token, user, account, trigger }, { prisma }),
@@ -100,3 +129,20 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     },
   },
 });
+
+/**
+ * The user id the request's session cookie names — decrypted only, exactly as far as
+ * Auth.js's linking step trusts it (no sessionVersion check), because that is the
+ * user Auth.js would link to. Null without a cookie that decrypts.
+ */
+async function sessionCookieUserId(): Promise<string | null> {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return null;
+  const jar = await cookies();
+  const present = presentSessionCookie(jar.getAll().map((cookie) => cookie.name));
+  if (!present) return null;
+  const token = jar.get(present.name)?.value;
+  if (!token) return null;
+  const claims = await decodeSessionClaims(token, { secret, cookieName: present.name });
+  return claims?.id ?? null;
+}

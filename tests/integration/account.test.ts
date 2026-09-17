@@ -18,7 +18,7 @@ import { decode } from "next-auth/jwt";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie";
+import { mintSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie";
 import { prisma } from "@/lib/db/prisma";
 import {
   authSpies,
@@ -171,6 +171,41 @@ describe("profile", () => {
     await updateProfileAction(IDLE, form({ name: "   ", locale: "fr" }));
 
     expect((await prisma.user.findUnique({ where: { id: user.id } }))?.name).toBeNull();
+  });
+
+  it("re-issues the session cookie with the new name when the request's token is current", async () => {
+    const user = await signedInUser("reissue-profile@velo-atelier.test");
+    setRequestCookies({
+      [SESSION_COOKIE_NAME]: await mintSessionToken(
+        { id: user.id, email: user.email, name: "Camille", locale: "fr", sessionVersion: 0 },
+        { secret: process.env.AUTH_SECRET ?? "", cookieName: SESSION_COOKIE_NAME },
+      ),
+    });
+
+    await updateProfileAction(IDLE, form({ name: "Camille B.", locale: "en" }));
+
+    const reissued = cookieJar().get(SESSION_COOKIE_NAME) ?? "";
+    const token = await decode({
+      token: reissued,
+      secret: process.env.AUTH_SECRET ?? "",
+      salt: SESSION_COOKIE_NAME,
+    });
+    expect(token).toMatchObject({ name: "Camille B.", locale: "en", sessionVersion: 0 });
+  });
+
+  it("writes no cookie when the request's token is outdated (a password changed elsewhere meanwhile)", async () => {
+    const user = await signedInUser("stale-profile@velo-atelier.test");
+    await prisma.user.update({ where: { id: user.id }, data: { sessionVersion: 3 } });
+    const stale = await mintSessionToken(
+      { id: user.id, email: user.email, name: "Camille", locale: "fr", sessionVersion: 2 },
+      { secret: process.env.AUTH_SECRET ?? "", cookieName: SESSION_COOKIE_NAME },
+    );
+    setRequestCookies({ [SESSION_COOKIE_NAME]: stale });
+
+    await updateProfileAction(IDLE, form({ name: "Camille B.", locale: "fr" }));
+
+    // Unchanged: the newer cookie this browser may already hold must not be replaced.
+    expect(cookieJar().get(SESSION_COOKIE_NAME)).toBe(stale);
   });
 
   it("refuses a name longer than the column and writes nothing", async () => {

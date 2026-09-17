@@ -140,6 +140,27 @@ describe("the bucket itself", () => {
     expect(await bucket.consume(key, options)).toMatchObject({ ok: true, count: 1 });
   });
 
+  it("counts a concurrent burst exactly: N simultaneous attempts cost N, not 1", async () => {
+    // The read-then-write version let every attempt in a burst read the same count,
+    // so 20 simultaneous guesses against a limit of 5 all got through.
+    const bucket = limiter();
+    const verdicts = await Promise.all(
+      Array.from({ length: 20 }, () => bucket.consume("burst", { max: 5, windowMs: 60_000 })),
+    );
+    expect(verdicts.filter((verdict) => verdict.ok)).toHaveLength(5);
+    expect(fakeDb.rows("AuthAttempt").find((row) => row.key === "burst")?.count).toBe(20);
+  });
+
+  it("counts a burst exactly at a window boundary too", async () => {
+    const bucket = limiter();
+    await bucket.consume("boundary", { max: 5, windowMs: 60_000 });
+    clock += 61_000; // the window has expired: every request below races to reopen it
+    const verdicts = await Promise.all(
+      Array.from({ length: 12 }, () => bucket.consume("boundary", { max: 5, windowMs: 60_000 })),
+    );
+    expect(verdicts.filter((verdict) => verdict.ok)).toHaveLength(5);
+  });
+
   it("stores no address, e-mail or plaintext — only a salted digest", async () => {
     await limiter().consume(rateLimitKey("login", IP, EMAIL), options);
 

@@ -36,7 +36,6 @@ import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server
 
 import { authConfig } from "@/auth.config";
 import {
-  isDeletingSetCookie,
   isSessionSetCookie,
   presentSessionCookie,
   sessionRefreshPolicy,
@@ -98,10 +97,10 @@ export default async function proxy(
   event: NextFetchEvent,
 ): Promise<Response> {
   const response = await authProxy(request, event);
-  const writesSession = response.headers
-    .getSetCookie()
-    .some((cookie) => isSessionSetCookie(cookie) && !isDeletingSetCookie(cookie));
-  if (!writesSession && !isServerAction(request)) return response;
+  // Any session Set-Cookie — a deletion included — goes through the policy: a router
+  // request must not delete a cookie either (W1 security re-review).
+  const touchesSession = response.headers.getSetCookie().some(isSessionSetCookie);
+  if (!touchesSession && !isServerAction(request)) return response;
 
   const policy = sessionRefreshPolicy({
     isServerAction: isServerAction(request),

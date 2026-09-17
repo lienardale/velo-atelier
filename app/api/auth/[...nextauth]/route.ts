@@ -17,7 +17,18 @@ import type { NextRequest } from "next/server";
 import { handlers } from "@/auth";
 import { withoutSessionWrites } from "@/lib/auth/session-cookie";
 
-export const { POST } = handlers;
+/**
+ * Every Auth.js POST, with the same rule on `/api/auth/session` (the client
+ * `update()` endpoint, which this app never calls): no session cookie is written or
+ * deleted from there, so a late answer can never clobber a newer cookie. Sign-in,
+ * sign-out and the OAuth callback are other paths and are untouched.
+ */
+export async function POST(request: NextRequest): Promise<Response> {
+  const response = await handlers.POST(request);
+  return new URL(request.url).pathname.endsWith("/api/auth/session")
+    ? withoutSessionWrites(response)
+    : response;
+}
 
 /**
  * Every Auth.js GET, with one change on `/api/auth/session`: the refreshed

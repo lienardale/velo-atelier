@@ -37,11 +37,12 @@ import { AuthError } from "@auth/core/errors";
 import { cookies } from "next/headers";
 import * as z from "zod";
 
-import { signIn, signOut, unstable_update } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { checkPasswordPolicy } from "@/lib/auth/password-policy";
 import { hasFreshGoogleAuth } from "@/lib/auth/reauth";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
+  decodeSessionClaims,
   mintSessionToken,
   presentSessionCookie,
   sessionCookieOptions,
@@ -108,14 +109,27 @@ export const updateProfileAction = withUser(
     }
 
     const name = parsed.data.name.length > 0 ? parsed.data.name : null;
-    await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: user.id },
       data: { name, locale: parsed.data.locale },
+      select: { sessionVersion: true, name: true, image: true, locale: true },
     });
 
-    // The JWT carries `name` and `locale`; refresh it so the header and the
-    // next page render the new values without a sign-out.
-    await unstable_update({ user: { name, locale: parsed.data.locale } });
+    // The JWT carries `name` and `locale`; re-issue it so the header and the next page
+    // show the new values. Not `unstable_update()`: that update trigger could delete or
+    // overwrite a NEWER cookie when this save left with an older one (a password changed
+    // in another tab meanwhile). Re-issue only if the request's token is still current.
+    await reissueSessionCookie(
+      {
+        id: user.id,
+        email: user.email,
+        name: updated.name,
+        picture: updated.image,
+        locale: updated.locale,
+        sessionVersion: updated.sessionVersion,
+      },
+      { onlyIfCurrent: true },
+    );
     revalidatePath("/[locale]/compte", "page");
     return DONE;
   },
@@ -130,12 +144,24 @@ export const updateProfileAction = withUser(
  * reverse. Chunk cookies of an oversized previous token are removed so Auth.js
  * cannot splice old chunks onto the new value.
  */
-async function reissueSessionCookie(claims: SessionTokenClaims): Promise<void> {
+async function reissueSessionCookie(
+  claims: SessionTokenClaims,
+  { onlyIfCurrent = false }: { onlyIfCurrent?: boolean } = {},
+): Promise<void> {
   const secret = process.env.AUTH_SECRET;
   if (!secret) return;
   const jar = await cookies();
   const present = presentSessionCookie(jar.getAll().map((cookie) => cookie.name));
   if (!present) return;
+  if (onlyIfCurrent) {
+    // A profile save does not change sessionVersion: re-issuing is only a refresh of
+    // name/locale, and must never replace a token newer than the one this request had.
+    const incoming = jar.get(present.name)?.value;
+    const current = incoming
+      ? await decodeSessionClaims(incoming, { secret, cookieName: present.name })
+      : null;
+    if (!current || current.sessionVersion !== claims.sessionVersion) return;
+  }
 
   const value = await mintSessionToken(claims, { secret, cookieName: present.name });
   for (const chunk of present.chunks) jar.delete(chunk);
@@ -298,13 +324,17 @@ export const deleteAccountAction = withUser(
 );
 
 /**
- * Re-run Google sign-in (`prompt=login`, so Google asks again rather than reusing
- * its own session) and come back to the account page with a fresh `authAt`.
+ * Re-run Google sign-in and come back to the account page with a fresh `authAt`.
+ *
+ * `prompt=select_account` is a value Google documents (`login` is not). The gate does
+ * not rest on Google re-asking for a password: a stolen cookie sits in a browser
+ * without the victim's Google session, and the signIn callback refuses any Google
+ * account that is not the user's own (lib/auth/oauth-link-guard.ts).
  */
 export const reauthenticateWithGoogleAction = withUser(async ({ user }): Promise<FormResult> => {
   const redirectTo = `/${user.locale}${localizedPath("/compte", user.locale)}`;
   try {
-    await signIn("google", { redirectTo }, { prompt: "login" });
+    await signIn("google", { redirectTo }, { prompt: "select_account" });
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof AuthError) {

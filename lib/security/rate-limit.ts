@@ -22,6 +22,7 @@
  * instead of a clock.
  */
 
+import { isNotFoundError, isUniqueViolation } from "@/lib/db/errors";
 import type { PrismaClient } from "@/lib/generated/prisma/client";
 
 export interface RateLimitOptions {
@@ -54,12 +55,12 @@ const ALLOWED: RateLimitVerdict = { ok: true, retryAfterMs: 0, count: 0 };
  *
  * `now` is injectable so a test can move time without sleeping.
  *
- * Concurrency: two simultaneous attempts on the same key can both read the same
- * `count` and write `count + 1` — the counter under-counts by one under a race.
- * That is acceptable here (the attacker gains at most one attempt per window and
- * still hits the ceiling), and the alternative — a serialisable transaction per
- * login attempt — is a much better denial-of-service target than the thing it
- * protects.
+ * Concurrency: every count change is a single conditional `UPDATE` (increment
+ * inside the window, or reopen an expired one), so concurrent attempts serialise on
+ * the row lock instead of reading the same count. An earlier read-then-write version
+ * let a burst of N guesses cost one unit — not "one extra attempt", as it claimed
+ * (W1 security re-review, `.debug/003`). No transaction is needed, so a login attempt
+ * still costs a few single-row statements, not a serialisable transaction.
  */
 export function createPrismaRateLimiter(
   db: AuthAttemptStore,
@@ -68,32 +69,68 @@ export function createPrismaRateLimiter(
   return {
     async consume(key, { max, windowMs }) {
       const at = new Date(now());
-      const existing = await db.authAttempt.findUnique({ where: { key } });
+      const windowFloor = new Date(at.getTime() - windowMs);
+      const returned = { count: true, windowStart: true, lockedUntil: true } as const;
 
-      const inWindow =
-        existing !== null && at.getTime() - existing.windowStart.getTime() < windowMs;
+      // Each count change is ONE conditional UPDATE that returns the row it wrote, and
+      // the verdict is taken on THAT count. A read-then-write version let a concurrent
+      // burst read the same count (N guesses cost one unit); a version that updated
+      // atomically but decided on a separate read refused almost the whole burst. In
+      // Postgres an UPDATE takes the row lock and re-checks its WHERE against the row it
+      // then sees, so concurrent requests serialise and each gets its own position.
+      const orNull = async <T>(statement: Promise<T>): Promise<T | null> => {
+        try {
+          return await statement;
+        } catch (error) {
+          if (isNotFoundError(error)) return null;
+          throw error;
+        }
+      };
+      const bump = () =>
+        orNull(
+          db.authAttempt.update({
+            where: { key, windowStart: { gt: windowFloor } },
+            data: { count: { increment: 1 } },
+            select: returned,
+          }),
+        );
+      const reopen = () =>
+        orNull(
+          db.authAttempt.update({
+            where: { key, windowStart: { lte: windowFloor } },
+            data: { count: 1, windowStart: at, lockedUntil: null },
+            select: returned,
+          }),
+        );
 
-      if (!inWindow) {
-        // First attempt, or the previous window has expired: start a new one.
-        await db.authAttempt.upsert({
-          where: { key },
-          create: { key, count: 1, windowStart: at, lockedUntil: null },
-          update: { count: 1, windowStart: at, lockedUntil: null },
-        });
-        return { ok: true, retryAfterMs: 0, count: 1 };
+      let row = (await bump()) ?? (await reopen());
+      if (!row) {
+        try {
+          row = await db.authAttempt.create({
+            data: { key, count: 1, windowStart: at, lockedUntil: null },
+            select: returned,
+          });
+        } catch (error) {
+          if (!isUniqueViolation(error)) throw error;
+          // Another request created the row between the statements: count inside it.
+          row = (await bump()) ?? (await reopen());
+        }
       }
+      if (!row) return { ok: true, retryAfterMs: 0, count: 1 }; // reset() ran concurrently
 
-      const count = existing.count + 1;
-      const windowEnds = existing.windowStart.getTime() + windowMs;
-      const retryAfterMs = Math.max(0, windowEnds - at.getTime());
-      const refused = count > max;
-
-      await db.authAttempt.update({
-        where: { key },
-        data: { count, lockedUntil: refused ? new Date(windowEnds) : null },
-      });
-
-      return { ok: !refused, retryAfterMs: refused ? retryAfterMs : 0, count };
+      const windowEnds = row.windowStart.getTime() + windowMs;
+      const refused = row.count > max;
+      if (refused && row.lockedUntil?.getTime() !== windowEnds) {
+        await db.authAttempt.updateMany({
+          where: { key },
+          data: { lockedUntil: new Date(windowEnds) },
+        });
+      }
+      return {
+        ok: !refused,
+        retryAfterMs: refused ? Math.max(0, windowEnds - at.getTime()) : 0,
+        count: row.count,
+      };
     },
 
     async reset(key) {
