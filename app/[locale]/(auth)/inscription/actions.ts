@@ -93,8 +93,12 @@ export async function signUpAction(_previous: FormResult, formData: FormData): P
       // A `.strict()` rejection names the unknown key: report it as a
       // form-level problem rather than labelling an input nobody rendered.
       const slot = RENDERED_FIELDS.has(field) ? field : "form";
+      // Only a key we wrote may reach the UI; zod's own prose ("Unrecognized key",
+      // "Invalid option") becomes the generic key (same rule as compte/actions.ts).
       // eslint-disable-next-line security/detect-object-injection -- `slot` is one of four literals
-      fieldErrors[slot] ??= issue.message || "errors.VALIDATION";
+      fieldErrors[slot] ??= issue.message.startsWith("errors.")
+        ? issue.message
+        : "errors.VALIDATION";
     }
     return fail("VALIDATION", { fieldErrors });
   }

@@ -74,7 +74,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     ...authConfig.callbacks,
 
     /** The whole decision table lives in `lib/auth/jwt.ts`, where it is testable. */
-    jwt: ({ token, user, trigger }) => refreshSessionToken({ token, user, trigger }, { prisma }),
+    jwt: ({ token, user, account, trigger }) =>
+      refreshSessionToken({ token, user, account, trigger }, { prisma }),
   },
 
   events: {

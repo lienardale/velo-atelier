@@ -127,6 +127,20 @@ describe("signUpAction", () => {
     },
   );
 
+  it("reports a tampered payload with message keys only, never zod's own prose", async () => {
+    const result = await signUpAction(
+      IDLE,
+      form({ email: "nouveau@velo-atelier.test", password: PASSWORD, locale: "de", extra: "x" }),
+    );
+
+    expect(result).toMatchObject({ ok: false, code: "VALIDATION" });
+    const messages = Object.values(
+      (result as { fieldErrors?: Record<string, string> }).fieldErrors ?? {},
+    );
+    expect(messages.length).toBeGreaterThan(0);
+    for (const message of messages) expect(message).toMatch(/^errors\./);
+  });
+
   it("never trusts a client-supplied hash: the stored one is bcrypt of the plaintext", async () => {
     // The action signs the new account in, which the session fake turns into a
     // redirect — the account still exists, which is what matters here.

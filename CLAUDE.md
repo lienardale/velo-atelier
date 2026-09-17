@@ -117,8 +117,13 @@ scripts/             ci/, db/, perf/, content tooling
   at least 24 h old (`sessionRefreshPolicy`, the plan's `updateAge`), drops it on
   router requests, and drops every session cookie on action POSTs;
   `GET /api/auth/session` writes no refresh. See `.debug/003`.
-- **Protected pages** are guarded by `authorized()` in `proxy.ts` only — never skip
-  `auth()` for any request there.
+- **Protected pages** are guarded by `authorized()` in `proxy.ts`, and read the user
+  with `requireSignedInUser(locale, page)` / `redirectToSignIn()` — never a bare
+  redirect to `/connexion`: a session the proxy still believes but `@/auth` rejects
+  must go through `/api/session-expired` (clears the cookie) or it loops.
+- **Adding a first password** (Google-only accounts) requires a Google sign-in within
+  10 minutes (`lib/auth/reauth.ts`, `authAt` / `authProvider` claims) and signs
+  every other device out.
 - **Domain data** — `validateBuild` is hand-written (zod-free barrel); rule messages
   are keyed per rule group (`rules.<group>.{message,fix}`); `parts.units.*` messages
   take `{ value }`.

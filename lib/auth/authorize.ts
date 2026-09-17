@@ -172,8 +172,11 @@ export async function authorizeCredentials(
   const valid = await verify(parsed.password, user?.passwordHash ?? null);
   if (!user || !valid) return null;
 
-  // One good sign-in clears the buckets that could have locked this visitor out.
-  await Promise.all([rateLimiter.reset(ipKey), rateLimiter.reset(ipEmailKey)]);
+  // One good sign-in clears the (address, account) bucket, so a visitor who
+  // mistyped their own password is not half-locked afterwards. NOT the per-address
+  // bucket: resetting that let one address credential-stuff without limit by
+  // signing in to its own account every few guesses (W1 security review, .debug/003).
+  await rateLimiter.reset(ipEmailKey);
 
   // An imported `$2a$` hash, or one written at a lower cost than today's, is
   // upgraded while we legitimately hold the plaintext.

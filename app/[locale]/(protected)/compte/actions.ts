@@ -32,11 +32,14 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
+import { AuthError } from "@auth/core/errors";
 import { cookies } from "next/headers";
 import * as z from "zod";
 
-import { signOut, unstable_update } from "@/auth";
+import { signIn, signOut, unstable_update } from "@/auth";
 import { checkPasswordPolicy } from "@/lib/auth/password-policy";
+import { hasFreshGoogleAuth } from "@/lib/auth/reauth";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import {
   mintSessionToken,
@@ -49,6 +52,7 @@ import { formFields } from "@/lib/actions/form-data";
 import { DONE, fail, rateLimited, type FormResult } from "@/lib/actions/result";
 import { withUser } from "@/lib/actions/with-user";
 import { prisma } from "@/lib/db/prisma";
+import { localizedPath } from "@/lib/i18n/protected-paths";
 import { routing } from "@/lib/i18n/routing";
 import { createPrismaRateLimiter, RATE_LIMITS } from "@/lib/security/rate-limit";
 
@@ -197,7 +201,11 @@ export const changePasswordAction = withUser(
       locale: updated.locale,
       sessionVersion: updated.sessionVersion,
     });
-    revalidatePath("/[locale]/compte", "page");
+    // No revalidatePath here: a re-render in THIS response would read the old
+    // cookie from the request headers (Next updates cookies(), not headers(), after
+    // jar.set), re-check it, find the old sessionVersion and bounce the visitor off
+    // the page they just saved. Nothing on the page depends on the password; the
+    // form shows its own success state (W1 security review, .debug/003).
     return DONE;
   },
 );
@@ -224,13 +232,31 @@ export const setPasswordAction = withUser(
     if (row.passwordHash) {
       return fail("FORBIDDEN", { fieldErrors: { form: "errors.passwordAlreadySet" } });
     }
+    // A session alone must not be enough: a stolen cookie could otherwise turn
+    // itself into a permanent password the owner cannot revoke (lib/auth/reauth.ts).
+    if (!hasFreshGoogleAuth(user)) {
+      return fail("FORBIDDEN", { fieldErrors: { form: "errors.reauthRequired" } });
+    }
 
     const policy = await checkPasswordPolicy(parsed.data.next, { email: user.email });
     if (!policy.ok) return fail("VALIDATION", { fieldErrors: { next: policy.key } });
 
     const passwordHash = await hashPassword(parsed.data.next);
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
-    await unstable_update({ user: { id: user.id } });
+    // Like a password change, adding one signs every OTHER device out (a stolen
+    // cookie included) and re-issues this device's cookie with the new number.
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, sessionVersion: { increment: 1 } },
+      select: { sessionVersion: true, name: true, image: true, locale: true },
+    });
+    await reissueSessionCookie({
+      id: user.id,
+      email: user.email,
+      name: updated.name,
+      picture: updated.image,
+      locale: updated.locale,
+      sessionVersion: updated.sessionVersion,
+    });
     revalidatePath("/[locale]/compte", "page");
     return DONE;
   },
@@ -270,3 +296,21 @@ export const deleteAccountAction = withUser(
     return DONE;
   },
 );
+
+/**
+ * Re-run Google sign-in (`prompt=login`, so Google asks again rather than reusing
+ * its own session) and come back to the account page with a fresh `authAt`.
+ */
+export const reauthenticateWithGoogleAction = withUser(async ({ user }): Promise<FormResult> => {
+  const redirectTo = `/${user.locale}${localizedPath("/compte", user.locale)}`;
+  try {
+    await signIn("google", { redirectTo }, { prompt: "login" });
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof AuthError) {
+      return fail("UNAUTHORIZED", { fieldErrors: { form: "errors.oauthFailed" } });
+    }
+    throw error;
+  }
+  return DONE;
+});

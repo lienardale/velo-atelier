@@ -123,13 +123,12 @@ describe("authorizeCredentials", () => {
     expect(new Set(consumed).size).toBe(3);
   });
 
-  it("clears the two hard buckets after a successful sign-in", async () => {
+  it("clears only the (address, account) bucket after a successful sign-in", async () => {
     const { limiter, reset } = allowingLimiter();
     await authorizeCredentials(CREDENTIALS, deps({ rateLimiter: limiter }));
-    expect(reset).toEqual([
-      rateLimitKey("login", "203.0.113.9"),
-      rateLimitKey("login", "203.0.113.9", "camille@velo-atelier.test"),
-    ]);
+    // Never the per-address bucket: see the credential-stuffing test in
+    // tests/security/rate-limit.test.ts.
+    expect(reset).toEqual([rateLimitKey("login", "203.0.113.9", "camille@velo-atelier.test")]);
   });
 
   describe("failures all look the same from outside", () => {

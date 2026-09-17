@@ -30,7 +30,9 @@
     "submitSet": "Set password",
     "submitting": "Saving…",
     "changed": "Password changed.",
-    "set": "Password set."
+    "set": "Password set.",
+    "reauthDescription": "To add a password, first confirm it is you with Google. This stops a stolen session from taking over your account.",
+    "reauthButton": "Confirm with Google"
   },
   "delete": {
     "title": "Delete my account",

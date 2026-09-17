@@ -18,6 +18,7 @@ import {
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_S,
   sessionCookieNameFor,
+  sessionCookieNamesIn,
   sessionCookieOptions,
   sessionRefreshPolicy,
   sessionTokenAgeS,
@@ -319,5 +320,20 @@ describe("sessionTokenAgeS", () => {
     await expect(
       sessionTokenAgeS("not-a-jwe", { secret: SECRET, cookieName: SESSION_COOKIE_NAME }),
     ).resolves.toBeNull();
+  });
+});
+
+describe("sessionCookieNamesIn", () => {
+  it("lists both session cookie names and their chunks, nothing else", () => {
+    expect(
+      sessionCookieNamesIn([
+        "NEXT_LOCALE",
+        SESSION_COOKIE_NAME,
+        `${SESSION_COOKIE_NAME}.0`,
+        SECURE_SESSION_COOKIE_NAME,
+        "authjs.csrf-token",
+        `${SESSION_COOKIE_NAME}-backup`,
+      ]),
+    ).toEqual([SESSION_COOKIE_NAME, `${SESSION_COOKIE_NAME}.0`, SECURE_SESSION_COOKIE_NAME]);
   });
 });

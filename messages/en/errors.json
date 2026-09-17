@@ -25,5 +25,6 @@
   "wrongPassword": "Wrong current password.",
   "passwordAlreadySet": "This account already has a password. Use “Change password” instead.",
   "noPassword": "This account signs in with Google and has no password.",
-  "confirmationMismatch": "The confirmation does not match."
+  "confirmationMismatch": "The confirmation does not match.",
+  "reauthRequired": "Confirm it is you with Google before adding a password."
 }

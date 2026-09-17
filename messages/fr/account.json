@@ -30,7 +30,9 @@
     "submitSet": "Définir le mot de passe",
     "submitting": "Enregistrement…",
     "changed": "Mot de passe modifié.",
-    "set": "Mot de passe défini."
+    "set": "Mot de passe défini.",
+    "reauthDescription": "Pour ajouter un mot de passe, confirmez d’abord votre identité avec Google. Cela empêche une session volée de s’approprier votre compte.",
+    "reauthButton": "Confirmer avec Google"
   },
   "delete": {
     "title": "Supprimer mon compte",

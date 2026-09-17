@@ -74,11 +74,13 @@ export interface RefreshTokenDeps {
 export interface RefreshTokenParams {
   token: JWT;
   user?: JwtSignInUser | null;
+  /** Present on sign-in only: which provider authenticated this session. */
+  account?: { provider?: string } | null;
   trigger?: "signIn" | "signUp" | "update";
 }
 
 export async function refreshSessionToken(
-  { token, user, trigger }: RefreshTokenParams,
+  { token, user, account, trigger }: RefreshTokenParams,
   { prisma, now = Date.now, recheckMs = SESSION_RECHECK_MS }: RefreshTokenDeps,
 ): Promise<JWT | null> {
   if (user) {
@@ -86,6 +88,10 @@ export async function refreshSessionToken(
     token.locale = user.locale;
     token.sessionVersion = user.sessionVersion;
     token.checkedAt = now();
+    // When and how this session authenticated: setting a first password on a
+    // Google-only account demands a recent Google sign-in (lib/auth/reauth.ts).
+    token.authAt = now();
+    token.authProvider = account?.provider;
   }
 
   const id = token.id ?? token.sub;

@@ -45,7 +45,11 @@ function form(fields: Record<string, string>): FormData {
   return data;
 }
 
-async function signedInUser(email: string, withPassword = true) {
+async function signedInUser(
+  email: string,
+  withPassword = true,
+  auth: { authAt?: number; authProvider?: string } = {},
+) {
   const user = await prisma.user.create({
     data: {
       email,
@@ -54,7 +58,9 @@ async function signedInUser(email: string, withPassword = true) {
       passwordHash: withPassword ? await hashPassword(PASSWORD, 4) : null,
     },
   });
-  setSession(sessionFor({ id: user.id, email: user.email, name: user.name, locale: "fr" }));
+  setSession(
+    sessionFor({ id: user.id, email: user.email, name: user.name, locale: "fr", ...auth }),
+  );
   return user;
 }
 
@@ -245,8 +251,12 @@ describe("password", () => {
     expect(await verifyPassword(PASSWORD, after?.passwordHash ?? null)).toBe(true);
   });
 
-  it("adds a first password to a Google-only account, without bumping the version", async () => {
-    const user = await signedInUser("google@velo-atelier.test", false);
+  it("adds a first password to a Google-only account after a fresh Google sign-in, signing other devices out", async () => {
+    const user = await signedInUser("google@velo-atelier.test", false, {
+      authProvider: "google",
+      authAt: Date.now() - 60_000,
+    });
+    setRequestCookies({ [SESSION_COOKIE_NAME]: "old-token" });
 
     expect(await setPasswordAction(IDLE, form({ next: NEXT_PASSWORD }))).toEqual({
       ok: true,
@@ -255,7 +265,27 @@ describe("password", () => {
 
     const after = await prisma.user.findUnique({ where: { id: user.id } });
     expect(await verifyPassword(NEXT_PASSWORD, after?.passwordHash ?? null)).toBe(true);
-    // Nothing was invalidated: the visitor had no password-based session to drop.
+    // Any other session — a stolen cookie included — is dropped at its next re-check,
+    // and this device got a cookie carrying the new number.
+    expect(after?.sessionVersion).toBe(1);
+    const reissued = cookieJar().get(SESSION_COOKIE_NAME);
+    expect(reissued).toBeDefined();
+    expect(reissued).not.toBe("old-token");
+  });
+
+  it("refuses to add a password without a fresh Google sign-in, and writes nothing", async () => {
+    const user = await signedInUser("stale-google@velo-atelier.test", false, {
+      authProvider: "google",
+      authAt: Date.now() - 60 * 60_000,
+    });
+
+    expect(await setPasswordAction(IDLE, form({ next: NEXT_PASSWORD }))).toMatchObject({
+      ok: false,
+      code: "FORBIDDEN",
+      fieldErrors: { form: "errors.reauthRequired" },
+    });
+    const after = await prisma.user.findUnique({ where: { id: user.id } });
+    expect(after?.passwordHash).toBeNull();
     expect(after?.sessionVersion).toBe(0);
   });
 

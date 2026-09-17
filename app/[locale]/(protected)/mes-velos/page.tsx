@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { currentUser } from "@/lib/actions/with-user";
-import { redirect } from "@/lib/i18n/navigation";
+import { currentUser, redirectToSignIn } from "@/lib/actions/with-user";
 import { buildMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/lib/i18n/routing";
 
@@ -45,7 +44,7 @@ export default async function MyBikesPage({ params }: PageProps): Promise<React.
   setRequestLocale(locale);
 
   const user = await currentUser();
-  if (!user) return redirect({ href: "/connexion", locale });
+  if (!user) return redirectToSignIn(locale, "/mes-velos");
 
   const t = await getTranslations({ locale, namespace: "account.myBikes" });
 

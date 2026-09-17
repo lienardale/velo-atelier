@@ -117,6 +117,8 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id ?? token.sub ?? session.user.id;
         session.user.locale = token.locale ?? routing.defaultLocale;
+        session.user.authAt = token.authAt;
+        session.user.authProvider = token.authProvider;
       }
       return session;
     },

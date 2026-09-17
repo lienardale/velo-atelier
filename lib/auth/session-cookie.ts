@@ -275,3 +275,51 @@ export async function sessionTokenAgeS(
     return null;
   }
 }
+
+/** The session cookies (either name, and any chunks) among a request's cookie names. */
+export function sessionCookieNamesIn(cookieNames: Iterable<string>): string[] {
+  return [...cookieNames].filter((name) => isSessionSetCookie(`${name}=`));
+}
+
+/**
+ * The value the incoming `Cookie` header carries for `name`, or `null` —
+ * percent-decoded exactly as Next's request cookie store decodes it, so the two
+ * can be compared: a raw `%41` in the header must not look like a rewrite.
+ */
+export function cookieFromHeader(header: string | null | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator === -1) continue;
+    if (part.slice(0, separator).trim() !== name) continue;
+    const raw = part.slice(separator + 1).trim();
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return null;
+}
+
+/** The claims a session token carries, or `null` when it does not decrypt or lacks an identity. */
+export async function decodeSessionClaims(
+  token: string,
+  { secret, cookieName }: { secret: string; cookieName: string },
+): Promise<SessionTokenClaims | null> {
+  try {
+    const payload = await decode({ token, secret, salt: cookieName });
+    if (!payload || typeof payload.id !== "string" || typeof payload.email !== "string")
+      return null;
+    return {
+      id: payload.id,
+      email: payload.email,
+      name: typeof payload.name === "string" ? payload.name : null,
+      picture: typeof payload.picture === "string" ? payload.picture : null,
+      locale: typeof payload.locale === "string" ? payload.locale : "fr",
+      sessionVersion: typeof payload.sessionVersion === "number" ? payload.sessionVersion : 0,
+    };
+  } catch {
+    return null;
+  }
+}

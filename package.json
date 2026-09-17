@@ -16,7 +16,7 @@
     "lint:fix": "eslint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "prisma generate && tsc --noEmit",
+    "typecheck": "prisma generate && content-collections build && tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:ui": "vitest run --project ui",

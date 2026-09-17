@@ -24,6 +24,26 @@ Auth.js v5 supports a `Passkey` provider, but it needs the database adapter's
 
 ## Security
 
+### Client address behind non-Vercel proxies
+
+`lib/security/ip.ts` reads `x-vercel-forwarded-for`, then `x-real-ip`, then the first
+`x-forwarded-for`. On Vercel the edge sets the first one, so a client cannot choose
+its rate-limit bucket. Self-hosted behind nothing (or a proxy that does not rewrite
+these headers), a client can send a fresh value per request and get a fresh bucket.
+
+_To pick up_ (W4-T1): honour `x-vercel-forwarded-for` only when `VERCEL` is set, and
+`x-real-ip` / `x-forwarded-for` only behind an explicitly configured trusted proxy
+(an env flag the e2e web server also sets, since the fixture uses `x-real-ip`).
+
+### Sign-out racing a document load in another tab
+
+Once a JWT session is at least a day old, a full page load in another tab can land
+after a sign-out and write the still-valid token back (`proxy.ts` keeps the daily
+refresh on document navigations). This is inherent to stateless JWT sessions.
+
+_To pick up_: a server-side revocation marker — for example bump `sessionVersion` on
+sign-out, which also signs out every other device — or database sessions.
+
 ### Nonce-based Content-Security-Policy
 
 `next.config.ts` ships a **static** CSP with `script-src 'self' 'unsafe-inline'`.

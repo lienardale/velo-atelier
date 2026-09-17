@@ -37,6 +37,8 @@
  */
 import { createHash } from "node:crypto";
 
+import { decode } from "next-auth/jwt";
+
 import { expect, test as base, type BrowserContext, type TestInfo } from "@playwright/test";
 
 import {
@@ -132,6 +134,13 @@ export interface SessionUser {
   name?: string | null;
   locale?: Locale;
   sessionVersion?: number;
+  /**
+   * When the session was last checked against the row (ms). Default: now, which
+   * skips the 5-minute `sessionVersion` re-check on the first request. Real users
+   * are rarely that fresh: pass `Date.now() - 10 * 60_000` to exercise the re-check
+   * path, which is where the W1 password-change and redirect-loop bugs lived.
+   */
+  checkedAt?: number;
 }
 
 const SESSION_MAX_AGE = SESSION_MAX_AGE_S;
@@ -160,7 +169,42 @@ export async function encodeSessionToken(user: SessionUser, cookieName: string):
       locale: user.locale ?? "fr",
       sessionVersion: user.sessionVersion ?? 0,
     },
-    { secret, cookieName, maxAge: SESSION_MAX_AGE },
+    {
+      secret,
+      cookieName,
+      maxAge: SESSION_MAX_AGE,
+      now: () => user.checkedAt ?? Date.now(),
+    },
+  );
+}
+
+/**
+ * Re-mint the session cookie `context` already holds (e.g. from a real sign-up)
+ * as if it had last been checked `ageMs` ago, keeping every claim.
+ */
+export async function ageSessionCookie(
+  context: BrowserContext,
+  baseURL: string,
+  ageMs: number,
+): Promise<void> {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("AUTH_SECRET is not set (playwright.config.ts loads .env.test)");
+  const name = sessionCookieName(baseURL);
+  const cookie = (await context.cookies(baseURL)).find((entry) => entry.name === name);
+  if (!cookie) throw new Error(`no ${name} cookie to age`);
+  const token = await decode({ token: cookie.value, secret, salt: name });
+  if (!token?.id || !token.email) throw new Error("the session cookie did not decode");
+  await signInContext(
+    context,
+    {
+      id: String(token.id),
+      email: String(token.email),
+      name: (token.name as string | null | undefined) ?? null,
+      locale: (token.locale as Locale | undefined) ?? "fr",
+      sessionVersion: Number(token.sessionVersion ?? 0),
+      checkedAt: Date.now() - ageMs,
+    },
+    baseURL,
   );
 }
 

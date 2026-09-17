@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
+import { ConfirmWithGoogleForm } from "@/components/account/ConfirmWithGoogleForm";
 import { DeleteAccountDialog } from "@/components/account/DeleteAccountDialog";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { SetPasswordForm } from "@/components/account/SetPasswordForm";
-import { currentUser } from "@/lib/actions/with-user";
+import { redirectToSignIn, requireSignedInUser } from "@/lib/actions/with-user";
+import { hasFreshGoogleAuth } from "@/lib/auth/reauth";
 import { prisma } from "@/lib/db/prisma";
-import { redirect } from "@/lib/i18n/navigation";
 import { buildMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/lib/i18n/routing";
 
@@ -46,10 +47,7 @@ export default async function AccountPage({ params }: PageProps): Promise<React.
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const user = await currentUser();
-  // `return` because next-intl's `redirect()` is not typed `never`, so it does
-  // not narrow `user` on its own.
-  if (!user) return redirect({ href: "/connexion", locale });
+  const user = await requireSignedInUser(locale, "/compte");
 
   const account = await prisma.user.findUnique({
     where: { id: user.id },
@@ -62,7 +60,8 @@ export default async function AccountPage({ params }: PageProps): Promise<React.
       _count: { select: { bikes: true } },
     },
   });
-  if (!account) return redirect({ href: "/connexion", locale });
+  // A valid token for a deleted account: clear it rather than loop.
+  if (!account) return redirectToSignIn(locale, "/compte");
 
   const t = await getTranslations({ locale, namespace: "account" });
   const hasPassword = account.passwordHash !== null;
@@ -96,8 +95,10 @@ export default async function AccountPage({ params }: PageProps): Promise<React.
         </p>
         {hasPassword ? (
           <ChangePasswordForm email={account.email} />
-        ) : (
+        ) : hasFreshGoogleAuth(user) ? (
           <SetPasswordForm email={account.email} />
+        ) : (
+          <ConfirmWithGoogleForm />
         )}
       </section>
 

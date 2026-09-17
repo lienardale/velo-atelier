@@ -36,6 +36,9 @@ declare module "next-auth" {
     user: {
       id: string;
       locale: UserLocale;
+      /** When this session signed in (ms) and with which provider — lib/auth/reauth.ts. */
+      authAt?: number;
+      authProvider?: string;
     } & DefaultSession["user"];
   }
 }
@@ -47,5 +50,7 @@ declare module "next-auth/jwt" {
     sessionVersion?: number;
     /** Epoch ms of the last `sessionVersion` re-check. */
     checkedAt?: number;
+    authAt?: number;
+    authProvider?: string;
   }
 }

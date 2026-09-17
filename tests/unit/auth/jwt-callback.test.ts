@@ -142,6 +142,54 @@ describe("refreshSessionToken", () => {
     });
   });
 
+  describe("sign-in stamps when and how the session authenticated", () => {
+    it("records authAt and the provider (Google)", async () => {
+      const { prisma } = prismaWith(ROW);
+      const token = await refreshSessionToken(
+        {
+          token: { sub: USER_ID },
+          user: { id: USER_ID, locale: "fr", sessionVersion: 7 },
+          account: { provider: "google" },
+          trigger: "signIn",
+        },
+        { prisma, now },
+      );
+      expect(token).toMatchObject({ authAt: NOW, authProvider: "google" });
+    });
+
+    it("records the credentials provider too, which never counts as a Google re-authentication", async () => {
+      const { prisma } = prismaWith(ROW);
+      const token = await refreshSessionToken(
+        {
+          token: { sub: USER_ID },
+          user: { id: USER_ID, locale: "fr", sessionVersion: 7 },
+          account: { provider: "credentials" },
+          trigger: "signIn",
+        },
+        { prisma, now },
+      );
+      expect(token).toMatchObject({ authAt: NOW, authProvider: "credentials" });
+    });
+
+    it("keeps the original stamp on later requests (it is not refreshed by a re-check)", async () => {
+      const { prisma } = prismaWith(ROW);
+      const token = await refreshSessionToken(
+        {
+          token: {
+            sub: USER_ID,
+            id: USER_ID,
+            sessionVersion: 7,
+            checkedAt: NOW - SESSION_RECHECK_MS - 1,
+            authAt: NOW - 3_600_000,
+            authProvider: "google",
+          },
+        },
+        { prisma, now },
+      );
+      expect(token).toMatchObject({ authAt: NOW - 3_600_000, authProvider: "google" });
+    });
+  });
+
   describe("the token is dropped", () => {
     it("on an update trigger too, so a stolen cookie cannot adopt a new sessionVersion", async () => {
       // Auth.js fires `update` from the client (`POST /api/auth/session`). If an

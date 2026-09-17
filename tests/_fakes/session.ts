@@ -322,7 +322,14 @@ export function i18nNavigationModule(createElement: (...args: unknown[]) => unkn
 
 /** Shape of `Session` after `types/next-auth.d.ts` augmentation (§4.3). */
 export interface FakeSession {
-  user: { id: string; email: string; name?: string | null; locale: "fr" | "en" };
+  user: {
+    id: string;
+    email: string;
+    name?: string | null;
+    locale: "fr" | "en";
+    authAt?: number;
+    authProvider?: string;
+  };
   expires: string;
 }
 
@@ -334,9 +341,18 @@ export function sessionFor(user: {
   email: string;
   name?: string | null;
   locale?: "fr" | "en";
+  authAt?: number;
+  authProvider?: string;
 }): FakeSession {
   return {
-    user: { id: user.id, email: user.email, name: user.name ?? null, locale: user.locale ?? "fr" },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name ?? null,
+      locale: user.locale ?? "fr",
+      authAt: user.authAt,
+      authProvider: user.authProvider,
+    },
     expires: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   };
 }

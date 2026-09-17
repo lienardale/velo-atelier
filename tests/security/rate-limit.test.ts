@@ -22,8 +22,10 @@
  *   1. the `max`-th attempt is allowed and the next is refused, with a
  *      `retryAfterMs` that is strictly positive;
  *   2. the window is fixed: it expires, and the next attempt starts a new one;
- *   3. one successful sign-in clears the hard buckets, so a legitimate visitor
- *      who mistyped four times is not punished afterwards;
+ *   3. one successful sign-in clears the (address, account) bucket, so a
+ *      legitimate visitor who mistyped four times is not punished afterwards —
+ *      but never the per-address bucket, or one address could credential-stuff
+ *      forever by signing in to its own account every few guesses;
  *   4. the soft bucket delays and never refuses — the victim can always still
  *      sign in;
  *   5. `Camille@VELO-ATELIER.test` and `camille@velo-atelier.test` share a
@@ -206,7 +208,7 @@ describe("sign-in", () => {
     }
   });
 
-  it("clears the hard buckets after one successful sign-in", async () => {
+  it("clears the (address, account) bucket after one successful sign-in", async () => {
     await seedUser();
     const shared = deps();
 
@@ -223,6 +225,32 @@ describe("sign-in", () => {
         authorizeCredentials({ email: EMAIL, password: "wrong" }, shared),
       ).resolves.toBeNull();
     }
+  });
+
+  it("keeps counting per address across the attacker's own successful sign-ins (credential stuffing)", async () => {
+    // One address tries one password per victim — so no (address, account) bucket
+    // ever fills — and signs in to its OWN account every few guesses. If a success
+    // reset the per-address bucket, this ran forever (reproduced: 100 guesses, 0
+    // refused). The per-address bucket must still stop it at its max.
+    await seedUser(); // EMAIL / PASSWORD is the attacker's own account
+    const shared = deps();
+    let evaluated = 0;
+    let refused = 0;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const ownLogin = attempt % 5 === 4;
+      const credentials = ownLogin
+        ? { email: EMAIL, password: PASSWORD }
+        : { email: `victim-${attempt}@velo-atelier.test`, password: "Guess-Password-1!" };
+      try {
+        await authorizeCredentials(credentials, shared);
+        evaluated += 1;
+      } catch (error) {
+        expect(error).toBeInstanceOf(RateLimitedSignin);
+        refused += 1;
+      }
+    }
+    expect(evaluated).toBe(RATE_LIMITS.loginPerIp.max);
+    expect(refused).toBe(20 - RATE_LIMITS.loginPerIp.max);
   });
 
   it("cannot be used to lock a victim out: the per-account bucket only delays", async () => {

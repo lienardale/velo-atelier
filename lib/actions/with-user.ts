@@ -30,9 +30,23 @@
 
 import "server-only";
 
+import { cookies, headers } from "next/headers";
+import { redirect as nextRedirect } from "next/navigation";
+
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db/prisma";
+import { loginUrl } from "@/lib/auth/safe-callback-url";
+import {
+  cookieFromHeader,
+  decodeSessionClaims,
+  presentSessionCookie,
+  SECURE_SESSION_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+} from "@/lib/auth/session-cookie";
+import { isLocale, routing } from "@/lib/i18n/routing";
+import { localizedPath } from "@/lib/i18n/protected-paths";
 import { assertSameOrigin, CrossOriginRequestError } from "@/lib/security/origin";
-import type { Locale } from "@/lib/i18n/routing";
+import type { Locale, Pathname } from "@/lib/i18n/routing";
 
 import { fail, type ActionResult } from "./result";
 
@@ -42,6 +56,9 @@ export interface ActionUser {
   email: string;
   name: string | null;
   locale: Locale;
+  /** When and how the session signed in — see lib/auth/reauth.ts. */
+  authAt?: number;
+  authProvider?: string;
 }
 
 export interface ActionContext {
@@ -107,14 +124,96 @@ export async function requireUser(): Promise<ActionResult<ActionUser>> {
       email: user.email,
       name: user.name ?? null,
       locale: user.locale,
+      authAt: user.authAt,
+      authProvider: user.authProvider,
     },
   };
 }
 
 /** The session's user without the origin check — for server components, which are GETs. */
 export async function currentUser(): Promise<ActionUser | null> {
+  const reissued = await sessionWrittenThisRequest();
+  if (reissued !== undefined) return reissued;
+
   const session = await auth();
   const user = session?.user;
   if (!user?.id || !user.email) return null;
-  return { id: user.id, email: user.email, name: user.name ?? null, locale: user.locale };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name ?? null,
+    locale: user.locale,
+    authAt: user.authAt,
+    authProvider: user.authProvider,
+  };
+}
+
+/**
+ * Send a visitor who is not (or no longer) signed in to the sign-in form, with
+ * `from` as the callback URL.
+ *
+ * When a session cookie is still present the session was rejected here — a
+ * password changed on another device, a deleted account — while the proxy, which
+ * cannot check `sessionVersion`, still believes it. Redirecting straight to the
+ * form would loop (the proxy sends "signed-in" visitors away from it), so the
+ * visitor goes through `/api/session-expired`, which clears the cookie first.
+ * An unlocalized `/api` path, hence `next/navigation`'s `redirect`.
+ */
+export async function redirectToSignIn(locale: Locale, from: Pathname): Promise<never> {
+  const callbackUrl = `/${locale}${localizedPath(from, locale)}`;
+  const jar = await cookies();
+  if (presentSessionCookie(jar.getAll().map((cookie) => cookie.name))) {
+    nextRedirect(`/api/session-expired?${new URLSearchParams({ locale, callbackUrl }).toString()}`);
+  }
+  nextRedirect(loginUrl(locale, { callbackUrl }));
+}
+
+/** The signed-in user for a protected page, or a redirect that cannot loop. */
+export async function requireSignedInUser(locale: Locale, from: Pathname): Promise<ActionUser> {
+  const user = await currentUser();
+  if (user) return user;
+  return redirectToSignIn(locale, from);
+}
+
+/**
+ * The session as THIS request left it, when server code rewrote the session
+ * cookie during the request; `undefined` when it did not.
+ *
+ * Setting a cookie in a server action makes Next re-render the page in the same
+ * response, and that render's `auth()` reads the cookie from the request HEADERS,
+ * which Next does not update after `cookies().set()`. After a password change the
+ * render therefore saw the old token, failed the `sessionVersion` re-check and
+ * bounced the visitor off the page they had just saved (W1 security review,
+ * `.debug/003`). The cookie store does carry the new value, and only server code
+ * can have put it there, so a value that differs from the incoming header is the
+ * one to trust: decode it; an emptied one means signed out.
+ */
+async function sessionWrittenThisRequest(): Promise<ActionUser | null | undefined> {
+  const jar = await cookies();
+  const incoming = (await headers()).get("cookie");
+  for (const name of [SECURE_SESSION_COOKIE_NAME, SESSION_COOKIE_NAME]) {
+    const now = jar.get(name)?.value;
+    const before = cookieFromHeader(incoming, name);
+    if ((now ?? null) === before) continue;
+    if (!now) return null;
+    const secret = process.env.AUTH_SECRET;
+    if (!secret) return undefined;
+    const claims = await decodeSessionClaims(now, { secret, cookieName: name });
+    if (!claims) return undefined;
+    // Defence in depth: whatever made the two values differ, a token that does not
+    // carry the row's current sessionVersion is never trusted from here — it goes
+    // through auth()'s normal re-check instead.
+    const row = await prisma.user.findUnique({
+      where: { id: claims.id },
+      select: { sessionVersion: true },
+    });
+    if (!row || row.sessionVersion !== claims.sessionVersion) return undefined;
+    return {
+      id: claims.id,
+      email: claims.email,
+      name: claims.name,
+      locale: isLocale(claims.locale) ? claims.locale : routing.defaultLocale,
+    };
+  }
+  return undefined;
 }

@@ -31,16 +31,35 @@ const GL_FLAGS = [
 
 const BASE_URL = process.env.LHCI_BASE_URL || "http://localhost:3100";
 
-const URLS = [
-  "/fr",
-  "/en",
-  "/fr/velo/demo",
-  "/en/bike/demo",
-  "/fr/guides/check-brakes-disc",
-  "/en/guides/check-brakes-disc",
-  "/fr/connexion",
-  "/fr/acheter",
-].map((path) => `${BASE_URL}${path}`);
+/**
+ * Every URL the plan audits, each with the route file that must exist first.
+ * Waves land routes one at a time (/velo in W2, /acheter in W3): auditing a route
+ * that does not exist yet 404s and fails the job (it did on the W1 push). A URL is
+ * audited as soon as its route file appears — no edit here when a wave lands.
+ */
+// lhci loads this file as CommonJS: `require` is the only import form it can use.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const fs = require("node:fs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = require("node:path");
+
+const ROUTES = [
+  ["/fr", "app/[locale]/page.tsx"],
+  ["/en", "app/[locale]/page.tsx"],
+  ["/fr/velo/demo", "app/[locale]/velo/[id]/page.tsx"],
+  ["/en/bike/demo", "app/[locale]/velo/[id]/page.tsx"],
+  ["/fr/guides/check-brakes-disc", "content/guides/check-brakes-disc/fr.mdx"],
+  ["/en/guides/check-brakes-disc", "content/guides/check-brakes-disc/en.mdx"],
+  ["/fr/connexion", "app/[locale]/(auth)/connexion/page.tsx"],
+  ["/fr/acheter", "app/[locale]/acheter/page.tsx"],
+];
+
+const URLS = ROUTES.filter(([urlPath, file]) => {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- `file` comes from the literal ROUTES table above
+  const exists = fs.existsSync(path.join(__dirname, file));
+  if (!exists) console.warn(`lighthouserc: skipping ${urlPath} — ${file} does not exist yet`);
+  return exists;
+}).map(([urlPath]) => `${BASE_URL}${urlPath}`);
 
 /** Content pages: the real bar. */
 const contentAssertions = {

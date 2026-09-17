@@ -21,6 +21,14 @@ else
   log_warn "prisma/schema.prisma not present yet (W0-T4) — skipping 'prisma generate'"
 fi
 
+if [[ -f content-collections.ts ]]; then
+  # `import … from "content-collections"` resolves to the gitignored
+  # .content-collections/generated tree. A fresh CI checkout has none, so tsc
+  # failed there while passing locally on a tree a previous build had generated.
+  log_step "content-collections build"
+  npx --no-install content-collections build
+fi
+
 log_step "tsc --noEmit"
 npx --no-install tsc --noEmit
 

@@ -25,5 +25,6 @@
   "wrongPassword": "Mot de passe actuel incorrect.",
   "passwordAlreadySet": "Ce compte a déjà un mot de passe. Utilisez « Changer de mot de passe ».",
   "noPassword": "Ce compte se connecte avec Google et n’a pas de mot de passe.",
-  "confirmationMismatch": "La confirmation ne correspond pas."
+  "confirmationMismatch": "La confirmation ne correspond pas.",
+  "reauthRequired": "Confirmez votre identité avec Google avant d’ajouter un mot de passe."
 }

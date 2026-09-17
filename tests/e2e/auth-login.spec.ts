@@ -25,6 +25,7 @@ import {
   sessionCookieName,
   test,
   type Locale,
+  signInContext,
 } from "./_fixtures";
 
 import en from "../../messages/en/auth.json";
@@ -170,6 +171,56 @@ forEachLocale((locale) => {
     await page.goto(href(locale, "/connexion"));
 
     await expect(page).toHaveURL(new RegExp(`${href(locale, "/mes-velos")}$`));
+  });
+
+  test(`an invalidated session is cleared instead of looping (${locale})`, async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    // The cookie of a device whose password was changed elsewhere: an older
+    // sessionVersion than the row, last checked more than 5 minutes ago. The proxy
+    // cannot check sessionVersion and still sees a signed-in visitor; before the
+    // fix, page and proxy bounced it between /mes-velos and /connexion forever.
+    await signInContext(
+      context,
+      { ...DEMO_USER, sessionVersion: 41, checkedAt: Date.now() - 10 * 60_000 },
+      baseURL ?? "http://localhost:3100",
+    );
+
+    const response = await page.goto(href(locale, "/mes-velos"));
+
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(new RegExp(`${href(locale, "/connexion")}\\?callbackUrl=`));
+    const name = sessionCookieName(baseURL ?? "http://localhost:3100");
+    expect((await context.cookies()).find((entry) => entry.name === name)?.value ?? "").toBe("");
+  });
+
+  test(`an invalidated session reached by a client-side click also ends on the form (${locale})`, async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    // Same dead cookie, but the visitor clicks "Connexion" in the header: a router
+    // (RSC) request, not a page load. The proxy still believes the session and
+    // redirects to /mes-velos; the page rejects it; the background request that
+    // reaches /api/session-expired gets a 401 (it must not delete cookies — see
+    // .debug/003), and the router's full-page fallback clears the cookie.
+    await signInContext(
+      context,
+      { ...DEMO_USER, sessionVersion: 41, checkedAt: Date.now() - 10 * 60_000 },
+      baseURL ?? "http://localhost:3100",
+    );
+    await page.goto(href(locale, "/"));
+
+    await page.getByTestId("account-sign-in").click();
+
+    await expect(page).toHaveURL(new RegExp(`${href(locale, "/connexion")}(\\?|$)`));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.signIn.title);
+    const name = sessionCookieName(baseURL ?? "http://localhost:3100");
+    await expect
+      .poll(async () => (await context.cookies()).find((entry) => entry.name === name)?.value ?? "")
+      .toBe("");
   });
 
   test(`signing out clears the session cookie (${locale})`, async ({

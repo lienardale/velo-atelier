@@ -20,7 +20,15 @@
  * seeded demo user, because these mutate and delete. The demo user stays intact
  * for every other spec.
  */
-import { expect, forEachLocale, href, sessionCookieName, test, type Locale } from "./_fixtures";
+import {
+  ageSessionCookie,
+  expect,
+  forEachLocale,
+  href,
+  sessionCookieName,
+  test,
+  type Locale,
+} from "./_fixtures";
 
 import accountEn from "../../messages/en/account.json";
 import accountFr from "../../messages/fr/account.json";
@@ -158,6 +166,30 @@ forEachLocale((locale) => {
     await page.getByLabel(auth.fields.password, { exact: true }).fill(NEXT_PASSWORD);
     await page.getByRole("button", { name: auth.signIn.submit }).click();
     await page.waitForURL(`**${href(locale, "/mes-velos")}`);
+  });
+
+  test(`changes the password from an older session and stays on the page (${locale})`, async ({
+    page,
+    context,
+    signupEmail,
+    baseURL,
+  }) => {
+    // A session last checked more than 5 minutes ago, like most real ones. Before
+    // the fix the same-response re-render read the old cookie, failed the
+    // sessionVersion re-check and bounced the visitor off /compte.
+    await register(page, signupEmail);
+    await ageSessionCookie(context, baseURL ?? "http://localhost:3100", 10 * 60_000);
+    await page.goto(href(locale, "/compte"));
+
+    const form = page.getByTestId("change-password-form");
+    await form.locator('input[name="current"]').fill(PASSWORD);
+    await form.locator('input[name="next"]').fill(NEXT_PASSWORD);
+    await page.getByRole("button", { name: t.password.submitChange }).click();
+
+    await expect(page.getByText(t.password.changed)).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`${href(locale, "/compte")}$`));
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.title);
   });
 
   test(`the delete dialog asks before it acts (${locale})`, async ({ page, signupEmail }) => {
