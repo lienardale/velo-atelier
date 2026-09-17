@@ -1,1 +1,94 @@
-{}
+{
+  "home": {
+    "eyebrow": "Décrivez votre vélo",
+    "intro": "Quelques questions suffisent, une par écran. Chacune explique comment vérifier la réponse sur votre propre vélo, et « Je ne sais pas » choisit pour vous la réponse la plus courante.",
+    "featuresTitle": "Ce que vous pouvez faire ici",
+    "features": {
+      "describe": {
+        "title": "Décrire votre vélo",
+        "text": "Freins, transmission, roues, pédales : l’arbre de questions reconstitue votre vélo, même si vous ne connaissez aucun nom de marque."
+      },
+      "inspect": {
+        "title": "Contrôler chaque pièce",
+        "text": "Sur le modèle 3D, touchez une pièce pour voir ce qu’elle est, puis lancez un contrôle complet ou ciblé et notez ce qui ne va pas."
+      },
+      "repair": {
+        "title": "Réparer, régler, remplacer",
+        "text": "Des guides pas à pas, avec les outils nécessaires et leurs alternatives, et les bonnes questions à se poser avant d’acheter une pièce."
+      }
+    },
+    "latestGuides": "Guides à découvrir",
+    "allGuides": "Voir tous les guides",
+    "guest": {
+      "title": "Pas besoin de compte",
+      "text": "Votre vélo, vos contrôles et votre liste restent enregistrés dans ce navigateur. Créez un compte quand vous voulez : ils y seront importés.",
+      "signUp": "Créer un compte"
+    }
+  },
+  "tree": {
+    "label": "Questions sur votre vélo",
+    "loading": "Chargement des questions…"
+  },
+  "progress": {
+    "label": "Question {step} sur {total}"
+  },
+  "documentTitle": "{title} · {site}",
+  "actions": {
+    "continue": "Continuer",
+    "back": "Question précédente",
+    "dontKnow": "Je ne sais pas",
+    "skipToDemo": "Passer au vélo de démo",
+    "chooseFirst": "Choisissez une réponse, ou « Je ne sais pas »."
+  },
+  "default": {
+    "title": "Réponse par défaut : {option}",
+    "reasonContext": "C’est le cas le plus courant pour un vélo : {context}.",
+    "reasonGeneral": "C’est le cas le plus courant.",
+    "later": "Vous pourrez la corriger à tout moment depuis le récapitulatif."
+  },
+  "help": {
+    "summary": "Comment le vérifier sur mon vélo ?"
+  },
+  "summary": {
+    "title": "Votre vélo",
+    "intro": "Vérifiez vos réponses. Celles marquées « par défaut » ont été choisies pour vous : corrigez-les si vous le pouvez.",
+    "caption": "Vos réponses",
+    "question": "Question",
+    "answer": "Réponse",
+    "defaultBadge": "par défaut",
+    "edit": "Modifier",
+    "editLabel": "Modifier : {question}",
+    "generate": "Générer mon vélo",
+    "generating": "Préparation du vélo…",
+    "storageError": "Impossible d’enregistrer le vélo dans ce navigateur (stockage désactivé ou plein). Vous pouvez toujours explorer le vélo de démo.",
+    "replace": {
+      "title": "Remplacer votre vélo ?",
+      "description": "Un vélo est déjà enregistré dans ce navigateur. Le nouveau le remplacera, ainsi que ses modifications.",
+      "confirm": "Remplacer",
+      "cancel": "Garder l’ancien"
+    }
+  },
+  "questions": {
+    "drive": "Assistance",
+    "discipline": "Pratique",
+    "wheel-size": "Roues",
+    "brake-type": "Freins",
+    "brake-mount": "Fixation des étriers",
+    "cockpit": "Guidon",
+    "drivetrain": "Vitesses",
+    "transmission": "Entraînement",
+    "speeds": "Nombre de vitesses",
+    "shifter": "Commandes",
+    "pedals": "Pédales",
+    "suspension": "Suspension",
+    "seatpost": "Tige de selle",
+    "tire-system": "Pneus",
+    "e-motor": "Moteur",
+    "e-battery": "Batterie"
+  },
+  "describe": {
+    "sentence": "Vélo décrit : {details}.",
+    "item": "{question} : {answer}",
+    "separator": " ; "
+  }
+}

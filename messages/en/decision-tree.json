@@ -1,1 +1,94 @@
-{}
+{
+  "home": {
+    "eyebrow": "Describe your bike",
+    "intro": "A few questions, one per screen. Each one explains how to check the answer on your own bike, and “I don’t know” picks the most common answer for you.",
+    "featuresTitle": "What you can do here",
+    "features": {
+      "describe": {
+        "title": "Describe your bike",
+        "text": "Brakes, drivetrain, wheels, pedals: the questions rebuild your bike, even if you do not know a single brand name."
+      },
+      "inspect": {
+        "title": "Check every part",
+        "text": "Tap a part on the 3D model to see what it is, then run a full or targeted checkup and note what is wrong."
+      },
+      "repair": {
+        "title": "Fix, adjust, replace",
+        "text": "Step-by-step guides with the tools you need and their alternatives, and the right questions to ask before buying a part."
+      }
+    },
+    "latestGuides": "Guides to explore",
+    "allGuides": "See all guides",
+    "guest": {
+      "title": "No account needed",
+      "text": "Your bike, checkups and list stay saved in this browser. Create an account whenever you like: they will be imported into it.",
+      "signUp": "Create an account"
+    }
+  },
+  "tree": {
+    "label": "Questions about your bike",
+    "loading": "Loading the questions…"
+  },
+  "progress": {
+    "label": "Question {step} of {total}"
+  },
+  "documentTitle": "{title} · {site}",
+  "actions": {
+    "continue": "Continue",
+    "back": "Previous question",
+    "dontKnow": "I don’t know",
+    "skipToDemo": "Skip to the demo bike",
+    "chooseFirst": "Pick an answer, or “I don’t know”."
+  },
+  "default": {
+    "title": "Default answer: {option}",
+    "reasonContext": "It is the most common setup for a bike like this: {context}.",
+    "reasonGeneral": "It is the most common setup.",
+    "later": "You can change it at any time from the summary."
+  },
+  "help": {
+    "summary": "How do I check this on my bike?"
+  },
+  "summary": {
+    "title": "Your bike",
+    "intro": "Check your answers. Those marked “default” were picked for you: correct them if you can.",
+    "caption": "Your answers",
+    "question": "Question",
+    "answer": "Answer",
+    "defaultBadge": "default",
+    "edit": "Change",
+    "editLabel": "Change: {question}",
+    "generate": "Build my bike",
+    "generating": "Preparing the bike…",
+    "storageError": "The bike could not be saved in this browser (storage disabled or full). You can still explore the demo bike.",
+    "replace": {
+      "title": "Replace your bike?",
+      "description": "A bike is already saved in this browser. The new one will replace it, along with its changes.",
+      "confirm": "Replace",
+      "cancel": "Keep the old one"
+    }
+  },
+  "questions": {
+    "drive": "Assistance",
+    "discipline": "Riding",
+    "wheel-size": "Wheels",
+    "brake-type": "Brakes",
+    "brake-mount": "Caliper mount",
+    "cockpit": "Handlebars",
+    "drivetrain": "Gears",
+    "transmission": "Drive",
+    "speeds": "Number of gears",
+    "shifter": "Shifters",
+    "pedals": "Pedals",
+    "suspension": "Suspension",
+    "seatpost": "Seatpost",
+    "tire-system": "Tyres",
+    "e-motor": "Motor",
+    "e-battery": "Battery"
+  },
+  "describe": {
+    "sentence": "Bike described: {details}.",
+    "item": "{question}: {answer}",
+    "separator": "; "
+  }
+}
