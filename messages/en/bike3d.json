@@ -1,1 +1,27 @@
-{}
+{
+  "svgTitle": "Bike diagram: tap a part to select it",
+  "canvasLabel": "Interactive 3D view of the bike",
+  "loading": "Loading the 3D view…",
+  "noWebgl": "3D is not available on this device. The diagram still works: tap a part.",
+  "contextLost": "The 3D view stopped. The diagram still works.",
+  "contextLostFinal": "The 3D view stopped several times: the diagram stays on screen.",
+  "error": "The 3D view ran into a problem. The diagram still works.",
+  "reload3d": "Reload 3D",
+  "reset": "Reset view",
+  "rotate": "Rotate",
+  "dev": {
+    "title": "3D viewer (test page)",
+    "perfTitle": "3D viewer: performance measurements (test page)",
+    "intro": "This page exists for automated tests only, and only when ENABLE_TEST_PAGES=1.",
+    "preset": "Bike model",
+    "quality": "Quality",
+    "mode": "Mode",
+    "modeBrowse": "Explore",
+    "modePick": "Pick parts",
+    "partsHeading": "Parts",
+    "panelEmpty": "No part selected.",
+    "checkupPart": "Check this part",
+    "checkupPicked": "Check the picked parts ({count})",
+    "picked": "{count, plural, =0 {No part picked} one {# part picked} other {# parts picked}}"
+  }
+}

@@ -1,1 +1,27 @@
-{}
+{
+  "svgTitle": "Schéma du vélo : touchez une pièce pour la sélectionner",
+  "canvasLabel": "Vue 3D interactive du vélo",
+  "loading": "Chargement de la vue 3D…",
+  "noWebgl": "La 3D n'est pas disponible sur cet appareil. Le schéma reste utilisable : touchez une pièce.",
+  "contextLost": "La vue 3D s'est interrompue. Le schéma reste utilisable.",
+  "contextLostFinal": "La vue 3D s'est interrompue plusieurs fois : le schéma reste affiché.",
+  "error": "La vue 3D a rencontré un problème. Le schéma reste utilisable.",
+  "reload3d": "Recharger la 3D",
+  "reset": "Recentrer la vue",
+  "rotate": "Pivoter",
+  "dev": {
+    "title": "Visionneuse 3D (page de test)",
+    "perfTitle": "Visionneuse 3D : mesures de performance (page de test)",
+    "intro": "Page réservée aux tests automatisés. Elle n'existe que lorsque ENABLE_TEST_PAGES=1.",
+    "preset": "Modèle de vélo",
+    "quality": "Qualité",
+    "mode": "Mode",
+    "modeBrowse": "Explorer",
+    "modePick": "Choisir des pièces",
+    "partsHeading": "Pièces",
+    "panelEmpty": "Aucune pièce sélectionnée.",
+    "checkupPart": "Lancer le contrôle de cette pièce",
+    "checkupPicked": "Contrôler les pièces choisies ({count})",
+    "picked": "{count, plural, =0 {Aucune pièce choisie} one {# pièce choisie} other {# pièces choisies}}"
+  }
+}
