@@ -1,0 +1,51 @@
+---
+slug: adjust-front-derailleur
+kind: adjust
+title: "Régler le dérailleur avant"
+summary: "Placer la fourchette à la bonne hauteur et dans l’axe, régler les butées, retendre le câble et vérifier les passages. Pour une chaîne qui ne déraille plus entre les plateaux."
+status: stub
+order: 30
+difficulty: 2
+minutes: 30
+partIds:
+  - front-derailleur
+  - shifter-left
+appliesTo:
+  all:
+    - path: drivetrain.chainrings
+      in: [2, 3]
+    - path: drivetrain.shifter
+      notIn: [electronic]
+tools:
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - adjust-rear-derailleur
+  - check-drivetrain
+  - replace-shift-cable
+steps:
+  - id: height-angle
+    title: "Régler la hauteur et l’angle"
+    partIds: [front-derailleur]
+  - id: limit-screws
+    title: "Régler les butées"
+    partIds: [front-derailleur]
+    illustration: derailleur-limit-screws-h-l-b
+  - id: cable-tension
+    title: "Retendre le câble"
+    partIds: [shifter-left]
+  - id: test
+    title: "Tester les passages"
+---
+
+<Step id="limit-screws">
+
+Mettez la chaîne sur le petit plateau et le plus grand pignon. Avec le <Tool id="phillips-screwdriver" alt="multi-tool" />, réglez la vis L pour laisser un millimètre entre la chaîne et la plaque intérieure de la fourchette. Passez ensuite sur le grand plateau et le plus petit pignon, et réglez la vis H pour laisser le même écart côté extérieur.
+
+Vérifiez avant tout que la fourchette passe à un ou deux millimètres au-dessus des dents du grand plateau et reste parallèle à lui. Retendez ensuite le câble.
+
+</Step>

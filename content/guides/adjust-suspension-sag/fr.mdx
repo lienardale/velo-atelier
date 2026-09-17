@@ -1,0 +1,93 @@
+---
+slug: adjust-suspension-sag
+kind: adjust
+title: Régler l’affaissement de la suspension (sag)
+summary: Mesurer de combien la fourche et l’amortisseur s’enfoncent sous votre poids, puis régler la pression d’air ou la précontrainte pour tomber dans la bonne plage.
+status: full
+order: 40
+difficulty: 2
+minutes: 30
+partIds:
+  - fork
+  - rear-shock
+appliesTo:
+  any:
+    - path: suspension.front
+      in: [true]
+    - path: suspension.rear
+      in: [true]
+tools:
+  - toolId: shock-pump
+    alternatives: []
+  - toolId: zip-tie
+    alternatives: []
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+related:
+  - check-suspension
+  - measure-tire-pressure
+safety:
+  - "Ne dépassez jamais la pression maximale inscrite sur la fourche ou l’amortisseur, et ne démontez jamais le capuchon d’une chambre à air sous pression : purgez-la d’abord."
+steps:
+  - id: read-travel
+    title: Trouver la course de la suspension
+  - id: fork-sag
+    title: Mesurer l’affaissement de la fourche
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    illustration: sag-measure-oring
+  - id: shock-sag
+    title: Mesurer l’affaissement de l’amortisseur
+    partIds: [rear-shock]
+    appliesTo:
+      path: suspension.rear
+      in: [true]
+  - id: set-pressure
+    title: Corriger la pression ou la précontrainte
+  - id: rebound
+    title: Régler la détente et rouler
+---
+
+<Step id="read-travel">
+
+L’affaissement, ou sag, est la part de la course qui s’enfonce quand vous êtes simplement assis sur le vélo, en tenue. Il se règle en pourcentage de la course totale : il faut donc d’abord connaître cette course.
+
+Cherchez-la sur l’autocollant du fourreau, dans la documentation du vélo ou sur le site du fabricant : 100 mm, 120 mm, 150 mm… Pour un amortisseur arrière, la valeur utile est la course de la tige, souvent 40 à 65 mm, gravée sur le corps avec l’entraxe. Équipez-vous de tout ce que vous portez en roulant : casque, sac, bidon.
+
+</Step>
+
+<Step id="fork-sag">
+
+Repoussez le joint torique du plongeur contre le joint racleur. Si la fourche n’en a pas, serrez un <Tool id="zip-tie" /> autour du plongeur, sans excès. Montez sur le vélo en douceur, appuyé contre un mur, en position de pilotage, pieds sur les pédales, sans faire rebondir la fourche.
+
+Descendez du vélo tout aussi doucement, sans comprimer la fourche. Mesurez avec le <Tool id="tape-measure" alt="steel-ruler" /> la distance entre le joint racleur et le joint torique, puis divisez-la par la course : 20 mm sur 100 mm font 20 %. Visez 15 à 20 % pour une fourche de cross-country, 20 à 25 % pour une fourche de randonnée ou d’enduro.
+
+</Step>
+
+<Step id="shock-sag">
+
+Faites de même sur l’amortisseur arrière : repoussez son joint torique contre le joint de la tige, montez sur le vélo en position assise, pieds sur les pédales, puis redescendez sans appuyer sur la selle.
+
+Mesurez la distance parcourue par le joint torique sur la tige et divisez-la par la course de l’amortisseur. Visez 25 à 30 % : 15 mm sur une course de 55 mm font 27 %. Beaucoup d’amortisseurs portent des graduations qui donnent le pourcentage directement.
+
+</Step>
+
+<Step id="set-pressure">
+
+Sur une suspension à air, vissez la <Tool id="shock-pump" /> sur la valve, lisez la pression et ajoutez de l’air si l’affaissement est trop grand, retirez-en s’il est trop petit, par pas de 5 psi environ. Pompez ensuite la suspension une dizaine de fois pour égaliser les chambres, puis mesurez à nouveau.
+
+Sur une suspension à ressort, tournez la molette de précontrainte : un tour ou deux changent peu. Si vous ne trouvez pas la bonne plage sans visser la précontrainte à fond, il faut un ressort plus dur ou plus souple, adapté à votre poids.
+
+<Measure id="sag" unit="percent" target="15–30 %" />
+
+</Step>
+
+<Step id="rebound">
+
+La détente règle la vitesse à laquelle la suspension revient après un choc. Molette rouge, souvent en bas du fourreau droit ou au bout de l’amortisseur : partez du milieu de sa plage. Appuyez fort sur le guidon puis relâchez : la fourche doit remonter vite, sans vous renvoyer les mains en l’air.
+
+Roulez sur un chemin connu, avec racines et petites marches. Si la suspension talonne souvent, ajoutez un peu d’air ; si elle n’utilise jamais plus des deux tiers de sa course, retirez-en. Notez les pressions retenues, elles serviront après chaque entretien.
+
+</Step>

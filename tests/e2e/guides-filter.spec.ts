@@ -19,7 +19,9 @@ import { parseFrontmatter } from "../../lib/content/frontmatter";
 import { GuideFrontmatterSchema } from "../../lib/content/schema";
 import enGuides from "../../messages/en/guides.json";
 import frGuides from "../../messages/fr/guides.json";
+import { matchesSpec } from "../../lib/content/applies-to";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
+import { specFor } from "../_fakes/domain/build";
 
 import { expect, forEachLocale, href, test } from "./_fixtures";
 
@@ -114,11 +116,13 @@ forEachLocale((locale) => {
     await expect(toggle).toBeEnabled();
     await toggle.check();
     await expect(page).toHaveURL(/\?bike=local$/);
-    // A rim-brake road bike: no disc-brake guide.
-    const disc = slugsWhere((g) => JSON.stringify(g.appliesTo ?? {}).includes("isDisc"));
-    for (const slug of disc)
+    // A rim-brake road bike: no disc-brake guide, nor any other guide whose appliesTo it fails.
+    const road = specFor("road-rim-2x11");
+    const hidden = slugsWhere((g) => !matchesSpec(g.appliesTo, road));
+    expect(hidden).toContain("check-brakes-disc");
+    for (const slug of hidden)
       await expect(page.locator(`[data-guide-slug="${slug}"]`)).toHaveCount(0);
-    await expect(list(page)).toHaveCount(guides.length - disc.length);
+    await expect(list(page)).toHaveCount(guides.length - hidden.length);
   });
 
   test(`a card opens its guide (${locale})`, async ({ page }) => {

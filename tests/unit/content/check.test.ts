@@ -33,6 +33,7 @@ import {
   runContentCheck,
 } from "@/lib/content/check";
 import { RETAILERS } from "@/lib/domain/data/retailers";
+import { slugsOnDisk } from "@/tests/_helpers/guides";
 
 import { runCli } from "../../../scripts/content-check";
 
@@ -219,8 +220,9 @@ describe("known-bad fixtures (tests/fixtures/content-bad)", () => {
     expect(runCli(["--root", emitRoot, "--strict"]).code).toBe(1);
     const ok = runCli(["--root", emitRoot, "--emit"]);
     expect(ok.code, ok.stderr).toBe(0);
-    expect(ok.stdout).toMatch(
-      /3 guide\(s\), 17 step\(s\), no problem\. lib\/content\/generated\/ written\./,
+    const onDisk = buildContentManifest(REPO);
+    expect(ok.stdout).toContain(
+      `${onDisk.slugs.length} guide(s), ${onDisk.stepKeys.length} step(s), no problem. lib/content/generated/ written.`,
     );
     expect(
       readFileSync(join(emitRoot, "lib", "content", "generated", "version.ts"), "utf8"),
@@ -707,7 +709,11 @@ describe("helpers and the generated manifest", () => {
 
   it("builds the manifest from the frontmatter and renders the three modules", () => {
     const manifest = buildContentManifest(REPO);
-    expect(manifest.slugs).toEqual(["check-brakes-disc", "clean-chain", "replace-brake-pads-disc"]);
+    // Every guide folder on disk, sorted (the corpus grows wave by wave).
+    expect(manifest.slugs).toEqual(slugsOnDisk());
+    expect(manifest.slugs).toEqual(
+      expect.arrayContaining(["check-brakes-disc", "clean-chain", "replace-brake-pads-disc"]),
+    );
     expect(manifest.stepKeys).toContain("check-brakes-disc#pad-wear");
     expect(manifest.reasonKeys).toEqual(expect.arrayContaining(["chain-elongation", "pad-worn"]));
     expect(manifest.version).toMatch(/^[0-9a-f]{40}$/);

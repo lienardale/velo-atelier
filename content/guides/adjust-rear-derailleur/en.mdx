@@ -1,0 +1,105 @@
+---
+slug: adjust-rear-derailleur
+kind: adjust
+title: Adjust the rear derailleur
+summary: Check the hanger, set the H and L limit screws, re-tension the cable, fine-tune indexing with the barrel adjuster, then the B-screw. Crisp, quiet shifting.
+status: full
+order: 10
+difficulty: 2
+minutes: 30
+partIds:
+  - rear-derailleur
+  - shifter-right
+  - shift-cables
+appliesTo:
+  all:
+    - path: drivetrain.kind
+      in: [derailleur]
+    - path: drivetrain.shifter
+      notIn: [electronic]
+tools:
+  - toolId: work-stand
+    alternatives: []
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - check-drivetrain
+  - replace-shift-cable
+  - clean-drivetrain
+  - adjust-electronic-indexing
+safety:
+  - Keep your fingers away from the jockey wheels and sprockets when you turn the pedals. The chain pulls them in without warning.
+  - A badly set L screw lets the chain drop between the cassette and the spokes, which can lock the wheel while riding. Always check it before you ride.
+steps:
+  - id: check-hanger
+    title: Check the derailleur hanger
+    partIds: [rear-derailleur]
+  - id: limit-screws
+    title: Set the H and L limit screws
+    partIds: [rear-derailleur]
+    illustration: derailleur-limit-screws-h-l-b
+  - id: cable-tension
+    title: Re-tension the cable
+    partIds: [shift-cables, shifter-right]
+  - id: indexing
+    title: Fine-tune indexing with the barrel adjuster
+    partIds: [shifter-right, shift-cables]
+    illustration: barrel-adjuster
+  - id: b-screw
+    title: Set the B-screw
+    partIds: [rear-derailleur]
+  - id: test
+    title: Test every gear
+---
+
+<Step id="check-hanger">
+
+Put the bike in the <Tool id="work-stand" />, or turn it upside down, so you can turn the pedals freely. Shift onto the largest sprocket, stand behind the bike and look along the derailleur: both jockey wheels should line up exactly under the sprocket, in the same plane as the cassette.
+
+If the derailleur leans towards the spokes, the hanger holding it is bent, often after a crash or after the bike was laid down on the wrong side. No adjustment makes up for a bent hanger: have it straightened or replaced before you carry on.
+
+</Step>
+
+<Step id="limit-screws">
+
+The two small screws marked H and L stop the chain from leaving the cassette. Shift onto the smallest sprocket, then release the cable tension by turning the barrel adjuster. With the <Tool id="phillips-screwdriver" alt="multi-tool" />, set the H screw so that the upper jockey wheel sits right below the outer edge of the smallest sprocket.
+
+Then move onto the largest sprocket, pushing the derailleur by hand if needed. Set the L screw so the chain climbs cleanly onto the largest sprocket, but the derailleur can never travel further towards the spokes. Screwing a limit screw in restricts travel, screwing it out opens it, a quarter turn at a time.
+
+</Step>
+
+<Step id="cable-tension">
+
+Go back to the smallest sprocket. Screw the barrel adjusters on the shifter and on the derailleur all the way in, then back them out one turn: that leaves room to adjust both ways. Loosen the cable clamp bolt on the derailleur with the <Tool id="allen-keys" alt="multi-tool" />.
+
+Pull the cable with the <Tool id="pliers" alt="adjustable-wrench" />, gently, to take up the slack, then tighten the clamp bolt with the cable sitting in its groove. Shift one gear towards the larger sprockets: if the chain does not climb, there is not enough tension; if it jumps two sprockets, there is too much.
+
+</Step>
+
+<Step id="indexing">
+
+Put the chain on the second-smallest sprocket while turning the pedals. Listen: a regular ticking and a chain rubbing against the next larger sprocket mean the cable is too tight; a chain that hesitates to climb means it is too slack.
+
+Turn the barrel adjuster a quarter turn at a time: unscrewing it, so that it comes out of the derailleur, adds tension; screwing it back in releases it. Indexing is right when the chain moves up and down one sprocket per click, silently, across the whole cassette.
+
+</Step>
+
+<Step id="b-screw">
+
+The B-screw, at the back of the derailleur, sets the gap between the upper jockey wheel and the sprockets. Shift onto the largest sprocket and turn the pedals backwards: the jockey wheel should run close to the teeth without ever touching them.
+
+Screw the B-screw in if the jockey wheel rubs or clatters against the largest sprocket, and out if it sits very far away: a gap of 5 to 6 mm suits most derailleurs. Too big a gap makes shifts to the larger sprockets sluggish.
+
+</Step>
+
+<Step id="test">
+
+Run through every gear one at a time, in both directions, turning the pedals at a normal pace, then do it again on each chainring. Every click should move the chain by one sprocket, without noise or hesitation.
+
+Then take a short test ride and pedal hard up a slope: a new cable stretches a little in the first few days. If shifting becomes imprecise again, a quarter turn of the barrel adjuster usually fixes it. If nothing helps, the cable or the housing may need replacing.
+
+</Step>

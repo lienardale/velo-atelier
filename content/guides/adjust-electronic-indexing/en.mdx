@@ -1,0 +1,45 @@
+---
+slug: adjust-electronic-indexing
+kind: adjust
+title: "Adjust electronic shifting"
+summary: "Charge the system, enter adjustment mode and trim the derailleur step by step from the shifters or the maker’s app. No cable to tension."
+status: stub
+order: 50
+difficulty: 1
+minutes: 15
+partIds:
+  - rear-derailleur
+  - front-derailleur
+  - shifter-right
+appliesTo:
+  path: drivetrain.shifter
+  in: [electronic]
+tools:
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: work-stand
+    alternatives: []
+related:
+  - adjust-rear-derailleur
+  - check-drivetrain
+steps:
+  - id: charge
+    title: "Charge the system"
+  - id: adjust-mode
+    title: "Enter adjustment mode"
+    partIds: [shifter-right]
+  - id: micro-adjust
+    title: "Trim the derailleur step by step"
+    partIds: [rear-derailleur]
+  - id: limit-check
+    title: "Check the limit screws"
+    partIds: [rear-derailleur, front-derailleur]
+---
+
+<Step id="micro-adjust">
+
+Put the bike in a <Tool id="work-stand" />, with the battery charged, and switch the system to adjustment mode: a button on the derailleur, the shifter or the junction box, depending on the brand. Put the chain on a middle sprocket.
+
+Each press now moves the derailleur by a small step without changing gear. Trim towards the larger sprockets if the chain hesitates to climb, towards the smaller ones if it rubs, then leave adjustment mode and test every gear.
+
+</Step>

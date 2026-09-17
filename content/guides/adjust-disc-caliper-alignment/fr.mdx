@@ -1,0 +1,108 @@
+---
+slug: adjust-disc-caliper-alignment
+kind: adjust
+title: Aligner un étrier de frein à disque
+summary: Trouver d’où vient le frottement, desserrer l’étrier, le recentrer sur le disque puis le resserrer au bon couple. Dix minutes pour une roue qui tourne en silence.
+status: full
+order: 20
+difficulty: 2
+minutes: 20
+partIds:
+  - brake-caliper-front
+  - brake-caliper-rear
+  - rotor-front
+  - rotor-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - replace-brake-pads-disc
+  - clean-disc-rotors-pads
+  - replace-rotor
+safety:
+  - Un disque qui vient de freiner peut dépasser 100 °C. Laissez-le refroidir avant d’y mettre les doigts, et ne touchez jamais un disque qui tourne.
+  - "Resserrez toujours les vis de l’étrier avant de rouler, puis vérifiez que la roue se bloque quand vous serrez le levier : un étrier desserré peut se tordre ou se détacher au premier freinage."
+steps:
+  - id: find-rub
+    title: Trouver le frottement
+    illustration: rotor-true-check
+  - id: loosen-caliper
+    title: Desserrer l’étrier
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: center-hydraulic
+    title: Recentrer un étrier hydraulique
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-hydraulic]
+  - id: center-mechanical
+    title: Recentrer un étrier mécanique
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-mechanical]
+  - id: tighten
+    title: Resserrer au couple
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: rotor-check
+    title: Contrôler le disque et rouler
+    partIds: [rotor-front, rotor-rear]
+---
+
+<Step id="find-rub">
+
+Soulevez la roue et faites-la tourner lentement. Un frottement régulier, qui chante sur tout le tour, vient d’un étrier décalé ; un frottement qui revient une fois par tour, au même endroit, vient d’un disque voilé. Ce guide règle le premier cas.
+
+Regardez l’étrier par le dessus, avec une feuille blanche posée au sol sous la roue pour mieux voir la lumière. Il doit rester un fin filet de lumière de chaque côté du disque, entre le disque et chaque plaquette. Repérez le côté où le filet disparaît.
+
+</Step>
+
+<Step id="loosen-caliper">
+
+Nettoyez d’abord le disque avec des <Tool id="rags" /> imbibés d’<Tool id="isopropyl-alcohol" /> : un disque gras frotte et siffle même bien centré.
+
+Desserrez les deux vis qui fixent l’étrier au cadre ou à la fourche avec les <Tool id="allen-keys" alt="multi-tool" />, juste assez pour que l’étrier bouge à la main en glissant latéralement, pas plus. Sur un étrier avec adaptateur, ne touchez qu’aux vis qui tiennent l’étrier sur l’adaptateur.
+
+</Step>
+
+<Step id="center-hydraulic">
+
+Serrez fermement le levier de frein et gardez-le serré : les pistons referment les plaquettes sur le disque et placent l’étrier pile dans l’axe. Si possible, fixez le levier serré avec une sangle ou un élastique pour avoir les deux mains libres.
+
+Levier toujours serré, resserrez les deux vis de l’étrier à tour de rôle, un demi-tour chacune, pour que l’étrier ne pivote pas. Si un piston sort beaucoup plus que l’autre, repoussez les deux pistons avant de recommencer.
+
+</Step>
+
+<Step id="center-mechanical">
+
+Sur la plupart des freins à disque mécaniques, une seule plaquette bouge : la plaquette intérieure, côté rayons, est fixe et se règle par une molette ou une vis sur le côté de l’étrier. Tournez-la pour laisser un écart d’environ un demi-millimètre entre cette plaquette et le disque.
+
+Placez ensuite l’étrier pour que le disque soit parallèle aux plaquettes, puis réglez la plaquette extérieure avec le tendeur de câble du levier ou de l’étrier. Le levier doit freiner franchement avant de toucher le cintre, sans que les plaquettes frottent quand il est relâché.
+
+</Step>
+
+<Step id="tighten">
+
+Serrez les vis de l’étrier au couple gravé sur l’étrier ou indiqué par le fabricant, souvent 6 à 8 Nm, avec la <Tool id="torque-wrench" />. Serrez-les à tour de rôle, par petits pas, en regardant l’étrier : il ne doit pas pivoter.
+
+Relâchez le levier, actionnez-le une dizaine de fois, puis faites tourner la roue. Il ne doit plus y avoir de frottement continu. Un léger frôlement disparaît souvent après quelques freinages ; s’il persiste, recommencez l’alignement.
+
+</Step>
+
+<Step id="rotor-check">
+
+S’il reste un frottement qui revient une fois par tour, regardez le filet de lumière pendant que la roue tourne : il s’ouvre et se ferme au même endroit du disque. Un disque légèrement voilé se redresse parfois à la main, mais un disque tordu, bleui ou plus fin que l’épaisseur minimale gravée dessus doit être remplacé.
+
+Avant de rouler, serrez le levier en poussant le vélo : la roue doit se bloquer net. Faites quelques freinages progressifs à faible vitesse pour vérifier que tout est ferme et silencieux.
+
+</Step>

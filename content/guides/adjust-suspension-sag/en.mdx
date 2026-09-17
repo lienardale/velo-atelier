@@ -1,0 +1,93 @@
+---
+slug: adjust-suspension-sag
+kind: adjust
+title: Set suspension sag
+summary: Measure how far the fork and shock sink under your weight, then adjust the air pressure or the spring preload to land in the right range.
+status: full
+order: 40
+difficulty: 2
+minutes: 30
+partIds:
+  - fork
+  - rear-shock
+appliesTo:
+  any:
+    - path: suspension.front
+      in: [true]
+    - path: suspension.rear
+      in: [true]
+tools:
+  - toolId: shock-pump
+    alternatives: []
+  - toolId: zip-tie
+    alternatives: []
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+related:
+  - check-suspension
+  - measure-tire-pressure
+safety:
+  - Never go above the maximum pressure printed on the fork or shock, and never remove the cap of an air chamber that is still under pressure. Let the air out first.
+steps:
+  - id: read-travel
+    title: Find the suspension travel
+  - id: fork-sag
+    title: Measure fork sag
+    partIds: [fork]
+    appliesTo:
+      path: suspension.front
+      in: [true]
+    illustration: sag-measure-oring
+  - id: shock-sag
+    title: Measure rear shock sag
+    partIds: [rear-shock]
+    appliesTo:
+      path: suspension.rear
+      in: [true]
+  - id: set-pressure
+    title: Correct the pressure or preload
+  - id: rebound
+    title: Set rebound and ride
+---
+
+<Step id="read-travel">
+
+Sag is the part of the travel the suspension uses when you simply sit on the bike in your riding kit. It is set as a percentage of the total travel, so you need to know that travel first.
+
+Find it on the sticker on the fork leg, in the bike's manual or on the maker's website: 100 mm, 120 mm, 150 mm… For a rear shock, the number that matters is the shaft stroke, often 40 to 65 mm, printed on the body next to the eye-to-eye length. Put on everything you wear when riding: helmet, backpack, bottle.
+
+</Step>
+
+<Step id="fork-sag">
+
+Push the O-ring on the stanchion down against the wiper seal. If the fork has none, fasten a <Tool id="zip-tie" /> around the stanchion, not too tight. Get on the bike gently, leaning against a wall, in your riding position with your feet on the pedals, without bouncing the fork.
+
+Get off just as gently, without compressing the fork. Measure the distance between the wiper seal and the O-ring with the <Tool id="tape-measure" alt="steel-ruler" />, then divide it by the travel: 20 mm out of 100 mm is 20 %. Aim for 15 to 20 % on a cross-country fork, 20 to 25 % on a trail or enduro fork.
+
+</Step>
+
+<Step id="shock-sag">
+
+Do the same on the rear shock: push its O-ring against the shaft seal, sit on the bike with your feet on the pedals, then get off without pressing on the saddle.
+
+Measure how far the O-ring has moved along the shaft and divide it by the shock stroke. Aim for 25 to 30 %: 15 mm on a 55 mm stroke is 27 %. Many shocks carry markings that give the percentage directly.
+
+</Step>
+
+<Step id="set-pressure">
+
+On air suspension, screw the <Tool id="shock-pump" /> onto the valve, read the pressure, and add air if the sag is too large or let some out if it is too small, in steps of about 5 psi. Then cycle the suspension ten times to equalise the chambers, and measure again.
+
+On coil suspension, turn the preload dial: a turn or two changes little. If you cannot reach the right range without winding the preload all the way in, you need a firmer or softer spring that suits your weight.
+
+<Measure id="sag" unit="percent" target="15–30 %" />
+
+</Step>
+
+<Step id="rebound">
+
+Rebound sets how fast the suspension comes back after a hit. The red dial, often at the bottom of the right fork leg or at the end of the shock: start from the middle of its range. Push down hard on the handlebar and let go: the fork should come back quickly without throwing your hands up.
+
+Ride a trail you know, with roots and small drops. If the suspension bottoms out often, add a little air; if it never uses more than two thirds of its travel, let some out. Write down the pressures you settle on, you will need them after every service.
+
+</Step>

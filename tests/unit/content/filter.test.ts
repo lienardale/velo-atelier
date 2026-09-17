@@ -81,19 +81,37 @@ describe("filterGuides", () => {
     expect(filterGuides(guides, { spec: null })).toHaveLength(guides.length);
   });
 
+  // The corpus grows wave by wave (W1: 3 guides, W2: 47), so these assertions are
+  // written against what is on disk, anchored on guides that exist since W1.
   it("narrows by kind and by system", () => {
-    expect(slugs(filterGuides(guides, { kind: "clean" }))).toEqual(["clean-chain"]);
-    expect(slugs(filterGuides(guides, { system: "brakes" }))).toEqual([
-      "check-brakes-disc",
-      "replace-brake-pads-disc",
-    ]);
+    const clean = filterGuides(guides, { kind: "clean" });
+    expect(slugs(clean)).toContain("clean-chain");
+    expect(clean.every((guide) => guide.kind === "clean")).toBe(true);
+    expect(clean).toHaveLength(guides.filter((guide) => guide.kind === "clean").length);
+
+    const brakes = filterGuides(guides, { system: "brakes" });
+    expect(slugs(brakes)).toEqual(
+      expect.arrayContaining(["check-brakes-disc", "replace-brake-pads-disc"]),
+    );
+    expect(slugs(brakes)).not.toContain("clean-chain");
+    expect(brakes.every((guide) => guide.systems.includes("brakes"))).toBe(true);
+
     expect(filterGuides(guides, { kind: "clean", system: "suspension" })).toEqual([]);
   });
 
   it("narrows by bike through appliesTo", () => {
-    expect(slugs(filterGuides(guides, { spec: specFor("road-rim-2x11") }))).toEqual([
-      "clean-chain",
-    ]);
-    expect(slugs(filterGuides(guides, { spec: specFor("gravel-1x11") }))).toEqual(slugs(guides));
+    const road = slugs(filterGuides(guides, { spec: specFor("road-rim-2x11") }));
+    expect(road).toContain("clean-chain");
+    expect(road).not.toContain("check-brakes-disc");
+    expect(road).not.toContain("replace-brake-pads-disc");
+
+    const gravel = slugs(filterGuides(guides, { spec: specFor("gravel-1x11") }));
+    expect(gravel).toEqual(
+      expect.arrayContaining(["check-brakes-disc", "clean-chain", "replace-brake-pads-disc"]),
+    );
+    // Guides without a condition apply to every bike.
+    const unconditional = slugs(guides.filter((guide) => guide.appliesTo === undefined));
+    expect(road).toEqual(expect.arrayContaining(unconditional));
+    expect(gravel).toEqual(expect.arrayContaining(unconditional));
   });
 });

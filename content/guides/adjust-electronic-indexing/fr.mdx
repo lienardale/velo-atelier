@@ -1,0 +1,45 @@
+---
+slug: adjust-electronic-indexing
+kind: adjust
+title: "Régler l’indexation d’une transmission électronique"
+summary: "Charger le système, passer en mode réglage et décaler le dérailleur pas à pas depuis les manettes ou l’application du fabricant. Aucun câble à tendre."
+status: stub
+order: 50
+difficulty: 1
+minutes: 15
+partIds:
+  - rear-derailleur
+  - front-derailleur
+  - shifter-right
+appliesTo:
+  path: drivetrain.shifter
+  in: [electronic]
+tools:
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: work-stand
+    alternatives: []
+related:
+  - adjust-rear-derailleur
+  - check-drivetrain
+steps:
+  - id: charge
+    title: "Charger le système"
+  - id: adjust-mode
+    title: "Passer en mode réglage"
+    partIds: [shifter-right]
+  - id: micro-adjust
+    title: "Décaler le dérailleur pas à pas"
+    partIds: [rear-derailleur]
+  - id: limit-check
+    title: "Vérifier les butées"
+    partIds: [rear-derailleur, front-derailleur]
+---
+
+<Step id="micro-adjust">
+
+Installez le vélo sur un <Tool id="work-stand" />, batterie chargée, et passez le système en mode réglage : un bouton sur le dérailleur, la manette ou le boîtier de jonction, selon la marque. Placez la chaîne sur un pignon du milieu.
+
+Chaque appui décale alors le dérailleur d’un petit pas sans changer de vitesse. Décalez vers les grands pignons si la chaîne hésite à monter, vers les petits si elle frotte, puis quittez le mode réglage et testez toutes les vitesses.
+
+</Step>

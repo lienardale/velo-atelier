@@ -2,12 +2,10 @@
  * Every guide a geometry measure points at is a FULL guide, in both locales
  * (§5.7, §5.8 AC8): a fit page that links to a stub teaches nothing.
  *
- * The slug contract is checked for every measure now: the target is in
- * `FULL_SLUGS`, so it can never legally be a stub. The on-disk check runs for
- * every target that has been written; targets still to be authored (W2-T4a/b
- * write `measure-*` and `adjust-suspension-sag`) are listed as visible
- * `todo`s — not silently passed — until their folder exists, at which point the
- * assertion runs with no edit to this file.
+ * Two layers: the slug contract (the target is in `FULL_SLUGS`, so it can never
+ * legally be a stub) and the files on disk (both locales exist, parse, and say
+ * `status: full`). Every target has been written since W2-T4b, so a missing
+ * folder is a failure, not a `todo`.
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -30,14 +28,28 @@ describe("geometry measures → full guides", () => {
   });
 
   for (const slug of targets) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename -- slug comes from the domain data, joined under content/guides
-    if (!existsSync(join(GUIDES_DIR, slug))) {
-      it.todo(`${slug}: status full in fr and en (content/guides/${slug} not written yet — W2-T4)`);
-      continue;
-    }
-    it(`${slug}: status full in fr and en`, () => {
-      expect(readGuide(slug, "fr").status).toBe("full");
-      expect(readGuide(slug, "en").status).toBe("full");
+    describe(slug, () => {
+      it("is written in both locales", () => {
+        for (const locale of ["fr", "en"] as const) {
+          // eslint-disable-next-line security/detect-non-literal-fs-filename -- slug comes from the domain data, joined under content/guides
+          expect(existsSync(join(GUIDES_DIR, slug, `${locale}.mdx`)), `${slug}/${locale}.mdx`).toBe(
+            true,
+          );
+        }
+      });
+
+      it("has status full in fr and en", () => {
+        expect(readGuide(slug, "fr").status).toBe("full");
+        expect(readGuide(slug, "en").status).toBe("full");
+      });
+
+      it("is the same kind as its slug and at least 4 steps long", () => {
+        for (const locale of ["fr", "en"] as const) {
+          const guide = readGuide(slug, locale);
+          expect(guide.kind).toBe(slug.slice(0, slug.indexOf("-")));
+          expect(guide.steps.length).toBeGreaterThanOrEqual(4);
+        }
+      });
     });
   }
 });

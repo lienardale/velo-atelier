@@ -1,0 +1,105 @@
+---
+slug: adjust-rear-derailleur
+kind: adjust
+title: Régler le dérailleur arrière
+summary: Vérifier la patte, régler les butées H et L, retendre le câble, affiner l’indexation au tendeur puis la vis B. Des vitesses qui passent net et en silence.
+status: full
+order: 10
+difficulty: 2
+minutes: 30
+partIds:
+  - rear-derailleur
+  - shifter-right
+  - shift-cables
+appliesTo:
+  all:
+    - path: drivetrain.kind
+      in: [derailleur]
+    - path: drivetrain.shifter
+      notIn: [electronic]
+tools:
+  - toolId: work-stand
+    alternatives: []
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - check-drivetrain
+  - replace-shift-cable
+  - clean-drivetrain
+  - adjust-electronic-indexing
+safety:
+  - "Gardez les doigts loin des galets et des pignons quand vous tournez les pédales : la chaîne les entraîne sans prévenir."
+  - Une butée L mal réglée laisse la chaîne tomber entre la cassette et les rayons, ce qui peut bloquer la roue en roulant. Vérifiez-la toujours avant de rouler.
+steps:
+  - id: check-hanger
+    title: Vérifier la patte de dérailleur
+    partIds: [rear-derailleur]
+  - id: limit-screws
+    title: Régler les butées H et L
+    partIds: [rear-derailleur]
+    illustration: derailleur-limit-screws-h-l-b
+  - id: cable-tension
+    title: Retendre le câble
+    partIds: [shift-cables, shifter-right]
+  - id: indexing
+    title: Affiner l’indexation au tendeur
+    partIds: [shifter-right, shift-cables]
+    illustration: barrel-adjuster
+  - id: b-screw
+    title: Régler la vis B
+    partIds: [rear-derailleur]
+  - id: test
+    title: Tester sur toutes les vitesses
+---
+
+<Step id="check-hanger">
+
+Installez le vélo sur le <Tool id="work-stand" />, ou retournez-le, pour tourner les pédales librement. Passez sur le pignon le plus grand, placez-vous derrière le vélo et regardez le dérailleur dans l’axe : les deux galets doivent être exactement alignés sous le pignon, dans le même plan que la cassette.
+
+Si le dérailleur penche vers les rayons, la patte qui le tient est tordue, souvent après une chute ou un vélo couché du mauvais côté. Aucun réglage ne compensera une patte tordue : faites-la redresser ou remplacer avant de continuer.
+
+</Step>
+
+<Step id="limit-screws">
+
+Les deux petites vis marquées H et L empêchent la chaîne de sortir de la cassette. Passez sur le petit pignon, puis relâchez la tension du câble en tournant le tendeur. Avec le <Tool id="phillips-screwdriver" alt="multi-tool" />, réglez la vis H pour que le galet supérieur soit pile à l’aplomb du bord extérieur du petit pignon.
+
+Passez ensuite sur le grand pignon en poussant le dérailleur à la main si besoin. Réglez la vis L pour que la chaîne monte franchement sur le grand pignon, mais que le dérailleur ne puisse jamais aller plus loin vers les rayons. Vissez une butée pour limiter la course, dévissez pour l’ouvrir, un quart de tour à la fois.
+
+</Step>
+
+<Step id="cable-tension">
+
+Revenez sur le petit pignon. Vissez le tendeur de la manette et celui du dérailleur à fond, puis dévissez-les d’un tour : vous gardez de la marge dans les deux sens. Desserrez la vis de serrage du câble sur le dérailleur avec les <Tool id="allen-keys" alt="multi-tool" />.
+
+Tirez le câble avec la <Tool id="pliers" alt="adjustable-wrench" />, sans forcer, pour enlever le mou, puis resserrez la vis de serrage en gardant le câble dans sa rainure. Passez une vitesse vers les grands pignons : si la chaîne ne monte pas, la tension manque ; si elle saute deux pignons, il y en a trop.
+
+</Step>
+
+<Step id="indexing">
+
+Placez la chaîne sur le deuxième plus petit pignon en tournant les pédales. Écoutez : un cliquetis régulier et une chaîne qui frotte contre le pignon voisin plus grand signalent un câble trop tendu ; une chaîne qui hésite à monter, un câble pas assez tendu.
+
+Tournez le tendeur d’un quart de tour à la fois : le dévisser, c’est-à-dire le faire sortir du dérailleur, tend le câble ; le revisser le détend. Le bon réglage est atteint quand la chaîne monte et descend d’un pignon au premier clic, sans bruit, sur toute la cassette.
+
+</Step>
+
+<Step id="b-screw">
+
+La vis B, à l’arrière du dérailleur, règle l’écart entre le galet supérieur et les pignons. Passez sur le plus grand pignon et tournez les pédales en arrière : le galet doit tourner près des dents sans jamais les toucher.
+
+Vissez la vis B si le galet frotte ou claque contre le grand pignon, dévissez-la s’il reste très loin : un écart de 5 à 6 mm convient à la plupart des dérailleurs. Un écart trop grand ralentit les passages vers les grands pignons.
+
+</Step>
+
+<Step id="test">
+
+Passez toutes les vitesses une à une, dans les deux sens, en tournant les pédales à vitesse normale, puis faites-le sur chaque plateau. Chaque clic doit déplacer la chaîne d’un pignon, sans bruit ni hésitation.
+
+Faites ensuite un court essai sur route, en appuyant sur les pédales en côte : un câble neuf se détend un peu les premiers jours. Si les passages redeviennent imprécis, un quart de tour de tendeur suffit en général. Si rien n’y fait, le câble ou la gaine sont peut-être à remplacer.
+
+</Step>

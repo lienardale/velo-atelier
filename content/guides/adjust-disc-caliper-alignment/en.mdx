@@ -1,0 +1,108 @@
+---
+slug: adjust-disc-caliper-alignment
+kind: adjust
+title: Align a disc brake caliper
+summary: Find where the rub comes from, loosen the caliper, centre it over the rotor and tighten it to the right torque. Ten minutes for a wheel that spins silently.
+status: full
+order: 20
+difficulty: 2
+minutes: 20
+partIds:
+  - brake-caliper-front
+  - brake-caliper-rear
+  - rotor-front
+  - rotor-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - replace-brake-pads-disc
+  - clean-disc-rotors-pads
+  - replace-rotor
+safety:
+  - A rotor that has just been braking can be hotter than 100 °C. Let it cool before touching it, and never touch a spinning rotor.
+  - Always tighten the caliper bolts again before riding, then check that the wheel locks when you pull the lever. A loose caliper can twist or come off at the first hard stop.
+steps:
+  - id: find-rub
+    title: Find the rub
+    illustration: rotor-true-check
+  - id: loosen-caliper
+    title: Loosen the caliper
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: center-hydraulic
+    title: Centre a hydraulic caliper
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-hydraulic]
+  - id: center-mechanical
+    title: Centre a mechanical caliper
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    appliesTo:
+      path: brakes.type
+      in: [disc-mechanical]
+  - id: tighten
+    title: Tighten to torque
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: rotor-check
+    title: Check the rotor and ride
+    partIds: [rotor-front, rotor-rear]
+---
+
+<Step id="find-rub">
+
+Lift the wheel and spin it slowly. A steady rub that sings all the way round comes from an offset caliper; a rub that comes back once per turn, at the same spot, comes from a bent rotor. This guide fixes the first case.
+
+Look down into the caliper, with a sheet of white paper on the floor under the wheel so the light shows better. There should be a thin line of light on each side of the rotor, between the rotor and each pad. Note the side where the line disappears.
+
+</Step>
+
+<Step id="loosen-caliper">
+
+First clean the rotor with <Tool id="rags" /> dampened with <Tool id="isopropyl-alcohol" />: a greasy rotor rubs and squeals even when perfectly centred.
+
+Loosen the two bolts holding the caliper to the frame or fork with the <Tool id="allen-keys" alt="multi-tool" />, just enough for the caliper to slide sideways by hand, no more. On a caliper with an adapter, only touch the bolts that hold the caliper to the adapter.
+
+</Step>
+
+<Step id="center-hydraulic">
+
+Pull the brake lever firmly and keep it pulled: the pistons close the pads onto the rotor and place the caliper right on its centre line. If you can, hold the lever closed with a strap or a rubber band to keep both hands free.
+
+With the lever still pulled, tighten the two caliper bolts in turn, half a turn each, so the caliper does not twist. If one piston sticks out much further than the other, push both pistons back before you start again.
+
+</Step>
+
+<Step id="center-mechanical">
+
+On most mechanical disc brakes, only one pad moves: the inner pad, on the spoke side, is fixed and is set with a dial or a screw on the side of the caliper. Turn it to leave a gap of about half a millimetre between that pad and the rotor.
+
+Then position the caliper so the rotor runs parallel to the pads, and set the outer pad with the cable barrel adjuster on the lever or the caliper. The lever should brake firmly before it reaches the handlebar, with no pad rubbing when it is released.
+
+</Step>
+
+<Step id="tighten">
+
+Tighten the caliper bolts to the torque printed on the caliper or given by the maker, often 6 to 8 Nm, with the <Tool id="torque-wrench" />. Tighten them in turn, in small steps, while watching the caliper: it must not twist.
+
+Release the lever, pull it about ten times, then spin the wheel. There should be no continuous rub left. A faint brush often disappears after a few stops; if it stays, align the caliper again.
+
+</Step>
+
+<Step id="rotor-check">
+
+If a rub remains that comes back once per turn, watch the line of light while the wheel spins: it opens and closes at the same place on the rotor. A slightly bent rotor can sometimes be straightened by hand, but a rotor that is bent, blued or thinner than the minimum thickness printed on it must be replaced.
+
+Before you ride, pull the lever while pushing the bike: the wheel should lock at once. Do a few gentle stops at low speed to check that everything feels firm and quiet.
+
+</Step>

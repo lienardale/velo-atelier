@@ -1,0 +1,74 @@
+---
+title: Privacy policy
+summary: What data velo-atelier keeps, why, where, for how long, and how to delete it. No advertising, no analytics, only necessary cookies.
+updatedAt: 2026-09-17
+---
+
+## In short
+
+- Without an account, **nothing leaves your browser**: your bike, your checkups and your to-fix list stay in your device's local storage.
+- With an account, the site keeps your e-mail address, your hashed password and the bikes you save, so you get them back on every device.
+- No advertising, no analytics tool, no third-party tracker, no selling of data.
+- You can delete your account and all its data at any time from the Account page.
+
+## Data controller
+
+The publisher of the site, named in the [legal notice](/en/legal): TODO-OWNER: first name and surname. To exercise your rights: TODO-OWNER: private contact e-mail address. Do not use public GitHub issues for a request that contains personal data.
+
+## The data, what it is used for, and the legal basis
+
+### Without an account
+
+The bike you describe, its measurements, your checkups and your to-fix list are stored only in your browser's local storage (keys starting with `va:`). They are not sent to the server, unless you create an account and then choose to import them. You erase them by clearing the site's data in your browser.
+
+When you switch language, your choice is kept in the `NEXT_LOCALE` cookie.
+
+### With an account
+
+| Data                                                                                                                                        | Why                                                                   | Legal basis                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------- |
+| E-mail address, display name (optional), preferred language                                                                                 | To identify you and show the site in your language                    | Performance of the service you ask for by creating an account |
+| Password, stored only as a bcrypt hash                                                                                                      | To sign you in; nobody, not even the publisher, can read the password | Performance of the service                                    |
+| If you use Google: Google account identifier, name, verified e-mail address, profile picture address and the sign-in tokens Google provides | To sign you in with Google                                            | Performance of the service                                    |
+| Your bikes: questionnaire answers, parts, fit measurements, checkups, to-fix lists                                                          | To give them back to you on every device                              | Performance of the service                                    |
+| Sign-in and sign-up attempt counters, keyed by a salted, non-reversible hash of the IP address or e-mail                                    | To limit password-guessing attacks                                    | Legitimate interest: account security                         |
+
+The site does not use your data for advertising, profiling or statistics, and shares it with nobody other than the providers below.
+
+## Providers and storage location
+
+- **Vercel Inc.** hosts the application; pages and functions run in the Paris region (cdg1). Like any host, Vercel receives visitors' IP addresses and keeps technical logs for a limited time, under its own terms.
+- **Neon** hosts the database on Amazon Web Services infrastructure, Frankfurt region (eu-central-1).
+- **Google** is involved only if you choose "Continue with Google", under its own privacy policy.
+
+Vercel and Neon are companies established in the United States. The data is stored in the European Union, but access from outside the Union cannot be ruled out; it is covered by these providers' contractual commitments (European Commission standard contractual clauses).
+
+## Retention periods
+
+- **Account and bikes:** for as long as the account exists. Deleting the account immediately erases the user and, in cascade, their linked Google accounts, bikes, checkups and lists.
+- **Session cookie:** 30 days at most, renewed when you come back to the site.
+- **Security counters:** each counter only counts within a window of 15 minutes to an hour and starts again from zero afterwards; it holds no IP address or e-mail in clear, only a non-reversible hash.
+- **Browser local storage:** until you clear it, or until you import it into an account, which removes it from the browser.
+
+## Cookies
+
+The site sets only cookies that are strictly necessary for it to work. They are exempt from consent, which is why no banner is shown.
+
+| Cookie                                                           | Purpose                                                                                                                                                                    | Duration                    |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `authjs.session-token` (prefixed `__Secure-` over HTTPS)         | Keep you signed in, only if you are signed in                                                                                                                              | 30 days at most             |
+| `NEXT_LOCALE`                                                    | Remember the language you chose                                                                                                                                            | Until the browser is closed |
+| `authjs.csrf-token`, `authjs.callback-url` (prefixed over HTTPS) | Protect sign-in against forged requests and bring you back to the page you came from; the sign-in system may set them in its first response, even if you are not signed in | Until the browser is closed |
+| `authjs.pkce.code_verifier`                                      | Secure the exchange with Google, only during a Google sign-in                                                                                                              | 15 minutes at most          |
+
+No analytics, advertising or social-network cookie is set.
+
+## Your rights
+
+You have the right to access, rectify, erase, restrict, object to and port your data. The Account page lets you change your name and password and delete your account yourself. For any other request, write to the contact given above.
+
+If you believe your rights are not respected, you can lodge a complaint with the French data protection authority, the CNIL: [cnil.fr](https://www.cnil.fr).
+
+## Security
+
+The site is served over HTTPS only. Passwords are stored as bcrypt hashes, sign-in attempts are rate-limited, and the code is public: anyone can review it and report a vulnerability through the [repository's private form](https://github.com/lienardale/velo-atelier/security/advisories/new).

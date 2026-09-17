@@ -1,0 +1,51 @@
+---
+slug: adjust-front-derailleur
+kind: adjust
+title: "Adjust the front derailleur"
+summary: "Set the cage height and angle, adjust the limit screws, re-tension the cable and check the shifts. For a chain that no longer drops off between the chainrings."
+status: stub
+order: 30
+difficulty: 2
+minutes: 30
+partIds:
+  - front-derailleur
+  - shifter-left
+appliesTo:
+  all:
+    - path: drivetrain.chainrings
+      in: [2, 3]
+    - path: drivetrain.shifter
+      notIn: [electronic]
+tools:
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - adjust-rear-derailleur
+  - check-drivetrain
+  - replace-shift-cable
+steps:
+  - id: height-angle
+    title: "Set the height and angle"
+    partIds: [front-derailleur]
+  - id: limit-screws
+    title: "Set the limit screws"
+    partIds: [front-derailleur]
+    illustration: derailleur-limit-screws-h-l-b
+  - id: cable-tension
+    title: "Re-tension the cable"
+    partIds: [shifter-left]
+  - id: test
+    title: "Test the shifts"
+---
+
+<Step id="limit-screws">
+
+Put the chain on the small chainring and the largest sprocket. With the <Tool id="phillips-screwdriver" alt="multi-tool" />, set the L screw to leave one millimetre between the chain and the inner cage plate. Then shift onto the big chainring and the smallest sprocket, and set the H screw to leave the same gap on the outside.
+
+Before anything else, check that the cage clears the teeth of the big chainring by one to two millimetres and runs parallel to it. Then re-tension the cable.
+
+</Step>

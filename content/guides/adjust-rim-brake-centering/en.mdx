@@ -1,0 +1,51 @@
+---
+slug: adjust-rim-brake-centering
+kind: adjust
+title: "Centre a rim brake"
+summary: "Line the blocks up on the rim, toe them in slightly, centre the arms with the spring screws and re-tension the cable. For a brake that rubs or touches on one side first."
+status: stub
+order: 60
+difficulty: 2
+minutes: 20
+partIds:
+  - brake-caliper-front
+  - brake-caliper-rear
+  - brake-pads-front
+  - brake-pads-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [false]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+related:
+  - check-brakes-rim
+  - replace-brake-pads-rim
+  - clean-rim-braking-surface
+safety:
+  - "A brake block that touches the tyre can cut it and make it burst. Check that every block sits fully on the rim, never on the tyre sidewall."
+steps:
+  - id: pad-alignment
+    title: "Line the blocks up on the rim"
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-rim
+  - id: toe-in
+    title: "Toe the blocks in"
+    partIds: [brake-pads-front, brake-pads-rear]
+  - id: centering
+    title: "Centre the arms"
+    partIds: [brake-caliper-front, brake-caliper-rear]
+  - id: cable-tension
+    title: "Set the cable tension"
+    partIds: [brake-caliper-front, brake-caliper-rear]
+---
+
+<Step id="centering">
+
+Pull the lever and watch which block touches the rim first. On a V-brake or a cantilever, each arm has a small spring tension screw: with the <Tool id="phillips-screwdriver" alt="multi-tool" />, screw it in a quarter turn on the side of the block that sits too close, or out on the other side, until both blocks touch at the same time.
+
+On a road caliper, slightly loosen the mounting nut with the <Tool id="allen-keys" alt="multi-tool" />, centre the caliper by hand and tighten again. Leave 1 to 2 mm between each block and the rim.
+
+</Step>

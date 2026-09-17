@@ -1,0 +1,87 @@
+---
+slug: measure-saddle-height
+kind: measure
+title: Mesurer et régler la hauteur de selle
+summary: Mesurer votre entrejambe, en déduire la hauteur de selle, la régler puis la vérifier talon sur la pédale. Le réglage qui compte le plus pour le confort et les genoux.
+status: full
+order: 10
+difficulty: 1
+minutes: 30
+partIds:
+  - saddle
+  - seatpost
+tools:
+  - toolId: tape-measure
+    alternatives: [steel-ruler]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+related:
+  - measure-saddle-setback
+  - measure-reach-and-drop
+safety:
+  - "Ne remontez jamais la tige de selle au-dessus de son repère d’insertion minimale (« min insert ») : la tige ou le cadre peut casser en roulant."
+steps:
+  - id: measure-inseam
+    title: Mesurer l’entrejambe
+  - id: calculate
+    title: Calculer la hauteur de départ
+  - id: set-height
+    title: Régler la tige de selle
+    partIds: [seatpost]
+  - id: heel-check
+    title: Vérifier talon sur la pédale
+    illustration: saddle-height-heel-method
+  - id: ride-and-refine
+    title: Rouler et affiner
+    partIds: [saddle, seatpost]
+---
+
+<Step id="measure-inseam">
+
+Retirez vos chaussures et mettez-vous dos à un mur, pieds écartés de la largeur du bassin. Glissez un livre à dos rigide entre vos jambes et remontez-le fermement contre l’entrejambe, en le gardant bien horizontal, comme le ferait une selle.
+
+Marquez au crayon l’arête supérieure du livre sur le mur, puis mesurez du sol jusqu’à la marque avec le <Tool id="tape-measure" alt="steel-ruler" />. Faites la mesure deux ou trois fois et gardez la valeur moyenne : c’est votre entrejambe, en centimètres.
+
+</Step>
+
+<Step id="calculate">
+
+Multipliez votre entrejambe par 0,883 : vous obtenez la distance entre le centre de l’axe du pédalier et le dessus de la selle, mesurée dans l’axe du tube de selle. Pour 84 cm d’entrejambe, cela donne 74,2 cm.
+
+Ce chiffre est un point de départ, pas une vérité : il suppose des chaussures de vélo classiques et une pédale ordinaire. Avec des chaussures à semelle épaisse ou des pédales plates épaisses, ajoutez quelques millimètres.
+
+<Measure id="saddle-height" unit="mm" target="0,883 × entrejambe" />
+
+</Step>
+
+<Step id="set-height">
+
+Tournez le pédalier pour mettre une manivelle dans l’axe du tube de selle. Mesurez du centre de l’axe du pédalier jusqu’au dessus de la selle, au milieu de sa longueur, là où vous vous asseyez. Comparez avec la hauteur calculée.
+
+Desserrez le collier de selle avec les <Tool id="allen-keys" alt="multi-tool" />, montez ou descendez la tige, gardez le bec de selle bien dans l’axe du cadre, puis resserrez. Sur une tige ou un cadre en carbone, serrez au couple gravé sur le collier avec la <Tool id="torque-wrench" /> et une pâte de montage.
+
+<Warning level="danger">
+
+Si la hauteur calculée fait apparaître le repère d’insertion minimale de la tige, arrêtez-vous : il faut une tige plus longue, ou un cadre plus grand.
+
+</Warning>
+
+</Step>
+
+<Step id="heel-check">
+
+Asseyez-vous sur le vélo, appuyé contre un mur ou tenu par quelqu’un, en chaussures de vélo. Posez le talon sur la pédale, manivelle en bas, dans l’axe du tube de selle, et pédalez lentement en arrière.
+
+La jambe doit être presque tendue, genou non bloqué, et le bassin ne doit pas basculer d’un côté à l’autre. Si le talon quitte la pédale, la selle est trop haute ; si le genou reste nettement plié, elle est trop basse. En pédalant ensuite normalement, avant du pied sur la pédale, le genou garde un léger angle en bas de course.
+
+</Step>
+
+<Step id="ride-and-refine">
+
+Roulez vingt à trente minutes sur un parcours connu. Une douleur à l’avant du genou indique souvent une selle trop basse ; une douleur derrière le genou, ou un bassin qui se balance, une selle trop haute.
+
+Corrigez par pas de 3 à 5 mm seulement, puis roulez de nouveau : le corps met quelques sorties à s’habituer. Notez la hauteur retenue et marquez la tige au ras du collier avec un ruban adhésif, pour la retrouver après un transport ou un démontage.
+
+</Step>

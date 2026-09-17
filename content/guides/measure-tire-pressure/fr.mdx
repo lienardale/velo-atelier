@@ -1,0 +1,83 @@
+---
+slug: measure-tire-pressure
+kind: measure
+title: Trouver et régler la pression des pneus
+summary: Lire la largeur et les limites du pneu, peser le vélo et son cycliste, calculer une pression de départ, gonfler au manomètre puis affiner en roulant.
+status: full
+order: 40
+difficulty: 1
+minutes: 15
+partIds:
+  - tire-front
+  - tire-rear
+tools:
+  - toolId: floor-pump
+    alternatives: [mini-pump]
+  - toolId: pressure-gauge
+    alternatives: [floor-pump]
+related:
+  - check-wheels-tires
+  - replace-tube-tire
+safety:
+  - Ne dépassez jamais la pression maximale inscrite sur le flanc du pneu, ni celle indiquée sur la jante ou sur son autocollant. Sur un montage tubeless, c’est souvent la jante qui fixe la limite la plus basse.
+steps:
+  - id: read-sidewall
+    title: Lire le flanc du pneu
+  - id: weigh
+    title: Peser le cycliste et le vélo
+  - id: calculate
+    title: Calculer une pression de départ
+  - id: inflate
+    title: Gonfler au manomètre
+    illustration: presta-valve-core
+  - id: fine-tune
+    title: Affiner en roulant
+---
+
+<Step id="read-sidewall">
+
+Cherchez sur le flanc du pneu deux inscriptions. La taille ETRTO, par exemple 28-622 : le premier nombre est la largeur du pneu en millimètres, le second le diamètre de la jante. Et la plage de pression, par exemple « 4,5–6,5 bar » ou « max 95 psi ».
+
+Notez la largeur et la pression maximale. Si la jante porte aussi une pression maximale, gardez la plus basse des deux : c’est la limite que vous ne dépasserez jamais.
+
+</Step>
+
+<Step id="weigh">
+
+Pesez-vous tout équipé, avec casque, chaussures et sac si vous roulez avec, puis pesez-vous en tenant le vélo : la différence donne le poids du vélo. Additionnez les deux pour obtenir le poids total que les pneus portent.
+
+Un vélo de route pèse souvent 8 à 10 kg, un VTT 12 à 15 kg, un vélo de ville chargé ou électrique 20 à 30 kg. Les sacoches pleines comptent aussi.
+
+</Step>
+
+<Step id="calculate">
+
+Partez de la pression de référence pour 85 kg au total, sur la roue arrière : 7,0 bar pour 23 mm, 6,3 bar pour 25 mm, 5,5 bar pour 28 mm, 4,5 bar pour 32 mm, 4,0 bar pour 35 mm, 3,3 bar pour 40 mm, 2,8 bar pour 45 mm, 2,4 bar pour 50 mm, 2,1 bar pour 54 mm, 1,9 bar pour 58 mm et 1,7 bar pour 64 mm.
+
+Plus lourd, gonflez un peu plus ; plus léger, un peu moins : la pression suit le poids total divisé par 85, à la puissance 0,7. Retirez 10 % en tubeless, puis 0,2 bar à l’avant, qui porte moins de poids. Exemple : 75 kg et un vélo de 9 kg sur des pneus de 28 mm avec chambre donnent environ 5,5 bar à l’arrière et 5,3 bar à l’avant. Restez entre 1,2 et 8,5 bar, et toujours sous le maximum du flanc.
+
+<Measure id="tire-pressure" unit="bar" />
+
+<Warning level="info">
+
+Ces valeurs sont des points de départ approximatifs. Les calculateurs des fabricants de pneus donnent des résultats proches ; votre ressenti décide ensuite.
+
+</Warning>
+
+</Step>
+
+<Step id="inflate">
+
+Sur une valve Presta, fine avec un écrou au bout, dévissez l’écrou de blocage de quelques tours et appuyez une seconde dessus pour décoller l’obus. Une valve Schrader, comme celle d’une voiture, se gonfle directement.
+
+Emboîtez la tête de la <Tool id="floor-pump" alt="mini-pump" /> bien droite, verrouillez le levier et gonflez jusqu’à la pression calculée. Retirez la tête d’un coup sec, contrôlez avec le <Tool id="pressure-gauge" alt="floor-pump" /> si la pompe n’a pas de manomètre, puis revissez l’écrou de la valve Presta.
+
+</Step>
+
+<Step id="fine-tune">
+
+Roulez sur votre parcours habituel. Si le vélo rebondit, que les mains vibrent ou que le pneu glisse dans les virages, baissez de 0,2 bar. Si le pneu s’écrase dans les virages, si vous pincez la chambre sur un trottoir ou si la jante touche une racine, remontez de 0,2 bar.
+
+Les pneus perdent de la pression chaque jour, surtout les chambres en latex et les montages tubeless. Contrôlez la pression avant chaque sortie sur un vélo de route, et au moins une fois par semaine sur un vélo de ville.
+
+</Step>
