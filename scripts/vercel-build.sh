@@ -14,3 +14,7 @@ else
 fi
 
 npm run build
+
+# The build that actually ships: no runtime evaluator, and no `window.__va`
+# (production never sets NEXT_PUBLIC_TEST_HOOKS, so the guard asserts absence).
+npx tsx scripts/bundle-guard.ts

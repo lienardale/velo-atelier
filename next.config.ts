@@ -7,6 +7,19 @@ const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts");
 
 const config: NextConfig = {
   reactStrictMode: true,
+  /**
+   * Normalised to a literal so the build-time gate can actually be folded away.
+   *
+   * Next only inlines a `NEXT_PUBLIC_*` variable that EXISTS at build time. Left
+   * unset, `process.env.NEXT_PUBLIC_TEST_HOOKS === "1"` in
+   * `components/bike3d/BikeViewer.tsx` stays a runtime expression: the probe is
+   * `null` and never mounts, but its `import()` stays in the module graph and
+   * `window.__va` — a remote control for the viewer — ships in the bundle
+   * (caught by `scripts/bundle-guard.ts`, 2026-09-17). Defining it here makes
+   * the comparison `"0" === "1"`, which the compiler drops along with the
+   * import. §3.6 AC7.
+   */
+  env: { NEXT_PUBLIC_TEST_HOOKS: process.env.NEXT_PUBLIC_TEST_HOOKS === "1" ? "1" : "0" },
   // A stray /Users/alienard/Code/pnpm-lock.yaml makes Next infer the wrong workspace
   // root. All builds run from the repo root, so pin it explicitly.
   // (`__dirname` is not available under ESM config files — use `process.cwd()`.)

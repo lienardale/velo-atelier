@@ -16,8 +16,13 @@ import { renderTreeIllustrations } from "./tree-illustrations";
 
 type Catalogue = Record<string, { help: string }>;
 type Alts = Record<string, { alt: string }>;
+type Legends = Record<string, { callouts?: Record<string, string> }>;
 const DECISION = { fr: frDecision as Catalogue, en: enDecision as Catalogue };
 const ALTS = { fr: frIllustrations as unknown as Alts, en: enIllustrations as unknown as Alts };
+const CALLOUTS = {
+  fr: frIllustrations as unknown as Legends,
+  en: enIllustrations as unknown as Legends,
+};
 
 afterEach(() => window.localStorage.clear());
 
@@ -59,6 +64,39 @@ describe("HelpDisclosure", () => {
     );
     expect((screen.getByTestId("decision-help") as HTMLDetailsElement).open).toBe(true);
   });
+
+  for (const locale of ["fr", "en"] as const) {
+    it(`names every numbered callout of the drawing (${locale})`, async () => {
+      const illustrations = renderTreeIllustrations();
+      let checked = 0;
+      for (const node of DECISION_TREE) {
+        const legend = CALLOUTS[locale][node.help.illustrationId]?.callouts;
+        if (legend === undefined) continue;
+        checked += 1;
+        const { unmount } = await renderWithIntl(
+          <HelpDisclosure node={node} illustrations={illustrations} />,
+          { locale },
+        );
+        const items = [
+          ...screen.getByTestId("decision-help").querySelectorAll("figcaption ol li"),
+        ].map((li) => {
+          const spans = li.querySelectorAll(":scope > span");
+          // The badge is the number a sighted reader matches against the ink on
+          // the drawing; it is aria-hidden, and the text repeats the number in
+          // an sr-only span so a screen reader hears "2. Motor around…" too.
+          return { badge: spans[0]?.textContent, read: spans[1]?.textContent };
+        });
+        // One entry per callout, in order, each carrying its own number.
+        const expected = Object.entries(legend)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([n, text]) => ({ badge: n, read: `${n}. ${text}` }));
+        expect(items, `${node.id} (${locale})`).toEqual(expected);
+        unmount();
+      }
+      // Guards the loop: a registry that lost its callouts would pass vacuously.
+      expect(checked, "no question had a callout legend").toBeGreaterThan(0);
+    });
+  }
 
   it("still renders its text when a drawing is missing", async () => {
     const node = DECISION_TREE[0];

@@ -37,6 +37,18 @@ import { config as loadEnv } from "dotenv";
 
 import type { E2EOptions } from "./tests/e2e/_fixtures";
 
+/**
+ * Captured BEFORE `.env.test` is merged in: that file pins both URLs to :3100,
+ * so after `loadEnv` there is no way to tell "the operator asked for this URL"
+ * from "the committed default". A worktree running on PLAYWRIGHT_PORT=3101 that
+ * inherited the file's :3100 would serve on one port and mint Auth.js callbacks
+ * for another — every sign-in redirect lands on the other worktree's server.
+ */
+const shellUrls = {
+  auth: process.env.AUTH_URL,
+  site: process.env.NEXT_PUBLIC_SITE_URL,
+};
+
 // Shell / CI `env:` wins over the committed file (override: false).
 loadEnv({ path: ".env.test", override: false, quiet: true });
 
@@ -63,8 +75,10 @@ const NARROW_SPECS =
  */
 const serverEnv: Record<string, string> = {
   PORT: String(PORT),
-  AUTH_URL: process.env.AUTH_URL ?? BASE_URL,
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? BASE_URL,
+  // Derived from PORT unless the shell asked for something else (a tunnel, a
+  // preview deployment); `.env.test`'s :3100 never wins over PLAYWRIGHT_PORT.
+  AUTH_URL: shellUrls.auth ?? BASE_URL,
+  NEXT_PUBLIC_SITE_URL: shellUrls.site ?? BASE_URL,
   ENABLE_TEST_PAGES: "1",
   NEXT_PUBLIC_DEMO_LOGIN: "1",
 };

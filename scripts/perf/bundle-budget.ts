@@ -228,6 +228,26 @@ function main(): void {
     measure(route, budget, budgets.webglMarker),
   );
 
+  // `--json` prints raw bytes and the ratchet's next ceiling (measured + 10 %,
+  // rounded up to a whole KiB). The table rounds to 0.1 KiB, which is not enough
+  // to re-pin `firstLoadJsGzipBytes` at a wave integration without guessing.
+  if (process.argv.includes("--json")) {
+    console.log(
+      JSON.stringify(
+        measurements.map((m) => ({
+          route: m.route,
+          gzipBytes: m.gzipBytes,
+          budget: m.budget,
+          verdict: m.verdict,
+          nextPin: Math.ceil((m.gzipBytes * 1.1) / 1024) * 1024,
+        })),
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
   const rows = measurements.map((m) => {
     const size = m.verdict === "missing" ? "not built" : kb(m.gzipBytes);
     const headroom =

@@ -122,6 +122,13 @@ Rear suspension is visual only — no linkage simulation.
 Preview deployments share a single `preview` Neon branch. Per-PR branches need a
 create/destroy hook and a quota conversation.
 
+### Home first-load JS is 56 KiB above its target
+
+`/[locale]` measures 186.3 KiB gzip against a 130 kB target (§7.3) — the
+interactive decision tree, the local-bike codec and the `DECISION_TREE` data the
+client needs to navigate. The ceiling is ratcheted, not met; **W4-T2 owns
+closing the gap**, and `perf.budgets.json` carries the pin history.
+
 ### Analytics
 
 No third-party analytics, no click tracking on retailer links, and therefore no

@@ -2,9 +2,14 @@
 # Production build + the two things that only a real build can tell us:
 #
 #   1. `npm run build`  — content-check, then `next build` (Turbopack).
-#   2. bundle budget    — first-load JS per route against perf.budgets.json,
+#   2. bundle guard     — no `new Function`/`eval` in the shipped JS, and
+#                         `window.__va` present iff NEXT_PUBLIC_TEST_HOOKS=1.
+#                         CI builds the e2e artifact with the flag ON, so CI
+#                         proves the marker is findable; `npm run ci:local`
+#                         builds with it off and proves the hooks stay out.
+#   3. bundle budget    — first-load JS per route against perf.budgets.json,
 #                         and "no WebGL chunk on the home/guide routes".
-#   3. boot check       — `next start` and curl `/api/health`. This is the
+#   4. boot check       — `next start` and curl `/api/health`. This is the
 #      tripwire for the Prisma 7 + Turbopack server-external resolution bug
 #      (prisma/prisma#29025): it only shows up in a started production server,
 #      never during `next build`. If it ever fires, the documented fallback is
@@ -19,6 +24,9 @@ export ENABLE_TEST_PAGES="${ENABLE_TEST_PAGES:-1}"
 
 log_step "next build"
 npm run build
+
+log_step "bundle guard"
+npx --no-install tsx scripts/bundle-guard.ts
 
 if [[ -f scripts/perf/bundle-budget.ts ]]; then
   log_step "bundle budget"

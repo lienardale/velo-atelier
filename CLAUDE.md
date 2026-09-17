@@ -147,6 +147,22 @@ scripts/             ci/, db/, perf/, content tooling
 - **No logic in `components/bike3d/parts/**`** — no `if`, no ternary, no `&&`
   rendering, no loops. Decide in `lib/bike3d/**`, pass a prop. ESLint enforces
   it via `no-restricted-syntax`.
+- **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is a
+  72-component barrel. Only server files may import it: guides go through
+  `components/mdx/Illustration.tsx`, the decision tree through
+  `components/decision-tree/tree-illustrations.tsx`, which hands the client tree
+  already-rendered nodes. A `"use client"` file that imports the barrel puts all
+  ~70 drawings in the route's first-load JS. A drawing with numbered
+  `data-callout`s always ships with its legend (`illustrations.<id>.callouts.<n>`),
+  in the guide renderer and in the tree's `HelpFigure` alike.
+- **Build-time flags must be literals** — Next only inlines a `NEXT_PUBLIC_*`
+  variable that EXISTS at build time; an unset one stays a runtime lookup, so
+  `process.env.X === "1" ? dynamic(…) : null` keeps its `import()` in the graph
+  and the "gated" code ships. `next.config.ts` therefore normalises
+  `NEXT_PUBLIC_TEST_HOOKS` to `"1"`/`"0"` in `env`, and `scripts/bundle-guard.ts`
+  asserts on the build output that `window.__va` is present iff the flag is on
+  (and that no `new Function`/`eval` ships at all). It runs after every build:
+  `scripts/ci/build.sh` and `scripts/vercel-build.sh`.
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
@@ -158,7 +174,8 @@ scripts/             ci/, db/, perf/, content tooling
 
 Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
 
-- ESLint + Prettier, `tsc --noEmit`, content validation.
+- ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
+  runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
 - Vitest projects `unit | ui | bike3d | integration | security`; coverage
   thresholds 80 % overall, 100 % on `lib/domain/**`.
 - Playwright on desktop, Pixel 7, landscape, 320 px, WebKit (non-blocking) and
@@ -167,8 +184,14 @@ Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
   first) and reuses a running server locally — stop stale servers on :3100. Each
   test gets its own `x-real-ip` so rate limits never collide between tests. Use
   `--project=<name>` (equals form): `--project` is variadic and eats a spec path.
+  `PLAYWRIGHT_PORT` moves the whole run (one per worktree): `AUTH_URL` and
+  `NEXT_PUBLIC_SITE_URL` are derived from it, and `.env.test`'s pinned `:3100`
+  never wins — only a value exported in the shell does.
 - Bundle budget is a per-wave ratchet: `perf.budgets.json` ceilings are re-pinned
   at each wave integration to measured + 10 % (sizes print as KiB).
+  `npx tsx scripts/perf/bundle-budget.ts --json` prints the raw gzip bytes and
+  the `nextPin` to write; the pin history in `perf.budgets.json` says why each
+  jump happened.
 - Lighthouse CI, a bundle budget, and WebGL draw-call/triangle counters.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
 

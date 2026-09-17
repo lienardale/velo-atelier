@@ -23,18 +23,29 @@
     "",
     "Pin history (sizes are KiB, as scripts/perf/bundle-budget.ts prints them; ceiling = measured + 10 %, rounded up to a whole KiB):",
     "  W0 integration 2026-09-12: home 154.6 KiB -> 171 008 B. (Recorded then as 154 600 B: the table's 'kB' is KiB, so that pin had +8 % headroom, not +10 %.)",
-    "  W1 integration 2026-09-13: home 157.7 KiB (161485 B) -> 178176 B; guide 159.6 KiB (163430 B, first build of the route) -> 180224 B."
+    "  W1 integration 2026-09-13: home 157.7 KiB (161485 B) -> 178176 B; guide 159.6 KiB (163430 B, first build of the route) -> 180224 B.",
+    "  W2 integration 2026-09-17: home 186.3 KiB (190820 B) -> 209920 B; guide 160.7 KiB (164606 B) -> 181248 B.",
+    "    Home is +28.6 KiB: W2-T2 replaced the placeholder with the real interactive decision tree",
+    "    (client tree + OptionGrid + HelpDisclosure + Summary, lib/bike/{local-bike,spec-codec,describe},",
+    "    and the DECISION_TREE data the client needs to navigate). NOT illustrations: the ~70 drawings are",
+    "    RSC-rendered by components/decision-tree/tree-illustrations.tsx and ship zero client JS, and",
+    "    `forbidWebgl` still passes, so no 3D leaked in. Measured on the CI-equivalent build",
+    "    (ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1), which is what the CI build job produces.",
+    "    Home is now 56 KiB above its 130 kB target; W4-T2 owns closing that gap.",
+    "",
+    "Getting the numbers: `npx tsx scripts/perf/bundle-budget.ts --json` prints raw gzip bytes and the",
+    "ratchet's `nextPin` (measured + 10 %, rounded up to a whole KiB) for each route."
   ],
   "routes": {
     "/[locale]": {
       "label": "home (decision tree)",
-      "firstLoadJsGzipBytes": 178176,
+      "firstLoadJsGzipBytes": 209920,
       "targetGzipBytes": 133120,
       "forbidWebgl": true
     },
     "/[locale]/guides/[slug]": {
       "label": "guide page",
-      "firstLoadJsGzipBytes": 180224,
+      "firstLoadJsGzipBytes": 181248,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     }
