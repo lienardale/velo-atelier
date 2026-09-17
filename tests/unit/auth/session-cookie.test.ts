@@ -23,7 +23,7 @@ import {
   sessionRefreshPolicy,
   sessionTokenAgeS,
   SESSION_UPDATE_AGE_S,
-  withoutSessionRefresh,
+  withoutSessionWrites,
   withoutSessionSetCookies,
 } from "@/lib/auth/session-cookie";
 
@@ -239,13 +239,13 @@ describe("withoutSessionSetCookies({ keepDeletions: true })", () => {
   });
 });
 
-describe("withoutSessionRefresh", () => {
+describe("withoutSessionWrites", () => {
   it("keeps the session JSON and status but not the refreshed cookie (a late read cannot sign the visitor back in)", async () => {
     const headers = new Headers({ "content-type": "application/json" });
     headers.append("set-cookie", `${SESSION_COOKIE_NAME}=eyJlate; Path=/; Max-Age=2592000`);
     const response = new Response(JSON.stringify({ user: { id: "u1" } }), { status: 200, headers });
 
-    const stripped = withoutSessionRefresh(response);
+    const stripped = withoutSessionWrites(response);
 
     expect(stripped.status).toBe(200);
     expect(stripped.headers.get("content-type")).toBe("application/json");
@@ -253,11 +253,14 @@ describe("withoutSessionRefresh", () => {
     await expect(stripped.json()).resolves.toEqual({ user: { id: "u1" } });
   });
 
-  it("still passes a deletion for an invalidated session", () => {
+  it("strips a deletion too: a late read for an outdated token must not delete a newer cookie", () => {
+    // Reproduced: a read that left with the pre-password-change token, answered after
+    // the change, deleted the cookie this device had just been re-issued.
     const headers = new Headers();
     headers.append("set-cookie", `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0`);
-    const stripped = withoutSessionRefresh(new Response("{}", { headers }));
-    expect(stripped.headers.getSetCookie()).toEqual([`${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0`]);
+    headers.append("set-cookie", "authjs.csrf-token=abc; Path=/");
+    const stripped = withoutSessionWrites(new Response("null", { headers }));
+    expect(stripped.headers.getSetCookie()).toEqual(["authjs.csrf-token=abc; Path=/"]);
   });
 });
 
@@ -270,10 +273,10 @@ describe("sessionRefreshPolicy", () => {
     ).toBe("drop-all");
   });
 
-  it("never refreshes on a router request, however old the token (a prefetch can land after a sign-out)", () => {
+  it("never writes or deletes on a router request, however old the token (a prefetch can land late)", () => {
     expect(
       sessionRefreshPolicy({ isServerAction: false, isRouterRequest: true, tokenAgeS: 2 * DAY }),
-    ).toBe("drop-refresh");
+    ).toBe("drop-all");
   });
 
   it("refreshes a document navigation once the token is a day old (§4 updateAge)", () => {

@@ -112,11 +112,12 @@ scripts/             ci/, db/, perf/, content tooling
   differs from the row on EVERY trigger, `update` included (a stolen cookie must
   not adopt a new number). `changePasswordAction` keeps its own device signed in by
   re-issuing the cookie (`lib/auth/session-cookie.ts`), never via `unstable_update()`.
-  Background reads must never write it: Auth.js re-writes a JWT cookie on every
-  read, so `proxy.ts` keeps that refresh only on a document navigation with a token
-  at least 24 h old (`sessionRefreshPolicy`, the plan's `updateAge`), drops it on
-  router requests, and drops every session cookie on action POSTs;
-  `GET /api/auth/session` writes no refresh. See `.debug/003`.
+  Background requests must never write OR delete it — a late answer for an old
+  token would overwrite or delete a newer cookie. Auth.js writes the JWT cookie on
+  every read, so `proxy.ts` keeps that refresh only on a document navigation with a
+  token at least 24 h old (`sessionRefreshPolicy`, the plan's `updateAge`), drops
+  every session cookie on router/prefetch requests and action POSTs, and
+  `GET /api/auth/session` writes none (`withoutSessionWrites`). See `.debug/003`.
 - **Protected pages** are guarded by `authorized()` in `proxy.ts`, and read the user
   with `requireSignedInUser(locale, page)` / `redirectToSignIn()` — never a bare
   redirect to `/connexion`: a session the proxy still believes but `@/auth` rejects

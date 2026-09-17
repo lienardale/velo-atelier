@@ -15,19 +15,19 @@
 import type { NextRequest } from "next/server";
 
 import { handlers } from "@/auth";
-import { withoutSessionRefresh } from "@/lib/auth/session-cookie";
+import { withoutSessionWrites } from "@/lib/auth/session-cookie";
 
 export const { POST } = handlers;
 
 /**
  * Every Auth.js GET, with one change on `/api/auth/session`: the refreshed
- * session cookie is not written (see `withoutSessionRefresh`). The OAuth
+ * session cookie is neither refreshed nor deleted (see `withoutSessionWrites`). The OAuth
  * callback and the other GETs are untouched — they are where a session cookie
  * is legitimately set.
  */
 export async function GET(request: NextRequest): Promise<Response> {
   const response = await handlers.GET(request);
   return new URL(request.url).pathname.endsWith("/api/auth/session")
-    ? withoutSessionRefresh(response)
+    ? withoutSessionWrites(response)
     : response;
 }

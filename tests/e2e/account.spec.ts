@@ -192,6 +192,56 @@ forEachLocale((locale) => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.title);
   });
 
+  test(`a session read still in flight cannot sign this device out after a password change (${locale})`, async ({
+    page,
+    context,
+    signupEmail,
+    baseURL,
+  }) => {
+    // The losing interleaving, forced: the page's background session read leaves with
+    // the pre-change cookie and is only answered AFTER the password change re-issued
+    // this device's cookie. The server rejects that old token; before the fix its
+    // answer carried `authjs.session-token=; Max-Age=0` and deleted the NEW cookie
+    // (the CI flake in .debug/003). Session reads must write no session cookie.
+    await register(page, signupEmail);
+    await ageSessionCookie(context, baseURL ?? "http://localhost:3100", 10 * 60_000);
+
+    // The cookie the in-flight read "left with". route.continue() would re-send the
+    // held request with the browser's CURRENT cookie, which is not the race: replay
+    // it with the old one and hand that late answer back to the browser.
+    const name = sessionCookieName(baseURL ?? "http://localhost:3100");
+    const oldCookie = (await context.cookies()).find((cookie) => cookie.name === name)?.value;
+    expect(oldCookie).toBeTruthy();
+
+    let releaseRead!: () => void;
+    const readHeld = new Promise<void>((resolve) => (releaseRead = resolve));
+    let heldOne = false;
+    await page.route("**/api/auth/session", async (route) => {
+      if (heldOne) return route.continue();
+      heldOne = true;
+      await readHeld;
+      const late = await route.fetch({
+        headers: { ...route.request().headers(), cookie: `${name}=${oldCookie}` },
+      });
+      await route.fulfill({ response: late });
+    });
+
+    await page.goto(href(locale, "/compte"));
+    const form = page.getByTestId("change-password-form");
+    await form.locator('input[name="current"]').fill(PASSWORD);
+    await form.locator('input[name="next"]').fill(NEXT_PASSWORD);
+    await page.getByRole("button", { name: t.password.submitChange }).click();
+    await expect(page.getByText(t.password.changed)).toBeVisible();
+
+    const lateRead = page.waitForResponse("**/api/auth/session");
+    releaseRead();
+    await lateRead;
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.title);
+  });
+
   test(`the delete dialog asks before it acts (${locale})`, async ({ page, signupEmail }) => {
     await register(page, signupEmail);
     await page.goto(href(locale, "/compte"));

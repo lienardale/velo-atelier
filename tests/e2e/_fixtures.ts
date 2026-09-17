@@ -242,7 +242,7 @@ export interface E2EOptions {
 interface E2EFixtures {
   /** Sign the test's browser context in (default `DEMO_USER`) and return it. */
   signedInContext: (user?: SessionUser | DemoUserSeed) => Promise<BrowserContext>;
-  /** `signup+<testId>@velo-atelier.test` */
+  /** `signup+<testId>-r<retry>@velo-atelier.test` */
   signupEmail: string;
   /** Automatic: fails a passing mobile test whose page scrolls horizontally. */
   noHorizontalOverflow: void;
@@ -281,7 +281,9 @@ export const test = base.extend<E2EFixtures & E2EOptions>({
   },
 
   signupEmail: async ({}, provide, testInfo) => {
-    await provide(`signup+${testInfo.testId}@velo-atelier.test`);
+    // Per retry too: a retry reusing the first attempt's address was refused as
+    // "already taken" and timed out waiting for the redirect.
+    await provide(`signup+${testInfo.testId}-r${testInfo.retry}@velo-atelier.test`);
   },
 
   noHorizontalOverflow: [

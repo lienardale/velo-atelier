@@ -193,26 +193,28 @@ export function withoutSessionSetCookies(
 }
 
 /**
- * The response of `GET /api/auth/session`, minus the refreshed session cookie.
+ * The response of `GET /api/auth/session`, with no session cookie written at all.
  *
- * Auth.js re-encodes a JWT session and sets the cookie again on every session
- * read. The browser reads it constantly: `SessionProvider` on mount, and
- * `AccountMenu` on every route change. A read that is still in flight when the
- * visitor signs out comes back AFTER the sign-out response, carrying the old
- * token, and its `Set-Cookie` signs the visitor straight back in (reproduced in
- * `tests/e2e/auth-login.spec.ts` "signing out clears the session cookie" under
- * parallel load). The same late read would also overwrite the cookie a password
- * change just re-issued with the previous `sessionVersion`.
+ * Auth.js re-encodes a JWT session on every read and writes the cookie again — or
+ * DELETES it when the token no longer matches the row. The browser reads the
+ * session in the background constantly (`SessionProvider` on mount, `AccountMenu`
+ * on every route change), and a read is answered for the token it LEFT with:
  *
- * So the JSON endpoint writes no refreshed session cookie. The expiry still
- * rolls: `proxy.ts` refreshes it on every page and RSC navigation. A deletion
- * (an invalidated session) still passes, because a deletion can only sign out.
+ *   - a refresh from a read in flight during a sign-out wrote the old token back;
+ *   - a deletion from a read that left with the pre-password-change token, answered
+ *     after the change, deleted the NEW cookie this device had just been given
+ *     (reproduced: `GET /api/auth/session` with an outdated sessionVersion answers
+ *     `authjs.session-token=; Max-Age=0`; `.debug/003`).
+ *
+ * So a session read writes nothing. The body still says `null` for a session that
+ * is no longer valid, the server rejects that cookie on every use, and the next real
+ * navigation clears it through `/api/session-expired`.
  */
-export function withoutSessionRefresh(response: Response): Response {
+export function withoutSessionWrites(response: Response): Response {
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers: withoutSessionSetCookies(response.headers, { keepDeletions: true }),
+    headers: withoutSessionSetCookies(response.headers),
   });
 }
 
@@ -222,7 +224,10 @@ export type SessionRefreshPolicy =
   | "keep"
   /** Drop refreshed session cookies; a deletion (invalidated session) still passes. */
   | "drop-refresh"
-  /** Drop every session cookie the proxy added: the action writes the only one. */
+  /**
+   * Drop every session cookie the proxy added: a server action writes the only one,
+   * and a background request must never write — or delete — one.
+   */
   | "drop-all";
 
 export interface SessionRefreshRequest {
@@ -249,8 +254,9 @@ export function sessionRefreshPolicy(
   { isServerAction, isRouterRequest, tokenAgeS }: SessionRefreshRequest,
   updateAgeS = SESSION_UPDATE_AGE_S,
 ): SessionRefreshPolicy {
-  if (isServerAction) return "drop-all";
-  if (isRouterRequest) return "drop-refresh";
+  // A server action writes its own cookie; a router request (RSC, prefetch) is a
+  // background read answered for the token it left with — neither may write one.
+  if (isServerAction || isRouterRequest) return "drop-all";
   return tokenAgeS !== null && tokenAgeS >= updateAgeS ? "keep" : "drop-refresh";
 }
 
