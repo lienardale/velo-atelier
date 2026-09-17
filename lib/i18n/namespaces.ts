@@ -10,7 +10,7 @@
  * `tests/unit/i18n/messages-parity.test.ts` fails if the list, the type map and
  * the files on disk disagree; `tsc` fails if the list and the type map do.
  *
- * Names match /^[a-z-]+$/ (they are file names and top-level message keys).
+ * Names match /^[a-z0-9-]+$/ (they are file names and top-level message keys; no dots).
  *
  * W1 namespaces were registered up front (W1 integration, 2026-09-12) with empty
  * `{}` files, because tasks that run in parallel cannot each append to this one
@@ -18,9 +18,12 @@
  * every namespace is Appendix A of the plan.
  */
 import type account from "@/messages/fr/account.json";
+import type bike from "@/messages/fr/bike.json";
+import type bike3d from "@/messages/fr/bike3d.json";
 import type auth from "@/messages/fr/auth.json";
 import type common from "@/messages/fr/common.json";
 import type decision from "@/messages/fr/decision.json";
+import type decisionTree from "@/messages/fr/decision-tree.json";
 import type errors from "@/messages/fr/errors.json";
 import type guides from "@/messages/fr/guides.json";
 import type illustrations from "@/messages/fr/illustrations.json";
@@ -31,8 +34,11 @@ import type tools from "@/messages/fr/tools.json";
 export const NAMESPACES = [
   "account",
   "auth",
+  "bike",
+  "bike3d",
   "common",
   "decision",
+  "decision-tree",
   "errors",
   "guides",
   "illustrations",
@@ -52,8 +58,11 @@ export type Namespace = (typeof NAMESPACES)[number];
 export interface NamespaceMessages {
   account: typeof account;
   auth: typeof auth;
+  bike: typeof bike;
+  bike3d: typeof bike3d;
   common: typeof common;
   decision: typeof decision;
+  "decision-tree": typeof decisionTree;
   errors: typeof errors;
   guides: typeof guides;
   illustrations: typeof illustrations;

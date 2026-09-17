@@ -41,7 +41,8 @@ import type { E2EOptions } from "./tests/e2e/_fixtures";
 loadEnv({ path: ".env.test", override: false, quiet: true });
 
 const CI = Boolean(process.env.CI);
-const PORT = 3100;
+// PLAYWRIGHT_PORT lets parallel runs (one per worktree) use separate servers.
+const PORT = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
 const BASE_URL = `http://localhost:${PORT}`;
 
 const chromiumGL = [

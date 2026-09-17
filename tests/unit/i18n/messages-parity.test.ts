@@ -5,7 +5,7 @@
  * one-file-per-namespace catalogues:
  *
  *   1. the namespace list (`lib/i18n/namespaces.ts`) and the files on disk agree,
- *      in both locales, and every name matches /^[a-z-]+$/;
+ *      in both locales, and every name matches /^[a-z0-9-]+$/;
  *   2. per namespace, FR and EN have identical flattened key sets — a failure
  *      names every missing key;
  *   3. keys are leaves (a key is a string or an object, never both — next-intl
@@ -204,7 +204,9 @@ describe("icuPlaceholders (the parser this suite relies on)", () => {
 describe("namespace registry", () => {
   it("lists only well-formed, unique names", () => {
     expect(NAMESPACES.length).toBeGreaterThan(0);
-    for (const ns of NAMESPACES) expect(ns).toMatch(/^[a-z-]+$/);
+    // Digits are allowed: plan Appendix A names the `bike3d` namespace, while §1.2 quotes
+    // /^[a-z-]+$/. What the rule protects is a dot-free file name / key segment.
+    for (const ns of NAMESPACES) expect(ns).toMatch(/^[a-z0-9-]+$/);
     expect(new Set(NAMESPACES).size).toBe(NAMESPACES.length);
   });
 
