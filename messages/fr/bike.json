@@ -1,1 +1,138 @@
-{}
+{
+  "metaTitle": "Mon vélo en 3D",
+  "metaDescription": "Explorez votre vélo pièce par pièce, lancez un contrôle et retrouvez le bon guide pour chaque composant.",
+  "demoName": "Vélo de démonstration",
+  "demoBadge": "Démo",
+  "localName": "Mon vélo",
+  "canvas": {
+    "loading": "Chargement du vélo…",
+    "empty": "Aucun vélo enregistré sur cet appareil",
+    "emptyHelp": "Décrivez votre vélo en quelques questions pour le voir en 3D.",
+    "emptyCta": "Décrire mon vélo"
+  },
+  "workspace": {
+    "partsTab": "Pièces",
+    "infoTab": "Infos",
+    "actionsTab": "Actions",
+    "selectAll": "Tout sélectionner",
+    "pickPart": "Sélectionner {part} pour un contrôle",
+    "selected": "Pièce sélectionnée : {part}",
+    "expandSheet": "Agrandir la liste des pièces",
+    "collapseSheet": "Réduire la liste des pièces"
+  },
+  "status": {
+    "OK": "Bon état",
+    "ATTENTION": "À surveiller",
+    "BROKEN": "À remplacer",
+    "UNKNOWN": "Non contrôlé"
+  },
+  "panel": {
+    "emptyTitle": "Aucune pièce sélectionnée",
+    "emptyHelp": "Touchez une pièce du vélo, ou choisissez-la dans la liste.",
+    "status": "État :",
+    "edit": "Modifier cette pièce",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "notSet": "Non renseigné",
+    "yes": "Oui",
+    "no": "Non",
+    "demoNotice": "Le vélo de démonstration est partagé : pour le modifier, faites-en une copie sur cet appareil.",
+    "demoFork": "Modifier ce vélo → copie locale",
+    "guidesLabel": "Guides pour cette pièce",
+    "permalink": "Lien direct vers cette pièce"
+  },
+  "guides": {
+    "replace": "Changer",
+    "clean": "Nettoyer",
+    "adjust": "Régler"
+  },
+  "actions": {
+    "fullCheckup": "Lancer un contrôle complet",
+    "partialCheckup": "Contrôler les pièces sélectionnées ({count})",
+    "fit": "Réglages & géométrie",
+    "buildList": "Ma liste de travaux"
+  },
+  "resume": {
+    "title": "Vous avez un contrôle en cours",
+    "body": "Contrôle {scope} commencé le {date} — {answered, plural, one {# étape renseignée} other {# étapes renseignées}}.",
+    "cta": "Reprendre le contrôle",
+    "scopeFull": "complet",
+    "scopePartial": "partiel"
+  },
+  "error": {
+    "title": "Ce vélo n’a pas pu s’afficher",
+    "description": "Le reste du site fonctionne. Réessayez, ou ouvrez le vélo de démonstration pour continuer.",
+    "openDemo": "Ouvrir le vélo de démo"
+  },
+  "part": {
+    "metaTitle": "{part} — mon vélo"
+  },
+  "fit": {
+    "metaTitle": "Réglages et géométrie",
+    "metaDescription": "Hauteur de selle, recul, pression des pneus, sag : les mesures de votre vélo, gardées en mémoire.",
+    "title": "Réglages & géométrie",
+    "intro": "Des points de départ, pas des vérités : notez vos mesures, puis ajustez 5 mm à la fois jusqu’à ce que ce soit confortable.",
+    "needsBike": "Ouvrez cette page depuis votre vélo : les mesures dépendent de ses composants.",
+    "openBike": "Revenir au vélo",
+    "howTo": "Comment mesurer",
+    "openGuide": "Lire le guide de mesure",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saved": "Enregistré",
+    "demoNotice": "Le vélo de démonstration ne garde pas vos mesures. Faites-en une copie locale pour les enregistrer.",
+    "fields": {
+      "inseamCm": "Entrejambe (cm)",
+      "saddleHeightMm": "Hauteur de selle (mm)",
+      "saddleSetbackMm": "Recul de selle (mm)",
+      "reachMm": "Reach (mm)",
+      "barDropMm": "Différence selle-cintre (mm)",
+      "cleatPositionMm": "Position des cales (mm)",
+      "riderKg": "Poids du cycliste (kg)",
+      "bikeKg": "Poids du vélo (kg)",
+      "sagPercent": "Sag mesuré (%)",
+      "chainWearMm": "12 maillons (mm)"
+    },
+    "units": {
+      "cm": "{value} cm"
+    },
+    "pressure": "Avant {front} bar · arrière {rear} bar",
+    "sag": {
+      "firm": "Suspension trop ferme",
+      "ok": "Sag dans la plage conseillée",
+      "soft": "Suspension trop souple",
+      "target": "cible {min} à {max} %"
+    },
+    "chainWear": {
+      "ok": "Chaîne encore bonne",
+      "replace": "Chaîne à remplacer"
+    }
+  },
+  "myBikes": {
+    "metaTitle": "Mes vélos",
+    "metaDescription": "Les vélos enregistrés sur votre compte.",
+    "title": "Mes vélos",
+    "add": "Ajouter un vélo",
+    "emptyTitle": "Aucun vélo enregistré",
+    "emptyHelp": "Répondez à quelques questions et votre vélo apparaît en 3D, prêt à être contrôlé.",
+    "emptyCta": "Décrire mon vélo",
+    "updated": "Modifié le {date}",
+    "manage": "Renommer ou supprimer",
+    "nameLabel": "Nom du vélo",
+    "rename": "Renommer",
+    "delete": "Supprimer",
+    "deleteConfirm": "Confirmer la suppression"
+  },
+  "errors": {
+    "storageFull": "Impossible d’enregistrer sur cet appareil : l’espace de stockage du navigateur est plein.",
+    "fitRange": "Cette mesure est en dehors des valeurs possibles.",
+    "nameRequired": "Donnez un nom à ce vélo.",
+    "nameTooLong": "Ce nom est trop long (80 caractères maximum).",
+    "unknown-part": "Cette pièce n’existe pas.",
+    "part-not-fitted": "Cette pièce n’est pas montée sur ce vélo.",
+    "unknown-attribute": "Cette caractéristique n’existe pas pour cette pièce.",
+    "not-editable": "Cette caractéristique découle de la description du vélo ; modifiez-la dans le questionnaire.",
+    "invalid-value": "Cette valeur n’est pas possible pour cette caractéristique.",
+    "not-optional": "Cette pièce ne peut pas être retirée.",
+    "already-fitted": "Cette pièce est déjà montée."
+  }
+}

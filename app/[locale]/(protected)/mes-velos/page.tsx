@@ -1,27 +1,17 @@
+import { Bike } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { BikeCard } from "@/components/account/BikeCard";
+import { Button } from "@/components/ui/button";
 import { currentUser, redirectToSignIn } from "@/lib/actions/with-user";
+import { describeDetails } from "@/lib/bike/describe";
+import { deriveBike } from "@/lib/bike/rules";
+import { prisma } from "@/lib/db/prisma";
+import type { Answers } from "@/lib/domain/schema/decision";
+import { Link } from "@/lib/i18n/navigation";
 import { buildMetadata } from "@/lib/seo/metadata";
 import type { Locale } from "@/lib/i18n/routing";
-
-/**
- * `/fr/mes-velos` · `/en/my-bikes` — PLACEHOLDER (W1-T3).
- *
- * This is where every successful sign-in lands (`safeCallbackUrl`'s fallback,
- * and `authorized()`'s redirect for a signed-in visitor on the login page), so
- * it has to exist and answer 200 from W1 on, or the auth e2e specs have nowhere
- * to arrive. **W2-T3 replaces the body** with the real bike list, its actions
- * and its empty state (§6.7: illustration + CTA).
- *
- * Two things here are NOT placeholder and should survive that rewrite: the
- * `auth()` call (a layout does not re-run between sibling pages, so each page
- * checks for itself) and `index: false` (§6.6).
- *
- * Its strings live under `account.myBikes.*` because `bike.json` — the namespace
- * Appendix A gives this page — is W2-T3's to create; moving them is part of that
- * task.
- */
 
 interface PageProps {
   params: Promise<{ locale: Locale }>;
@@ -29,7 +19,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "account.myBikes" });
+  const t = await getTranslations({ locale, namespace: "bike.myBikes" });
   return buildMetadata({
     locale,
     pathname: "/mes-velos",
@@ -39,6 +29,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   });
 }
 
+/**
+ * `/fr/mes-velos` · `/en/my-bikes` — the garage (§6.2).
+ *
+ * `auth()` here rather than in the `(protected)` layout: a layout does not
+ * re-run when the visitor moves between two of its own children, so a guard
+ * there would be checked once and then trusted (§4.3). `requireSignedInUser`
+ * is what makes an expired-but-still-present cookie go through
+ * `/api/session-expired` instead of looping on the sign-in page.
+ *
+ * The summary under each name is `describeDetails(spec)` — the decision tree's
+ * own words, so a bike is described in the vocabulary its owner answered in,
+ * and a new option is described the day its label is written.
+ *
+ * Empty state (§6.7): an icon, one sentence and the CTA that fills it —
+ * describing a bike takes two minutes and is the only thing to do here.
+ */
 export default async function MyBikesPage({ params }: PageProps): Promise<React.JSX.Element> {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -46,12 +52,60 @@ export default async function MyBikesPage({ params }: PageProps): Promise<React.
   const user = await currentUser();
   if (!user) return redirectToSignIn(locale, "/mes-velos");
 
-  const t = await getTranslations({ locale, namespace: "account.myBikes" });
+  const t = await getTranslations({ locale, namespace: "bike.myBikes" });
+
+  const rows = await prisma.bike.findMany({
+    where: { userId: user.id },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, name: true, answers: true, updatedAt: true },
+  });
 
   return (
-    <div className="space-y-3">
-      <h1 className="font-display text-2xl font-semibold text-ink">{t("title")}</h1>
-      <p className="text-sm text-ink-muted">{t("placeholder")}</p>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-ink text-2xl font-semibold">{t("title")}</h1>
+        <Button asChild className="min-h-[var(--tap-min)]">
+          <Link href="/" data-testid="add-bike">
+            {t("add")}
+          </Link>
+        </Button>
+      </header>
+
+      {rows.length === 0 ? (
+        <section
+          className="border-rule flex flex-col items-center gap-3 rounded-lg border border-dashed p-10 text-center"
+          data-testid="my-bikes-empty"
+        >
+          <Bike aria-hidden="true" className="text-ink-muted size-10" />
+          <p className="text-ink font-medium">{t("emptyTitle")}</p>
+          <p className="text-ink-muted text-sm">{t("emptyHelp")}</p>
+          <Button asChild className="min-h-[var(--tap-min)]">
+            <Link href="/" data-testid="my-bikes-empty-cta">
+              {t("emptyCta")}
+            </Link>
+          </Button>
+        </section>
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2" data-testid="my-bikes-list">
+          {rows.map((row) => (
+            <li key={row.id}>
+              <BikeCard
+                id={row.id}
+                name={row.name}
+                summary={summaryOf(row.answers, locale)}
+                updatedAt={row.updatedAt.toISOString()}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
+}
+
+/** The first three answers of the tree, in the visitor's language. */
+function summaryOf(answers: unknown, locale: Locale): string {
+  if (typeof answers !== "object" || answers === null || Array.isArray(answers)) return "";
+  const { spec } = deriveBike(answers as Answers);
+  return describeDetails(spec, locale).slice(0, 3).join(" · ");
 }
