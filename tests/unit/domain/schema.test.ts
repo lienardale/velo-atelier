@@ -31,6 +31,7 @@ import {
   PRESET_IDS,
   QUESTION_IDS,
   type DecisionNode,
+  type IllustrationId,
   type QuestionId,
 } from "@/lib/domain";
 import { ILLUSTRATION_COMPONENTS } from "@/components/illustrations";
@@ -337,10 +338,18 @@ describe("the illustration registry", () => {
     }
   });
 
-  it("starts every drawing as a placeholder, for W2-T4c to replace", () => {
-    for (const [id, definition] of Object.entries(ILLUSTRATIONS)) {
-      expect(definition.status, id).toBe("placeholder");
+  it("ships every drawing the tree shows as final (W2-T4c), none left as a placeholder", () => {
+    const shown: IllustrationId[] = [];
+    for (const node of DECISION_TREE) {
+      shown.push(node.help.illustrationId as IllustrationId);
+      for (const option of node.options) {
+        if (option.illustrationId !== undefined)
+          shown.push(option.illustrationId as IllustrationId);
+      }
     }
+    expect(shown).toHaveLength(54);
+    const unfinished = shown.filter((id) => ILLUSTRATIONS[id].status !== "final");
+    expect(unfinished).toEqual([]);
   });
 
   it("recognises its own ids", () => {
@@ -419,10 +428,17 @@ describe("every key the data emits resolves", () => {
       // ids, guide illustrations (W1-T4, W2-T4a/b) add their own. Only the tree's
       // ids can go stale from here; guide ids are checked by content-check and
       // tests/ui/illustrations.test.tsx.
+      // A help drawing also carries its numbered legend,
+      // `illustrations.<id>.callouts.<n>` (counted against the drawing by
+      // tests/ui/illustrations.test.tsx).
       const illustrationsOnDisk = flatten(CATALOGUES[locale].illustrations, "illustrations").filter(
         (key) => key.startsWith("illustrations.ill-"),
       );
-      expect(illustrationsOnDisk.filter((key) => !alts.has(key))).toEqual([]);
+      const stale = illustrationsOnDisk.filter((key) => {
+        const callout = /^(illustrations\.[a-z0-9-]+)\.callouts\.\d+$/.exec(key);
+        return !alts.has(callout ? `${callout[1]}.alt` : key);
+      });
+      expect(stale).toEqual([]);
     });
   }
 });
