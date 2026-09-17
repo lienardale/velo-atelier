@@ -1,9 +1,21 @@
 {
   "ill-drive": {
-    "alt": "Two bikes side by side: on the left a muscle-powered bike, on the right an electric bike with a battery on the down tube and a motor at the crank."
+    "alt": "An electric bike from the side: a battery bolted to the down tube and a motor around the bottom bracket; inset, a fat rear hub with a cable coming out.",
+    "callouts": {
+      "1": "Battery on the down tube",
+      "2": "Motor around the crank axle",
+      "3": "Or a motor in the rear hub, with its cable"
+    }
   },
   "ill-discipline": {
-    "alt": "Five bike silhouettes in a row: road, gravel, mountain, city and kids."
+    "alt": "Five bike silhouettes — road, gravel, mountain, city and kids — each with the detail that sets it apart.",
+    "callouts": {
+      "1": "Road: bars curling down, narrow tyres",
+      "2": "Gravel: the same bars, wide knobbly tyres",
+      "3": "Mountain bike: telescopic fork",
+      "4": "City: mudguards and a rack",
+      "5": "Kids: small wheels, 24 inch or less"
+    }
   },
   "ill-discipline-road": {
     "alt": "Silhouette of a road bike with curved bars and narrow tyres."
@@ -18,22 +30,27 @@
     "alt": "Silhouette of a city bike with a low frame, mudguards and a rack."
   },
   "ill-discipline-kids": {
-    "alt": "Silhouette of a small-wheeled kids' bike."
+    "alt": "Silhouette of a small kids' bike with a training wheel."
   },
   "ill-wheel-size": {
-    "alt": "Close-up of a tyre sidewall with the ETRTO marking 40-622 circled."
+    "alt": "Close-up of a tyre sidewall carrying the ETRTO marking 40-622, with 622 circled.",
+    "callouts": {
+      "1": "Tyre sidewall",
+      "2": "40: tyre width in millimetres",
+      "3": "622: rim diameter in millimetres, the number that matters"
+    }
   },
   "ill-wheel-size-700c": {
-    "alt": "A 700C wheel, 622 mm rim diameter."
+    "alt": "A 700C wheel with a narrow tyre, 622 mm rim diameter."
   },
   "ill-wheel-size-650b": {
-    "alt": "A 650B wheel, 584 mm rim diameter."
+    "alt": "A 650B wheel with a wide tyre, 584 mm rim diameter."
   },
   "ill-wheel-size-29": {
-    "alt": "A 29 inch mountain-bike wheel, 622 mm rim diameter."
+    "alt": "A 29 inch mountain-bike wheel with a knobbly tyre, 622 mm rim diameter."
   },
   "ill-wheel-size-27-5": {
-    "alt": "A 27.5 inch mountain-bike wheel, 584 mm rim diameter."
+    "alt": "A 27.5 inch mountain-bike wheel with a knobbly tyre, 584 mm rim diameter."
   },
   "ill-wheel-size-26": {
     "alt": "A 26 inch wheel, 559 mm rim diameter."
@@ -48,7 +65,14 @@
     "alt": "A 16 inch wheel, 305 mm rim diameter."
   },
   "ill-brake-type": {
-    "alt": "Four brakes compared: rim caliper, V-brake, cantilever and a disc brake with its hose."
+    "alt": "Five brakes compared: rim caliper, V-brake and cantilever seen head-on, then two disc brakes, one pulled by a cable, one fed by a hose.",
+    "callouts": {
+      "1": "Caliper: a single arch over the tyre",
+      "2": "V-brake: two upright arms joined by a crossing cable",
+      "3": "Cantilever: short arms and a triangular straddle wire",
+      "4": "Mechanical disc: a cable housing reaches the caliper",
+      "5": "Hydraulic disc: a hose screwed into the caliper"
+    }
   },
   "ill-brake-type-rim-caliper": {
     "alt": "A caliper brake arching over the tyre."
@@ -63,28 +87,46 @@
     "alt": "A disc brake caliper pulled by a cable in its housing."
   },
   "ill-brake-type-disc-hydraulic": {
-    "alt": "A disc brake caliper fed by an oil hose."
+    "alt": "A disc brake caliper fed by a hose screwed onto a fitting."
   },
   "ill-brake-mount": {
-    "alt": "Three caliper mounts seen from the side — flat mount, post mount and IS — with the direction of the bolts."
+    "alt": "Three caliper mounts seen from the side — flat mount, post mount and IS — with the direction of the bolts.",
+    "callouts": {
+      "1": "Flat mount: bolts entering from below",
+      "2": "Post mount: two vertical bolts from above",
+      "3": "IS: horizontal bolts through two tabs, with an adapter"
+    }
   },
   "ill-cockpit": {
-    "alt": "Four handlebars seen head-on: drop, flat, riser and swept-back."
+    "alt": "Four handlebars: drop, flat and riser seen head-on, swept-back seen from above.",
+    "callouts": {
+      "1": "Curls down: drop bar",
+      "2": "Straight from end to end: flat bar",
+      "3": "Rises on either side of the stem: riser bar",
+      "4": "Sweeps back towards you (seen from above): swept-back bar"
+    }
   },
   "ill-cockpit-drop": {
-    "alt": "A drop bar curling downwards."
+    "alt": "A drop bar seen head-on, its ends curling downwards."
   },
   "ill-cockpit-flat": {
-    "alt": "A flat bar, straight from end to end."
+    "alt": "A flat bar seen head-on, straight from end to end."
   },
   "ill-cockpit-riser": {
-    "alt": "A riser bar rising on either side of the stem."
+    "alt": "A riser bar seen head-on, rising on either side of the stem."
   },
   "ill-cockpit-swept": {
-    "alt": "A swept-back bar curving strongly towards the rider."
+    "alt": "A swept-back bar seen from above, curving strongly towards the rider."
   },
   "ill-drivetrain": {
-    "alt": "Cranksets with one, two and three chainrings, next to an internal gear hub."
+    "alt": "Cranksets with one, two and three chainrings, an internal gear hub and a singlespeed drivetrain.",
+    "callouts": {
+      "1": "One chainring",
+      "2": "Two chainrings and a front derailleur",
+      "3": "Three chainrings",
+      "4": "Large, smooth hub with a single sprocket: internal gears",
+      "5": "One chainring, one sprocket, no shifter: singlespeed"
+    }
   },
   "ill-drivetrain-derailleur-1x": {
     "alt": "A crankset with a single chainring."
@@ -93,22 +135,39 @@
     "alt": "A two-chainring crankset with its front derailleur."
   },
   "ill-drivetrain-derailleur-3x": {
-    "alt": "A three-chainring crankset."
+    "alt": "A three-chainring crankset with its front derailleur."
   },
   "ill-drivetrain-igh": {
     "alt": "A large, smooth internal gear hub with a single sprocket."
   },
   "ill-drivetrain-singlespeed": {
-    "alt": "A singlespeed drivetrain: one chainring, one sprocket."
+    "alt": "A singlespeed drivetrain: one chainring, one sprocket and no derailleur."
   },
   "ill-transmission": {
-    "alt": "A chain and a belt side by side, with the frame splitter bolt."
+    "alt": "A chain above a toothed belt, and the rear stay that opens to let the belt through.",
+    "callouts": {
+      "1": "Chain: jointed metal links",
+      "2": "Belt: a flexible band with even teeth",
+      "3": "Frame splitter bolt on the right chainstay"
+    }
   },
   "ill-speeds": {
-    "alt": "A cassette seen from the side, its sprockets numbered one by one."
+    "alt": "A cassette seen from behind with its eleven sprockets numbered, and a shifter whose window shows the number of speeds.",
+    "callouts": {
+      "1": "Count the sprockets on the cassette",
+      "2": "Or read the number on the shifter or the hub"
+    }
   },
   "ill-shifter": {
-    "alt": "Six shifters compared: integrated, trigger, grip, thumb, bar-end and electronic."
+    "alt": "Six shifters compared: integrated in the brake lever, triggers, twist grip, thumb lever, bar-end lever and electronic buttons.",
+    "callouts": {
+      "1": "The brake lever swings sideways: integrated shifters",
+      "2": "Two triggers under the bar",
+      "3": "A collar turns around the grip",
+      "4": "A lever on top of the bar, pushed with the thumb",
+      "5": "A lever at the end of the bar",
+      "6": "Buttons and a battery, no gear cable: electronic"
+    }
   },
   "ill-shifter-sti-integrated": {
     "alt": "A road brake lever that swings sideways to change gear."
@@ -117,19 +176,26 @@
     "alt": "A trigger shifter under the bar."
   },
   "ill-shifter-grip": {
-    "alt": "A twisting grip shifter around the bar."
+    "alt": "A ridged collar that twists around the bar, next to the grip."
   },
   "ill-shifter-thumb": {
-    "alt": "A thumb shifter above the bar."
+    "alt": "A thumb shifter: a lever on top of the bar."
   },
   "ill-shifter-bar-end": {
     "alt": "A shifter at the end of a drop bar."
   },
   "ill-shifter-electronic": {
-    "alt": "An electronic shifter with buttons and no gear cable."
+    "alt": "An electronic shifter: buttons on the lever and a battery, no gear cable."
   },
   "ill-pedals": {
-    "alt": "Five pedals seen at an angle: flat, SPD, road, toe clips and combination."
+    "alt": "Five pedals: flat with pins, SPD with its two-bolt cleat, road clipless with its large triangular cleat, toe clips with cage and strap, and a combination pedal.",
+    "callouts": {
+      "1": "Pins on a wide platform: flat",
+      "2": "Small recessed mechanism, two-bolt cleat: SPD",
+      "3": "Large triangular cleat: road clipless",
+      "4": "Cage and strap: toe clips",
+      "5": "One flat face, one clipless face: combination"
+    }
   },
   "ill-pedals-flat": {
     "alt": "A flat pedal with pins."
@@ -141,25 +207,50 @@
     "alt": "A road clipless pedal with its large triangular cleat."
   },
   "ill-pedals-toe-clips": {
-    "alt": "A pedal with a toe clip cage and strap."
+    "alt": "A toe clip pedal from the side: the cage and strap above the pedal."
   },
   "ill-pedals-combo": {
     "alt": "A combination pedal: one flat face, one clipless face."
   },
   "ill-suspension": {
-    "alt": "A telescopic fork at the front and a shock between the seat tube and the rear triangle."
+    "alt": "A full-suspension mountain bike from the side: a telescopic fork at the front and a shock between the seat tube and the rear triangle.",
+    "callouts": {
+      "1": "Telescopic fork: two tubes sliding into one another",
+      "2": "Rear shock, between the seat tube and the rear triangle"
+    }
   },
   "ill-seatpost": {
-    "alt": "A dropper seatpost with its bar lever and cable."
+    "alt": "A dropper seatpost close up: its sliding part, the cable running into the frame, the lever on the bar and the seat clamp.",
+    "callouts": {
+      "1": "Lever on the bar, usually on the left",
+      "2": "Cable running into the post or the frame",
+      "3": "Sliding part of the dropper post",
+      "4": "Seat clamp: all a rigid post has"
+    }
   },
   "ill-tire-system": {
-    "alt": "A valve taken apart: the removable core and sealant of a tubeless set-up, an inner tube beside it."
+    "alt": "A tubeless set-up: the tyre in cross-section on its rim with sealant inside, and a valve with its removable core pulled out.",
+    "callouts": {
+      "1": "Removable valve core",
+      "2": "Sealant inside the tyre",
+      "3": "The word “tubeless” on the tyre sidewall or the rim"
+    }
   },
   "ill-e-motor": {
-    "alt": "A mid-drive motor around the crank axle, next to a motor inside the rear hub."
+    "alt": "On the left a mid-drive motor: an angular housing around the crank axle; on the right a very large rear hub with a cable coming out.",
+    "callouts": {
+      "1": "Wide, angular housing around the crank axle: mid-drive motor",
+      "2": "Rear hub much larger than normal: hub motor",
+      "3": "Cable coming out of the hub"
+    }
   },
   "ill-e-battery": {
-    "alt": "Three battery positions: integrated in the down tube, bolted onto it, or sitting on the rear rack."
+    "alt": "Three electric bikes: a battery integrated in the down tube with its lock, a battery bolted onto the tube, and a battery on the rear rack.",
+    "callouts": {
+      "1": "Integrated: inside the down tube, with a lock",
+      "2": "External: a block bolted onto the down tube",
+      "3": "On the rear rack, above the wheel"
+    }
   },
   "pad-wear-disc": {
     "alt": "Disc brake pad seen from the side: the metal backing plate, the friction lining and the 1 mm wear limit.",

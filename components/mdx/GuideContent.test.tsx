@@ -92,8 +92,8 @@ describe("Illustration", () => {
     expect(screen.getByText("Vue de profil")).toBeInTheDocument();
   });
 
-  it("draws a decision-tree illustration without callouts or caption", async () => {
-    const { container } = await renderWithIntl(<Illustration id="ill-drive" />);
+  it("draws a decision-tree option thumbnail without callouts or caption", async () => {
+    const { container } = await renderWithIntl(<Illustration id="ill-cockpit-drop" />);
     expect(container.querySelector("figcaption")).toBeNull();
   });
 
