@@ -1,0 +1,123 @@
+---
+slug: check-e-system
+kind: check
+title: Contrôler la batterie et le moteur d’un vélo électrique
+summary: État et fixation de la batterie, propreté des contacts, bruits du moteur, capteur et codes d’erreur — le contrôle extérieur d’un système d’assistance, sans jamais l’ouvrir.
+status: full
+order: 90
+difficulty: 1
+minutes: 15
+partIds:
+  - e-battery
+  - e-motor
+appliesTo:
+  path: drive
+  in: [electric]
+tools:
+  - toolId: rags
+    alternatives: []
+  - toolId: brush
+    alternatives: [rags]
+related:
+  - clean-ebike-dos-donts
+  - check-drivetrain
+safety:
+  - "N’ouvrez jamais une batterie ni un moteur. Une batterie lithium-ion choquée, gonflée, fissurée ou qui chauffe peut prendre feu : ne la rechargez plus, rangez-la à l’extérieur loin de tout objet inflammable et contactez un revendeur."
+  - Éteignez le système et retirez la batterie avant de nettoyer ou de toucher les contacts, et ne dirigez jamais un jet d’eau sur le moteur ou la batterie.
+steps:
+  - id: battery-case
+    title: Inspecter le boîtier de la batterie
+    partIds: [e-battery]
+    checkQuestion:
+      prompt: Le boîtier de la batterie est-il intact, sans fissure, bosse ni déformation, et reste-t-il à peine tiède pendant la charge ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-battery
+          reasonKey: battery-damaged
+  - id: battery-mount
+    title: Vérifier le verrouillage de la batterie
+    partIds: [e-battery]
+    checkQuestion:
+      prompt: La batterie se verrouille-t-elle avec un clic net, sans jeu ni claquement quand vous secouez le vélo, et la clé tourne-t-elle bien ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-battery
+          reasonKey: battery-mount-loose
+  - id: battery-contacts
+    title: Contrôler les contacts électriques
+    partIds: [e-battery]
+    illustration: ebike-battery-connector
+    checkQuestion:
+      prompt: Les contacts de la batterie et de son support sont-ils propres, secs et brillants, sans vert-de-gris ni trace de brûlure ?
+      skippable: false
+      ko:
+        - action: clean
+          partId: e-battery
+          reasonKey: battery-connector-dirty
+          guideSlug: clean-ebike-dos-donts
+        - action: inspect-shop
+          partId: e-battery
+          reasonKey: battery-damaged
+  - id: motor-noise
+    title: Écouter le moteur
+    partIds: [e-motor]
+    checkQuestion:
+      prompt: En roulant avec l’assistance, le moteur est-il régulier, sans claquement, grincement ni coupure, et sans jeu dans les manivelles ou la roue motrice ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-motor
+          reasonKey: motor-noise
+  - id: display-sensor
+    title: Vérifier l’écran et le capteur de vitesse
+    partIds: [e-motor]
+    checkQuestion:
+      prompt: L’écran s’allume-t-il sans code d’erreur, et la vitesse affichée reste-t-elle stable en roulant ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: e-motor
+          reasonKey: e-system-error
+---
+
+<Step id="battery-case">
+
+La batterie est la pièce la plus chère et la plus sensible d’un vélo électrique. Retirez-la de son support, clé en main, et posez-la sur une surface propre. Regardez toutes ses faces sous une bonne lumière et passez les doigts sur les arêtes.
+
+Une fissure, une bosse après une chute, un boîtier qui gonfle ou se déforme, une odeur inhabituelle ou une batterie qui devient chaude au toucher pendant la charge sont des signaux d’alerte. Dans ce cas, ne la remettez pas sur le vélo et ne la rechargez plus : posez-la dehors, loin de tout ce qui brûle, et apportez-la à un revendeur de la marque.
+
+</Step>
+
+<Step id="battery-mount">
+
+Remettez la batterie dans son logement ou sur son support jusqu’au clic, puis retirez la clé. Tirez fermement sur la batterie dans tous les sens : elle ne doit pas sortir ni bouger. Soulevez ensuite l’arrière du vélo de quelques centimètres et laissez-le retomber : aucun claquement ne doit venir de la batterie.
+
+Une batterie qui bouge use ses contacts, coupe l’assistance sur les bosses et peut tomber en roulant. Vérifiez aussi que la serrure tourne sans forcer et que le support est bien vissé au cadre ou au porte-bagages. Une serrure grippée ou un support fendu se remplace chez un revendeur, avec des pièces d’origine.
+
+</Step>
+
+<Step id="battery-contacts">
+
+Éteignez le système et retirez la batterie. Regardez les contacts métalliques de la batterie et ceux du support sur le vélo : ils doivent être propres, secs et brillants. La poussière, la boue ou une trace verte d’oxydation créent une mauvaise liaison, des coupures d’assistance et un échauffement.
+
+Nettoyez-les avec un chiffon sec et une brosse douce, jamais avec un objet métallique, de l’eau sous pression ou un produit dégraissant. Laissez sécher à l’air avant de remonter la batterie. Un contact noirci, fondu ou tordu n’est pas une question de propreté : c’est un défaut électrique, à faire contrôler par un revendeur avant de rouler.
+
+</Step>
+
+<Step id="motor-noise">
+
+Sur une route calme, roulez quelques minutes dans chaque mode d’assistance, en appuyant fort puis doucement sur les pédales. Un moteur en bon état pousse de façon régulière et fait un bourdonnement léger et constant. Écoutez les claquements, grincements ou frottements, et notez si l’assistance se coupe par moments.
+
+À l’arrêt, prenez les deux manivelles et secouez-les vers le cadre : sur un moteur central, un jeu à cet endroit vient des roulements du moteur. Sur un moteur dans le moyeu arrière, secouez la roue par la jante. Un moteur ne se démonte pas soi-même : bruits et jeu passent par un revendeur de la marque.
+
+</Step>
+
+<Step id="display-sensor">
+
+Allumez le système : l’écran doit démarrer normalement et n’afficher aucun code d’erreur ni symbole d’alerte. Notez tout code affiché, il permet à l’atelier de gagner du temps. Vérifiez que les câbles qui partent de l’écran et de la commande ne sont ni pincés ni arrachés.
+
+Beaucoup de vélos mesurent la vitesse avec un aimant fixé sur un rayon ou sur le disque, qui passe devant un capteur sur le cadre. S’il a bougé, la vitesse affichée saute ou tombe à zéro et l’assistance se coupe. Remettez l’aimant en face du capteur, à la distance indiquée dans la notice, souvent quelques millimètres. Un code d’erreur persistant passe par un revendeur.
+
+</Step>

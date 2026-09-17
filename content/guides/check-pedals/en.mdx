@@ -1,0 +1,122 @@
+---
+slug: check-pedals
+kind: check
+title: Check pedals and cleats
+summary: Bearings with play, bent or loose pedals, worn cleats and tired toe clips — the parts that pass on every pedal stroke.
+status: full
+order: 70
+difficulty: 1
+minutes: 10
+partIds:
+  - pedal-left
+  - pedal-right
+tools:
+  - toolId: pedal-wrench
+    alternatives: [allen-keys, adjustable-wrench]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-pedals
+  - adjust-cleats
+  - check-bottom-bracket
+steps:
+  - id: spin-play
+    title: Feel for play in the pedals
+    partIds: [pedal-left, pedal-right]
+    checkQuestion:
+      prompt: Does each pedal spin freely on its axle, with no play or grinding when you shake it?
+      skippable: false
+      ko:
+        - action: replace
+          partId: pedal-left
+          reasonKey: pedal-bearing-play
+          guideSlug: replace-pedals
+        - action: replace
+          partId: pedal-right
+          reasonKey: pedal-bearing-play
+          guideSlug: replace-pedals
+  - id: body-damage
+    title: Inspect the pedal body and threads
+    partIds: [pedal-left, pedal-right]
+    checkQuestion:
+      prompt: Are the pedals straight and whole, with their pins or mechanism in good shape, and screwed tightly into the cranks?
+      skippable: false
+      ko:
+        - action: replace
+          partId: pedal-left
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+        - action: replace
+          partId: pedal-right
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+  - id: cleats
+    title: Check the cleats
+    partIds: [pedal-left, pedal-right]
+    appliesTo:
+      path: pedals
+      in: [spd, road-clipless, combo]
+    illustration: cleat-ball-of-foot
+    checkQuestion:
+      prompt: Are the cleats tight and only lightly worn, and do you clip in and out cleanly, with no float you did not expect and no surprise release?
+      skippable: false
+      ko:
+        - action: adjust
+          partId: pedal-left
+          reasonKey: cleat-worn
+          guideSlug: adjust-cleats
+        - action: adjust
+          partId: pedal-right
+          reasonKey: cleat-worn
+          guideSlug: adjust-cleats
+  - id: toe-clips
+    title: Check toe clips and straps
+    partIds: [pedal-left, pedal-right]
+    appliesTo:
+      path: pedals
+      in: [toe-clips]
+    checkQuestion:
+      prompt: Are the toe clips secure and uncracked, and do the straps loosen with a single movement to free your foot?
+      skippable: false
+      ko:
+        - action: replace
+          partId: pedal-left
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+        - action: replace
+          partId: pedal-right
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+---
+
+<Step id="spin-play">
+
+Hold a pedal between your fingers and spin it on its axle: it should turn freely, without catching, and slow down smoothly. Then shake it up and down and back and forth while holding the crank arm with your other hand.
+
+A knock or a shift you can feel in your fingers means play in the pedal bearings. Grinding or a tight spot points to dirty or rusty bearings. Some pedals can be taken apart and regreased, but most everyday models cost less to replace than to repair. Always compare left and right: the difference is obvious.
+
+</Step>
+
+<Step id="body-damage">
+
+Look at each pedal from the front and from the side: an axle bent in a crash makes the pedal wobble in an oval and strains the knee. On flat pedals, check that the pins are all there; on clipless pedals, that the spring and the jaw are neither cracked nor bent.
+
+Also check that each pedal is tight in the crank, using the right wrench. Beware: the left pedal has a left-hand thread. Both pedals still tighten the same way: turn the top of the wrench towards the front of the bike. A pedal that has worked loose strips the crank thread within a few kilometres; if it does not tighten firmly, do not ride.
+
+</Step>
+
+<Step id="cleats">
+
+Turn your shoes over. Cleats are the metal or plastic parts bolted under the sole that lock into the pedal. Their bolts must be tight: a cleat that swivels under the shoe unclips at the worst moment.
+
+A plastic road cleat with rounded front and rear edges, or a metal SPD cleat with filed-down lugs, no longer engages properly. Clip in and out several times on each side: going in should give a crisp click, and getting out should take a firm outward twist of the heel. A foot that floats about or pops out on its own needs new cleats, or a change to the spring tension.
+
+</Step>
+
+<Step id="toe-clips">
+
+Toe clips are the metal or plastic cages fixed to the front of the pedal, and the straps go over your foot. Check that their fixing screws are tight and that no clip is cracked, bent or scraping the ground in corners.
+
+Then tighten a strap over your shoe and release it with one hand: the buckle should let go in a single movement. A worn strap that slips, or a buckle that jams, can stop you putting your foot down when you stop. Replace them in time, or switch to flat pedals if you mostly ride in town.
+
+</Step>

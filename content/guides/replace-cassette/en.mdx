@@ -1,0 +1,52 @@
+---
+slug: replace-cassette
+kind: replace
+title: Replace the cassette
+summary: Take out the rear wheel, undo the cassette lockring with a chain whip, swap the cassette and tighten it to torque. This guide is still being written.
+status: stub
+order: 60
+difficulty: 2
+minutes: 30
+partIds:
+  - cassette
+  - wheel-rear
+appliesTo:
+  path: drivetrain.kind
+  in: [derailleur]
+tools:
+  - toolId: chain-whip
+    alternatives: []
+  - toolId: cassette-lockring-tool
+    alternatives: []
+  - toolId: adjustable-wrench
+    alternatives: [pliers]
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-drivetrain
+  - replace-chain
+  - clean-drivetrain
+steps:
+  - id: remove-wheel
+    title: Take out the rear wheel
+    partIds: [wheel-rear]
+  - id: remove-lockring
+    title: Undo the cassette lockring
+    partIds: [cassette]
+  - id: fit-cassette
+    title: Fit the new cassette
+    partIds: [cassette]
+  - id: tighten-lockring
+    title: Tighten the lockring to torque
+    partIds: [cassette]
+---
+
+<Step id="remove-lockring">
+
+Lay the wheel flat, cassette side up, and remove the quick-release skewer. Fit the <Tool id="cassette-lockring-tool" /> into the splines of the lockring and put the <Tool id="adjustable-wrench" alt="pliers" /> on it. Wrap the chain of the <Tool id="chain-whip" /> around a large cog, in the direction that stops the cassette turning anticlockwise.
+
+Hold the whip firmly and push the wrench anticlockwise: the lockring lets go with a loud crack, which is normal. Remove it, then slide the cogs off the freehub body, keeping their spacers in order.
+
+</Step>

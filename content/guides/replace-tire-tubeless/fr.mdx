@@ -1,0 +1,56 @@
+---
+slug: replace-tire-tubeless
+kind: replace
+title: Monter un pneu tubeless et renouveler le préventif
+summary: Démonter le pneu tubeless, nettoyer la jante, remonter le pneu, verser le préventif par la valve et le faire talonner. Ce guide est en cours de rédaction.
+status: stub
+order: 40
+difficulty: 2
+minutes: 40
+partIds:
+  - tire-front
+  - tire-rear
+  - sealant
+appliesTo:
+  path: tires.system
+  in: [tubeless]
+tools:
+  - toolId: tire-levers
+    alternatives: []
+  - toolId: floor-pump
+    alternatives: [mini-pump]
+  - toolId: valve-core-tool
+    alternatives: [pliers]
+  - toolId: sealant-injector
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-wheels-tires
+  - replace-tube-tire
+safety:
+  - "Ne dépassez jamais la pression maximale du pneu ni celle de la jante pour faire talonner : 5 bars au plus sur une jante « hookless »."
+steps:
+  - id: remove-tire
+    title: Démonter le pneu
+    partIds: [tire-front, tire-rear]
+  - id: clean-rim
+    title: Nettoyer la jante et vérifier le fond de jante
+  - id: fit-tire
+    title: Remonter le pneu
+    partIds: [tire-front, tire-rear]
+  - id: add-sealant
+    title: Verser le préventif
+    partIds: [sealant]
+  - id: seat-bead
+    title: Faire talonner et répartir le préventif
+    partIds: [tire-front, tire-rear, sealant]
+---
+
+<Step id="add-sealant">
+
+Le préventif se verse le plus proprement par la valve. Dégonflez entièrement le pneu, tournez la roue pour mettre la valve en haut, puis retirez l’obus avec le <Tool id="valve-core-tool" alt="pliers" />. Attendez quelques secondes que le préventif présent redescende.
+
+Injectez la quantité indiquée sur le flacon avec la <Tool id="sealant-injector" />, en fonction de la largeur du pneu : un pneu de VTT en demande bien plus qu’un pneu de route. Revissez l’obus, gonflez, puis faites tourner et secouez la roue dans tous les sens pour répartir le liquide sur toute la surface intérieure.
+
+</Step>

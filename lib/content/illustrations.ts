@@ -14,9 +14,9 @@
  * generated barrel; alt text and numbered callouts are
  * `illustrations.<id>.{alt,callouts.<n>}` in `messages/{fr,en}/illustrations.json`.
  *
- * Guide drawings are laid out in a 320 × 240 box (4/3). W1-T4 ships them as
- * labelled placeholders with their callouts in place; W2-T4a/b draw them and
- * flip `status` to `"final"`.
+ * Guide drawings are laid out in a 320 × 240 box (4/3). W1-T4 shipped them as
+ * labelled placeholders with their callouts in place; W2-T4a drew all 14 and
+ * flipped `status` to `"final"`.
  *
  * Zod-free, React-free: imported by the check script, tests and components.
  */
@@ -54,7 +54,8 @@ const guideEntry = (id: GuideIllustrationId): IllustrationDef => ({
   component: componentNameFor(id),
   altKey: `illustrations.${id}.alt`,
   aspect: "4/3",
-  status: "placeholder",
+  // All 14 guide drawings are real since W2-T4a (components/illustrations/Ill*.tsx).
+  status: "final",
 });
 
 export const GUIDE_ILLUSTRATIONS: Readonly<Record<GuideIllustrationId, IllustrationDef>> =

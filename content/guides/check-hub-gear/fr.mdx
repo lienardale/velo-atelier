@@ -1,0 +1,151 @@
+---
+slug: check-hub-gear
+kind: check
+title: Contrôler un moyeu à vitesses ou une courroie
+summary: Repères de réglage, rapports qui patinent, tension de la chaîne ou de la courroie — le contrôle des transmissions de ville, sans démonter le moyeu.
+status: full
+order: 35
+difficulty: 1
+minutes: 10
+partIds:
+  - internal-gear-hub
+  - shifter-right
+  - shift-cables
+  - chain
+  - belt
+appliesTo:
+  any:
+    - path: drivetrain.kind
+      in: [igh]
+    - path: drivetrain.transmission
+      in: [belt]
+tools:
+  - toolId: rags
+    alternatives: []
+  - toolId: steel-ruler
+    alternatives: [tape-measure]
+related:
+  - replace-shift-cable
+  - replace-chain
+  - check-wheels-tires
+safety:
+  - Ne glissez jamais les doigts entre la courroie ou la chaîne et le pignon pendant que la roue tourne, même doucement à la main.
+steps:
+  - id: shifter-index
+    title: Vérifier les repères de réglage
+    partIds: [internal-gear-hub, shifter-right, shift-cables]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [igh]
+        - path: drivetrain.shifter
+          notIn: [electronic]
+    illustration: barrel-adjuster
+    checkQuestion:
+      prompt: Dans le rapport de référence, les deux repères du boîtier de commande sur le moyeu sont-ils alignés, et le câble est-il en bon état ?
+      skippable: true
+      ko:
+        - action: replace
+          partId: shift-cables
+          reasonKey: shift-cable-frayed
+          guideSlug: replace-shift-cable
+        - action: inspect-shop
+          partId: internal-gear-hub
+          reasonKey: hub-gear-slipping
+  - id: gear-slip
+    title: Essayer chaque rapport en charge
+    partIds: [internal-gear-hub]
+    appliesTo:
+      path: drivetrain.kind
+      in: [igh]
+    checkQuestion:
+      prompt: En appuyant fort sur les pédales, chaque rapport tient-il sans patiner, sauter ni claquer ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: internal-gear-hub
+          reasonKey: hub-gear-slipping
+  - id: chain-tension
+    title: Contrôler la tension de la chaîne
+    partIds: [chain]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [igh]
+        - path: drivetrain.transmission
+          in: [chain]
+    checkQuestion:
+      prompt: À mi-chemin entre plateau et pignon, la chaîne ne bouge-t-elle pas de plus de 1 à 2 cm de haut en bas, sans point dur au tour de pédalier ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+          guideSlug: replace-chain
+  - id: belt-condition
+    title: Inspecter la courroie
+    partIds: [belt]
+    appliesTo:
+      path: drivetrain.transmission
+      in: [belt]
+    checkQuestion:
+      prompt: La courroie est-elle intacte, sans fissure, dent arrachée ni fils visibles ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: belt
+          reasonKey: belt-worn
+  - id: belt-tension
+    title: Contrôler la tension de la courroie
+    partIds: [belt]
+    appliesTo:
+      path: drivetrain.transmission
+      in: [belt]
+    checkQuestion:
+      prompt: La courroie reste-t-elle tendue et silencieuse, sans sauter de dent quand vous démarrez fort ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: belt
+          reasonKey: belt-worn
+---
+
+<Step id="shifter-index">
+
+Un moyeu à vitesses intégrées cache ses engrenages dans la coque de la roue arrière. Le câble arrive dans un petit boîtier fixé sur le côté droit du moyeu, où deux repères de couleur doivent être alignés dans un rapport précis : souvent le 4e sur les moyeux Shimano à 7 ou 8 vitesses. Le rapport de référence est indiqué dans la notice ou sur le boîtier.
+
+Passez ce rapport, roue immobile, et regardez les repères. S’ils sont décalés, tournez le tendeur de câble, sur la poignée ou au moyeu, jusqu’à les aligner. Si c’est impossible, ou si le câble est effiloché ou rouillé, il faut le changer.
+
+</Step>
+
+<Step id="gear-slip">
+
+Sur une route calme, passez tous les rapports un par un. Dans chacun, démarrez ou relancez en appuyant fort sur les pédales, debout si besoin. Le moyeu doit tenir chaque rapport sans patiner, sans « claquer » dans le vide et sans passer seul au rapport voisin.
+
+Un rapport qui patine alors que les repères sont bien alignés vient de l’intérieur du moyeu : cliquets usés ou graisse durcie. Un moyeu à vitesses ne s’ouvre pas sans documentation ni outils dédiés, et certains se vidangent à l’huile à intervalle fixe : confiez-le à un atelier. Ne roulez pas longtemps avec un rapport qui saute, le pied peut glisser de la pédale.
+
+</Step>
+
+<Step id="chain-tension">
+
+Sans dérailleur, rien ne retend la chaîne : c’est la position de la roue, ou un tendeur, qui la tient. Prenez la chaîne à mi-chemin entre le plateau et le pignon et bougez-la de haut en bas. Un débattement de 1 à 2 cm est juste ; au-delà, la chaîne peut tomber ; en dessous, elle force sur les roulements.
+
+Faites tourner le pédalier en arrière d’un tour complet en recommençant à plusieurs endroits : un plateau un peu ovalisé crée un point dur. Une chaîne qui reste trop lâche une fois la roue reculée au maximum est trop allongée et doit être changée. Le recentrage de la roue se fait écrous desserrés, puis resserrés fermement.
+
+</Step>
+
+<Step id="belt-condition">
+
+Une courroie en carbone ne se lubrifie pas et dure très longtemps, mais elle n’aime ni les torsions ni les cailloux. Faites tourner le pédalier en arrière lentement et regardez les deux faces et les flancs de la courroie sur toute sa longueur.
+
+Des fissures entre les dents, une dent arrachée, des fibres qui dépassent ou un flanc effiloché annoncent une rupture proche. Regardez aussi les dents du pignon et du plateau : elles doivent être propres et entières. Une courroie ne se coupe ni ne se raccourcit ; son remplacement passe par l’ouverture du cadre, souvent en atelier.
+
+</Step>
+
+<Step id="belt-tension">
+
+Une courroie détendue saute une dent au démarrage, avec un claquement sec, ce qui l’abîme. Trop tendue, elle use les roulements et freine le pédalage. Appuyez au milieu du brin supérieur avec un doigt : elle doit s’enfoncer un peu, mais revenir aussitôt, et rester tendue quel que soit l’endroit où vous tournez le pédalier.
+
+Démarrez ensuite fort dans une petite montée. Un saut de dent ou un bruit de frottement persistant veulent dire que la tension ou l’alignement ne sont plus bons. Le fabricant donne une valeur de tension précise, mesurée avec un outil ou une application : un atelier la règle.
+
+</Step>

@@ -1,0 +1,144 @@
+---
+slug: check-brakes-rim
+kind: check
+title: Check rim brakes
+summary: Brake blocks, their position on the rim, rim wear and lever feel — a full round of your rim brakes in ten minutes, with hardly any tools.
+status: full
+order: 10
+difficulty: 1
+minutes: 10
+partIds:
+  - brake-pads-front
+  - brake-pads-rear
+  - brake-caliper-front
+  - brake-caliper-rear
+  - brake-lever-front
+  - brake-lever-rear
+  - brake-line-front
+  - brake-line-rear
+  - wheel-front
+  - wheel-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [false]
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-brake-pads-rim
+  - adjust-rim-brake-centering
+  - clean-rim-braking-surface
+safety:
+  - A brake block that touches the tyre can cut through it until it bursts. Fix any misplaced block before you ride.
+  - After taking a wheel out, make sure the caliper's quick-release lever, or the V-brake noodle, is closed again. If it is not, the brake barely grips.
+steps:
+  - id: pad-wear
+    title: Measure brake block wear
+    partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-rim
+    checkQuestion:
+      prompt: Can you still clearly see the wear grooves on every block, with no hardened rubber or embedded grit?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-pads-front
+          reasonKey: pad-worn
+          guideSlug: replace-brake-pads-rim
+        - action: replace
+          partId: brake-pads-rear
+          reasonKey: pad-worn
+          guideSlug: replace-brake-pads-rim
+  - id: pad-alignment
+    title: Check where the blocks land
+    partIds: [brake-caliper-front, brake-caliper-rear]
+    checkQuestion:
+      prompt: Does each block meet the rim squarely, never touching the tyre, and do both blocks arrive at the same time?
+      skippable: false
+      ko:
+        - action: fix
+          partId: brake-caliper-front
+          reasonKey: brake-not-centered
+          guideSlug: adjust-rim-brake-centering
+        - action: fix
+          partId: brake-caliper-rear
+          reasonKey: brake-not-centered
+          guideSlug: adjust-rim-brake-centering
+  - id: rim-track
+    title: Inspect the rim braking surface
+    partIds: [wheel-front, wheel-rear, brake-pads-front, brake-pads-rear]
+    checkQuestion:
+      prompt: Are the rim sidewalls clean and flat, with the wear indicator still visible?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: rim-brake-track-worn
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: rim-brake-track-worn
+        - action: clean
+          partId: brake-pads-front
+          reasonKey: rim-contaminated
+          guideSlug: clean-rim-braking-surface
+        - action: clean
+          partId: brake-pads-rear
+          reasonKey: rim-contaminated
+          guideSlug: clean-rim-braking-surface
+  - id: lever-feel
+    title: Test the levers and cables
+    partIds: [brake-lever-front, brake-lever-rear, brake-line-front, brake-line-rear]
+    checkQuestion:
+      prompt: Does each lever turn firm well before it reaches the handlebar, and spring back on its own without sticking?
+      skippable: false
+      ko:
+        - action: replace
+          partId: brake-line-front
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: replace
+          partId: brake-line-rear
+          reasonKey: brake-cable-frayed
+          guideSlug: replace-brake-cable
+        - action: fix
+          partId: brake-lever-front
+          reasonKey: lever-reach-wrong
+          guideSlug: adjust-brake-lever-reach
+        - action: fix
+          partId: brake-lever-rear
+          reasonKey: lever-reach-wrong
+          guideSlug: adjust-brake-lever-reach
+---
+
+<Step id="pad-wear">
+
+Brake blocks are the rubber pads that squeeze the rim. Their surface has grooves: they clear water away and show how worn the block is. Look at each block from below with the wheel in place, using a torch if needed.
+
+When the grooves have almost gone, or there is less than 1 mm left to the bottom of the deepest one, replace both blocks of that brake. Replace them too if they are hard, cracked or shiny, or if small metal flakes are stuck in the rubber: they scratch the rim every time you brake. Pick those flakes out with the tip of a knife.
+
+</Step>
+
+<Step id="pad-alignment">
+
+Squeeze the lever gently and watch each block settle on the rim. It should touch the braking surface along its whole length and height: never the tyre above, never thin air below the sidewall. A block set too high wears through the tyre and can make it burst.
+
+Release and squeeze again while watching both sides: the two blocks should arrive together, with a gap of 1 to 3 mm on each side at rest. If one block already rubs or clearly touches before the other, the brake is off-centre or badly adjusted.
+
+</Step>
+
+<Step id="rim-track">
+
+The rim wears too: every stop grinds away a little metal. Many rims carry a wear indicator, a thin groove or a small hole on the braking track. Once it has gone, or the sidewall feels clearly hollow under your finger, the rim is too thin and can split under the tyre's pressure. Replacing a rim or a wheel is a job for a shop.
+
+While you are there, look at the colour of the track: a black, greasy or glossy surface brakes poorly, especially in the rain. It can be cleaned, together with the blocks.
+
+</Step>
+
+<Step id="lever-feel">
+
+With the bike standing still, squeeze each lever hard. It should turn firm well before touching the handlebar and spring back quickly on its own when you let go. Push the bike forward while braking: the wheel should lock.
+
+Then follow the cable from the lever to the brake. A frayed or rusty cable, or one that sticks in its housing, must be replaced. A lever that almost reaches the bar can often be taken up by turning the cable's barrel adjuster out one or two turns. If the levers sit too far from your fingers, their reach can be adjusted.
+
+</Step>

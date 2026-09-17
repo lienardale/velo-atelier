@@ -1,0 +1,122 @@
+---
+slug: check-pedals
+kind: check
+title: Contrôler les pédales et les cales
+summary: Roulements qui ont du jeu, pédales tordues ou mal vissées, cales usées et cale-pieds fatigués — ce qui transmet chaque coup de pédale.
+status: full
+order: 70
+difficulty: 1
+minutes: 10
+partIds:
+  - pedal-left
+  - pedal-right
+tools:
+  - toolId: pedal-wrench
+    alternatives: [allen-keys, adjustable-wrench]
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-pedals
+  - adjust-cleats
+  - check-bottom-bracket
+steps:
+  - id: spin-play
+    title: Chercher du jeu dans les pédales
+    partIds: [pedal-left, pedal-right]
+    checkQuestion:
+      prompt: Chaque pédale tourne-t-elle librement sur son axe, sans jeu ni grattement quand vous la secouez ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: pedal-left
+          reasonKey: pedal-bearing-play
+          guideSlug: replace-pedals
+        - action: replace
+          partId: pedal-right
+          reasonKey: pedal-bearing-play
+          guideSlug: replace-pedals
+  - id: body-damage
+    title: Inspecter le corps et le vissage
+    partIds: [pedal-left, pedal-right]
+    checkQuestion:
+      prompt: Les pédales sont-elles droites, entières, avec leurs picots ou leur mécanisme en bon état, et bien vissées dans les manivelles ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: pedal-left
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+        - action: replace
+          partId: pedal-right
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+  - id: cleats
+    title: Contrôler les cales
+    partIds: [pedal-left, pedal-right]
+    appliesTo:
+      path: pedals
+      in: [spd, road-clipless, combo]
+    illustration: cleat-ball-of-foot
+    checkQuestion:
+      prompt: Les cales sont-elles bien serrées et peu usées, et chaussez-vous puis déchaussez-vous franchement, sans jeu ni déclenchement surprise ?
+      skippable: false
+      ko:
+        - action: adjust
+          partId: pedal-left
+          reasonKey: cleat-worn
+          guideSlug: adjust-cleats
+        - action: adjust
+          partId: pedal-right
+          reasonKey: cleat-worn
+          guideSlug: adjust-cleats
+  - id: toe-clips
+    title: Contrôler les cale-pieds et les courroies
+    partIds: [pedal-left, pedal-right]
+    appliesTo:
+      path: pedals
+      in: [toe-clips]
+    checkQuestion:
+      prompt: Les cale-pieds sont-ils fixés, non fendus, et les courroies se desserrent-elles d’un geste pour libérer le pied ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: pedal-left
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+        - action: replace
+          partId: pedal-right
+          reasonKey: pedal-damaged
+          guideSlug: replace-pedals
+---
+
+<Step id="spin-play">
+
+Prenez une pédale entre les doigts et faites-la tourner sur son axe : elle doit tourner librement, sans à-coup, et s’arrêter doucement. Secouez-la ensuite de haut en bas et d’avant en arrière, en tenant la manivelle de l’autre main.
+
+Un claquement ou un décalage que vous sentez dans les doigts révèle du jeu dans les roulements de la pédale. Un grattement ou un point dur signale des roulements sales ou rouillés. Certaines pédales se démontent et se regraissent, mais la plupart des modèles courants coûtent moins cher à remplacer qu’à réparer. Comparez toujours gauche et droite : l’écart saute aux yeux.
+
+</Step>
+
+<Step id="body-damage">
+
+Regardez chaque pédale de face et de côté : un axe tordu après une chute fait tourner la pédale en ovale et fatigue le genou. Sur des pédales plates, vérifiez que les picots sont en place ; sur des pédales automatiques, que le ressort et la mâchoire ne sont ni fendus ni tordus.
+
+Contrôlez aussi le vissage dans la manivelle, avec la clé adaptée. Attention : la pédale gauche a un pas à gauche. Les deux pédales se serrent pourtant de la même façon : en tournant la clé, par le haut, vers l’avant du vélo. Une pédale qui s’est desserrée ronge le filetage de la manivelle en quelques kilomètres ; si elle ne se resserre pas franchement, ne roulez pas.
+
+</Step>
+
+<Step id="cleats">
+
+Retournez vos chaussures. Les cales sont les pièces en métal ou en plastique vissées sous la semelle, qui s’accrochent dans la pédale. Leurs vis doivent être serrées : une cale qui tourne sous la chaussure fait déchausser au mauvais moment.
+
+Une cale route en plastique dont les bords avant et arrière sont arrondis, ou une cale SPD en métal dont les ergots sont limés, n’accroche plus bien. Chaussez puis déchaussez plusieurs fois de chaque côté : l’entrée doit claquer net et la sortie demander un geste franc du talon vers l’extérieur. Un pied qui flotte ou qui sort tout seul demande de nouvelles cales, ou un réglage de la tension du ressort.
+
+</Step>
+
+<Step id="toe-clips">
+
+Les cale-pieds sont les étriers en métal ou en plastique fixés à l’avant de la pédale, et les courroies passent par-dessus le pied. Vérifiez que leurs vis de fixation sont serrées et qu’aucun cale-pied n’est fendu, tordu ou ne frotte par terre dans les virages.
+
+Serrez ensuite une courroie sur votre chaussure, puis libérez-la d’une main : la boucle doit se desserrer d’un geste. Une courroie usée qui glisse, ou une boucle qui coince, peut vous empêcher de poser le pied à l’arrêt. Remplacez-les à temps, ou passez à des pédales plates si vous roulez surtout en ville.
+
+</Step>

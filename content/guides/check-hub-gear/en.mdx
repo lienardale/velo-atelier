@@ -1,0 +1,151 @@
+---
+slug: check-hub-gear
+kind: check
+title: Check a hub gear or a belt drive
+summary: Adjustment marks, slipping gears, chain or belt tension — the check for city drivetrains, without opening the hub.
+status: full
+order: 35
+difficulty: 1
+minutes: 10
+partIds:
+  - internal-gear-hub
+  - shifter-right
+  - shift-cables
+  - chain
+  - belt
+appliesTo:
+  any:
+    - path: drivetrain.kind
+      in: [igh]
+    - path: drivetrain.transmission
+      in: [belt]
+tools:
+  - toolId: rags
+    alternatives: []
+  - toolId: steel-ruler
+    alternatives: [tape-measure]
+related:
+  - replace-shift-cable
+  - replace-chain
+  - check-wheels-tires
+safety:
+  - Never slip your fingers between the belt or chain and the sprocket while the wheel turns, even slowly by hand.
+steps:
+  - id: shifter-index
+    title: Check the adjustment marks
+    partIds: [internal-gear-hub, shifter-right, shift-cables]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [igh]
+        - path: drivetrain.shifter
+          notIn: [electronic]
+    illustration: barrel-adjuster
+    checkQuestion:
+      prompt: In the reference gear, are the two marks on the hub's cable unit lined up, and is the cable in good condition?
+      skippable: true
+      ko:
+        - action: replace
+          partId: shift-cables
+          reasonKey: shift-cable-frayed
+          guideSlug: replace-shift-cable
+        - action: inspect-shop
+          partId: internal-gear-hub
+          reasonKey: hub-gear-slipping
+  - id: gear-slip
+    title: Try every gear under load
+    partIds: [internal-gear-hub]
+    appliesTo:
+      path: drivetrain.kind
+      in: [igh]
+    checkQuestion:
+      prompt: When you push hard on the pedals, does every gear hold without slipping, jumping or clunking?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: internal-gear-hub
+          reasonKey: hub-gear-slipping
+  - id: chain-tension
+    title: Check chain tension
+    partIds: [chain]
+    appliesTo:
+      all:
+        - path: drivetrain.kind
+          in: [igh]
+        - path: drivetrain.transmission
+          in: [chain]
+    checkQuestion:
+      prompt: Halfway between chainring and sprocket, does the chain move no more than 1 to 2 cm up and down, with no tight spot over a full turn of the cranks?
+      skippable: false
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+          guideSlug: replace-chain
+  - id: belt-condition
+    title: Inspect the belt
+    partIds: [belt]
+    appliesTo:
+      path: drivetrain.transmission
+      in: [belt]
+    checkQuestion:
+      prompt: Is the belt intact, with no cracks, torn teeth or visible fibres?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: belt
+          reasonKey: belt-worn
+  - id: belt-tension
+    title: Check belt tension
+    partIds: [belt]
+    appliesTo:
+      path: drivetrain.transmission
+      in: [belt]
+    checkQuestion:
+      prompt: Does the belt stay taut and quiet, without skipping a tooth when you set off hard?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: belt
+          reasonKey: belt-worn
+---
+
+<Step id="shifter-index">
+
+An internal gear hub hides its gears inside the shell of the rear wheel. The cable runs into a small unit on the right-hand side of the hub, where two coloured marks must line up in one specific gear: often 4th on Shimano 7- and 8-speed hubs. The reference gear is given in the manual or on the unit itself.
+
+Select that gear with the wheel still and look at the marks. If they are out of line, turn the cable's barrel adjuster, on the shifter or at the hub, until they match. If that is impossible, or if the cable is frayed or rusty, it needs replacing.
+
+</Step>
+
+<Step id="gear-slip">
+
+On a quiet road, go through the gears one by one. In each of them, set off or accelerate while pushing hard on the pedals, standing up if needed. The hub should hold every gear without slipping, without clunking into thin air and without dropping into the next gear on its own.
+
+A gear that slips while the marks are properly aligned is a problem inside the hub: worn pawls or hardened grease. A gear hub cannot be opened without documentation and dedicated tools, and some need an oil change at fixed intervals: take it to a shop. Do not ride for long with a gear that jumps, as your foot can slip off the pedal.
+
+</Step>
+
+<Step id="chain-tension">
+
+With no derailleur, nothing takes up chain slack: the wheel position, or a tensioner, holds the chain tight. Take the chain halfway between chainring and sprocket and move it up and down. Play of 1 to 2 cm is right; more and the chain can come off; less and it strains the bearings.
+
+Turn the cranks backwards a full revolution and repeat at several points: a slightly oval chainring creates a tight spot. A chain that is still too slack with the wheel pulled fully back has stretched too far and must be replaced. Re-positioning the wheel is done with the axle nuts loosened, then tightened firmly again.
+
+</Step>
+
+<Step id="belt-condition">
+
+A carbon belt needs no lube and lasts a very long time, but it dislikes twisting and stones. Turn the cranks slowly backwards and look at both faces and both edges of the belt along its whole length.
+
+Cracks between the teeth, a torn-off tooth, fibres sticking out or a frayed edge mean it will break soon. Look at the teeth of the rear sprocket and the front sprocket too: they should be clean and whole. A belt cannot be cut or shortened; replacing it means opening the frame, often at a shop.
+
+</Step>
+
+<Step id="belt-tension">
+
+A slack belt skips a tooth when you set off, with a sharp crack, and that damages it. Too tight, it wears the bearings and drags on your pedalling. Press the middle of the upper run with a finger: it should give a little but spring back at once, and stay taut wherever you turn the cranks to.
+
+Then set off hard up a short slope. A skipped tooth or a persistent rubbing noise means the tension or the alignment is no longer right. The maker gives a precise tension value, measured with a tool or an app: a shop sets it.
+
+</Step>

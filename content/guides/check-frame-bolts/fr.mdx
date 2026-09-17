@@ -1,0 +1,168 @@
+---
+slug: check-frame-bolts
+kind: check
+title: Contrôler le cadre, le poste de pilotage et la visserie
+summary: Fissures du cadre, vis de potence et de cintre, guidoline ou poignées, selle et tige de selle, accessoires — le tour du vélo, clé Allen en main.
+status: full
+order: 110
+difficulty: 1
+minutes: 15
+partIds:
+  - frame
+  - stem
+  - handlebar
+  - grips-or-tape
+  - saddle
+  - seatpost
+  - seat-clamp
+  - mudguards
+  - rack
+  - kickstand
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - clean-frame
+  - check-headset
+  - replace-saddle
+  - measure-saddle-height
+safety:
+  - Sur les pièces en carbone, et sur toute vis qui porte un couple gravé, serrez à la clé dynamométrique. « Bien serré à la main » est souvent deux fois trop et fissure le carbone.
+steps:
+  - id: frame-inspect
+    title: Inspecter le cadre
+    partIds: [frame]
+    checkQuestion:
+      prompt: Une fois propre, le cadre est-il sans fissure, bosse, pli ni éclat de peinture suspect aux jonctions des tubes ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: frame
+          reasonKey: frame-crack
+        - action: clean
+          partId: frame
+          reasonKey: frame-dirty
+          guideSlug: clean-frame
+  - id: cockpit-bolts
+    title: Vérifier les vis de potence et de cintre
+    partIds: [stem, handlebar]
+    illustration: headset-threaded-vs-threadless
+    checkQuestion:
+      prompt: Toutes les vis de la potence et du cintre sont-elles présentes et serrées, sans que le cintre tourne quand vous appuyez fort dessus ?
+      skippable: false
+      ko:
+        - action: fix
+          partId: stem
+          reasonKey: stem-loose
+          guideSlug: adjust-headset-preload
+  - id: bar-tape
+    title: Contrôler la guidoline
+    partIds: [grips-or-tape]
+    appliesTo:
+      path: cockpit.bar
+      in: [drop]
+    checkQuestion:
+      prompt: La guidoline est-elle entière et bien collée, avec un bouchon à chaque extrémité du cintre ?
+      skippable: true
+      ko:
+        - action: replace
+          partId: grips-or-tape
+          reasonKey: bar-tape-worn
+          guideSlug: replace-bar-tape
+  - id: grips
+    title: Contrôler les poignées
+    partIds: [grips-or-tape]
+    appliesTo:
+      path: cockpit.bar
+      notIn: [drop]
+    checkQuestion:
+      prompt: Les poignées tiennent-elles sans tourner, sont-elles entières, et chaque extrémité du cintre est-elle bouchée ?
+      skippable: true
+      ko:
+        - action: replace
+          partId: grips-or-tape
+          reasonKey: grips-worn
+          guideSlug: replace-grips
+  - id: saddle-seatpost
+    title: Vérifier la selle et la tige de selle
+    partIds: [saddle, seatpost, seat-clamp]
+    checkQuestion:
+      prompt: La selle est-elle droite et fixe, ses rails intacts, et la tige de selle reste-t-elle en place, au-dessus de son repère d’insertion minimale ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: saddle
+          reasonKey: saddle-damaged
+          guideSlug: replace-saddle
+        - action: inspect-shop
+          partId: seatpost
+          reasonKey: seatpost-slipping
+  - id: accessories
+    title: Vérifier les accessoires
+    partIds: [mudguards, rack, kickstand]
+    checkQuestion:
+      prompt: Garde-boue, porte-bagages et béquille sont-ils bien fixés, sans vis manquante ni frottement contre la roue ?
+      skippable: true
+      ko:
+        - action: inspect-shop
+          partId: mudguards
+          reasonKey: accessory-loose
+        - action: inspect-shop
+          partId: rack
+          reasonKey: accessory-loose
+        - action: inspect-shop
+          partId: kickstand
+          reasonKey: accessory-loose
+---
+
+<Step id="frame-inspect">
+
+Un cadre propre se contrôle bien mieux qu’un cadre sale : passez d’abord un chiffon humide. Regardez ensuite sous une bonne lumière les endroits qui travaillent le plus : autour du tube de direction, sous le tube diagonal, autour du boîtier de pédalier, les bases et les haubans près des pattes arrière, et les soudures.
+
+Une fissure fine, souvent soulignée par une ligne de rouille ou de poussière, une bosse, un tube plié ou une peinture qui se craquelle en étoile, surtout sur le carbone, imposent un arrêt immédiat. Profitez-en pour vérifier que les vis de porte-bidon et de patte de dérailleur sont serrées. Au moindre doute sur le cadre, ne roulez pas.
+
+</Step>
+
+<Step id="cockpit-bolts">
+
+La potence tient le cintre avec une ou plusieurs vis à l’avant, et se serre sur le pivot de fourche avec deux vis sur le côté. Vérifiez qu’aucune ne manque et que l’écart entre la potence et son capot est le même en haut et en bas.
+
+Resserrez chaque vis à la clé dynamométrique, au couple gravé sur la potence, souvent entre 4 et 6 Nm, en croisant et par petites étapes. Appuyez ensuite fort sur les deux côtés du cintre, vers le bas, puis tirez-le vers vous : rien ne doit tourner ni glisser. Faites de même avec les leviers de frein et les manettes, qui ne doivent pas bouger sur le cintre.
+
+</Step>
+
+<Step id="bar-tape">
+
+La guidoline protège vos mains et le cintre. Passez les mains sur toute sa longueur : elle ne doit être ni déchirée, ni décollée, ni glissante. Regardez surtout sous les cocottes et en haut du cintre, là où elle finit souvent par se dérouler, et le ruban adhésif de finition.
+
+Vérifiez aussi que chaque extrémité du cintre porte son bouchon. Un cintre ouvert au bout peut blesser gravement en cas de chute, comme un emporte-pièce. Une guidoline abîmée ne se répare pas vraiment : elle se remplace, et c’est l’occasion de contrôler les gaines qui passent dessous.
+
+</Step>
+
+<Step id="grips">
+
+Prenez chaque poignée à pleine main et essayez de la tourner autour du cintre, puis de la tirer vers l’extérieur. Elle ne doit pas bouger : une poignée qui tourne ou glisse au mauvais moment fait perdre le contrôle. Sur les poignées à collier, resserrez la petite vis du collier, sans forcer.
+
+Une poignée fendue, déchirée ou devenue collante se remplace. Vérifiez aussi que chaque extrémité du cintre est bouchée, par la poignée elle-même ou par un bouchon. Un bout de cintre ouvert peut blesser gravement en cas de chute, et les poignées ergonomiques doivent rester orientées pour soutenir la paume.
+
+</Step>
+
+<Step id="saddle-seatpost">
+
+Asseyez-vous sur le côté du vélo, prenez la selle par le bec et par l’arrière et tentez de la tourner et de la basculer. Elle ne doit pas bouger. Regardez sous la selle : les rails doivent être droits et intacts, et les vis du collier de tige serrées.
+
+Repérez ensuite la hauteur de la tige de selle avec un morceau de ruban adhésif, roulez quelques jours et vérifiez qu’elle n’a pas descendu. Desserrez le collier une fois : la tige doit porter un repère d’insertion minimale, qui ne doit jamais être visible au-dessus du cadre. Une tige qui glisse malgré un serrage correct passe par l’atelier.
+
+</Step>
+
+<Step id="accessories">
+
+Les accessoires se desserrent sous les vibrations, surtout sur un vélo chargé. Prenez le garde-boue avant et arrière, le porte-bagages et la béquille un par un, et secouez-les : rien ne doit claquer, pencher ni toucher le pneu. Vérifiez que chaque vis de fixation est présente, et serrez-la sans forcer.
+
+Un garde-boue qui frotte peut se coincer dans la roue et bloquer celle-ci ; une tringle de garde-boue qui dépasse doit avoir son capuchon. Faites tourner les roues pour vérifier que rien ne frotte. Une patte cassée, un porte-bagages fendu ou une vis qui ne serre plus dans le cadre sont à faire réparer.
+
+</Step>

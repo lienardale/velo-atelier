@@ -1,0 +1,97 @@
+---
+slug: check-lights-safety
+kind: check
+title: Contrôler l’éclairage et les équipements de sécurité
+summary: Feux avant et arrière, orientation, catadioptres et sonnette — ce qui vous rend visible et audible, et ce que le code de la route exige en France.
+status: full
+order: 120
+difficulty: 1
+minutes: 5
+partIds:
+  - lights
+  - handlebar
+tools:
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-frame-bolts
+  - check-e-system
+safety:
+  - En France, un vélo doit avoir un feu avant blanc ou jaune et un feu arrière rouge dès la tombée de la nuit ou par mauvaise visibilité, des catadioptres et une sonnette. Hors agglomération la nuit, le gilet rétroréfléchissant est obligatoire.
+steps:
+  - id: lights-work
+    title: Allumer les feux
+    partIds: [lights]
+    illustration: ill-discipline-city-hybrid
+    checkQuestion:
+      prompt: Les feux avant et arrière s’allument-ils franchement, sans clignoter de façon involontaire, et leur batterie ou leur dynamo tient-elle toute une sortie ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: lights
+          reasonKey: light-not-working
+  - id: lights-aim
+    title: Vérifier la fixation et l’orientation
+    partIds: [lights]
+    checkQuestion:
+      prompt: Les feux sont-ils bien fixés, visibles de loin, et le feu avant éclaire-t-il la route sans éblouir ceux qui arrivent en face ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: lights
+          reasonKey: accessory-loose
+  - id: reflectors
+    title: Compter les catadioptres
+    partIds: [lights]
+    checkQuestion:
+      prompt: Le vélo porte-t-il un catadioptre rouge à l’arrière, un blanc à l’avant, des orange dans les roues et sur les pédales, tous propres et entiers ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: lights
+          reasonKey: reflector-missing
+  - id: bell
+    title: Essayer la sonnette
+    partIds: [handlebar]
+    checkQuestion:
+      prompt: La sonnette est-elle fixée à portée de pouce, et s’entend-elle nettement à une cinquantaine de mètres ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: handlebar
+          reasonKey: reflector-missing
+---
+
+<Step id="lights-work">
+
+Mettez-vous dans un endroit un peu sombre, un garage ou une entrée, et allumez le feu avant puis le feu arrière. Chacun doit s’allumer du premier coup et éclairer de façon stable, dans le mode que vous utilisez en roulant. Secouez doucement le vélo : un feu qui s’éteint indique un mauvais contact.
+
+Sur des feux à piles ou rechargeables, chargez-les complètement et vérifiez qu’ils tiennent une sortie entière. Sur une dynamo, soulevez la roue et faites-la tourner vite : les deux feux doivent s’allumer. Sur un vélo électrique, les feux sont souvent alimentés par la batterie et s’allument depuis l’écran. Un fil arraché se répare en atelier.
+
+</Step>
+
+<Step id="lights-aim">
+
+Un feu mal fixé tourne vers le sol ou vers le ciel au premier trou, et ne sert plus à rien. Prenez chaque feu et essayez de le faire pivoter : son support doit tenir fermement sur le cintre, la tige de selle ou le porte-bagages. Resserrez les vis ou les élastiques de fixation.
+
+Orientez le feu avant légèrement vers le bas, pour qu’il éclaire la route quelques mètres devant la roue sans éblouir les autres usagers. Le feu arrière doit pointer droit vers l’arrière, sans être caché par une sacoche, un manteau ou le garde-boue. Regardez-le de dix mètres derrière le vélo pour vous en assurer.
+
+</Step>
+
+<Step id="reflectors">
+
+Les catadioptres renvoient la lumière des phares même quand vos feux sont éteints ou en panne. Faites le tour du vélo : il en faut un rouge à l’arrière, un blanc à l’avant, des orange sur les côtés, souvent fixés sur les rayons ou intégrés au flanc des pneus, et des orange sur les pédales.
+
+Nettoyez-les avec un chiffon humide : un catadioptre couvert de boue ne renvoie plus rien. Un catadioptre fendu, décoloré ou qui pend de travers se remplace pour quelques euros. Sur des pédales automatiques sans catadioptres, des bandes réfléchissantes sur les chaussures ou les chevilles prennent le relais.
+
+</Step>
+
+<Step id="bell">
+
+La sonnette est obligatoire en France, et utile partout sur une piste cyclable partagée. Elle doit être fixée sur le cintre à un endroit où votre pouce l’atteint sans lâcher la poignée ni le levier de frein.
+
+Actionnez-la plusieurs fois : le son doit être net et assez fort pour qu’un piéton l’entende à une cinquantaine de mètres. Une sonnette rouillée, qui grince ou tourne sur le cintre ne remplit plus son rôle. Resserrez son collier, ou remplacez-la : c’est l’une des pièces les moins chères du vélo, et les plus faciles à monter soi-même.
+
+</Step>

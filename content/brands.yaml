@@ -1,0 +1,214 @@
+# Brand tiers for the buying guide (§5.5) — CC BY-SA 4.0, like the rest of content/.
+#
+# One entry per part id (lib/domain/data/parts). Each part lists three tiers,
+# `entry`, `mid` and `high`, each a non-empty list of brands or product ranges
+# as a visitor would type them into a retailer's search box. `note` is a
+# Localized ({ fr, en }) hint shown next to the tiers: what actually changes
+# from one tier to the next for this part.
+#
+# The same brand can appear in several tiers when it sells ranges at several
+# levels; the range name is then given. No prices, no affiliate links, no
+# ranking inside a tier (alphabetical order).
+#
+# Validated by `npx tsx scripts/content-check.ts --strict`: part ids exist,
+# three non-empty tiers per part.
+
+chain:
+  note:
+    fr: Choisissez d’abord le nombre de vitesses ; les chaînes haut de gamme sont plus légères et traitées contre la corrosion, pas forcément plus durables.
+    en: Pick the number of speeds first; high-end chains are lighter and corrosion-treated, not necessarily longer-lasting.
+  entry: [KMC Z, Shimano HG40, SRAM PC-850]
+  mid: [KMC X, Shimano HG601, SRAM PC-1110, SRAM GX Eagle]
+  high: [Campagnolo Record, KMC X SL, Shimano Dura-Ace, SRAM XX Eagle, YBN]
+
+cassette:
+  note:
+    fr: La cassette doit correspondre au nombre de vitesses et au corps de roue libre (HG, Micro Spline, XD, XDR, N3W).
+    en: The cassette must match the number of speeds and the freehub body (HG, Micro Spline, XD, XDR, N3W).
+  entry: [Shimano Altus, Shimano Deore, SRAM PG-1130, Sunrace]
+  mid: [Shimano 105, Shimano SLX, SRAM GX Eagle, SRAM Rival]
+  high: [Campagnolo Record, Shimano Dura-Ace, Shimano XTR, SRAM Red, SRAM XX Eagle]
+
+tire-front:
+  note:
+    fr: Relevez la taille ETRTO sur le flanc (par exemple 28-622). Plus haut en gamme, la gomme adhère mieux et la carcasse est plus souple et plus résistante aux crevaisons.
+    en: Read the ETRTO size on the sidewall (for example 28-622). Higher up the range, the rubber grips better and the casing is suppler and more puncture-resistant.
+  entry: [Continental Ultra Sport, Hutchinson, Kenda, Michelin Dynamic, Schwalbe Lugano]
+  mid: [Continental Grand Prix, Maxxis, Michelin Power, Pirelli Cinturato, Schwalbe One]
+  high: [Continental GP5000, Michelin Power Cup, Pirelli P Zero, Schwalbe Pro One, Vittoria Corsa]
+
+tire-rear:
+  note:
+    fr: Relevez la taille ETRTO sur le flanc. À l’arrière, une carcasse renforcée ou une bande anti-crevaison paie vite.
+    en: Read the ETRTO size on the sidewall. At the back, a reinforced casing or a puncture belt pays off quickly.
+  entry: [Continental Ultra Sport, Hutchinson, Kenda, Michelin Dynamic, Schwalbe Lugano]
+  mid: [Continental Grand Prix, Maxxis, Michelin Power, Pirelli Cinturato, Schwalbe Marathon]
+  high: [Continental GP5000, Michelin Power Cup, Pirelli P Zero, Schwalbe Pro One, Vittoria Corsa]
+
+tube-front:
+  note:
+    fr: Même taille ETRTO que le pneu, même type de valve (Presta ou Schrader) et une longueur de valve adaptée à la hauteur de la jante.
+    en: Same ETRTO size as the tyre, same valve type (Presta or Schrader) and a valve long enough for the rim depth.
+  entry: [Decathlon B'Twin, Kenda, Schwalbe]
+  mid: [Continental, Michelin, Schwalbe]
+  high: [Pirelli SmarTube, Schwalbe Aerothan, Tubolito]
+
+tube-rear:
+  note:
+    fr: Même taille ETRTO que le pneu, même type de valve et une longueur de valve adaptée à la jante.
+    en: Same ETRTO size as the tyre, same valve type and a valve long enough for the rim.
+  entry: [Decathlon B'Twin, Kenda, Schwalbe]
+  mid: [Continental, Michelin, Schwalbe]
+  high: [Pirelli SmarTube, Schwalbe Aerothan, Tubolito]
+
+sealant:
+  note:
+    fr: Certains préventifs à base de latex abîment les chambres en TPU ou certains fonds de jante ; lisez la compatibilité sur le flacon.
+    en: Some latex sealants attack TPU tubes or some rim tapes; check the compatibility on the bottle.
+  entry: [Joe's No Flats, Muc-Off, Stan's NoTubes]
+  mid: [Effetto Mariposa Caffélatex, Orange Seal, Stan's NoTubes Race]
+  high: [Schwalbe Doc Blue, Silca Ultimate, Orange Seal Endurance]
+
+brake-pads-front:
+  note:
+    fr: Prenez la référence exacte de votre étrier (ou de votre frein sur jante) ; résine pour le silence et le mordant, métal fritté pour la pluie et la durée.
+    en: Buy the exact reference for your caliper (or rim brake); resin for quietness and bite, sintered metal for wet weather and long life.
+  entry: [Clarks, Decathlon, Jagwire]
+  mid: [Galfer, Shimano, SRAM, SwissStop]
+  high: [Galfer Pro, Shimano Ice-Tech, SwissStop Exotherm, TRP]
+
+brake-pads-rear:
+  note:
+    fr: Prenez la référence exacte de votre étrier (ou de votre frein sur jante) ; sur jante carbone, uniquement des patins carbone.
+    en: Buy the exact reference for your caliper (or rim brake); on carbon rims, carbon-specific blocks only.
+  entry: [Clarks, Decathlon, Jagwire]
+  mid: [Galfer, Shimano, SRAM, SwissStop]
+  high: [Galfer Pro, Shimano Ice-Tech, SwissStop Exotherm, TRP]
+
+rotor-front:
+  note:
+    fr: Même diamètre et même montage (6 trous ou Center Lock) que l’ancien disque, sauf adaptateur prévu pour l’étrier.
+    en: Same diameter and mounting (6-bolt or Center Lock) as the old rotor, unless you fit the matching caliper adapter.
+  entry: [Clarks, Shimano RT26, Tektro]
+  mid: [Galfer, Shimano RT70, SRAM Centerline]
+  high: [Hope, Shimano XTR, SRAM HS2, SwissStop Catalyst]
+
+rotor-rear:
+  note:
+    fr: Même diamètre et même montage que l’ancien disque ; à l’arrière, le cadre limite souvent le diamètre.
+    en: Same diameter and mounting as the old rotor; at the back, the frame often limits the diameter.
+  entry: [Clarks, Shimano RT26, Tektro]
+  mid: [Galfer, Shimano RT70, SRAM Centerline]
+  high: [Hope, Shimano XTR, SRAM HS2, SwissStop Catalyst]
+
+brake-line-front:
+  note:
+    fr: Câble et gaine spécifiques frein ; les gaines haut de gamme à faible compression donnent un levier plus ferme.
+    en: Brake-specific cable and housing; high-end compressionless housing gives a firmer lever.
+  entry: [Clarks, Decathlon, Jagwire Basics]
+  mid: [Jagwire Sport, Shimano]
+  high: [Jagwire Pro, Nokon, Shimano Dura-Ace]
+
+brake-line-rear:
+  note:
+    fr: Câble et gaine spécifiques frein ; mesurez la longueur de gaine sur l’ancienne avant d’acheter.
+    en: Brake-specific cable and housing; measure the old housing before buying.
+  entry: [Clarks, Decathlon, Jagwire Basics]
+  mid: [Jagwire Sport, Shimano]
+  high: [Jagwire Pro, Nokon, Shimano Dura-Ace]
+
+shift-cables:
+  note:
+    fr: Câble et gaine spécifiques vitesses ; les câbles polis ou revêtus glissent mieux et gardent un passage précis plus longtemps.
+    en: Gear-specific cable and housing; polished or coated cables slide better and keep shifting crisp for longer.
+  entry: [Clarks, Decathlon, Jagwire Basics]
+  mid: [Jagwire Sport, Shimano SP41]
+  high: [Jagwire Elite, Nokon, Shimano Optislick]
+
+grips-or-tape:
+  note:
+    fr: Guidoline pour cintre route, poignées pour cintre plat ; plus haut en gamme, plus d’amorti et une meilleure tenue sous la pluie.
+    en: Bar tape for drop bars, grips for flat bars; higher up the range, more cushioning and better grip in the rain.
+  entry: [Decathlon, Deda, Ergon GA2]
+  mid: [Fizik, Lizard Skins, ODI]
+  high: [Ergon GP5, Fizik Vento, Supacaz]
+
+saddle:
+  note:
+    fr: Choisissez d’abord la largeur adaptée à vos ischions ; la gamme change surtout le poids, les rails et le rembourrage.
+    en: Pick the width that fits your sit bones first; the range mostly changes weight, rails and padding.
+  entry: [Decathlon, Selle Royal, Velo]
+  mid: [Fizik, Selle Italia, Specialized]
+  high: [Brooks, Fizik Adaptive, Selle Italia SLR, Specialized Power Mirror]
+
+pedal-left:
+  note:
+    fr: Les pédales se vendent par paire ; vérifiez le système de cales (SPD, SPD-SL, Look) et le filetage 9/16 pouce.
+    en: Pedals are sold in pairs; check the cleat system (SPD, SPD-SL, Look) and the 9/16 inch thread.
+  entry: [Decathlon, Shimano PD-M520, Wellgo]
+  mid: [Crankbrothers, Look Keo, Shimano PD-R550]
+  high: [Look Keo Blade, Shimano Dura-Ace, Time Xpresso]
+
+pedal-right:
+  note:
+    fr: Les pédales se vendent par paire ; vérifiez le système de cales et le filetage 9/16 pouce.
+    en: Pedals are sold in pairs; check the cleat system and the 9/16 inch thread.
+  entry: [Decathlon, Shimano PD-M520, Wellgo]
+  mid: [Crankbrothers, Look Keo, Shimano PD-R550]
+  high: [Look Keo Blade, Shimano Dura-Ace, Time Xpresso]
+
+rear-derailleur:
+  note:
+    fr: Le dérailleur doit correspondre au nombre de vitesses, à la marque des manettes et à la taille du plus grand pignon.
+    en: The derailleur must match the number of speeds, the shifter brand and the size of the largest cog.
+  entry: [Microshift, Shimano Claris, Shimano Deore]
+  mid: [Shimano 105, Shimano SLX, SRAM GX Eagle, SRAM Rival]
+  high: [Campagnolo Record, Shimano Dura-Ace, Shimano XTR, SRAM Red]
+
+handlebar:
+  note:
+    fr: Relevez le diamètre de serrage (25,4, 31,8 ou 35 mm) et la largeur ; le haut de gamme gagne surtout du poids.
+    en: Note the clamp diameter (25.4, 31.8 or 35 mm) and the width; high-end mostly saves weight.
+  entry: [Decathlon, Ritchey Comp, Zoom]
+  mid: [Easton, FSA, Ritchey WCS]
+  high: [Deda Superleggera, Easton EC90, Renthal Fatbar Carbon]
+
+stem:
+  note:
+    fr: Même diamètre de pivot et de cintre que l’ancienne ; la longueur et l’angle changent votre position.
+    en: Same steerer and bar clamp diameters as the old one; length and angle change your position.
+  entry: [Decathlon, Ritchey Comp, Zoom]
+  mid: [Easton, FSA, Ritchey WCS]
+  high: [Deda Superzero, Renthal Apex, Thomson Elite X4]
+
+seatpost:
+  note:
+    fr: Le diamètre doit être exact au dixième de millimètre (par exemple 27,2 ou 31,6 mm) ; respectez l’insertion minimale.
+    en: The diameter must be exact to a tenth of a millimetre (for example 27.2 or 31.6 mm); respect the minimum insertion.
+  entry: [Decathlon, Ritchey Comp, Zoom]
+  mid: [Bike Yoke Revive, Ritchey WCS, RockShox Reverb]
+  high: [Fox Transfer Factory, OneUp Dropper, Thomson Masterpiece]
+
+wheel-front:
+  note:
+    fr: Même diamètre, même type d’axe et même système de frein (disque ou jante) ; le haut de gamme gagne en poids et en rigidité.
+    en: Same diameter, axle type and brake system (disc or rim); high-end wheels save weight and gain stiffness.
+  entry: [Decathlon, Mavic Aksium, Shimano RS100]
+  mid: [DT Swiss, Fulcrum Racing, Mavic Ksyrium]
+  high: [DT Swiss ARC, Mavic Cosmic, Zipp]
+
+wheel-rear:
+  note:
+    fr: Même diamètre, même type d’axe et d’écartement, même corps de roue libre et même système de frein.
+    en: Same diameter, axle type and spacing, same freehub body and same brake system.
+  entry: [Decathlon, Mavic Aksium, Shimano RS100]
+  mid: [DT Swiss, Fulcrum Racing, Mavic Ksyrium]
+  high: [DT Swiss ARC, Mavic Cosmic, Zipp]
+
+lights:
+  note:
+    fr: Un feu avant blanc ou jaune et un feu arrière rouge sont obligatoires la nuit ; plus haut en gamme, plus d’autonomie et un faisceau qui n’éblouit pas.
+    en: A white or yellow front light and a red rear light are compulsory at night in France; higher up the range, longer battery life and a beam that does not dazzle.
+  entry: [Decathlon, Knog, Sigma]
+  mid: [Busch und Müller, Cateye, Lezyne]
+  high: [Busch und Müller IQ-X, Exposure, Supernova]

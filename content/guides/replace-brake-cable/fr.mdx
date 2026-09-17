@@ -1,0 +1,56 @@
+---
+slug: replace-brake-cable
+kind: replace
+title: Remplacer un câble et une gaine de frein
+summary: Retirer l’ancien câble, recouper les gaines, passer le câble neuf, le tendre et le pincer sur le frein, puis sertir un embout. Ce guide est en cours de rédaction.
+status: stub
+order: 70
+difficulty: 2
+minutes: 40
+partIds:
+  - brake-line-front
+  - brake-line-rear
+  - brake-lever-front
+  - brake-lever-rear
+appliesTo:
+  path: brakes.type
+  notIn: [disc-hydraulic]
+tools:
+  - toolId: cable-cutter
+    alternatives: []
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: pliers
+    alternatives: [adjustable-wrench]
+related:
+  - check-cables-hoses
+  - check-brakes-rim
+  - adjust-brake-lever-reach
+safety:
+  - Utilisez un câble et une gaine de frein, jamais de vitesses. Une gaine de vitesses peut éclater sous l’effort d’un freinage appuyé.
+  - Avant de rouler, serrez très fort le levier une dizaine de fois pour mettre le câble en place, puis vérifiez que la vis de pincement n’a pas laissé glisser le câble.
+steps:
+  - id: remove-old
+    title: Retirer l’ancien câble
+    partIds: [brake-line-front, brake-line-rear]
+  - id: cut-housing
+    title: Recouper les gaines
+    partIds: [brake-line-front, brake-line-rear]
+  - id: thread-cable
+    title: Passer le câble neuf
+    partIds: [brake-line-front, brake-line-rear, brake-lever-front, brake-lever-rear]
+  - id: clamp-cable
+    title: Tendre et pincer le câble
+    partIds: [brake-line-front, brake-line-rear]
+  - id: crimp-test
+    title: Sertir l’embout et essayer le frein
+    partIds: [brake-line-front, brake-line-rear]
+---
+
+<Step id="clamp-cable">
+
+Vissez presque entièrement le tendeur de câble du levier ou du frein, puis dévissez-le d’un tour : il vous restera du réglage dans les deux sens. Tenez les deux bras du frein serrés contre la jante, ou le levier de l’étrier mécanique fermé, et tirez le câble avec la pince pour supprimer le mou.
+
+Serrez la vis de pincement du câble avec les <Tool id="allen-keys" alt="multi-tool" />, fermement, sans écraser les brins. Relâchez le frein, puis ajustez l’écart des patins ou des plaquettes avec le tendeur : le levier doit devenir ferme bien avant de toucher le cintre.
+
+</Step>

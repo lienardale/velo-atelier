@@ -220,7 +220,7 @@ describe("known-bad fixtures (tests/fixtures/content-bad)", () => {
     const ok = runCli(["--root", emitRoot, "--emit"]);
     expect(ok.code, ok.stderr).toBe(0);
     expect(ok.stdout).toMatch(
-      /3 guide\(s\), 17 step\(s\), no problem\. lib\/content\/generated\/ written\./,
+      /\d+ guide\(s\), \d+ step\(s\), no problem\. lib\/content\/generated\/ written\./,
     );
     expect(
       readFileSync(join(emitRoot, "lib", "content", "generated", "version.ts"), "utf8"),
@@ -650,6 +650,11 @@ describe("strict mode", () => {
 
   it("every rendered part is checked, directly or through a hosted part", () => {
     const root = makeRoot();
+    // The real corpus checks every rendered part; take away the two guides whose
+    // steps check the chain to open a gap.
+    for (const slug of ["check-drivetrain", "check-hub-gear"]) {
+      rmSync(join(root, "content", "guides", slug), { recursive: true, force: true });
+    }
     const out = check(root, true).map((e) => e.message);
     expect(out).toContain('rendered part "chain" is not covered by any check step');
     // brake-caliper-front is covered by check-brakes-disc (directly), rotor-front too.
@@ -671,6 +676,7 @@ describe("strict mode", () => {
 
   it("brands.yaml: missing, invalid, and well-formed but wrong", () => {
     const root = makeRoot();
+    rmSync(join(root, "content", "brands.yaml"), { force: true });
     expect(messages(root, true)).toContain("content/brands.yaml:1: missing content/brands.yaml");
     writeFileSync(join(root, "content", "brands.yaml"), "a: [");
     expect(
@@ -707,7 +713,10 @@ describe("helpers and the generated manifest", () => {
 
   it("builds the manifest from the frontmatter and renders the three modules", () => {
     const manifest = buildContentManifest(REPO);
-    expect(manifest.slugs).toEqual(["check-brakes-disc", "clean-chain", "replace-brake-pads-disc"]);
+    expect(manifest.slugs).toEqual(
+      expect.arrayContaining(["check-brakes-disc", "clean-chain", "replace-brake-pads-disc"]),
+    );
+    expect(manifest.slugs).toEqual([...manifest.slugs].sort());
     expect(manifest.stepKeys).toContain("check-brakes-disc#pad-wear");
     expect(manifest.reasonKeys).toEqual(expect.arrayContaining(["chain-elongation", "pad-worn"]));
     expect(manifest.version).toMatch(/^[0-9a-f]{40}$/);

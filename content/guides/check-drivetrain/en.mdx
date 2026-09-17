@@ -1,0 +1,156 @@
+---
+slug: check-drivetrain
+kind: check
+title: Check the drivetrain
+summary: Chain wear, cog and chainring teeth, derailleur hanger and shifting — enough to know in fifteen minutes what needs replacing or adjusting.
+status: full
+order: 30
+difficulty: 1
+minutes: 15
+partIds:
+  - chain
+  - cassette
+  - freewheel
+  - chainring
+  - crankset
+  - rear-derailleur
+  - front-derailleur
+  - shifter-right
+  - shifter-left
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: chain-checker
+    alternatives: [steel-ruler]
+  - toolId: rags
+    alternatives: []
+  - toolId: work-stand
+    alternatives: []
+related:
+  - replace-chain
+  - clean-chain
+  - adjust-rear-derailleur
+  - replace-cassette
+safety:
+  - When you turn the cranks by hand, keep your fingers away from where the chain runs onto the chainring and the cogs. A finger caught there is cut deeply.
+steps:
+  - id: chain-wear
+    title: Measure chain stretch
+    partIds: [chain]
+    illustration: chain-wear-checker
+    checkQuestion:
+      prompt: Does the checker stay out on the 0.5% side (11-speed and up) or the 0.75% side (10-speed and below), and is the chain clean and supple?
+      skippable: true
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+          guideSlug: replace-chain
+        - action: clean
+          partId: chain
+          reasonKey: chain-dirty
+          guideSlug: clean-chain
+  - id: cassette-teeth
+    title: Inspect the cog teeth
+    partIds: [cassette, freewheel]
+    appliesTo:
+      path: drivetrain.kind
+      in: [derailleur]
+    checkQuestion:
+      prompt: Are the cog teeth symmetrical, and does the chain hold without skipping when you push hard on the pedals?
+      skippable: false
+      ko:
+        - action: replace
+          partId: cassette
+          reasonKey: cassette-worn
+          guideSlug: replace-cassette
+        - action: clean
+          partId: cassette
+          reasonKey: drivetrain-dirty
+          guideSlug: clean-drivetrain
+  - id: chainring-teeth
+    title: Inspect the chainrings
+    partIds: [chainring, crankset]
+    checkQuestion:
+      prompt: Are the chainring teeth straight, whole and free of hooked tips?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: chainring
+          reasonKey: chainring-worn
+  - id: derailleur-hanger
+    title: Check the derailleur hanger
+    partIds: [rear-derailleur]
+    appliesTo:
+      path: drivetrain.kind
+      in: [derailleur]
+    checkQuestion:
+      prompt: Seen from behind, does the derailleur hang straight down, in line with the cogs?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: rear-derailleur
+          reasonKey: hanger-bent
+  - id: shifting-index
+    title: Run through every gear
+    partIds: [rear-derailleur, front-derailleur, shifter-right, shifter-left]
+    appliesTo:
+      path: drivetrain.kind
+      in: [derailleur]
+    illustration: derailleur-limit-screws-h-l-b
+    checkQuestion:
+      prompt: Does every gear engage at the first click, without noise or hesitation, and does the chain never fall off?
+      skippable: false
+      ko:
+        - action: fix
+          partId: rear-derailleur
+          reasonKey: shifting-imprecise
+          guideSlug: adjust-rear-derailleur
+        - action: fix
+          partId: front-derailleur
+          reasonKey: front-shifting-imprecise
+          guideSlug: adjust-front-derailleur
+---
+
+<Step id="chain-wear">
+
+A chain does not really stretch: its pins and rollers wear, and it slowly grows longer. A worn chain eats the cogs and chainrings; replacing it in time costs far less.
+
+Lay the wear checker flat on the chain. If it drops fully in on the 0.5% side on an 11- or 12-speed drivetrain, or on the 0.75% side on 10-speed and below, the chain needs replacing. Without a checker, use a steel ruler: on a new chain, 12 full links measure 304.8 mm from pin to pin. From 306.3 mm (11-speed and up) or 307.1 mm (10-speed and below), replace it.
+
+Then pedal backwards while watching the chain run through the derailleur: a stiff link makes the jockey wheels jump. A black, sticky or rusty chain needs cleaning.
+
+</Step>
+
+<Step id="cassette-teeth">
+
+Look at the cogs you use most, often the middle ones. A healthy tooth is symmetrical with a rounded tip. A worn tooth is hollowed out on one side and looks like a shark fin.
+
+The real test is on the road, especially right after fitting a new chain: on each cog, push hard on the pedals out of the saddle. If the chain skips or slides over the teeth while the gears are properly adjusted, the cassette, or the freewheel on bikes with 7 speeds or fewer, is worn. A badly stretched chain almost always wears it out: replace both together.
+
+</Step>
+
+<Step id="chainring-teeth">
+
+Chainrings wear much more slowly than cogs, but they do wear. Turn the cranks backwards and watch every tooth go by: they should be straight and all the same shape. Thin, pointed or hook-shaped teeth hold on to the chain and drag it up with the chainring.
+
+Look for a tooth bent by a knock too, and check that the chainring bolts do not move. On the narrow-wide chainrings of single-ring drivetrains, the teeth alternate thick and thin on purpose: that is normal. Replacing a chainring often needs a specific tool; a shop does it quickly.
+
+</Step>
+
+<Step id="derailleur-hanger">
+
+The derailleur hanger is the small metal part that joins the derailleur to the frame. It is designed to bend in a crash to protect the frame, and it often bends without anyone noticing.
+
+Shift onto the largest cog, crouch behind the wheel and look: both jockey wheels of the derailleur should sit exactly under the cog, in a vertical plane. If they tuck in towards the spokes or lean outwards, the hanger is bent. Do not bend it back by hand: a shop checks it with an alignment tool, or replaces it.
+
+</Step>
+
+<Step id="shifting-index">
+
+On a work stand, or riding on a quiet road, go through every gear one at a time, up and then down, at the back and then at the front. Each click should move the chain by one cog, at the first attempt, with no rattling once it is there.
+
+A chain that hesitates, rattles or jumps two cogs can almost always be fixed with the cable's barrel adjuster. A chain that falls into the spokes or off the smallest cog points to badly set limit screws: that is dangerous, so do not ride until it is adjusted. On an electronic groupset, the adjustment is made from the buttons or the maker's app.
+
+</Step>

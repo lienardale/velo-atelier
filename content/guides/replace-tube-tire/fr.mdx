@@ -1,0 +1,101 @@
+---
+slug: replace-tube-tire
+kind: replace
+title: Changer une chambre à air ou un pneu
+summary: Sortir la roue, démonter le pneu avec deux démonte-pneus, trouver la cause de la crevaison, remonter chambre et pneu sans pincer, et regonfler. La réparation qu’il faut savoir faire au bord de la route.
+status: full
+order: 30
+difficulty: 1
+minutes: 25
+partIds:
+  - tire-front
+  - tire-rear
+  - tube-front
+  - tube-rear
+appliesTo:
+  path: tires.system
+  in: [clincher-tube]
+tools:
+  - toolId: tire-levers
+    alternatives: []
+  - toolId: floor-pump
+    alternatives: [mini-pump]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-wheels-tires
+  - measure-tire-pressure
+  - replace-tire-tubeless
+safety:
+  - Achetez une chambre à la taille du pneu, lue sur son flanc (par exemple 28-622), avec le même type de valve et une valve assez longue pour votre jante.
+  - "Gonflez entre les pressions minimale et maximale inscrites sur le pneu, sans dépasser celle de la jante : 5 bars au plus sur une jante « hookless »."
+steps:
+  - id: remove-wheel
+    title: Sortir la roue
+    illustration: axle-qr-vs-thru
+  - id: deflate
+    title: Dégonfler et décoller le pneu
+    partIds: [tube-front, tube-rear]
+    illustration: presta-valve-core
+  - id: remove-tire
+    title: Démonter le pneu et la chambre
+    partIds: [tire-front, tire-rear, tube-front, tube-rear]
+    illustration: tire-lever-technique
+  - id: find-cause
+    title: Trouver la cause de la crevaison
+    partIds: [tire-front, tire-rear]
+  - id: fit-tube
+    title: Remonter la chambre et le pneu
+    partIds: [tire-front, tire-rear, tube-front, tube-rear]
+  - id: inflate
+    title: Gonfler et remonter la roue
+    partIds: [tire-front, tire-rear]
+---
+
+<Step id="remove-wheel">
+
+Pour la roue arrière, passez d’abord la chaîne sur le plus petit pignon : la roue sortira beaucoup plus facilement. Sur un frein sur jante, ouvrez le levier de déblocage de l’étrier ou sortez la nouille du V-brake, sinon le pneu ne passe pas entre les patins.
+
+Ouvrez le blocage rapide, ou dévissez l’axe traversant, puis sortez la roue. À l’arrière, tirez le dérailleur vers l’arrière pour libérer la cassette de la chaîne. Sur un frein à disque, ne touchez plus au levier de frein tant que la roue est sortie : les pistons se rapprocheraient et empêcheraient le disque de rentrer.
+
+</Step>
+
+<Step id="deflate">
+
+Videz ce qui reste d’air. Sur une valve Presta, fine, dévissez le petit écrou de la pointe puis appuyez dessus. Sur une valve Schrader, comme sur une voiture, appuyez sur la tige centrale. Dévissez aussi l’écrou qui tient la valve contre la jante, s’il y en a un.
+
+Pincez ensuite le pneu tout le tour de la roue, des deux côtés, pour décoller ses bords, les tringles, de la jante et les pousser vers le creux au centre de la jante. Cette étape rend tout le démontage plus facile : les tringles ont alors assez de mou pour passer par-dessus le bord.
+
+</Step>
+
+<Step id="remove-tire">
+
+À l’opposé de la valve, glissez l’extrémité arrondie d’un <Tool id="tire-levers" /> sous la tringle, faites basculer le pneu par-dessus le bord de la jante, et accrochez le démonte-pneu à un rayon. Glissez le second une dizaine de centimètres plus loin, basculez, puis faites-le coulisser le long de la jante : un côté du pneu sort entièrement.
+
+Tirez la chambre à air hors du pneu en finissant par la valve, que vous poussez hors de la jante. Pour changer le pneu lui-même, faites sortir le second côté à la main, en le tirant d’un seul geste. N’utilisez jamais de tournevis : il abîme la jante et perce la chambre neuve.
+
+</Step>
+
+<Step id="find-cause">
+
+Une chambre neuve crèvera de nouveau si la cause est restée dans le pneu. Gonflez un peu l’ancienne chambre et cherchez la fuite à l’oreille, ou dans une bassine d’eau. Replacez-la contre le pneu, valve contre le trou de valve : l’endroit du trou vous indique où chercher.
+
+Passez lentement un chiffon, puis le bout des doigts, à l’intérieur du pneu : un éclat de verre, une épine ou un fil métallique accroche. Retirez-le. Deux petits trous côte à côte signalent un pincement, par manque de pression. Vérifiez enfin que le fond de jante recouvre bien tous les trous de rayon.
+
+</Step>
+
+<Step id="fit-tube">
+
+Gonflez juste assez la chambre pour qu’elle prenne une forme ronde. Si le pneu a été entièrement démonté, remettez d’abord un côté sur la jante, en respectant le sens de rotation indiqué par une flèche sur le flanc. Passez la valve dans son trou, puis glissez la chambre dans le pneu tout le tour, sans pli.
+
+Remontez le second côté à la main en partant de la valve, par petites portions, des deux côtés à la fois. La fin est dure : poussez les tringles déjà montées vers le creux central de la jante pour gagner du mou, puis roulez le dernier morceau avec les paumes. Évitez les démonte-pneus ici : ils pincent la chambre.
+
+</Step>
+
+<Step id="inflate">
+
+Gonflez à environ 1 bar, puis regardez la fine ligne moulée juste au-dessus de la jante, des deux côtés : elle doit rester à la même hauteur sur tout le tour. Si elle plonge quelque part, dégonflez, massez le pneu à cet endroit et regonflez. Poussez la valve vers l’intérieur puis tirez-la bien droite.
+
+Gonflez ensuite à votre pression, entre le minimum et le maximum inscrits sur le flanc, et revissez l’écrou de la valve Presta. Remontez la roue, serrez l’axe, puis refermez le levier de déblocage du frein sur jante. Faites tourner la roue et serrez chaque frein avant de rouler.
+
+</Step>

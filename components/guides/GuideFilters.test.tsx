@@ -9,8 +9,11 @@ import { renderWithIntl } from "@/tests/_helpers/intl";
 
 import { GuideFilters } from "./GuideFilters";
 
+// A fixed sample of the real corpus (the three W1 guides), so the expectations
+// below do not change every time a guide is added.
+const SAMPLE = new Set(["check-brakes-disc", "clean-chain", "replace-brake-pads-disc"]);
 const guides = diskGuides()
-  .filter((guide) => guide.locale === "fr")
+  .filter((guide) => guide.locale === "fr" && SAMPLE.has(guide.slug))
   .map(toSummary);
 
 const cards = () =>

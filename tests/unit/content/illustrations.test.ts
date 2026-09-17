@@ -30,7 +30,7 @@ describe("content illustration registry", () => {
         component: componentNameFor(id),
         altKey: `illustrations.${id}.alt`,
         aspect: "4/3",
-        status: "placeholder",
+        status: "final",
       });
     }
   });

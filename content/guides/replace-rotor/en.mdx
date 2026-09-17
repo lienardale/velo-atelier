@@ -1,0 +1,57 @@
+---
+slug: replace-rotor
+kind: replace
+title: Replace a brake rotor
+summary: Take the wheel out, remove the worn or bent rotor, fit the new one the right way round and to the right torque, then bed in the brakes. This guide is still being written.
+status: stub
+order: 130
+difficulty: 2
+minutes: 30
+partIds:
+  - rotor-front
+  - rotor-rear
+  - wheel-front
+  - wheel-rear
+appliesTo:
+  path: brakes.isDisc
+  in: [true]
+tools:
+  - toolId: torx-keys
+    alternatives: [multi-tool]
+  - toolId: cassette-lockring-tool
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: isopropyl-alcohol
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-brakes-disc
+  - replace-brake-pads-disc
+  - clean-disc-rotors-pads
+safety:
+  - A new rotor must have the same diameter and the same mounting as the old one. A larger rotor without an adapter brakes on only part of the pads.
+  - Do not touch the braking track with your fingers, and clean it with isopropyl alcohol before refitting the wheel. A greasy rotor barely brakes.
+steps:
+  - id: remove-wheel
+    title: Take the wheel out
+    partIds: [wheel-front, wheel-rear]
+  - id: remove-rotor
+    title: Remove the old rotor
+    partIds: [rotor-front, rotor-rear]
+  - id: fit-rotor
+    title: Fit the new rotor
+    partIds: [rotor-front, rotor-rear]
+  - id: bed-in
+    title: Bed in the brakes
+    partIds: [rotor-front, rotor-rear]
+---
+
+<Step id="fit-rotor">
+
+Look at the arrow engraved on the new rotor: it shows the direction the wheel turns when riding forwards, and must face outwards. On a six-bolt rotor, set it on the hub, then start all six bolts by hand with the <Tool id="torx-keys" alt="multi-tool" />.
+
+Tighten them in a star pattern, in small steps, to the torque given by the rotor or hub maker, using the <Tool id="torque-wrench" />. A Center Lock rotor is held by a single lockring, tightened with the matching splined tool. Finally, clean the whole braking track with isopropyl alcohol.
+
+</Step>

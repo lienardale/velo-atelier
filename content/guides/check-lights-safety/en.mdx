@@ -1,0 +1,97 @@
+---
+slug: check-lights-safety
+kind: check
+title: Check lights and safety equipment
+summary: Front and rear lights, aim, reflectors and bell — what makes you seen and heard, and what the law requires in France.
+status: full
+order: 120
+difficulty: 1
+minutes: 5
+partIds:
+  - lights
+  - handlebar
+tools:
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-frame-bolts
+  - check-e-system
+safety:
+  - In France, a bike must have a white or yellow front light and a red rear light from nightfall or in poor visibility, reflectors and a bell. Outside built-up areas at night, a reflective vest is compulsory. Rules differ from country to country, so check yours.
+steps:
+  - id: lights-work
+    title: Switch the lights on
+    partIds: [lights]
+    illustration: ill-discipline-city-hybrid
+    checkQuestion:
+      prompt: Do the front and rear lights come on properly, without flickering by accident, and does their battery or dynamo last a whole ride?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: lights
+          reasonKey: light-not-working
+  - id: lights-aim
+    title: Check mounting and aim
+    partIds: [lights]
+    checkQuestion:
+      prompt: Are the lights firmly mounted and visible from afar, and does the front light show the road without dazzling oncoming traffic?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: lights
+          reasonKey: accessory-loose
+  - id: reflectors
+    title: Count the reflectors
+    partIds: [lights]
+    checkQuestion:
+      prompt: Does the bike carry a red reflector at the back, a white one at the front, amber ones in the wheels and on the pedals, all clean and whole?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: lights
+          reasonKey: reflector-missing
+  - id: bell
+    title: Try the bell
+    partIds: [handlebar]
+    checkQuestion:
+      prompt: Is the bell mounted within reach of your thumb, and can it be heard clearly about fifty metres away?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: handlebar
+          reasonKey: reflector-missing
+---
+
+<Step id="lights-work">
+
+Find a dim spot, a garage or a hallway, and switch on the front light, then the rear one. Each should come on at the first press and shine steadily, in the mode you use when riding. Shake the bike gently: a light that goes out has a poor contact.
+
+On battery or rechargeable lights, charge them fully and check that they last a whole ride. With a dynamo, lift the wheel and spin it fast: both lights should come on. On an e-bike, the lights are often powered by the main battery and switched on from the display. A torn wire is a job for a shop.
+
+</Step>
+
+<Step id="lights-aim">
+
+A badly mounted light swings towards the ground or the sky at the first pothole and becomes useless. Take each light and try to twist it: its bracket should hold firmly on the handlebar, the seatpost or the rack. Tighten the screws or the rubber straps.
+
+Aim the front light slightly down, so it lights the road a few metres ahead of the wheel without dazzling other road users. The rear light should point straight back, not hidden by a pannier, a coat or the mudguard. Look at it from ten metres behind the bike to be sure.
+
+</Step>
+
+<Step id="reflectors">
+
+Reflectors bounce back headlight beams even when your own lights are off or broken. Walk around the bike: you need a red one at the back, a white one at the front, amber ones on the sides, often clipped to the spokes or built into the tyre sidewalls, and amber ones on the pedals.
+
+Clean them with a damp cloth: a reflector covered in mud reflects nothing. A cracked, faded or crooked reflector costs very little to replace. On clipless pedals without reflectors, reflective bands on your shoes or ankles do the same job.
+
+</Step>
+
+<Step id="bell">
+
+A bell is compulsory in France and useful everywhere on a shared cycle path. It should sit on the handlebar where your thumb reaches it without letting go of the grip or the brake lever.
+
+Ring it a few times: the sound should be clear and loud enough for a pedestrian to hear it about fifty metres away. A rusty bell that rasps, or one that swivels on the bar, no longer does its job. Tighten its clamp or replace it: it is one of the cheapest parts on a bike, and one of the easiest to fit yourself.
+
+</Step>

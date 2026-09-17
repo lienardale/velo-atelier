@@ -1,0 +1,207 @@
+---
+slug: check-wheels-tires
+kind: check
+title: Contrôler les roues et les pneus
+summary: Usure des pneus, pression qui tient, préventif tubeless, roues voilées, jeu dans les moyeux et serrage des axes — tout ce qui vous relie au sol.
+status: full
+order: 40
+difficulty: 1
+minutes: 15
+partIds:
+  - tire-front
+  - tire-rear
+  - tube-front
+  - tube-rear
+  - sealant
+  - wheel-front
+  - wheel-rear
+tools:
+  - toolId: floor-pump
+    alternatives: [mini-pump]
+  - toolId: pressure-gauge
+    alternatives: [floor-pump]
+  - toolId: zip-tie
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - replace-tube-tire
+  - replace-tire-tubeless
+  - measure-tire-pressure
+safety:
+  - "Ne dépassez jamais la pression maximale inscrite sur le flanc du pneu, ni celle de la jante : sur une jante « hookless » (sans crochet), elle est limitée à 5 bars."
+steps:
+  - id: tread-sidewalls
+    title: Inspecter la bande de roulement et les flancs
+    partIds: [tire-front, tire-rear]
+    appliesTo:
+      path: tires.system
+      in: [clincher-tube]
+    checkQuestion:
+      prompt: Les pneus ont-ils encore du relief, sans coupure, hernie, craquelure ni trame visible ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-worn
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-worn
+          guideSlug: replace-tube-tire
+  - id: tread-sidewalls-tubeless
+    title: Inspecter les pneus tubeless
+    partIds: [tire-front, tire-rear]
+    appliesTo:
+      path: tires.system
+      in: [tubeless]
+    checkQuestion:
+      prompt: Les pneus ont-ils encore du relief, sans coupure, hernie, craquelure ni préventif qui suinte du flanc ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-worn
+          guideSlug: replace-tire-tubeless
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-worn
+          guideSlug: replace-tire-tubeless
+  - id: pressure-hold
+    title: Vérifier que la pression tient
+    partIds: [tube-front, tube-rear]
+    appliesTo:
+      path: tires.system
+      in: [clincher-tube]
+    illustration: presta-valve-core
+    checkQuestion:
+      prompt: Après deux jours sans rouler, les pneus ont-ils gardé presque toute leur pression, avec des valves droites et bien fixées ?
+      skippable: true
+      ko:
+        - action: replace
+          partId: tube-front
+          reasonKey: tube-punctured
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tube-rear
+          reasonKey: tube-punctured
+          guideSlug: replace-tube-tire
+  - id: sealant
+    title: Vérifier le préventif tubeless
+    partIds: [sealant]
+    appliesTo:
+      path: tires.system
+      in: [tubeless]
+    checkQuestion:
+      prompt: Entend-on encore le préventif liquide bouger dans chaque pneu, et le dernier ajout date-t-il de moins de quelques mois ?
+      skippable: true
+      ko:
+        - action: replace
+          partId: sealant
+          reasonKey: sealant-dry
+          guideSlug: replace-tire-tubeless
+  - id: wheel-true
+    title: Contrôler le voile et les rayons
+    partIds: [wheel-front, wheel-rear]
+    checkQuestion:
+      prompt: Chaque roue tourne-t-elle droite, sans voile ni saut visible, avec tous ses rayons tendus ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: wheel-out-of-true
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: wheel-out-of-true
+  - id: hub-play
+    title: Chercher du jeu dans les moyeux
+    partIds: [wheel-front, wheel-rear]
+    checkQuestion:
+      prompt: En poussant la jante de gauche à droite, la roue est-elle sans jeu, et tourne-t-elle longtemps, sans bruit de grattement ?
+      skippable: false
+      ko:
+        - action: fix
+          partId: wheel-front
+          reasonKey: hub-play
+          guideSlug: adjust-hub-bearing-preload
+        - action: fix
+          partId: wheel-rear
+          reasonKey: hub-play
+          guideSlug: adjust-hub-bearing-preload
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: hub-bearing-rough
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: hub-bearing-rough
+  - id: axle-secure
+    title: Vérifier le serrage des axes
+    partIds: [wheel-front, wheel-rear]
+    illustration: axle-qr-vs-thru
+    checkQuestion:
+      prompt: Chaque blocage rapide se referme-t-il en marquant la paume, ou chaque axe traversant est-il vissé à fond, sans que la roue claque quand vous soulevez et lâchez le vélo ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: axle-not-secure
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: axle-not-secure
+---
+
+<Step id="tread-sidewalls">
+
+Faites tourner chaque roue lentement et regardez le pneu sur tout le tour, au milieu puis sur les deux flancs. Beaucoup de pneus de route ont de petits trous témoins sur la bande de roulement : quand ils ont disparu, le pneu est usé. Un pneu arrière dont le centre est devenu plat, « carré », l’est aussi.
+
+Cherchez ensuite les coupures profondes, les cailloux ou éclats de verre plantés, qui se retirent avec la pointe d’un couteau. Une bosse sur le flanc, une craquelure fine et régulière due à l’âge ou au soleil, ou la trame du tissu visible sous la gomme imposent un pneu neuf : il peut éclater sans prévenir.
+
+</Step>
+
+<Step id="tread-sidewalls-tubeless">
+
+Faites tourner chaque roue lentement et regardez le pneu sur tout le tour, au milieu puis sur les deux flancs. Des crampons arrondis ou arrachés et une bande de roulement lisse réduisent l’adhérence, surtout dans les virages et sur le mouillé.
+
+Sur un pneu tubeless, de petites taches blanches ou grises séchées sur la gomme sont des crevaisons que le préventif a rebouchées ; c’est normal. Un flanc où le liquide suinte en continu, une coupure plus longue que quelques millimètres, une bosse ou une craquelure régulière imposent un pneu neuf : une mèche de réparation reste une solution de dépannage.
+
+</Step>
+
+<Step id="pressure-hold">
+
+Gonflez les deux pneus à votre pression habituelle, notez-la, puis relevez-la deux jours plus tard avec la pompe à manomètre. Une chambre à air perd toujours un peu d’air, mais une baisse de plus d’un demi-bar environ en deux jours signale une petite crevaison ou une valve qui fuit.
+
+Regardez la valve : elle doit sortir bien droite de la jante. Une valve penchée montre que le pneu a tourné sur la jante et va arracher la valve. Sur une valve Presta, vérifiez que l’écrou de blocage se visse et que l’obus démontable est serré : un obus qui fuit se resserre à la main ou se remplace.
+
+</Step>
+
+<Step id="sealant">
+
+Le préventif liquide rebouche les petites crevaisons, mais il sèche : selon la chaleur, il faut en rajouter tous les deux à six mois. Tournez la roue pour mettre la valve en haut, puis secouez-la de haut en bas près de l’oreille : un clapotis signifie qu’il reste du liquide.
+
+Sans bruit, dégonflez le pneu, retirez l’obus de valve et plongez un fin bâtonnet, par exemple un rayon de roue de rechange, au point le plus bas : s’il ressort sec, ou si le préventif est devenu une boule caoutchouteuse, il faut en remettre. Notez la date au feutre sur la jante ou dans l’application.
+
+</Step>
+
+<Step id="wheel-true">
+
+Soulevez la roue et faites-la tourner en regardant un point fixe : le patin de frein, l’étrier, ou un collier de serrage attaché à la fourche ou au cadre juste à côté de la jante. L’écart doit rester le même sur tout le tour. Un voile de plus d’un ou deux millimètres, ou une jante qui monte et descend, se corrige en retendant les rayons.
+
+Pincez ensuite les rayons deux par deux sur tout le tour : ils doivent tous être tendus de la même façon. Un rayon mou, qui cliquette ou qui est cassé fragilise toute la roue. Le dévoilage demande une clé à rayons et de l’expérience : confiez-le à un atelier.
+
+</Step>
+
+<Step id="hub-play">
+
+Tenez le vélo d’une main, prenez la jante par le haut de l’autre et poussez-la franchement de gauche à droite. Un léger claquement ou un mouvement qui se sent dans les doigts révèle du jeu dans les roulements du moyeu ; vérifiez d’abord que l’axe est bien serré.
+
+Faites ensuite tourner la roue à la main, frein ouvert : elle doit tourner longtemps, sans bruit sec ni sensation de grains. Un moyeu à cônes et billes, reconnaissable aux écrous de réglage de chaque côté de l’axe, se règle soi-même. Un moyeu à roulements cartouche qui gratte ou un moyeu à jeu impossible à régler passe par l’atelier.
+
+</Step>
+
+<Step id="axle-secure">
+
+Une roue mal fixée peut sortir de la fourche au freinage. Un blocage rapide ne se visse pas comme un écrou : réglez l’écrou d’en face pour que le levier commence à résister à mi-course, puis fermez-le franchement. Il doit laisser une marque dans la paume. Le levier fermé se place vers l’arrière, loin du disque et des obstacles.
+
+Un axe traversant se visse à fond dans la fourche ou le cadre, au couple gravé dessus quand il y est indiqué, puis son levier se replie. Soulevez ensuite le vélo de quelques centimètres et laissez-le retomber : aucune roue ne doit claquer. Si un blocage ne se ferme plus fermement ou si un filetage accroche, faites-le vérifier.
+
+</Step>

@@ -1,0 +1,52 @@
+---
+slug: replace-cassette
+kind: replace
+title: Remplacer la cassette
+summary: Sortir la roue arrière, débloquer l’écrou de cassette avec un fouet à chaîne, changer la cassette et la resserrer au couple. Ce guide est en cours de rédaction.
+status: stub
+order: 60
+difficulty: 2
+minutes: 30
+partIds:
+  - cassette
+  - wheel-rear
+appliesTo:
+  path: drivetrain.kind
+  in: [derailleur]
+tools:
+  - toolId: chain-whip
+    alternatives: []
+  - toolId: cassette-lockring-tool
+    alternatives: []
+  - toolId: adjustable-wrench
+    alternatives: [pliers]
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: rags
+    alternatives: []
+related:
+  - check-drivetrain
+  - replace-chain
+  - clean-drivetrain
+steps:
+  - id: remove-wheel
+    title: Sortir la roue arrière
+    partIds: [wheel-rear]
+  - id: remove-lockring
+    title: Débloquer l’écrou de cassette
+    partIds: [cassette]
+  - id: fit-cassette
+    title: Monter la cassette neuve
+    partIds: [cassette]
+  - id: tighten-lockring
+    title: Serrer l’écrou au couple
+    partIds: [cassette]
+---
+
+<Step id="remove-lockring">
+
+Posez la roue à plat, cassette vers le haut, et retirez le blocage rapide. Engagez le <Tool id="cassette-lockring-tool" /> dans les cannelures de l’écrou et placez la <Tool id="adjustable-wrench" alt="pliers" /> dessus. Enroulez la chaîne du <Tool id="chain-whip" /> sur un grand pignon, dans le sens qui empêche la cassette de tourner en sens inverse des aiguilles d’une montre.
+
+Tenez fermement le fouet et poussez la clé dans le sens inverse des aiguilles d’une montre : l’écrou se débloque avec un craquement, c’est normal. Retirez-le, puis faites glisser les pignons hors du corps de roue libre, en gardant leurs entretoises dans l’ordre.
+
+</Step>

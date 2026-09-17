@@ -1,0 +1,156 @@
+---
+slug: check-drivetrain
+kind: check
+title: Contrôler la transmission
+summary: Usure de la chaîne, dents des pignons et des plateaux, patte de dérailleur et passages de vitesses — de quoi savoir en un quart d’heure ce qu’il faut changer ou régler.
+status: full
+order: 30
+difficulty: 1
+minutes: 15
+partIds:
+  - chain
+  - cassette
+  - freewheel
+  - chainring
+  - crankset
+  - rear-derailleur
+  - front-derailleur
+  - shifter-right
+  - shifter-left
+appliesTo:
+  path: drivetrain.transmission
+  in: [chain]
+tools:
+  - toolId: chain-checker
+    alternatives: [steel-ruler]
+  - toolId: rags
+    alternatives: []
+  - toolId: work-stand
+    alternatives: []
+related:
+  - replace-chain
+  - clean-chain
+  - adjust-rear-derailleur
+  - replace-cassette
+safety:
+  - Quand vous faites tourner le pédalier à la main, gardez les doigts loin de l’endroit où la chaîne entre sur le plateau et sur les pignons. Un doigt pincé là se coupe profondément.
+steps:
+  - id: chain-wear
+    title: Mesurer l’allongement de la chaîne
+    partIds: [chain]
+    illustration: chain-wear-checker
+    checkQuestion:
+      prompt: L’indicateur ne rentre-t-il pas côté 0,5 % (11 vitesses et plus) ou côté 0,75 % (10 vitesses et moins), et la chaîne est-elle propre et souple ?
+      skippable: true
+      ko:
+        - action: replace
+          partId: chain
+          reasonKey: chain-elongation
+          guideSlug: replace-chain
+        - action: clean
+          partId: chain
+          reasonKey: chain-dirty
+          guideSlug: clean-chain
+  - id: cassette-teeth
+    title: Inspecter les dents des pignons
+    partIds: [cassette, freewheel]
+    appliesTo:
+      path: drivetrain.kind
+      in: [derailleur]
+    checkQuestion:
+      prompt: Les dents des pignons sont-elles symétriques, et la chaîne tient-elle sans sauter quand vous appuyez fort sur les pédales ?
+      skippable: false
+      ko:
+        - action: replace
+          partId: cassette
+          reasonKey: cassette-worn
+          guideSlug: replace-cassette
+        - action: clean
+          partId: cassette
+          reasonKey: drivetrain-dirty
+          guideSlug: clean-drivetrain
+  - id: chainring-teeth
+    title: Inspecter les plateaux
+    partIds: [chainring, crankset]
+    checkQuestion:
+      prompt: Les dents des plateaux sont-elles droites, entières et sans pointe en crochet ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: chainring
+          reasonKey: chainring-worn
+  - id: derailleur-hanger
+    title: Vérifier la patte de dérailleur
+    partIds: [rear-derailleur]
+    appliesTo:
+      path: drivetrain.kind
+      in: [derailleur]
+    checkQuestion:
+      prompt: Vu de derrière, le dérailleur descend-il bien à la verticale, dans l’alignement des pignons ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: rear-derailleur
+          reasonKey: hanger-bent
+  - id: shifting-index
+    title: Essayer tous les rapports
+    partIds: [rear-derailleur, front-derailleur, shifter-right, shifter-left]
+    appliesTo:
+      path: drivetrain.kind
+      in: [derailleur]
+    illustration: derailleur-limit-screws-h-l-b
+    checkQuestion:
+      prompt: Chaque vitesse passe-t-elle du premier coup, sans bruit ni hésitation, et la chaîne ne tombe-t-elle jamais ?
+      skippable: false
+      ko:
+        - action: fix
+          partId: rear-derailleur
+          reasonKey: shifting-imprecise
+          guideSlug: adjust-rear-derailleur
+        - action: fix
+          partId: front-derailleur
+          reasonKey: front-shifting-imprecise
+          guideSlug: adjust-front-derailleur
+---
+
+<Step id="chain-wear">
+
+Une chaîne ne s’étire pas vraiment : ses axes et ses rouleaux s’usent, et elle s’allonge peu à peu. Une chaîne allongée ronge les pignons et les plateaux ; la changer à temps coûte bien moins cher.
+
+Posez l’indicateur d’usure sur la chaîne, bien à plat. S’il rentre entièrement côté 0,5 % sur une transmission 11 ou 12 vitesses, ou côté 0,75 % sur 10 vitesses et moins, la chaîne est à remplacer. Sans indicateur, prenez un réglet : sur une chaîne neuve, 12 maillons complets mesurent 304,8 mm d’axe en axe. À partir de 306,3 mm (11 vitesses et plus) ou 307,1 mm (10 et moins), changez-la.
+
+Pédalez ensuite en arrière en regardant la chaîne passer dans le dérailleur : un maillon raide fait sauter les galets. Une chaîne noire, collante ou rouillée doit être nettoyée.
+
+</Step>
+
+<Step id="cassette-teeth">
+
+Regardez les pignons que vous utilisez le plus, souvent ceux du milieu. Une dent saine est symétrique, avec un sommet arrondi. Une dent usée se creuse d’un côté et prend la forme d’un aileron de requin.
+
+Le vrai test se fait en roulant, surtout après avoir changé la chaîne : sur chaque pignon, appuyez fort sur les pédales, en danseuse. Si la chaîne saute ou glisse sur les dents alors que les vitesses sont bien réglées, la cassette, ou la roue libre sur les vélos à 7 vitesses et moins, est usée. Une chaîne très allongée l’use presque toujours : on remplace alors les deux ensemble.
+
+</Step>
+
+<Step id="chainring-teeth">
+
+Les plateaux s’usent beaucoup plus lentement que les pignons, mais ils s’usent. Faites tourner le pédalier en arrière et regardez chaque dent passer : elles doivent être droites et de même forme. Des dents amincies, pointues ou recourbées en crochet retiennent la chaîne et la font monter avec le plateau.
+
+Cherchez aussi une dent tordue après un choc, et vérifiez que les vis de plateau ne bougent pas. Sur les plateaux « étroit-large » des transmissions mono-plateau, les dents alternent volontairement épaisses et fines : c’est normal. Changer un plateau demande souvent un outil spécifique ; un atelier le fait vite.
+
+</Step>
+
+<Step id="derailleur-hanger">
+
+La patte de dérailleur est la petite pièce en métal qui relie le dérailleur au cadre. Elle est faite pour plier lors d’une chute, afin de protéger le cadre, et elle plie souvent sans qu’on s’en aperçoive.
+
+Placez la chaîne sur le plus grand pignon, accroupissez-vous derrière la roue et regardez : les deux galets du dérailleur doivent être exactement sous le pignon, dans un plan vertical. S’ils rentrent vers les rayons ou penchent vers l’extérieur, la patte est tordue. Ne la redressez pas à la main : un atelier la contrôle avec un outil d’alignement, ou la remplace.
+
+</Step>
+
+<Step id="shifting-index">
+
+Sur un pied d’atelier, ou en roulant sur une route calme, passez toutes les vitesses une par une, en montant puis en descendant, à l’arrière puis à l’avant. Chaque clic doit déplacer la chaîne d’un pignon, du premier coup, sans cliquetis une fois en place.
+
+Une chaîne qui hésite, bruite ou saute deux pignons se corrige presque toujours avec le tendeur de câble. Une chaîne qui tombe entre les rayons ou hors du petit pignon indique des vis de butée mal réglées : c’est dangereux, ne roulez pas avant le réglage. Sur une transmission électronique, le réglage se fait depuis les boutons ou l’application du fabricant.
+
+</Step>

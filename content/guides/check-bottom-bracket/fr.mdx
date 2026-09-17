@@ -1,0 +1,104 @@
+---
+slug: check-bottom-bracket
+kind: check
+title: Contrôler le pédalier et le boîtier de pédalier
+summary: Manivelles qui bougent, jeu ou roulements qui grattent dans le boîtier de pédalier, vis de plateau desserrées — la chasse aux craquements qui gâchent chaque coup de pédale.
+status: full
+order: 60
+difficulty: 1
+minutes: 10
+partIds:
+  - crankset
+  - bottom-bracket
+  - chainring
+tools:
+  - toolId: allen-keys
+    alternatives: [multi-tool]
+  - toolId: rags
+    alternatives: []
+related:
+  - check-drivetrain
+  - check-pedals
+steps:
+  - id: crank-arms
+    title: Vérifier la fixation des manivelles
+    partIds: [crankset]
+    checkQuestion:
+      prompt: Chaque manivelle est-elle solidaire de l’axe, sans décalage ni claquement quand vous forcez dessus ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: crankset
+          reasonKey: crank-loose
+  - id: bb-play
+    title: Chercher du jeu dans le boîtier de pédalier
+    partIds: [bottom-bracket]
+    appliesTo:
+      not:
+        path: eSystem.motorPosition
+        in: [mid-drive]
+    checkQuestion:
+      prompt: En tirant et poussant les deux manivelles vers le cadre, ne sentez-vous aucun jeu latéral ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: bottom-bracket
+          reasonKey: bottom-bracket-play
+  - id: bb-bearings
+    title: Sentir les roulements, chaîne déposée
+    partIds: [bottom-bracket]
+    appliesTo:
+      not:
+        path: eSystem.motorPosition
+        in: [mid-drive]
+    checkQuestion:
+      prompt: Chaîne posée à côté du plateau, le pédalier tourne-t-il librement, sans grattement ni point dur ?
+      skippable: true
+      ko:
+        - action: inspect-shop
+          partId: bottom-bracket
+          reasonKey: bottom-bracket-play
+  - id: chainring-bolts
+    title: Vérifier les vis de plateau
+    partIds: [chainring, crankset]
+    illustration: ill-drivetrain
+    checkQuestion:
+      prompt: Les vis qui tiennent les plateaux sont-elles toutes présentes et serrées, sans plateau qui bouge sur la manivelle ?
+      skippable: false
+      ko:
+        - action: inspect-shop
+          partId: crankset
+          reasonKey: bolt-loose
+---
+
+<Step id="crank-arms">
+
+Placez une manivelle vers l’avant, à l’horizontale, et appuyez fort dessus avec la main pendant que l’autre main tient la manivelle opposée ou le cadre. Recommencez de l’autre côté, puis manivelle en bas.
+
+Une manivelle bien fixée ne bouge pas du tout par rapport à l’axe. Un petit décalage, un claquement à chaque coup de pédale ou une vis de fixation qui a reculé veulent dire que la manivelle prend du jeu : roulez le moins possible, elle abîme son logement en quelques kilomètres et peut se détacher. Sur un vélo électrique à moteur central, les manivelles sont fixées directement sur l’axe du moteur : le contrôle est le même.
+
+</Step>
+
+<Step id="bb-play">
+
+Le boîtier de pédalier est l’axe et les roulements logés dans le cadre, entre les deux manivelles. Prenez une manivelle dans chaque main, près des pédales, et tirez-les vers vous puis poussez-les vers le cadre, franchement mais sans à-coups.
+
+Si les deux manivelles bougent ensemble par rapport au cadre avec un petit claquement, le boîtier a du jeu. Distinguez ce jeu d’une manivelle qui bouge seule sur l’axe : c’est l’étape précédente. Selon le type de boîtier, fileté ou emmanché, le réglage ou le remplacement demande des outils dédiés, et souvent une presse : c’est une réparation d’atelier.
+
+</Step>
+
+<Step id="bb-bearings">
+
+Les roulements du boîtier s’abîment surtout avec l’eau et la boue. Pour les sentir seuls, il faut supprimer la résistance de la chaîne : passez sur le petit pignon, poussez la chaîne à l’intérieur du petit plateau avec un chiffon pour la poser sur le boîtier, puis faites tourner les manivelles à la main.
+
+Elles doivent tourner librement, sans grattement ni vibration dans les doigts. Des roulements neufs à joints freinent un peu, c’est normal ; des grains, un point dur ou un bruit sec ne le sont pas. Un craquement en pédalant fort peut aussi venir des pédales, de la tige de selle ou des vis de plateau : vérifiez-les avant d’accuser le boîtier.
+
+</Step>
+
+<Step id="chainring-bolts">
+
+Les plateaux sont fixés à la manivelle droite, ou à une étoile, par plusieurs petites vis, ou par un écrou central sur les pédaliers à montage direct. Ce sont eux qui craquent le plus souvent sous l’effort, en rythme avec les coups de pédale.
+
+Regardez chaque vis de plateau : aucune ne doit manquer. Essayez de les serrer avec la bonne clé Allen, sans forcer, en tenant l’écrou de derrière avec une clé adaptée s’il tourne dans le vide. Poussez ensuite le plateau vers la roue puis vers le cadre : il ne doit pas bouger. Une vis qui ne serre plus, ou un plateau voilé, passe par l’atelier.
+
+</Step>
