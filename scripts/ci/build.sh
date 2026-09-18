@@ -22,6 +22,18 @@ cd "$PROJECT_ROOT"
 
 export ENABLE_TEST_PAGES="${ENABLE_TEST_PAGES:-1}"
 
+# Default OFF, and exported so it wins over `.env.local`.
+#
+# `.env.example` ships `NEXT_PUBLIC_TEST_HOOKS=1` (a developer wants the hooks in
+# `npm run dev`), and `next build` loads `.env.local`. So the absent direction of
+# the bundle guard — the one that proves `window.__va` stays out of a build that
+# did not ask for it — was never actually exercised by `npm run ci:local`, only
+# by a hand-run build with the variable unset (.debug/004 §1 claims otherwise,
+# .debug/009 corrects it). A real environment variable beats every `.env*` file,
+# so pinning it here restores what the header above says: CI's `build` job sets
+# `1` in its own `env:` block and still wins, `ci:local` and Vercel prove `0`.
+export NEXT_PUBLIC_TEST_HOOKS="${NEXT_PUBLIC_TEST_HOOKS:-0}"
+
 # Baked into the HTML at build time: canonical, hreflang and og:url come from it.
 # The lighthouse job serves this build on :3100 and audits it there, so a build
 # without it emits canonicals for :3000 and every `categories.seo` assertion

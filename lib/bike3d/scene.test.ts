@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { PRESET_IDS, type BikeBuild } from "@/lib/domain";
+import { PRESET_IDS, type BikeBuild, type BikeSpec } from "@/lib/domain";
 import { RENDERED_PART_IDS } from "@/lib/domain/data/parts";
 import { addOptionalPart, meshIdsForSpec } from "@/lib/domain/engine/validate-build";
 
 import { buildFromAnswers, enumerateBuilds, presetBuild } from "./builds";
-import { isRenderedPartId, PART_RENDERERS, planScene, recipePoints, sceneSphere } from "./scene";
+import {
+  isRenderedPartId,
+  PART_RENDERERS,
+  planScene,
+  recipePoints,
+  sceneSphere,
+  type RenderedPartId,
+} from "./scene";
 import type { GeometryRecipe } from "./types";
 
 const withPart = (build: BikeBuild, partId: string): BikeBuild => {
@@ -13,6 +20,27 @@ const withPart = (build: BikeBuild, partId: string): BikeBuild => {
   if (!change.ok) throw new Error(`cannot add ${partId}: ${change.code}`);
   return change.build;
 };
+
+/**
+ * The enumerated spec space, built once at import. Module scope is not charged
+ * to a test's timeout — the same move `solver.test.ts` made for the same reason.
+ */
+const BUILDS = enumerateBuilds();
+
+/** Each part the scene draws only for some specs, and the spec property that decides. */
+const CONDITIONAL_PARTS: ReadonlyArray<[RenderedPartId, (spec: BikeSpec) => boolean]> = [
+  ["rotor-front", (spec) => spec.brakes.isDisc],
+  ["rotor-rear", (spec) => spec.brakes.isDisc],
+  ["front-derailleur", (spec) => spec.drivetrain.chainrings >= 2],
+  ["rear-shock", (spec) => spec.suspension.rear],
+  ["e-motor", (spec) => spec.eSystem !== null],
+  ["e-battery", (spec) => spec.eSystem !== null],
+  ["internal-gear-hub", (spec) => spec.drivetrain.kind === "igh"],
+  ["rear-derailleur", (spec) => spec.drivetrain.kind === "derailleur"],
+];
+
+const labelOf = ({ spec }: BikeBuild): string =>
+  JSON.stringify([spec.discipline, spec.brakes.type, spec.drivetrain.kind, spec.suspension]);
 
 const recipesOf = (build: BikeBuild, partId: string): GeometryRecipe[] =>
   planScene(build)
@@ -50,25 +78,24 @@ describe("planScene", () => {
   });
 
   it("draws conditional parts iff the spec needs them", () => {
-    for (const build of enumerateBuilds()) {
+    // Nine invariants over 6 800 builds. They are compared in plain JS and
+    // asserted once: 61 200 `expect()` calls in this loop took 5.3 s on CI's
+    // two-core runner under v8 coverage and timed the test out (.debug/009).
+    // The report is a Set because thousands of builds share a spec shape and
+    // the label names that shape — a real break lists each distinct one once,
+    // where the old loop stopped at the first.
+    const wrong = new Set<string>();
+    for (const build of BUILDS) {
       const ids = new Set(planScene(build).partIds);
-      const { spec } = build;
-      const label = JSON.stringify([
-        spec.discipline,
-        spec.brakes.type,
-        spec.drivetrain.kind,
-        spec.suspension,
-      ]);
-      expect(ids.has("rotor-front"), label).toBe(spec.brakes.isDisc);
-      expect(ids.has("rotor-rear"), label).toBe(spec.brakes.isDisc);
-      expect(ids.has("front-derailleur"), label).toBe(spec.drivetrain.chainrings >= 2);
-      expect(ids.has("rear-shock"), label).toBe(spec.suspension.rear);
-      expect(ids.has("e-motor"), label).toBe(spec.eSystem !== null);
-      expect(ids.has("e-battery"), label).toBe(spec.eSystem !== null);
-      expect(ids.has("internal-gear-hub"), label).toBe(spec.drivetrain.kind === "igh");
-      expect(ids.has("rear-derailleur"), label).toBe(spec.drivetrain.kind === "derailleur");
-      expect(ids.has("chain") !== ids.has("belt"), label).toBe(true);
+      for (const [partId, needed] of CONDITIONAL_PARTS) {
+        const expected = needed(build.spec);
+        if (ids.has(partId) !== expected)
+          wrong.add(`${labelOf(build)} ${partId}: expected ${expected}`);
+      }
+      if (ids.has("chain") === ids.has("belt"))
+        wrong.add(`${labelOf(build)} exactly one of chain / belt`);
     }
+    expect([...wrong].sort()).toEqual([]);
   });
 
   it("draws the dropper's wider tube only on a dropper post", () => {
