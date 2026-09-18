@@ -31,8 +31,15 @@
     "    RSC-rendered by components/decision-tree/tree-illustrations.tsx and ship zero client JS, and",
     "    `forbidWebgl` still passes, so no 3D leaked in. Measured on the CI-equivalent build",
     "    (ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1), which is what the CI build job produces.",
-    "    Home is now 56 KiB above its 130 kB target; W4-T2 owns closing that gap.",
-    "  W2-T3 2026-09-18: the four /velo + garage routes enter the ratchet, measured by W2-T3 and re-verified at integration. `forbidWebgl` is ON for the workspace routes on purpose: the 3D viewer is lazily imported, so THREE must never appear in an EAGER chunk there — that assertion is what keeps the viewer out of first load.",
+    "    Home is 56 KiB above its 130 kB target; W4-T2 owns closing that gap.",
+    "  W2 integration 2026-09-18 (final, all five branches merged): home 195 739 B -> 216 064; guide 166 026 B -> 183 296;",
+    "    velo/[id] 240 883 B -> 265 216; piece 240 883 B -> 265 216; reglages 209 192 B -> 230 400; mes-velos 189 844 B -> 208 896.",
+    "    The four /velo + garage routes enter the ratchet here. `forbidWebgl` is ON for the workspace routes on purpose:",
+    "    the 3D viewer is lazily imported, so THREE in an EAGER chunk there is the regression worth catching.",
+    "    Home fell 190 820 -> 195 739 net of two opposing moves: W2-T2's tree and W2-T3's shared code pushed it up,",
+    "    the drawings leaving the RSC payload (.debug/007) pulled it down. Mounting sonner's Toaster in the shared",
+    "    layout cost +8.5 KiB on EVERY route until it was made lazy (components/ui-ext/Notices.tsx) — a layout import",
+    "    is paid by every page in the site, which is why these six numbers are measured together after every merge.",
     "",
     "Getting the numbers: `npx tsx scripts/perf/bundle-budget.ts --json` prints raw gzip bytes and the",
     "ratchet's `nextPin` (measured + 10 %, rounded up to a whole KiB) for each route."
@@ -40,13 +47,13 @@
   "routes": {
     "/[locale]": {
       "label": "home (decision tree)",
-      "firstLoadJsGzipBytes": 209920,
+      "firstLoadJsGzipBytes": 216064,
       "targetGzipBytes": 133120,
       "forbidWebgl": true
     },
     "/[locale]/guides/[slug]": {
       "label": "guide page",
-      "firstLoadJsGzipBytes": 181248,
+      "firstLoadJsGzipBytes": 183296,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
@@ -64,13 +71,13 @@
     },
     "/[locale]/velo/[id]/reglages": {
       "label": "fit and measurements",
-      "firstLoadJsGzipBytes": 229376,
+      "firstLoadJsGzipBytes": 230400,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
     "/[locale]/(protected)/mes-velos": {
       "label": "garage",
-      "firstLoadJsGzipBytes": 207872,
+      "firstLoadJsGzipBytes": 208896,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     }

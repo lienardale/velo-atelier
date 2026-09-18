@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 
 import { updateBikePartAction } from "@/app/[locale]/velo/[id]/actions";
 import { updateBikeFitAction } from "@/app/[locale]/velo/[id]/reglages/actions";
@@ -149,7 +148,9 @@ function useLocalBike(enabled: boolean): LocalBikeState {
   // into the empty page again.
   useEffect(() => {
     if (!missing) return;
-    toast(t("canvas.emptyToast"));
+    // Imported here, not at module scope: a static import would put sonner in
+    // this route's first-load JS for a notice that fires on one edge case.
+    void import("sonner").then(({ toast }) => toast(t("canvas.emptyToast")));
     router.replace({ pathname: "/" });
   }, [missing, router, t]);
 

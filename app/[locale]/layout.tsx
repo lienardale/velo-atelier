@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { SessionProvider } from "next-auth/react";
-import { Toaster } from "sonner";
 
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { Notices } from "@/components/ui-ext/Notices";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/ui-ext/SkipLink";
 import { routing } from "@/lib/i18n/routing";
 
@@ -92,12 +92,11 @@ export default async function LocaleLayout({
             </main>
             <SiteFooter />
             {/*
-             * Sonner's own client component, so it costs this server layout
-             * nothing. It is mounted once here because the notices it shows are
-             * raised from anywhere: `/velo/local` without a stored bike (§6.7)
-             * today, guest import (§6.5) from W3 on.
+             * Mounted once here because the notices it shows are raised from
+             * anywhere: `/velo/local` without a stored bike (§6.7) today, guest
+             * import (§6.5) from W3 on. It loads sonner lazily — see Notices.
              */}
-            <Toaster position="bottom-center" closeButton richColors />
+            <Notices />
           </SessionProvider>
         </NextIntlClientProvider>
       </body>

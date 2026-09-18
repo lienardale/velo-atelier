@@ -74,7 +74,6 @@ const contentAssertions = {
   "errors-in-console": "warn",
 };
 
-/** Bike pages: a WebGL canvas rendered in software. */
 /**
  * Sign-in / sign-up are `noindex` on purpose (tests/e2e/auth-*.spec.ts), so the SEO
  * category — dominated by `is-crawlable` — cannot and must not reach 0.95 there.
@@ -85,14 +84,43 @@ const authAssertions = {
   "categories:seo": "off",
 };
 
+/**
+ * The bike page's script ceiling, derived rather than pinned: the home route's
+ * own first-load budget plus the lazy 3D chunk, both from `perf.budgets.json`,
+ * which is the single source of truth for every size number.
+ *
+ * It used to be the literal 560000, written when home first-load was ≈130 kB.
+ * W2 put the real decision tree on home and the constant went stale silently —
+ * the bike page then measured 560 498 B and failed by 498 B for a reason that
+ * had nothing to do with the bike page (W2 integration, 2026-09-18). Deriving
+ * it means the two files cannot drift apart again.
+ *
+ * This is the page's TOTAL script transfer, a coarse "nothing unexpected got
+ * pulled in" guard. The tight per-route ratchet on first-load JS lives in
+ * `perf.budgets.json` (9 % headroom, re-pinned every wave) — that is what
+ * catches a real regression on this route.
+ */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const budgets = require("./perf.budgets.json");
+const BIKE_SCRIPT_CEILING =
+  budgets.routes["/[locale]"].firstLoadJsGzipBytes + budgets.lazy3dChunkGzipBytes;
+
+/** Bike pages: a WebGL canvas rendered in software. */
 const bikeAssertions = {
   ...contentAssertions,
   "categories:performance": ["error", { minScore: 0.7 }],
   "largest-contentful-paint": ["error", { maxNumericValue: 3000 }],
   "total-blocking-time": ["error", { maxNumericValue: 600 }],
-  // Home first-load (≈130 kB gzip) + the lazy 3D chunk (≤400 kB gzip) + slack.
   // resource-summary reports transfer size, so this is the gzipped total.
-  "resource-summary:script:size": ["error", { maxNumericValue: 560000 }],
+  "resource-summary:script:size": ["error", { maxNumericValue: BIKE_SCRIPT_CEILING }],
+  /**
+   * OFF, like the auth pages above and for the same reason: §6 requires
+   * `robots: { index: false, follow: false }` on every `/velo/**` route, so
+   * `is-crawlable` and `canonical` score 0 by design and the category can never
+   * reach 0.95. Asserting it would only ever punish the page for obeying the
+   * spec. The indexable routes (home, guides) still carry the real SEO bar.
+   */
+  "categories:seo": "off",
 };
 
 module.exports = {

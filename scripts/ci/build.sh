@@ -22,6 +22,14 @@ cd "$PROJECT_ROOT"
 
 export ENABLE_TEST_PAGES="${ENABLE_TEST_PAGES:-1}"
 
+# Baked into the HTML at build time: canonical, hreflang and og:url come from it.
+# The lighthouse job serves this build on :3100 and audits it there, so a build
+# without it emits canonicals for :3000 and every `categories.seo` assertion
+# fails with "Points to another hreflang location" — locally only, which made it
+# look like a real regression twice during the W2 integration. CI's own `env:`
+# block sets the same value and still wins.
+export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-http://localhost:3100}"
+
 log_step "next build"
 npm run build
 
