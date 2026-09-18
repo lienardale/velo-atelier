@@ -108,6 +108,33 @@ function messagesFor(root: string, locale: string, namespace: string) {
   };
 }
 
+/**
+ * The clean corpus, copied once and checked once per mode.
+ *
+ * Each of the eight fixture tests asks the same question of it — "does this
+ * message appear when the fixture is absent?" — and each answer used to cost a
+ * fresh recursive copy plus a full parse of 47 guides. Nothing mutates this
+ * root: it is only ever passed to `check`, which reads.
+ */
+let cleanRootCache: string | undefined;
+const cleanRoot = () => (cleanRootCache ??= makeRoot());
+const cleanErrorsCache = new Map<boolean, ReturnType<typeof check>>();
+const cleanErrors = (strict: boolean) => {
+  const hit = cleanErrorsCache.get(strict);
+  if (hit) return hit;
+  const errors = check(cleanRoot(), strict);
+  cleanErrorsCache.set(strict, errors);
+  return errors;
+};
+
+/**
+ * The committed corpus's own manifest, built once at import: two tests assert
+ * against it and each full parse of 47 guides costs ~0.5 s on CI's two-core
+ * runner under v8 coverage. Module scope is not charged to a test's timeout
+ * (.debug/009). Read-only — nothing here mutates the repository.
+ */
+const REPO_MANIFEST = buildContentManifest(REPO);
+
 const check = (root: string, strict = false) => runContentCheck(root, { strict }).errors;
 const messages = (root: string, strict = false) =>
   check(root, strict).map((e) => `${e.file}:${e.line}: ${e.message}`);
@@ -199,9 +226,7 @@ describe("known-bad fixtures (tests/fixtures/content-bad)", () => {
           formatIssues(errors),
         ).toBe(true);
       // And without the fixture the same mode is clean (strict: for this rule).
-      expect(check(makeRoot(), fixture.strict).some((e) => fixture.message.test(e.message))).toBe(
-        false,
-      );
+      expect(cleanErrors(fixture.strict).some((e) => fixture.message.test(e.message))).toBe(false);
     });
   }
 
@@ -217,20 +242,24 @@ describe("known-bad fixtures (tests/fixtures/content-bad)", () => {
     expect(bad.stderr).toMatch(/content-check: \d+ problem\(s\)/);
 
     // The corpus passes the ★ rules too since W2-T4 (plan §5.1); `content:check`
-    // and the CI content gate both run --strict, so this must stay 0.
+    // and the CI content gate both run --strict, so this must stay 0. Strict
+    // and emit ride in ONE run: each is a full parse of the corpus, and four of
+    // them timed this test out at 5 s on CI (.debug/009).
     const emitRoot = makeRoot();
-    expect(runCli(["--root", emitRoot, "--strict"]).code).toBe(0);
-    const ok = runCli(["--root", emitRoot, "--emit"]);
+    const ok = runCli(["--root", emitRoot, "--strict", "--emit"]);
     expect(ok.code, ok.stderr).toBe(0);
     // `emitRoot` is a copy of the repo, so the counts are the repo's own.
-    const onDisk = buildContentManifest(REPO);
     expect(ok.stdout).toContain(
-      `${onDisk.slugs.length} guide(s), ${onDisk.stepKeys.length} step(s), no problem. lib/content/generated/ written.`,
+      `${REPO_MANIFEST.slugs.length} guide(s), ${REPO_MANIFEST.stepKeys.length} step(s), no problem. lib/content/generated/ written.`,
     );
     expect(
       readFileSync(join(emitRoot, "lib", "content", "generated", "version.ts"), "utf8"),
     ).toMatch(/CONTENT_VERSION = "[0-9a-f]{40}"/);
-    expect(runCli([], emitRoot).stdout).not.toContain("written");
+    // Default root (no `--root`: `.` resolved against the cwd) and no `--emit`:
+    // nothing is written. Run against an empty corpus — this asserts a property
+    // of the CLI, not of `emitRoot`, and a fourth parse of 47 guides is what
+    // took this test over the 5 s timeout on CI (.debug/009).
+    expect(runCli([], makeRoot({ content: false })).stdout).not.toContain("written");
   });
 });
 
@@ -717,7 +746,7 @@ describe("helpers and the generated manifest", () => {
   });
 
   it("builds the manifest from the frontmatter and renders the three modules", () => {
-    const manifest = buildContentManifest(REPO);
+    const manifest = REPO_MANIFEST;
     // Every guide folder on disk, sorted (the corpus grows wave by wave).
     expect(manifest.slugs).toEqual(slugsOnDisk());
     expect(manifest.slugs).toEqual([...manifest.slugs].sort());

@@ -26,3 +26,4 @@ person (or the next session) does not rediscover them.
 | 006 | 2026-09-18 | `/velo/[id]`: static params vs the session, `loading.tsx` vs 404s, `"use server"` exports | resolved |
 | 007 | 2026-09-17 | Home LCP: a re-created element, and 54 drawings in the RSC payload                        | resolved |
 | 008 | 2026-09-18 | The whole message catalogue on every page — and why trimming it is not the home TBT       | partial  |
+| 009 | 2026-09-18 | W2 closeout: two 5 s unit timeouts, and the bundle guard `ci:local` never asserted        | resolved |

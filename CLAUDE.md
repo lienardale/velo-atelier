@@ -219,7 +219,11 @@ scripts/             ci/, db/, perf/, content tooling
   `NEXT_PUBLIC_TEST_HOOKS` to `"1"`/`"0"` in `env`, and `scripts/bundle-guard.ts`
   asserts on the build output that `window.__va` is present iff the flag is on
   (and that no `new Function`/`eval` ships at all). It runs after every build:
-  `scripts/ci/build.sh` and `scripts/vercel-build.sh`.
+  `scripts/ci/build.sh` and `scripts/vercel-build.sh`. **`scripts/ci/build.sh`
+  exports `NEXT_PUBLIC_TEST_HOOKS=0` unless the caller set one** — `.env.example`
+  ships `1` for `npm run dev` and `next build` reads `.env.local`, so without
+  that pin every local build had the hooks on and `ci:local` asserted the
+  _present_ direction, the same one CI's `build` job asserts (`.debug/009`).
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
   under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
   `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
