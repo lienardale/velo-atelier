@@ -1,5 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 
+import { ClientMessages } from "@/components/i18n/ClientMessages";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import type { Locale } from "@/lib/i18n/routing";
 
 /**
@@ -26,7 +28,16 @@ export default async function BikeLayout({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return <div className="mx-auto w-full max-w-6xl px-4 py-6">{children}</div>;
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+      <ClientMessages
+        locale={locale}
+        namespaces={CLIENT_NAMESPACES["app/[locale]/velo/[id]/layout.tsx"]}
+      >
+        {children}
+      </ClientMessages>
+    </div>
+  );
 }
 
 // No `generateStaticParams` here on purpose. This layout sits on the `[id]`

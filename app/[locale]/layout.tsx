@@ -1,14 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { notFound } from "next/navigation";
-import { hasLocale, NextIntlClientProvider } from "next-intl";
+import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { SessionProvider } from "next-auth/react";
 
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Notices } from "@/components/ui-ext/Notices";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/ui-ext/SkipLink";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { routing } from "@/lib/i18n/routing";
 
 import "@/styles/globals.css";
@@ -76,8 +78,13 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${inter.variable} ${grotesk.variable}`}>
       <body className="flex min-h-dvh flex-col">
-        {/* Inherits locale and messages from lib/i18n/request.ts (next-intl v4). */}
-        <NextIntlClientProvider>
+        {/*
+         * The site shell's own namespaces, and only those. Every page below
+         * mounts its own provider (`.debug/008`); what is declared here is what
+         * the header, the footer and the `error.tsx` / `not-found.tsx`
+         * boundaries that render inside this layout can read.
+         */}
+        <ClientMessages locale={locale} namespaces={CLIENT_NAMESPACES["app/[locale]/layout.tsx"]}>
           {/*
            * No `session` prop on purpose (W1-T3): passing one would mean calling
            * `auth()` here, and a layout that reads a request API opts every page
@@ -98,7 +105,7 @@ export default async function LocaleLayout({
              */}
             <Notices />
           </SessionProvider>
-        </NextIntlClientProvider>
+        </ClientMessages>
       </body>
     </html>
   );

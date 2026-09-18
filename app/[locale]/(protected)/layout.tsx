@@ -1,5 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 
+import { ClientMessages } from "@/components/i18n/ClientMessages";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { routing, type Locale } from "@/lib/i18n/routing";
 
 /**
@@ -24,7 +26,16 @@ export default async function ProtectedLayout({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return <div className="mx-auto w-full max-w-2xl px-4 py-10">{children}</div>;
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-10">
+      <ClientMessages
+        locale={locale}
+        namespaces={CLIENT_NAMESPACES["app/[locale]/(protected)/layout.tsx"]}
+      >
+        {children}
+      </ClientMessages>
+    </div>
+  );
 }
 
 export function generateStaticParams(): Array<{ locale: string }> {

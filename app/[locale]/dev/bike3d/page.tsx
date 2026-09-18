@@ -16,8 +16,10 @@ import { connection } from "next/server";
 import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { parseViewerQuery } from "@/lib/bike3d/query";
 import { DEMO_PRESET_ID } from "@/lib/domain";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { routing } from "@/lib/i18n/routing";
 
 import { DevBike3dHarness } from "./DevBike3dHarness";
@@ -46,18 +48,23 @@ export default async function DevBike3dPage({
   const t = await getTranslations({ locale, namespace: "bike3d.dev" });
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      <h1 className="font-display text-2xl font-semibold">{t("title")}</h1>
-      <p className="text-ink-muted mb-4 text-sm">{t("intro")}</p>
-      <DevBike3dHarness
-        locale={locale}
-        variant="viewer"
-        initialPreset={query.preset ?? DEMO_PRESET_ID}
-        initialPartId={query.part}
-        initialPickedIds={query.parts}
-        initialMode={query.mode}
-        initialQuality={query.quality}
-      />
-    </div>
+    <ClientMessages
+      locale={locale}
+      namespaces={CLIENT_NAMESPACES["app/[locale]/dev/bike3d/page.tsx"]}
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <h1 className="font-display text-2xl font-semibold">{t("title")}</h1>
+        <p className="text-ink-muted mb-4 text-sm">{t("intro")}</p>
+        <DevBike3dHarness
+          locale={locale}
+          variant="viewer"
+          initialPreset={query.preset ?? DEMO_PRESET_ID}
+          initialPartId={query.part}
+          initialPickedIds={query.parts}
+          initialMode={query.mode}
+          initialQuality={query.quality}
+        />
+      </div>
+    </ClientMessages>
   );
 }

@@ -14,6 +14,7 @@ import { DefaultCallout } from "./DefaultCallout";
 import { HelpDisclosure } from "./HelpDisclosure";
 import { OptionGrid } from "./OptionGrid";
 import type { LoadLocalBike } from "./Summary";
+import { useDecisionText } from "./decision-text";
 import type { TreeIllustrations } from "./tree-illustrations";
 import {
   applyAnswer,
@@ -25,8 +26,6 @@ import {
   treeQuery,
   type TreeState,
 } from "./tree-state";
-
-type Translate = (key: string, values?: Record<string, string>) => string;
 
 /**
  * The summary screen is loaded when it is first shown: it brings the
@@ -98,7 +97,7 @@ export function DecisionTree({
 }: DecisionTreeProps): React.JSX.Element {
   const common = useTranslations("common");
   const tree = useTranslations("decision-tree");
-  const t = useTranslations() as unknown as Translate;
+  const t = useDecisionText();
 
   const routerSearch = useSearchParams().toString();
   const [search, setSearch] = useState(routerSearch);
@@ -278,7 +277,7 @@ export function QuestionStep({
   onAnswer,
   onBack,
 }: QuestionStepProps): React.JSX.Element {
-  const t = useTranslations() as unknown as Translate;
+  const t = useDecisionText();
   const tree = useTranslations("decision-tree");
   const stored = state.answers[node.id];
   const [selected, setSelected] = useState<string | undefined>(stored);

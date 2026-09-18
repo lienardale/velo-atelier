@@ -85,6 +85,7 @@ lib/bike3d/          pure geometry (three imports allowed, no React)
 lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks
 components/ui/       generated shadcn — do not hand-edit
 components/ui-ext/   hand-rolled primitives (Stepper, Callout, MobileSheet, …)
+components/i18n/     ClientMessages — the per-route next-intl provider
 components/bike3d/   R3F scene; components/bike3d/parts/** are declarative only
 content/             MDX guides + YAML data (CC BY-SA 4.0)
 messages/{fr,en}/    one JSON file per namespace
@@ -134,6 +135,25 @@ scripts/             ci/, db/, perf/, content tooling
   object, never both; ids that become key segments never contain `.`. Every
   user-facing string exists in **both** `messages/fr/` and `messages/en/`;
   `tests/unit/i18n/messages-parity.test.ts` enforces it.
+- **The catalogue the SERVER reads is whole; what reaches the BROWSER is
+  declared per route.** `lib/i18n/request.ts` still merges all 13 namespaces for
+  `getTranslations`. `NextIntlClientProvider` does not: every route mounts
+  `components/i18n/ClientMessages.tsx` with its own entry of
+  `lib/i18n/client-namespaces.ts` — the locale layout for the shell, a segment
+  layout where one exists (`velo/[id]`, `(protected)`, so their `error.tsx` is
+  covered), the page otherwise, wrapping everything it returns. Handing the
+  provider the merged catalogue cost every page 86 116 B of RSC flight, 46 % of
+  the home document (`.debug/008`).
+  **A nested provider REPLACES messages, it never merges**, so a namespace left
+  out is a component rendering its keys at the visitor, not a smaller payload.
+  `tests/unit/i18n/client-namespaces.test.ts` is what makes that unshippable: it
+  walks each route's client module graph and fails with the exact set to
+  declare. It resolves every uncertainty against the payload — an import it
+  cannot resolve fails the run, and a `useTranslations()` with **no literal
+  namespace** requires all 13 (which is why five `/velo` and `/compte`
+  components still pin their routes to the whole catalogue). Making a route
+  lighter means making what it reads visible: `useDecisionText()`
+  (`components/decision-tree/decision-text.ts`) is how the tree does it.
 - **Navigation** — always import `Link`, `redirect`, `usePathname`, `useRouter`
   and `getPathname` from `@/lib/i18n/navigation`, never from `next/link` or
   `next/navigation`.

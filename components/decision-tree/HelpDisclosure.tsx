@@ -6,9 +6,8 @@ import { Disclosure } from "@/components/ui-ext/Disclosure";
 import { DECISION_HELP_PERSIST_KEY } from "@/lib/bike/storage-keys";
 import type { DecisionNode } from "@/lib/domain/schema/decision";
 
+import { useDecisionText } from "./decision-text";
 import type { TreeIllustrations } from "./tree-illustrations";
-
-type Translate = (key: string) => string;
 
 /**
  * "Comment le vérifier sur mon vélo ?" — the check-it-yourself aid of one
@@ -30,7 +29,7 @@ export function HelpDisclosure({
   /** Server-rendered drawings (`renderTreeIllustrations`). */
   illustrations: TreeIllustrations;
 }): React.JSX.Element {
-  const t = useTranslations() as unknown as Translate;
+  const t = useDecisionText();
   const tree = useTranslations("decision-tree");
 
   return (

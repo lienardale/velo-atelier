@@ -1,15 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
 import { RadioGroup } from "@/components/ui/radio-group";
 import { OptionCard } from "@/components/ui-ext/OptionCard";
 import type { DecisionOption } from "@/lib/domain/schema/decision";
 import { cn } from "@/lib/utils";
 
+import { useDecisionText } from "./decision-text";
 import type { TreeIllustrations } from "./tree-illustrations";
-
-type Translate = (key: string) => string;
 
 export interface OptionGridProps {
   /** The options on screen — `visibleOptions(node, answers)`. */
@@ -49,7 +46,7 @@ export function OptionGrid({
   describedBy,
   illustrations,
 }: OptionGridProps): React.JSX.Element {
-  const t = useTranslations() as unknown as Translate;
+  const t = useDecisionText();
   const hasThumbnails = options.some((option) => option.illustrationId !== undefined);
 
   return (
