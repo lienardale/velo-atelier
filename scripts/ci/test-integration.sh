@@ -66,6 +66,13 @@ if ! npx --no-install prisma migrate diff \
 fi
 npx --no-install prisma migrate status
 
+# `prisma/seed.ts` imports `lib/content/generated/*`, which is generated and
+# gitignored (CLAUDE.md). The integration tier runs the seed, so the files have
+# to exist here too — this job does not run `typecheck` or `build`, which are
+# the other two places that make them.
+log_step "content:generate"
+npx --no-install tsx scripts/content-check.ts --emit
+
 log_step "vitest run (integration)"
 npx --no-install vitest run \
   --project integration \

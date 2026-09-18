@@ -223,6 +223,13 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
   match nothing.
+  **Every CI job is a fresh checkout, so a job that compiles or runs code which
+  imports one of these must generate it first** — `prisma generate`,
+  `content-collections build`, `content-check --emit`. Locally these trees
+  survive from an earlier build, so the mistake always looks green here and red
+  on CI: `prisma/seed.ts` importing `lib/content/generated/*` took down
+  typecheck, integration and build at the W2 integration. To check a gate
+  honestly, delete the tree first (`rm -rf lib/content/generated`) and run it.
 
 ---
 

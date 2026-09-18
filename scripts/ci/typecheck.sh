@@ -29,6 +29,16 @@ if [[ -f content-collections.ts ]]; then
   npx --no-install content-collections build
 fi
 
+# Exactly the same trap as the line above, one directory over: `prisma/seed.ts`
+# imports `lib/content/generated/{slugs,reason-keys}`, which `content-check
+# --emit` writes and `.gitignore` excludes. A fresh CI checkout has none, so tsc
+# failed on CI while passing locally on files an earlier build had left behind
+# (W2 integration, 2026-09-18 — it took down typecheck, integration and build).
+if [[ -f scripts/content-check.ts && -d content/guides ]]; then
+  log_step "content-check --emit"
+  npx --no-install tsx scripts/content-check.ts --emit
+fi
+
 log_step "tsc --noEmit"
 npx --no-install tsc --noEmit
 
