@@ -7,8 +7,8 @@
  * vertical swipe. What matters is the negative: **the camera does not move**
  * unless the visitor asked for it with the "Pivoter" toggle.
  *
- * Touches go through CDP (`Input.dispatchTouchEvent` /
- * `Input.synthesizeScrollGesture`), so the browser applies `touch-action`
+ * Touches go through CDP as real touch events (`Input.dispatchTouchEvent`), so
+ * the browser runs its own gesture recognition and applies `touch-action`
  * exactly as it would for a real finger — `page.touchscreen` would bypass the
  * compositor and prove nothing about it.
  *
@@ -69,6 +69,13 @@ async function dragTouch(
       touchPoints: [{ x: from.x + (dx * index) / steps, y: from.y + (dy * index) / steps }],
     });
   }
+  // Hold still, then lift: a finger that has stopped carries no velocity, so the
+  // browser starts no fling and the gesture moves exactly `dy`.
+  await page.waitForTimeout(200);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: from.x + dx, y: from.y + dy }],
+  });
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await page.waitForTimeout(500);
 }
@@ -159,15 +166,12 @@ test("a vertical swipe on the sheet scrolls the sheet, and only the sheet @webgl
   };
 
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Input.synthesizeScrollGesture", {
-    x: point.x,
-    y: point.y,
-    xDistance: 0,
-    yDistance: -200,
-    gestureSourceType: "touch",
-    speed: 800,
-  });
-  await page.waitForTimeout(500);
+  // The same one-finger drag the rest of this file uses. NOT
+  // `Input.synthesizeScrollGesture`: it scrolls on macOS and is inert in the
+  // Linux Chromium CI runs, where its synthetic touch stream arrives as
+  // pointer events with no `touchmove`, so no scroll gesture is recognised and
+  // `scrollTop` stays 0 (`.debug/005`; it failed exactly that way on CI).
+  await dragTouch(page, cdp, point, 0, -200);
 
   // §6.4: the sheet is the ONLY scroll container on the page.
   expect(await scroller.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
