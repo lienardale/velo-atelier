@@ -291,9 +291,13 @@ describe("derived measurements", () => {
   });
 
   it("stays near typical size-M catalogue values (soft)", () => {
+    // Enumerated ONCE: this used to run inside the loop, re-deriving every build
+    // in the matrix for each catalogue reference. Fast enough on a dev machine,
+    // 5 s timeout on CI's two-core runner (W2 integration, 2026-09-18).
+    const builds = enumerateBuilds();
     for (const [key, reference] of Object.entries(CATALOGUE_REFERENCES)) {
       const [discipline, etrto] = key.split("/") as [never, string];
-      const build = enumerateBuilds().find(
+      const build = builds.find(
         (b) =>
           b.spec.discipline === discipline &&
           b.spec.wheel.etrtoDiameter === Number(etrto) &&

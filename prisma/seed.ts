@@ -38,8 +38,7 @@ import { getDatabaseUrls, type DatabaseUrls } from "../lib/db/env";
 import { assertLocalDatabaseUrl } from "../lib/db/guard";
 import { PrismaClient } from "../lib/generated/prisma/client";
 import { deriveBike } from "../lib/bike/rules";
-import { REASON_KEYS } from "../lib/content/generated/reason-keys";
-import { GUIDE_SLUGS, GUIDE_STEP_KEYS } from "../lib/content/generated/slugs";
+import { buildContentManifest } from "../lib/content/check";
 import { BIKE_PRESETS } from "../lib/domain/data/presets";
 import { isPartId } from "../lib/domain/data/parts";
 import {
@@ -112,9 +111,16 @@ async function seedUsers(): Promise<void> {
  */
 function assertSeedReferences(): void {
   const problems: string[] = [];
-  const stepKeys = new Set<string>(GUIDE_STEP_KEYS);
-  const slugs = new Set<string>(GUIDE_SLUGS);
-  const reasons = new Set<string>(REASON_KEYS);
+  // Read from `content/` itself, not from `lib/content/generated/*`: that tree is
+  // written by `content-check --emit` and gitignored, so it exists on a machine
+  // that has built before and never in a fresh CI checkout. Importing it here
+  // made `prisma db seed` — and with it every e2e, perf and unit job — fail on
+  // CI while passing locally (W2 integration, 2026-09-18). The manifest is the
+  // same data, computed from the same frontmatter, with nothing to generate.
+  const manifest = buildContentManifest(process.cwd());
+  const stepKeys = new Set<string>(manifest.stepKeys);
+  const slugs = new Set<string>(manifest.slugs);
+  const reasons = new Set<string>(manifest.reasonKeys);
 
   for (const bike of DEMO_BIKES) {
     if (!Object.hasOwn(BIKE_PRESETS, bike.preset)) {

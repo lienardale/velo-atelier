@@ -20,6 +20,16 @@
 #   SKIP_DB=1        skip the integration tier (no Docker)
 #   SKIP_SECURITY=1  skip secrets/audit/sast/trivy (offline; never before a push)
 #   STEPS="lint …"   run only these steps, in this order
+#   KEEP_GENERATED=1 do NOT delete the generated trees first (see below)
+#
+# THE ONE PLACE THIS MIRROR IS NOT FAITHFUL, and why it deletes things: every CI
+# job is a SEPARATE fresh checkout, while every step here shares this one working
+# tree. So a gitignored generated tree left behind by an earlier build silently
+# satisfies a later step, and the same commit is green here and red there — it
+# happened twice, with `.content-collections` and then with
+# `lib/content/generated` (which took down seven jobs; .debug/004 §10). The
+# trees are therefore removed before the run, so each step has to generate what
+# it needs exactly as its CI job does.
 #
 # Written for bash 3.2 (macOS system bash).
 set -euo pipefail
@@ -29,6 +39,18 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/ci/_lib.sh"
 cd "$PROJECT_ROOT"
 
 ALL_STEPS="nvmrc lint typecheck content test-unit test-integration coverage secrets audit sast trivy build"
+
+# Only ever these two paths, only ever under the repo root, and only what is
+# gitignored and regenerable: `content-collections build` and
+# `content-check --emit` write them back.
+if [[ -z "${KEEP_GENERATED:-}" ]]; then
+  for generated in lib/content/generated .content-collections; do
+    if [[ -e "$PROJECT_ROOT/$generated" ]]; then
+      rm -rf "${PROJECT_ROOT:?}/$generated"
+      printf ':: removed %s (a fresh CI checkout has none)\n' "$generated"
+    fi
+  done
+fi
 
 if [[ -n "${STEPS:-}" ]]; then
   STEPS_TO_RUN="$STEPS"
