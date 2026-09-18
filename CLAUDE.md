@@ -174,6 +174,18 @@ scripts/             ci/, db/, perf/, content tooling
   `TreeIllustrationFrame` and pinned by `tree-geometry.test.tsx`. The rendering
   cannot move into `app/**`: Turbopack refuses `react-dom/server` there, and the
   RSC runtime cannot run the synchronous DOM renderer at all.
+- **That artifact is data over a closed vocabulary, never markup.**
+  `components/illustrations/tree-drawing-node.ts` lists the tags, attributes and
+  `style` properties a drawing may use; `renderTreeGeometry()` parses its own
+  renderer's output with a narrow tokenizer that throws on anything else, and
+  asserts every tag, attribute, value and declaration against those lists, so
+  the build fails the day a drawing introduces something new. Adding to either
+  list is a security decision: the tag must be inert and the attribute must not
+  be able to reference anything outside the drawing. This is what lets
+  `TreeDrawing` replay the shapes as ordinary React elements — the repository
+  uses React's raw-HTML escape hatch nowhere outside `components/mdx/`, and
+  `tests/security/xss-form-inputs.test.ts` greps every source file, comments
+  included, to keep it that way.
 - **The home page's `<h1>` block sits above the tree's `<Suspense>` boundary**
   (`app/[locale]/page.tsx` → `DecisionTreeFrame hero=`). It is the LCP element,
   and React destroys a fallback's DOM when the hydrated tree replaces it —

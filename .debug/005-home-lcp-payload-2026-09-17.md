@@ -101,9 +101,9 @@ when the tree arrived. The node is now painted once and never touched.
 
 **Payload.** A drawing is split between its frame and its shapes:
 
-- `scripts/gen-tree-drawings.ts` renders every drawing to markup at build time
+- `scripts/gen-tree-drawings.ts` renders every drawing at build time
   (`npm run drawings`, run by `build` and `dev`) into **`public/tree-drawings.json`**
-  — 54 drawings, 88 584 B. `components/illustrations/tree-geometry.tsx` does the
+  — 54 drawings, 98 280 B. `components/illustrations/tree-geometry.tsx` does the
   rendering; it is server code, so the 72-component barrel still reaches no
   client bundle.
 - `components/decision-tree/TreeDrawing.tsx` (client) draws the `<svg>` frame,
@@ -116,6 +116,33 @@ when the tree arrived. The node is now painted once and never touched.
   where; it now emits a ~150-byte `<TreeDrawing>` element instead of 1–5 kB of
   geometry. A drawing still on its placeholder keeps the old server-rendered
   path.
+
+**The artifact is data, not markup, and that was not the first design.** The
+obvious version shipped a string of SVG per drawing and injected it with
+React's raw-HTML escape hatch. `tests/security/xss-form-inputs.test.ts` forbids
+that call anywhere outside `components/mdx/` — a grep over every source file,
+prose included — and caught it. The rule is right and the implementation was
+wrong: a security contract earns its value by being absolute, and "the value is
+a build artifact, so it is fine" is exactly the argument that erodes one.
+
+So `public/tree-drawings.json` holds `{ t, a, c }` nodes over a **closed,
+asserted vocabulary** (`components/illustrations/tree-drawing-node.ts`: 10 inert
+shape tags, 33 geometry/stroke/type attributes, `style` only ever
+`stroke`/`fill` set to a `var(--color-…)` token). `renderTreeGeometry()` parses
+its own renderer's output with a deliberately narrow tokenizer that **throws**
+on anything it does not recognise, and checks every tag, attribute, attribute
+value and style declaration against the whitelists — so `npm run build` fails
+the day a drawing introduces something new, and `TreeDrawing` replays the result
+as ordinary React elements. That is stronger than the markup version was: the
+artifact is provably inert rather than merely trusted.
+
+Writing the whitelist test found a real hole in the first draft of the checker:
+the tag was validated once per attribute, so `<script>alert(1)</script>` — which
+has no attributes — went straight through. `parseDrawing` now checks the tag per
+element, and `tree-geometry.test.tsx` pins that exact case.
+
+The node form costs 98 280 B against 88 584 B of markup (+11 %), all of it off
+the document and gzipped on the wire.
 
 `react-dom/server` is why this is a script and not a route handler: Turbopack
 refuses a static import of it anywhere under `app/**`, and a dynamic import
@@ -147,7 +174,13 @@ LCP 3949 → **1927 ms**, and LCP == FCP on every run; `/en` 0.86 → **0.97**.
 - `components/decision-tree/DecisionTreeSkeleton.test.tsx` — _"carries no
   heading: the h1 lives above the boundary this is the fallback of"_. Putting
   the heading back in the fallback is the regression, and this fails on it.
-- `components/illustrations/tree-geometry.test.tsx` — every drawing the tree can
+- `tests/security/xss-form-inputs.test.ts` — "uses dangerously-set HTML nowhere
+  outside `components/mdx/`". It is a grep over every file under `app`, `lib`
+  and `components`, prose included; the drawings must stay data.
+- `components/illustrations/tree-geometry.test.tsx` — the generated tree stays
+  inside the vocabulary (no `on*`, no `href`/`src`/`filter`/`mask`/`clip-path`/
+  `class`), the tokenizer throws on `<script>`, `<image>`, `onclick=`, `url(…)`
+  and on markup it cannot parse; every drawing the tree can
   show has shapes and no `<title>`; `treeFrameAttrs()` is byte-for-byte the
   `<svg>` `TreeIllustrationFrame` draws.
 - `components/decision-tree/tree-drawings.test.tsx` — one fetch however many

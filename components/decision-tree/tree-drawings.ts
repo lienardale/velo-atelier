@@ -2,11 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 
+import type { DrawingNode } from "@/components/illustrations/tree-drawing-node";
+
 /** What `scripts/gen-tree-drawings.ts` writes, served straight out of `public/`. */
 export const TREE_DRAWINGS_URL = "/tree-drawings.json";
 
-/** Illustration id → the markup that goes inside its `<svg>`. */
-export type TreeDrawingGeometry = Readonly<Record<string, string>>;
+/** Illustration id → the shapes that go inside its `<svg>`. */
+export type TreeDrawingGeometry = Readonly<Record<string, DrawingNode[]>>;
 
 /**
  * The decision tree's drawings, fetched once and shared by every `TreeDrawing`
@@ -32,7 +34,12 @@ let geometry: TreeDrawingGeometry = {};
 let started = false;
 const listeners = new Set<() => void>();
 
-const EMPTY = "";
+/**
+ * One frozen array, shared by every drawing that has no shapes yet.
+ * `useSyncExternalStore` compares snapshots by identity: a fresh `[]` per read
+ * would re-render for ever.
+ */
+const EMPTY: readonly DrawingNode[] = Object.freeze([]);
 
 function emit(): void {
   for (const listener of listeners) listener();
@@ -60,13 +67,13 @@ function subscribe(listener: () => void): () => void {
 }
 
 /**
- * The shapes of one drawing: `""` until the fetch lands, then the markup.
+ * The shapes of one drawing: empty until the fetch lands.
  *
- * The server snapshot is always `""` — the prerendered HTML carries an empty,
+ * The server snapshot is always empty — the prerendered HTML carries an empty,
  * correctly sized frame and the client fills it in, so there is no hydration
  * mismatch and no layout shift (the `viewBox` sizes the box, not its contents).
  */
-export function useTreeDrawing(id: string): string {
+export function useTreeDrawing(id: string): readonly DrawingNode[] {
   return useSyncExternalStore(
     subscribe,
     // eslint-disable-next-line security/detect-object-injection -- a lookup into a plain map by an illustration id

@@ -9,6 +9,8 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DrawingNode } from "@/components/illustrations/tree-drawing-node";
+
 import {
   loadTreeDrawings,
   primeTreeDrawings,
@@ -17,10 +19,11 @@ import {
   useTreeDrawing,
 } from "./tree-drawings";
 
-const GEOMETRY = { "ill-drive": '<circle cx="1" cy="1" r="1"></circle>' };
+const CIRCLE: DrawingNode = { t: "circle", a: { cx: "1", cy: "1", r: "1" } };
+const GEOMETRY = { "ill-drive": [CIRCLE] };
 
 /** What a mounted `TreeDrawing` would see for `id`. */
-function drawingOf(id: string): string {
+function drawingOf(id: string): readonly DrawingNode[] {
   return renderHook(() => useTreeDrawing(id)).result.current;
 }
 
@@ -41,11 +44,11 @@ describe("tree drawings store", () => {
       .mockResolvedValue({ ok: true, json: () => Promise.resolve(GEOMETRY) });
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(drawingOf("ill-drive")).toBe("");
+    expect(drawingOf("ill-drive")).toEqual([]);
     loadTreeDrawings();
     loadTreeDrawings();
     loadTreeDrawings();
-    await vi.waitFor(() => expect(drawingOf("ill-drive")).toBe(GEOMETRY["ill-drive"]));
+    await vi.waitFor(() => expect(drawingOf("ill-drive")).toEqual([CIRCLE]));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe(TREE_DRAWINGS_URL);
@@ -56,7 +59,7 @@ describe("tree drawings store", () => {
     vi.stubGlobal("fetch", fetchMock);
     loadTreeDrawings();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(drawingOf("ill-drive")).toBe("");
+    expect(drawingOf("ill-drive")).toEqual([]);
   });
 
   it("leaves every drawing empty on a non-ok response", async () => {
@@ -66,12 +69,12 @@ describe("tree drawings store", () => {
     vi.stubGlobal("fetch", fetchMock);
     loadTreeDrawings();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(drawingOf("ill-drive")).toBe("");
+    expect(drawingOf("ill-drive")).toEqual([]);
   });
 
   it("reports an id the map does not carry as empty", () => {
     primeTreeDrawings(GEOMETRY);
-    expect(drawingOf("ill-discipline")).toBe("");
-    expect(drawingOf("ill-drive")).toBe(GEOMETRY["ill-drive"]);
+    expect(drawingOf("ill-discipline")).toEqual([]);
+    expect(drawingOf("ill-drive")).toEqual([CIRCLE]);
   });
 });
