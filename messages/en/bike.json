@@ -1,1 +1,139 @@
-{}
+{
+  "metaTitle": "My bike in 3D",
+  "metaDescription": "Explore your bike part by part, run a checkup and find the right guide for every component.",
+  "demoName": "Demo bike",
+  "demoBadge": "Demo",
+  "localName": "My bike",
+  "canvas": {
+    "loading": "Loading the bike…",
+    "empty": "No bike saved on this device",
+    "emptyHelp": "Answer a few questions about your bike to see it in 3D.",
+    "emptyCta": "Describe my bike",
+    "emptyToast": "Describe your bike first — no bike is saved on this device."
+  },
+  "workspace": {
+    "partsTab": "Parts",
+    "infoTab": "Details",
+    "actionsTab": "Actions",
+    "selectAll": "Select all",
+    "pickPart": "Select {part} for a checkup",
+    "selected": "Selected part: {part}",
+    "expandSheet": "Expand the parts list",
+    "collapseSheet": "Collapse the parts list"
+  },
+  "status": {
+    "OK": "Good",
+    "ATTENTION": "Keep an eye on it",
+    "BROKEN": "Needs replacing",
+    "UNKNOWN": "Not checked"
+  },
+  "panel": {
+    "emptyTitle": "No part selected",
+    "emptyHelp": "Tap a part of the bike, or pick one from the list.",
+    "status": "Condition:",
+    "edit": "Edit this part",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "notSet": "Not set",
+    "yes": "Yes",
+    "no": "No",
+    "demoNotice": "The demo bike is shared with everyone: to change it, make your own copy on this device.",
+    "demoFork": "Edit this bike → local copy",
+    "guidesLabel": "Guides for this part",
+    "permalink": "Direct link to this part"
+  },
+  "guides": {
+    "replace": "Replace",
+    "clean": "Clean",
+    "adjust": "Adjust"
+  },
+  "actions": {
+    "fullCheckup": "Start a full checkup",
+    "partialCheckup": "Check the selected parts ({count})",
+    "fit": "Fit & geometry",
+    "buildList": "My to-fix list"
+  },
+  "resume": {
+    "title": "You have a checkup in progress",
+    "body": "{scope} checkup started on {date} — {answered, plural, one {# step answered} other {# steps answered}}.",
+    "cta": "Resume the checkup",
+    "scopeFull": "Full",
+    "scopePartial": "Partial"
+  },
+  "error": {
+    "title": "This bike could not be shown",
+    "description": "The rest of the site is fine. Try again, or open the demo bike to carry on.",
+    "openDemo": "Open the demo bike"
+  },
+  "part": {
+    "metaTitle": "{part} — my bike"
+  },
+  "fit": {
+    "metaTitle": "Fit and geometry",
+    "metaDescription": "Saddle height, setback, tyre pressure, sag: your bike's measurements, remembered.",
+    "title": "Fit & geometry",
+    "intro": "Starting points, not rules: write your measurements down, then move 5 mm at a time until it feels right.",
+    "needsBike": "Open this page from your bike: which measurements apply depends on its components.",
+    "openBike": "Back to the bike",
+    "howTo": "How to measure",
+    "openGuide": "Read the measuring guide",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "demoNotice": "The demo bike does not keep your measurements. Make a local copy to save them.",
+    "fields": {
+      "inseamCm": "Inseam (cm)",
+      "saddleHeightMm": "Saddle height (mm)",
+      "saddleSetbackMm": "Saddle setback (mm)",
+      "reachMm": "Reach (mm)",
+      "barDropMm": "Saddle-to-bar drop (mm)",
+      "cleatPositionMm": "Cleat position (mm)",
+      "riderKg": "Rider weight (kg)",
+      "bikeKg": "Bike weight (kg)",
+      "sagPercent": "Measured sag (%)",
+      "chainWearMm": "12 links (mm)"
+    },
+    "units": {
+      "cm": "{value} cm"
+    },
+    "pressure": "Front {front} bar · rear {rear} bar",
+    "sag": {
+      "firm": "Suspension too firm",
+      "ok": "Sag within the recommended range",
+      "soft": "Suspension too soft",
+      "target": "target {min} to {max}%"
+    },
+    "chainWear": {
+      "ok": "Chain still good",
+      "replace": "Chain needs replacing"
+    }
+  },
+  "myBikes": {
+    "metaTitle": "My bikes",
+    "metaDescription": "The bikes saved to your account.",
+    "title": "My bikes",
+    "add": "Add a bike",
+    "emptyTitle": "No bike saved yet",
+    "emptyHelp": "Answer a few questions and your bike appears in 3D, ready to be checked.",
+    "emptyCta": "Describe my bike",
+    "updated": "Updated {date}",
+    "manage": "Rename or delete",
+    "nameLabel": "Bike name",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteConfirm": "Confirm deletion"
+  },
+  "errors": {
+    "storageFull": "Could not save on this device: the browser's storage is full.",
+    "fitRange": "That measurement is outside the possible values.",
+    "nameRequired": "Give this bike a name.",
+    "nameTooLong": "That name is too long (80 characters maximum).",
+    "unknown-part": "That part does not exist.",
+    "part-not-fitted": "That part is not fitted to this bike.",
+    "unknown-attribute": "That property does not exist for this part.",
+    "not-editable": "That property follows from how the bike is described; change it in the questionnaire.",
+    "invalid-value": "That value is not possible for this property.",
+    "not-optional": "That part cannot be removed.",
+    "already-fitted": "That part is already fitted."
+  }
+}

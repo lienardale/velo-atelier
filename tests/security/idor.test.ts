@@ -39,6 +39,13 @@ vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModul
 const { updateProfileAction, changePasswordAction, setPasswordAction, deleteAccountAction } =
   await import("@/app/[locale]/(protected)/compte/actions");
 
+const { updateBikePartAction } = await import("@/app/[locale]/velo/[id]/actions");
+const { updateBikeFitAction } = await import("@/app/[locale]/velo/[id]/reglages/actions");
+const { createBikeAction, updateBikeAction, renameBikeAction, deleteBikeAction } =
+  await import("@/app/[locale]/(protected)/mes-velos/actions");
+const { deriveBike } = await import("@/lib/bike/rules");
+const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
+
 const { IDLE } = await import("@/lib/actions/result");
 
 const CURRENT = "Guidon-Tandem-47!";
@@ -172,5 +179,154 @@ describe("deletion", () => {
 
     expect(result).toMatchObject({ ok: false, code: "VALIDATION" });
     expect(fakeDb.rows("User")).toHaveLength(2);
+  });
+});
+
+/**
+ * Bikes (W2-T3). Same four controls, one surface further in: a bike has an
+ * owner, so every read and write must carry `userId` (or the nested
+ * `bike: { userId }` for its children), and a foreign id must look exactly like
+ * an id that does not exist.
+ */
+describe("bikes", () => {
+  const otherBikeId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
+  async function seedBike(userId: string, name = "Gravel"): Promise<{ id: string }> {
+    const derived = deriveBike(BIKE_PRESETS["gravel-1x11"]);
+    const bike = (await fakeDb.seed("Bike", {
+      userId,
+      name,
+      answers: derived.answers,
+      spec: derived.spec,
+      parts: derived.parts,
+      fit: { riderKg: 70 },
+    })) as { id: string };
+    for (const part of derived.parts) {
+      await fakeDb.seed("BikePartState", { bikeId: bike.id, partId: part.partId });
+    }
+    return bike;
+  }
+
+  it("edits a part only on the caller's own bike", async () => {
+    const mine = await seedBike(me.id);
+    const theirs = await seedBike(victim.id, "Vélo de la victime");
+    fakeDb.resetCalls();
+
+    const refused = await updateBikePartAction({
+      bikeId: theirs.id,
+      partId: "cassette",
+      attributes: { range: "11-42" },
+    });
+    expect(refused).toEqual({ ok: false, code: "NOT_FOUND" });
+    expectScopedToUser(fakeDb.calls, me.id);
+
+    const allowed = await updateBikePartAction({
+      bikeId: mine.id,
+      partId: "cassette",
+      attributes: { range: "11-36" },
+    });
+    expect(allowed.ok).toBe(true);
+    expectScopedToUser(fakeDb.calls, me.id);
+
+    // The victim's bike is byte-for-byte what it was, whatever the payload said.
+    const victimBike = fakeDb.rows("Bike").find((row) => row.id === theirs.id);
+    expect(victimBike?.parts).toEqual(deriveBike(BIKE_PRESETS["gravel-1x11"]).parts);
+  });
+
+  it("answers NOT_FOUND for a bike id that exists nowhere, exactly as for a foreign one", async () => {
+    const theirs = await seedBike(victim.id);
+    fakeDb.resetCalls();
+
+    const missing = await updateBikeFitAction({ bikeId: otherBikeId, fit: { riderKg: 80 } });
+    const foreign = await updateBikeFitAction({ bikeId: theirs.id, fit: { riderKg: 80 } });
+    expect(missing).toEqual(foreign);
+    expect(foreign).toEqual({ ok: false, code: "NOT_FOUND" });
+  });
+
+  it("writes the fit of the caller's bike and nobody else's", async () => {
+    const mine = await seedBike(me.id);
+    const theirs = await seedBike(victim.id);
+    fakeDb.resetCalls();
+
+    expect(await updateBikeFitAction({ bikeId: mine.id, fit: { saddleHeightMm: 742 } })).toEqual({
+      ok: true,
+      data: { riderKg: 70, saddleHeightMm: 742 },
+    });
+    expectScopedToUser(fakeDb.calls, me.id);
+    expect(fakeDb.rows("Bike").find((row) => row.id === theirs.id)?.fit).toEqual({ riderKg: 70 });
+  });
+
+  it("renames and deletes only the caller's bike", async () => {
+    const mine = await seedBike(me.id);
+    const theirs = await seedBike(victim.id, "Vélo de la victime");
+    fakeDb.resetCalls();
+
+    expect(await renameBikeAction({ bikeId: theirs.id, name: "Volé" })).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+    });
+    expect(await deleteBikeAction({ bikeId: theirs.id })).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+    });
+    expectScopedToUser(fakeDb.calls, me.id);
+
+    expect(fakeDb.rows("Bike").find((row) => row.id === theirs.id)?.name).toBe(
+      "Vélo de la victime",
+    );
+
+    expect(await renameBikeAction({ bikeId: mine.id, name: "Gravel 2" })).toMatchObject({
+      ok: true,
+    });
+    expect(await deleteBikeAction({ bikeId: mine.id })).toEqual({ ok: true, data: null });
+    expect(fakeDb.rows("Bike").map((row) => row.id)).toEqual([theirs.id]);
+  });
+
+  it("re-describes only the caller's bike", async () => {
+    const theirs = await seedBike(victim.id);
+    fakeDb.resetCalls();
+
+    expect(
+      await updateBikeAction({ bikeId: theirs.id, answers: BIKE_PRESETS["road-disc-2x12"] }),
+    ).toEqual({ ok: false, code: "NOT_FOUND" });
+    expectScopedToUser(fakeDb.calls, me.id);
+
+    const victimBike = fakeDb.rows("Bike").find((row) => row.id === theirs.id);
+    expect((victimBike?.spec as { discipline: string }).discipline).toBe("gravel");
+  });
+
+  it("creates a bike for the session user, never for the id in the payload", async () => {
+    fakeDb.resetCalls();
+    const result = await createBikeAction({
+      name: "Pirate",
+      answers: BIKE_PRESETS["gravel-1x11"],
+      userId: victim.id,
+    });
+
+    // `.strict()` refuses the extra key outright.
+    expect(result).toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(fakeDb.rows("Bike")).toHaveLength(0);
+
+    const honest = await createBikeAction({ name: "Gravel", answers: BIKE_PRESETS["gravel-1x11"] });
+    expect(honest.ok).toBe(true);
+    expectScopedToUser(fakeDb.calls, me.id);
+    expect(fakeDb.rows("Bike")[0]?.userId).toBe(me.id);
+  });
+
+  it("refuses every bike action to an anonymous caller, before any query", async () => {
+    const mine = await seedBike(me.id);
+    setSession(null);
+    fakeDb.resetCalls();
+
+    for (const result of [
+      await updateBikePartAction({ bikeId: mine.id, partId: "chain", attributes: {} }),
+      await updateBikeFitAction({ bikeId: mine.id, fit: { riderKg: 80 } }),
+      await renameBikeAction({ bikeId: mine.id, name: "x" }),
+      await deleteBikeAction({ bikeId: mine.id }),
+      await createBikeAction({ name: "x", answers: BIKE_PRESETS["gravel-1x11"] }),
+    ]) {
+      expect(result).toEqual({ ok: false, code: "UNAUTHORIZED" });
+    }
+    expect(fakeDb.calls).toHaveLength(0);
   });
 });

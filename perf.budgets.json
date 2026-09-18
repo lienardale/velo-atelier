@@ -32,6 +32,7 @@
     "    `forbidWebgl` still passes, so no 3D leaked in. Measured on the CI-equivalent build",
     "    (ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1), which is what the CI build job produces.",
     "    Home is now 56 KiB above its 130 kB target; W4-T2 owns closing that gap.",
+    "  W2-T3 2026-09-18: the four /velo + garage routes enter the ratchet, measured by W2-T3 and re-verified at integration. `forbidWebgl` is ON for the workspace routes on purpose: the 3D viewer is lazily imported, so THREE must never appear in an EAGER chunk there — that assertion is what keeps the viewer out of first load.",
     "",
     "Getting the numbers: `npx tsx scripts/perf/bundle-budget.ts --json` prints raw gzip bytes and the",
     "ratchet's `nextPin` (measured + 10 %, rounded up to a whole KiB) for each route."
@@ -46,6 +47,30 @@
     "/[locale]/guides/[slug]": {
       "label": "guide page",
       "firstLoadJsGzipBytes": 181248,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/velo/[id]": {
+      "label": "bike workspace",
+      "firstLoadJsGzipBytes": 265216,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/velo/[id]/piece/[partId]": {
+      "label": "part panel (deep link)",
+      "firstLoadJsGzipBytes": 265216,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/velo/[id]/reglages": {
+      "label": "fit and measurements",
+      "firstLoadJsGzipBytes": 229376,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/(protected)/mes-velos": {
+      "label": "garage",
+      "firstLoadJsGzipBytes": 207872,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     }

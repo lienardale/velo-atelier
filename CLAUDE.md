@@ -163,6 +163,25 @@ scripts/             ci/, db/, perf/, content tooling
   asserts on the build output that `window.__va` is present iff the flag is on
   (and that no `new Function`/`eval` ships at all). It runs after every build:
   `scripts/ci/build.sh` and `scripts/vercel-build.sh`.
+- **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
+  under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
+  `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
+  _static_ mode, where reading the session is `DYNAMIC_SERVER_USAGE` (a 500); a
+  `loading.tsx` streams the response, so the `notFound()` for a foreign bike can
+  no longer set a 404. A route-level `loading.tsx` anywhere must also be
+  **silent**: it gets no `params`, so it cannot `setRequestLocale`, and one
+  `useTranslations` in it turns the whole segment dynamic.
+- **`"use server"` files export only async functions.** A zod schema next to an
+  action fails the module at request time (`found object`), with `tsc` and
+  `next build` both green. Keep input schemas module-private.
+- **State updaters never read an event.** `event.currentTarget` is `null` by the
+  time a `setState(prev => …)` updater runs; read the value in the handler.
+- **Bike writes go through `lib/bike/rules.ts`** — `deriveBike(answers,
+previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
+  produced, in the server actions, in the guest repo and in `prisma/seed.ts`
+  alike. `lib/bike/repo.ts` is the one interface over the three destinations
+  (demo = read-only, local = `localStorage`, db = server actions), so no
+  component branches on the ref kind.
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
@@ -210,3 +229,13 @@ Husky runs the fast subset pre-commit and the full local mirror pre-push.
 Non-obvious findings go in `.debug/NNN-description-YYYY-MM-DD.md` and are
 indexed in [`.debug/README.md`](./.debug/README.md). Add the entry in the same
 commit as the fix.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

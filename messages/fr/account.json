@@ -47,11 +47,5 @@
     "cancel": "Annuler",
     "confirm": "Supprimer définitivement",
     "submitting": "Suppression…"
-  },
-  "myBikes": {
-    "title": "Mes vélos",
-    "placeholder": "Vos vélos enregistrés apparaîtront ici.",
-    "metaTitle": "Mes vélos",
-    "metaDescription": "Les vélos enregistrés sur votre compte vélo-atelier."
   }
 }

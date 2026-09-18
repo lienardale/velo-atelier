@@ -47,11 +47,5 @@
     "cancel": "Cancel",
     "confirm": "Delete permanently",
     "submitting": "Deleting…"
-  },
-  "myBikes": {
-    "title": "My bikes",
-    "placeholder": "The bikes saved on your account will show up here.",
-    "metaTitle": "My bikes",
-    "metaDescription": "The bikes saved on your vélo-atelier account."
   }
 }

@@ -16,10 +16,11 @@ person (or the next session) does not rediscover them.
 
 ## Index
 
-| #   | Date       | Subject                                                                     | Status   |
-| --- | ---------- | --------------------------------------------------------------------------- | -------- |
-| 001 | 2026-09-12 | W0 scaffold: registry reality vs the plan's pins; W0 integration            | resolved |
-| 002 | 2026-09-09 | Prisma 7 + Turbopack: observed CLI flags and the init migration             | resolved |
-| 003 | 2026-09-13 | W1: five auth bugs, the sessionVersion contradiction, sub-agent stalls      | resolved |
-| 004 | 2026-09-17 | W2: the test-hooks gate that shipped, `--strict` wired, callout legends     | resolved |
-| 005 | 2026-09-17 | `Input.synthesizeScrollGesture` fires no `touchmove` on CI's Linux Chromium | resolved |
+| #   | Date       | Subject                                                                                   | Status   |
+| --- | ---------- | ----------------------------------------------------------------------------------------- | -------- |
+| 001 | 2026-09-12 | W0 scaffold: registry reality vs the plan's pins; W0 integration                          | resolved |
+| 002 | 2026-09-09 | Prisma 7 + Turbopack: observed CLI flags and the init migration                           | resolved |
+| 003 | 2026-09-13 | W1: five auth bugs, the sessionVersion contradiction, sub-agent stalls                    | resolved |
+| 004 | 2026-09-17 | W2: the test-hooks gate that shipped, `--strict` wired, callout legends                   | resolved |
+| 005 | 2026-09-17 | `Input.synthesizeScrollGesture` fires no `touchmove` on CI's Linux Chromium               | resolved |
+| 006 | 2026-09-18 | `/velo/[id]`: static params vs the session, `loading.tsx` vs 404s, `"use server"` exports | resolved |
