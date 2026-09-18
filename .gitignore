@@ -21,6 +21,11 @@ next-env.d.ts
 /lib/generated/
 /.content-collections/
 /lib/content/generated/
+# NOT ignored, on purpose: public/tree-drawings.json. It is generated
+# (scripts/gen-tree-drawings.ts, .debug/005) but committed, because the
+# lighthouse and e2e jobs restore only .next/ from the build artifact while
+# `next start` serves public/ from the checkout. `scripts/ci/content.sh`
+# fails if it is stale.
 
 # test + quality artifacts
 /coverage/

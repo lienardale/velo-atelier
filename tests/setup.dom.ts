@@ -24,7 +24,9 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
+
+import { primeTreeDrawings } from "@/components/decision-tree/tree-drawings";
 
 type Listener = (event: MediaQueryListEvent) => void;
 
@@ -235,6 +237,15 @@ elementProto.hasPointerCapture ??= function hasPointerCapture() {
   return false;
 };
 elementProto.scrollIntoView ??= function scrollIntoView() {};
+
+// The decision tree's drawings arrive from `/api/tree-drawings` after
+// hydration (`.debug/005`). Hand the store an empty map instead, so no
+// component test reaches the network: the frame, the `<title>` and the callout
+// legend — everything these tests assert — are rendered by `TreeDrawing`
+// itself, and `components/decision-tree/tree-drawings.test.ts` covers the fetch.
+beforeEach(() => {
+  primeTreeDrawings({});
+});
 
 afterEach(() => {
   cleanup();

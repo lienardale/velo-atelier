@@ -11,7 +11,8 @@ import { DECISION_HELP_PERSIST_KEY } from "@/lib/bike/storage-keys";
 import { setNavigationState } from "@/tests/_fakes/session";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 
-import { DecisionTree } from "./DecisionTree";
+import { DecisionTreeFrame } from "./DecisionTreeFrame";
+import { DecisionTreeHero } from "./DecisionTreeSkeleton";
 import type { LoadLocalBike } from "./Summary";
 import { renderTreeIllustrations } from "./tree-illustrations";
 
@@ -23,13 +24,22 @@ function go(search: string) {
   setNavigationState({ pathname: "/", search });
 }
 
+/**
+ * The tree as the home page composes it: `DecisionTreeFrame` around the tree,
+ * with the landing heading passed in as the already-rendered node the server
+ * gives it. Rendering the frame rather than `DecisionTree` alone is what keeps
+ * the heading assertions below honest — the `<h1>` lives above the tree's
+ * `<Suspense>` boundary now (`.debug/005`), and the tree only reports which
+ * screen it is on.
+ */
 async function renderTree(
   search = "",
   options: { locale?: "fr" | "en"; loadLocalBike?: LoadLocalBike } = {},
 ) {
   go(search);
   return renderWithIntl(
-    <DecisionTree
+    <DecisionTreeFrame
+      hero={<DecisionTreeHero />}
       illustrations={renderTreeIllustrations()}
       loadLocalBike={options.loadLocalBike}
     />,
@@ -229,7 +239,9 @@ describe("DecisionTree — URL state", () => {
   it("adopts a query changed by a router navigation (header logo → bare home)", async () => {
     const { rerender } = await renderTree(GRAVEL_AT_BRAKES);
     setNavigationState({ search: "" });
-    rerender(<DecisionTree illustrations={renderTreeIllustrations()} />);
+    rerender(
+      <DecisionTreeFrame hero={<DecisionTreeHero />} illustrations={renderTreeIllustrations()} />,
+    );
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(frCommon.site.tagline);
   });
 

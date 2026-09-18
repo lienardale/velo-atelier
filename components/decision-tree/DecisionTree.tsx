@@ -10,7 +10,6 @@ import { defaultOption, visibleOptions } from "@/lib/domain/engine/decision";
 import type { DecisionNode, QuestionId } from "@/lib/domain/schema/decision";
 import { Link } from "@/lib/i18n/navigation";
 
-import { DecisionTreeHero } from "./DecisionTreeSkeleton";
 import { DefaultCallout } from "./DefaultCallout";
 import { HelpDisclosure } from "./HelpDisclosure";
 import { OptionGrid } from "./OptionGrid";
@@ -61,6 +60,12 @@ export interface DecisionTreeProps {
   illustrations: TreeIllustrations;
   /** Injection point for tests (see `Summary`). */
   loadLocalBike?: LoadLocalBike;
+  /**
+   * Called whenever the tree moves on or off the landing screen, so
+   * `DecisionTreeFrame` — which owns the `<h1>` heading above this boundary —
+   * can drop it as soon as a question becomes the `<h1>`.
+   */
+  onIntroChange?: (intro: boolean) => void;
 }
 
 /**
@@ -81,12 +86,15 @@ export interface DecisionTreeProps {
  * a keyboard user continues from the top of it.
  *
  * **Headings.** Before any answer, the page's `<h1>` is the site's promise
- * (`DecisionTreeHero`) and the first question is an `<h2>` under it; from the
- * first answer on, the question itself is the `<h1>`.
+ * (`DecisionTreeHero`, rendered by `DecisionTreeFrame` ABOVE this boundary so
+ * the LCP element is never re-created — `.debug/005`) and the first question is
+ * an `<h2>` under it; from the first answer on, the question itself is the
+ * `<h1>` and the frame drops the heading on `onIntroChange(false)`.
  */
 export function DecisionTree({
   illustrations,
   loadLocalBike,
+  onIntroChange,
 }: DecisionTreeProps): React.JSX.Element {
   const common = useTranslations("common");
   const tree = useTranslations("decision-tree");
@@ -188,15 +196,19 @@ export function DecisionTree({
 
   const edit = (question: QuestionId) => writeUrl({ ...state, step: question }, "push");
 
+  // The landing heading lives above this boundary (see `DecisionTreeFrame`);
+  // report which screen we are on so it can step aside for the question's `<h1>`.
+  useEffect(() => {
+    onIntroChange?.(intro);
+  }, [intro, onIntroChange]);
+
   return (
     <section
       aria-labelledby={headingId}
       data-testid="decision-tree"
       data-screen={screenKey}
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:py-12"
+      className="flex w-full flex-col gap-6"
     >
-      {intro ? <DecisionTreeHero /> : null}
-
       {screen.kind === "summary" ? (
         <Suspense fallback={<p className="text-ink-muted">{common("loading")}</p>}>
           <Summary

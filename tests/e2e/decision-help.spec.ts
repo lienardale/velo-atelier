@@ -65,6 +65,13 @@ forEachLocale((locale) => {
       const images = help.locator("svg[role=img]");
       await expect(images).toHaveCount(1);
       await expect(images.locator("title")).toHaveText(ALTS[locale][`ill-${question}`].alt);
+      // The shapes come from `/tree-drawings.json` after hydration
+      // (.debug/005), so an empty frame with the right name would otherwise
+      // pass every assertion above.
+      await expect(
+        images.locator("path, circle, rect, line, polyline, ellipse"),
+        `${question} has shapes`,
+      ).not.toHaveCount(0);
       await expect(help.locator("p", { hasText: DECISION[locale][question].help })).toHaveText(
         DECISION[locale][question].help,
       );

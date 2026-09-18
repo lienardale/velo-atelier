@@ -1,9 +1,10 @@
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
-import { ILLUSTRATIONS, type IllustrationId } from "@/lib/domain";
+import type { IllustrationId } from "@/lib/domain";
 
 import type { IllustrationProps } from "./placeholder";
+import { treeFrameAttrs } from "./tree-frame-attrs";
 
 /**
  * The frame every decision-tree drawing is drawn in (W2-T4c) — the tree's
@@ -38,21 +39,11 @@ export function TreeIllustrationFrame({
 }): React.JSX.Element {
   const t = useTranslations("illustrations");
   const titleId = useId();
-  // eslint-disable-next-line security/detect-object-injection -- total lookup keyed by a literal union
-  const thumbnail = ILLUSTRATIONS[id].aspect === "1/1";
 
   return (
     <svg
-      viewBox={thumbnail ? "0 0 120 120" : "0 0 320 240"}
+      {...treeFrameAttrs(id)}
       className={className}
-      preserveAspectRatio="xMidYMid meet"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={thumbnail ? 3 : 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      data-illustration={id}
-      data-status="final"
       {...(decorative ? { "aria-hidden": true } : { role: "img", "aria-labelledby": titleId })}
     >
       {decorative ? null : <title id={titleId}>{t(`${id}.alt`)}</title>}
