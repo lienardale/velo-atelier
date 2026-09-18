@@ -105,12 +105,35 @@ const budgets = require("./perf.budgets.json");
 const BIKE_SCRIPT_CEILING =
   budgets.routes["/[locale]"].firstLoadJsGzipBytes + budgets.lazy3dChunkGzipBytes;
 
+/**
+ * Bike pages: a WebGL canvas rendered in software.
+ *
+ * RE-BASELINED at the W2 integration (2026-09-18, decided by the user), because
+ * §7.3's numbers were written when this route was a viewer and W2-T3 turned it
+ * into the workspace §6 asks for: the viewer PLUS the parts panel, a 24-item
+ * parts list, the guide queries and the mobile sheet. Its first CI audit
+ * measured TBT 910 ms, LCP 4345 ms and performance 0.62-0.75 against 600 / 3000
+ * / 0.7 — 2.5 s of script evaluation, 1841 ms of it hydrating the app chunk,
+ * under SwiftShader on a two-core runner.
+ *
+ * The numbers below are measured + margin, so the gate catches a REGRESSION
+ * instead of failing every run at a bar this page has never met. §7.3's values
+ * are kept in `target` beside them: W4-T2 is the plan's performance pass and
+ * owns ratcheting these down to it, exactly as `perf.budgets.json` does for
+ * first-load JS. Raising one of these is a decision, not a formality — say why
+ * in the commit, as here.
+ */
+const BIKE_TARGET = { performance: 0.7, largestContentfulPaint: 3000, totalBlockingTime: 600 };
+
 /** Bike pages: a WebGL canvas rendered in software. */
 const bikeAssertions = {
   ...contentAssertions,
-  "categories:performance": ["error", { minScore: 0.7 }],
-  "largest-contentful-paint": ["error", { maxNumericValue: 3000 }],
-  "total-blocking-time": ["error", { maxNumericValue: 600 }],
+  // measured 0.62-0.75 -> 0.60; target BIKE_TARGET.performance
+  "categories:performance": ["error", { minScore: 0.6 }],
+  // measured 4345 ms -> 5000; target BIKE_TARGET.largestContentfulPaint
+  "largest-contentful-paint": ["error", { maxNumericValue: 5000 }],
+  // measured 910-930 ms -> 1100; target BIKE_TARGET.totalBlockingTime
+  "total-blocking-time": ["error", { maxNumericValue: 1100 }],
   // resource-summary reports transfer size, so this is the gzipped total.
   "resource-summary:script:size": ["error", { maxNumericValue: BIKE_SCRIPT_CEILING }],
   /**
@@ -122,6 +145,25 @@ const bikeAssertions = {
    */
   "categories:seo": "off",
 };
+
+// Referenced so the target cannot silently rot: if a threshold above is ever set
+// BELOW its §7.3 target, the ratchet has gone the wrong way and this throws.
+for (const [key, assertion] of [
+  ["performance", bikeAssertions["categories:performance"]],
+  ["largestContentfulPaint", bikeAssertions["largest-contentful-paint"]],
+  ["totalBlockingTime", bikeAssertions["total-blocking-time"]],
+]) {
+  const [, options] = assertion;
+  // eslint-disable-next-line security/detect-object-injection -- `key` is a literal from the list above
+  const target = BIKE_TARGET[key];
+  const looserThanTarget =
+    key === "performance" ? options.minScore <= target : options.maxNumericValue >= target;
+  if (!looserThanTarget) {
+    throw new Error(
+      `lighthouserc: bike ${key} is already at or past its §7.3 target — move it INTO contentAssertions instead of keeping a looser copy here.`,
+    );
+  }
+}
 
 module.exports = {
   ci: {
