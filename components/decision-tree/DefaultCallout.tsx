@@ -5,9 +5,8 @@ import { useTranslations } from "next-intl";
 import { Callout } from "@/components/ui-ext/Callout";
 import type { Answers, DecisionNode } from "@/lib/domain/schema/decision";
 
+import { useDecisionText } from "./decision-text";
 import { defaultChoice } from "./tree-state";
-
-type Translate = (key: string, values?: Record<string, string>) => string;
 
 /**
  * Why "Je ne sais pas" picked what it picked (§6.3). The default is
@@ -23,7 +22,7 @@ export function DefaultCallout({
   node: DecisionNode;
   answers: Answers;
 }): React.JSX.Element {
-  const t = useTranslations() as unknown as Translate;
+  const t = useDecisionText();
   const tree = useTranslations("decision-tree");
   const { option, basedOn } = defaultChoice(node, answers);
   const optionLabel = t(`decision.${node.id}.options.${option}.label`);

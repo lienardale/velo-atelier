@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { hasLocale } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { GuideLayout } from "@/components/guides/GuideLayout";
 import { GuideContent } from "@/components/mdx";
 import { GUIDES } from "@/lib/content/collection";
 import { findGuide, guideSlugsForLocale, prevNextOf, relatedGuides } from "@/lib/content/guides";
 import { isGuideSlug } from "@/lib/content/schema";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { routing } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -61,13 +63,18 @@ export default async function GuidePage({ params }: GuidePageProps): Promise<Rea
   const { previous, next } = prevNextOf(GUIDES, guide);
 
   return (
-    <GuideLayout
-      guide={guide}
-      related={relatedGuides(GUIDES, guide)}
-      previous={previous}
-      next={next}
+    <ClientMessages
+      locale={locale}
+      namespaces={CLIENT_NAMESPACES["app/[locale]/guides/[slug]/page.tsx"]}
     >
-      <GuideContent guide={guide} />
-    </GuideLayout>
+      <GuideLayout
+        guide={guide}
+        related={relatedGuides(GUIDES, guide)}
+        previous={previous}
+        next={next}
+      >
+        <GuideContent guide={guide} />
+      </GuideLayout>
+    </ClientMessages>
   );
 }

@@ -19,7 +19,7 @@ import { visibleQuestions } from "@/lib/domain/engine/decision";
 import type { Answers, QuestionId } from "@/lib/domain/schema/decision";
 import { useRouter } from "@/lib/i18n/navigation";
 
-type Translate = (key: string, values?: Record<string, string>) => string;
+import { useDecisionText } from "./decision-text";
 
 type LocalBikeModule = typeof import("@/lib/bike/local-bike");
 
@@ -58,7 +58,7 @@ export function Summary({
   headingRef,
   loadLocalBike = loadLocalBikeModule,
 }: SummaryProps): React.JSX.Element {
-  const t = useTranslations() as unknown as Translate;
+  const t = useDecisionText();
   const tree = useTranslations("decision-tree");
   const router = useRouter();
   const [busy, setBusy] = useState(false);

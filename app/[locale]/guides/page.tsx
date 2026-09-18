@@ -4,10 +4,12 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { GuideGrid } from "@/components/guides/GuideCard";
 import { GuideFilters } from "@/components/guides/GuideFilters";
 import { GUIDES } from "@/lib/content/collection";
 import { guidesForLocale, toSummary } from "@/lib/content/guides";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { routing } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
 
@@ -40,17 +42,19 @@ export default async function GuidesPage({ params }: GuidesPageProps): Promise<R
   const guides = guidesForLocale(GUIDES, locale).map(toSummary);
 
   return (
-    <section
-      aria-labelledby="guides-title"
-      className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:py-12"
-    >
-      <h1 id="guides-title" className="text-3xl font-semibold sm:text-4xl">
-        {t("list.title")}
-      </h1>
-      <p className="max-w-3xl text-lg text-ink-muted">{t("list.intro")}</p>
-      <Suspense fallback={<GuideGrid guides={guides} />}>
-        <GuideFilters guides={guides} />
-      </Suspense>
-    </section>
+    <ClientMessages locale={locale} namespaces={CLIENT_NAMESPACES["app/[locale]/guides/page.tsx"]}>
+      <section
+        aria-labelledby="guides-title"
+        className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:py-12"
+      >
+        <h1 id="guides-title" className="text-3xl font-semibold sm:text-4xl">
+          {t("list.title")}
+        </h1>
+        <p className="max-w-3xl text-lg text-ink-muted">{t("list.intro")}</p>
+        <Suspense fallback={<GuideGrid guides={guides} />}>
+          <GuideFilters guides={guides} />
+        </Suspense>
+      </section>
+    </ClientMessages>
   );
 }

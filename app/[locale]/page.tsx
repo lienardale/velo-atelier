@@ -8,9 +8,11 @@ import { DecisionTreeFrame } from "@/components/decision-tree/DecisionTreeFrame"
 import { DecisionTreeHero } from "@/components/decision-tree/DecisionTreeSkeleton";
 import { renderTreeIllustrations } from "@/components/decision-tree/tree-illustrations";
 import { GuideCard } from "@/components/guides/GuideCard";
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { GUIDES } from "@/lib/content/collection";
 import { guidesForLocale, GUIDE_KIND_ORDER, toSummary } from "@/lib/content/guides";
 import type { GuideSummary } from "@/lib/content/types";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { Link } from "@/lib/i18n/navigation";
 import { routing, type Locale } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -73,7 +75,7 @@ export default async function HomePage({ params }: HomePageProps): Promise<React
   const guides = featuredGuides(locale);
 
   return (
-    <>
+    <ClientMessages locale={locale} namespaces={CLIENT_NAMESPACES["app/[locale]/page.tsx"]}>
       <DecisionTreeFrame hero={<DecisionTreeHero />} illustrations={renderTreeIllustrations()} />
 
       <div className="border-t border-rule bg-paper-2/50">
@@ -136,6 +138,6 @@ export default async function HomePage({ params }: HomePageProps): Promise<React
           </section>
         </div>
       </div>
-    </>
+    </ClientMessages>
   );
 }
