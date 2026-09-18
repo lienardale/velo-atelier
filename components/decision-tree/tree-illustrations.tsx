@@ -5,6 +5,8 @@ import { illustrationComponent } from "@/components/illustrations";
 import { DECISION_TREE } from "@/lib/domain/data/decision-tree";
 import { ILLUSTRATIONS, type IllustrationId } from "@/lib/domain/data/illustrations";
 
+import { TreeDrawing } from "./TreeDrawing";
+
 /** Every drawing the tree can show, already rendered, keyed by illustration id. */
 export type TreeIllustrations = Readonly<Partial<Record<IllustrationId, ReactNode>>>;
 
@@ -13,9 +15,24 @@ export const HELP_ILLUSTRATION_CLASS =
   "mx-auto h-auto w-full max-w-xs shrink-0 text-ink sm:mx-0 sm:w-56";
 export const THUMBNAIL_ILLUSTRATION_CLASS = "mx-auto h-auto w-full max-w-[8rem]";
 
+/**
+ * One drawing, as the tree will receive it.
+ *
+ * A finished drawing becomes a `<TreeDrawing>` — frame and accessible name on
+ * the client, shapes from `public/tree-drawings.json`. What travels in the page's RSC
+ * payload is therefore an element of about 150 bytes instead of the 1–5 kB of
+ * geometry it used to be, 54 times over (`.debug/007`).
+ *
+ * A drawing still on its placeholder keeps the old path: the placeholder draws
+ * its own frame, has no geometry in the map, and there are few enough of them
+ * for the payload not to care.
+ */
 function render(id: IllustrationId, props: { className: string; decorative: boolean }): ReactNode {
   // eslint-disable-next-line security/detect-object-injection -- `id` is an IllustrationId, a key of the manifest
-  const Drawing = illustrationComponent(ILLUSTRATIONS[id].component);
+  const definition = ILLUSTRATIONS[id];
+  if (definition.status === "final") return createElement(TreeDrawing, { id, ...props });
+
+  const Drawing = illustrationComponent(definition.component);
   // createElement: the component comes from a static registry, it is not created here.
   return Drawing === undefined ? null : createElement(Drawing, props);
 }
@@ -69,21 +86,23 @@ function HelpFigure({ id, drawing }: { id: IllustrationId; drawing: ReactNode })
 }
 
 /**
- * The decision tree's drawings, rendered on the SERVER and handed to the client
+ * The decision tree's drawings, decided on the SERVER and handed to the client
  * tree as React nodes — a help drawing inside `HelpFigure`, so its numbered
- * callouts arrive with the legend that names them (§5.3: the registry is
- * RSC-rendered and
- * ships zero client JS; `components/mdx/Illustration.tsx` follows the same
- * rule). The home page calls this and passes the result as a prop, so the SVG
- * markup travels in the RSC payload and none of the ~70 illustration
- * components lands in the `/[locale]` bundle.
+ * callouts arrive with the legend that names them (§5.3; the registry ships
+ * zero client JS, and `components/mdx/Illustration.tsx` follows the same rule).
+ * The home page calls this and passes the result as a prop.
  *
  * - each question's help drawing is **informative** (`role="img"` + `<title>`
  *   from `illustrations.<id>.alt`): it is what the help paragraph describes;
  * - option thumbnails are **decorative**: the card's label names the option.
  *
- * Whatever the registry holds is rendered — placeholders today, the finished
- * drawings once W2-T4c lands them.
+ * **What travels, since `.debug/007`.** A finished drawing is handed over as a
+ * `<TreeDrawing>` element, not as its shapes: the geometry of all 54 drawings
+ * is rendered once by `components/illustrations/tree-geometry.ts` and served
+ * from `public/tree-drawings.json`, because a payload carrying every drawing the tree
+ * could ever reach is 139 kB the first screen has no use for. Which drawing
+ * goes where is still decided here, on the server, and the barrel is still
+ * imported by server code only.
  *
  * Never import this module from a `"use client"` file.
  */

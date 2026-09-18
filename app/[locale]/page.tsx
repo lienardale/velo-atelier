@@ -3,10 +3,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Suspense } from "react";
 
-import { DecisionTree } from "@/components/decision-tree/DecisionTree";
-import { DecisionTreeSkeleton } from "@/components/decision-tree/DecisionTreeSkeleton";
+import { DecisionTreeFrame } from "@/components/decision-tree/DecisionTreeFrame";
+import { DecisionTreeHero } from "@/components/decision-tree/DecisionTreeSkeleton";
 import { renderTreeIllustrations } from "@/components/decision-tree/tree-illustrations";
 import { GuideCard } from "@/components/guides/GuideCard";
 import { GUIDES } from "@/lib/content/collection";
@@ -56,10 +55,15 @@ const FEATURES = [
  *
  * Static (`○ /[locale]` in the build output, §6.8 AC2). The tree reads the
  * query string with `useSearchParams`, which on a static route must sit under a
- * `<Suspense>` boundary: the prerendered HTML carries the skeleton (with the
- * page's real `<h1>`), and the client renders the question the URL asks for.
- * Nothing here reads a request API, and nothing imports three.js (bundle budget
- * `/[locale]`, `forbidWebgl`).
+ * `<Suspense>` boundary: the prerendered HTML carries the skeleton, and the
+ * client renders the question the URL asks for. Nothing here reads a request
+ * API, and nothing imports three.js (bundle budget `/[locale]`, `forbidWebgl`).
+ *
+ * The page's `<h1>` block (`DecisionTreeHero`) is handed to `DecisionTreeFrame`
+ * as an already-rendered node so that it sits OUTSIDE that boundary: its
+ * paragraph is the LCP element, and a node the fallback-to-content swap
+ * re-creates is reported by Chrome as a second, much later LCP candidate
+ * (`.debug/007`).
  */
 export default async function HomePage({ params }: HomePageProps): Promise<React.JSX.Element> {
   const { locale } = await params;
@@ -70,9 +74,7 @@ export default async function HomePage({ params }: HomePageProps): Promise<React
 
   return (
     <>
-      <Suspense fallback={<DecisionTreeSkeleton />}>
-        <DecisionTree illustrations={renderTreeIllustrations()} />
-      </Suspense>
+      <DecisionTreeFrame hero={<DecisionTreeHero />} illustrations={renderTreeIllustrations()} />
 
       <div className="border-t border-rule bg-paper-2/50">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-12">

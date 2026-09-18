@@ -51,8 +51,10 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 ## Commands
 
 ```bash
-npm run dev            # Turbopack dev server on :3000
-npm run build          # content-check, then next build
+npm run dev            # tree drawings, then Turbopack dev server on :3000
+npm run build          # tree drawings, content-check, then next build
+npm run drawings       # render the decision tree's drawings to public/tree-drawings.json
+npm run drawings:check  # fail if that file is stale (runs in scripts/ci/content.sh)
 npm run lint           # ESLint (flat config)
 npm run format:check   # Prettier
 npm run typecheck      # prisma generate && tsc --noEmit
@@ -155,6 +157,41 @@ scripts/             ci/, db/, perf/, content tooling
   ~70 drawings in the route's first-load JS. A drawing with numbered
   `data-callout`s always ships with its legend (`illustrations.<id>.callouts.<n>`),
   in the guide renderer and in the tree's `HelpFigure` alike.
+- **The decision tree's drawings are split: frame here, shapes over the wire**
+  (`.debug/007`). The tree navigates on the client, so every drawing it can
+  reach has to be in the browser before the visitor asks for it — and putting
+  all 54 in the page's RSC payload cost the home page 139 kB of shapes for the
+  one drawing the first screen shows (LCP 3.6 s, TBT 336 ms, perf 0.81).
+  `scripts/gen-tree-drawings.ts` (`npm run drawings`, run by `build` and `dev`)
+  renders them with `components/illustrations/tree-geometry.tsx` into
+  **`public/tree-drawings.json`**, which is **committed** — the `lighthouse` and
+  `e2e` jobs restore only `.next/` from the build artifact while `next start`
+  serves `public/` from the checkout — and kept fresh by
+  `gen-tree-drawings --check` in `scripts/ci/content.sh`.
+  `components/decision-tree/TreeDrawing.tsx` (client) draws the `<svg>` frame,
+  the `<title>` and the callout legend, and fetches the map once after
+  hydration. `treeFrameAttrs()` is the one definition of that frame, shared with
+  `TreeIllustrationFrame` and pinned by `tree-geometry.test.tsx`. The rendering
+  cannot move into `app/**`: Turbopack refuses `react-dom/server` there, and the
+  RSC runtime cannot run the synchronous DOM renderer at all.
+- **That artifact is data over a closed vocabulary, never markup.**
+  `components/illustrations/tree-drawing-node.ts` lists the tags, attributes and
+  `style` properties a drawing may use; `renderTreeGeometry()` parses its own
+  renderer's output with a narrow tokenizer that throws on anything else, and
+  asserts every tag, attribute, value and declaration against those lists, so
+  the build fails the day a drawing introduces something new. Adding to either
+  list is a security decision: the tag must be inert and the attribute must not
+  be able to reference anything outside the drawing. This is what lets
+  `TreeDrawing` replay the shapes as ordinary React elements — the repository
+  uses React's raw-HTML escape hatch nowhere outside `components/mdx/`, and
+  `tests/security/xss-form-inputs.test.ts` greps every source file, comments
+  included, to keep it that way.
+- **The home page's `<h1>` block sits above the tree's `<Suspense>` boundary**
+  (`app/[locale]/page.tsx` → `DecisionTreeFrame hero=`). It is the LCP element,
+  and React destroys a fallback's DOM when the hydrated tree replaces it —
+  Chrome then reports the re-created node as a second, much later LCP candidate.
+  Every other page of the site has LCP == FCP; the home page did not.
+  `DecisionTreeSkeleton.test.tsx` fails if the heading moves back inside.
 - **Build-time flags must be literals** — Next only inlines a `NEXT_PUBLIC_*`
   variable that EXISTS at build time; an unset one stays a runtime lookup, so
   `process.env.X === "1" ? dynamic(…) : null` keeps its `import()` in the graph

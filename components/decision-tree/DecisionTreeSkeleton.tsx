@@ -4,13 +4,24 @@ import { useTranslations } from "next-intl";
  * The landing heading of the home page: the site's promise as the `<h1>` and
  * one paragraph on how the questions work.
  *
- * Shown while the visitor has not answered anything (first question on screen)
- * and in the static skeleton, so the prerendered HTML already carries the
- * page's real heading. Once the first answer is given, the question title
- * becomes the `<h1>` (`DecisionTree`), and this block steps aside.
+ * Shown while the visitor has not answered anything. Once the first answer is
+ * given, the question title becomes the `<h1>` and this block steps aside —
+ * `DecisionTreeFrame` drops it, on the report of the client tree.
  *
- * Shared (no `"use client"`): rendered by the server inside the skeleton and by
- * the client tree.
+ * **It is rendered by the SERVER, above the tree's `<Suspense>` boundary**
+ * (`app/[locale]/page.tsx` → `DecisionTreeFrame hero=`), and that placement is
+ * load-bearing, not cosmetic: its paragraph is the home page's LCP element, and
+ * a node inside the boundary is destroyed and re-created when the fallback
+ * gives way to the hydrated tree. Chrome counts the re-created node as a NEW
+ * largest-contentful-paint candidate — one painted with the web font, where the
+ * first paint used the metric-adjusted fallback, so it measures a hair larger
+ * and wins. That is the whole of `.debug/007`: LCP 3.6 s with a 1.7 s FCP,
+ * 96 % "render delay", on a page whose LCP text was in the first 10 kB of HTML.
+ * Outside the boundary the node is never re-created, Chrome reports it once,
+ * and LCP == FCP as on every other page of the site.
+ *
+ * Shared (no `"use client"`): a server component, and the frame that hides it
+ * receives it as an already-rendered node.
  */
 export function DecisionTreeHero(): React.JSX.Element {
   const common = useTranslations("common");
@@ -29,8 +40,12 @@ export function DecisionTreeHero(): React.JSX.Element {
 /**
  * What the home page shows before the client tree takes over (§6.2: the
  * `<Suspense>` fallback, so `/[locale]` prerenders as a static shell even though
- * the tree reads the query string). Same outer box and rhythm as the real
- * first screen, so nothing jumps when it swaps in (CLS ≤ 0.1, §6.8 AC9).
+ * the tree reads the query string). Same rhythm as the real first screen, so
+ * nothing jumps when it swaps in (CLS ≤ 0.1, §6.8 AC9).
+ *
+ * The heading is NOT here: `DecisionTreeFrame` renders it above this boundary,
+ * so the page's `<h1>` and its paragraph are in the prerendered HTML and are
+ * never destroyed by the swap (see `DecisionTreeHero`). This is the body only.
  */
 export function DecisionTreeSkeleton(): React.JSX.Element {
   const tree = useTranslations("decision-tree");
@@ -38,9 +53,8 @@ export function DecisionTreeSkeleton(): React.JSX.Element {
     <section
       aria-busy="true"
       data-testid="decision-tree-skeleton"
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:py-12"
+      className="flex w-full flex-col gap-6"
     >
-      <DecisionTreeHero />
       <p className="sr-only" role="status">
         {tree("tree.loading")}
       </p>

@@ -24,3 +24,4 @@ person (or the next session) does not rediscover them.
 | 004 | 2026-09-17 | W2: the test-hooks gate that shipped, `--strict` wired, callout legends                   | resolved |
 | 005 | 2026-09-17 | `Input.synthesizeScrollGesture` fires no `touchmove` on CI's Linux Chromium               | resolved |
 | 006 | 2026-09-18 | `/velo/[id]`: static params vs the session, `loading.tsx` vs 404s, `"use server"` exports | resolved |
+| 007 | 2026-09-17 | Home LCP: a re-created element, and 54 drawings in the RSC payload                        | resolved |

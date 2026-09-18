@@ -8,8 +8,10 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "tsx scripts/content-check.ts && next build",
+    "dev": "npm run drawings && next dev",
+    "build": "npm run drawings && tsx scripts/content-check.ts && next build",
+    "drawings": "tsx scripts/gen-tree-drawings.ts",
+    "drawings:check": "tsx scripts/gen-tree-drawings.ts --check",
     "start": "next start",
     "vercel-build": "bash scripts/vercel-build.sh",
     "lint": "eslint",
