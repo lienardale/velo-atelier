@@ -17,18 +17,37 @@ export interface TreeDrawingProps {
 }
 
 /**
- * One node of a drawing as a React element.
+ * SVG attribute name → the prop name React wants.
  *
- * Hyphenated SVG attributes (`stroke-width`, `text-anchor`, `data-callout`)
- * are passed through: React renders an unknown, hyphenated prop verbatim, which
- * is exactly what the generated tree holds. `style` is already an object —
+ * React renders an unknown hyphenated prop verbatim, so the drawing LOOKS right
+ * either way — but for an SVG attribute it knows, it also logs "Invalid DOM
+ * property `stroke-width`. Did you mean `strokeWidth`?". Seven of those per
+ * drawing filled the dev console (found by opening the page, 2026-09-18), and a
+ * console that always has errors in it is a console nobody reads.
+ *
+ * `data-*` and `aria-*` are the exceptions React wants hyphenated; everything
+ * else is plain kebab → camel. The artifact stays SVG-canonical, because that is
+ * the vocabulary `tree-drawing-node.ts` whitelists and the one an illustration
+ * author writes.
+ */
+function reactPropName(attribute: string): string {
+  if (attribute.startsWith("data-") || attribute.startsWith("aria-")) return attribute;
+  return attribute.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+/**
+ * One node of a drawing as a React element. `style` is already an object —
  * `renderTreeGeometry()` parsed and checked it at build time.
  */
 function element(node: DrawingNode, key: number): ReactNode {
   if (typeof node === "string") return node;
+  const props: Record<string, unknown> = { key };
+  for (const [attribute, value] of Object.entries(node.a)) {
+    props[reactPropName(attribute)] = value;
+  }
   return createElement(
     node.t,
-    { key, ...node.a },
+    props,
     node.c?.map((child, index) => element(child, index)),
   );
 }

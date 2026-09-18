@@ -2,6 +2,8 @@ import { withContentCollections } from "@content-collections/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { contentSecurityPolicy } from "./lib/security/csp";
+
 // `withContentCollections` compiles content/** at build time (content-collections.ts, W1-T4).
 const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts");
 
@@ -50,8 +52,7 @@ const config: NextConfig = {
             // Static CSP, no nonce: a nonce would force every route dynamic.
             // A nonce-based CSP is tracked in docs/backlog.md.
             key: "Content-Security-Policy",
-            value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lh3.googleusercontent.com; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+            value: contentSecurityPolicy(),
           },
         ],
       },
