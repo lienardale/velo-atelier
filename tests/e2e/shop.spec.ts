@@ -5,8 +5,11 @@
  * are read at build time (`lib/shop/retailers.ts`). So the grid has to be in
  * the HTML, not fetched — and the one thing that would quietly break it, a
  * `useSearchParams` consumer outside a `<Suspense>` boundary, is what the
- * static-render assertion at the bottom of this file is for.
+ * prerender-manifest assertion at the bottom of this file is for.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { SHOP_CATEGORIES } from "../../lib/shop/retailers";
 
 import { expect, forEachLocale, href, test } from "./_fixtures";
@@ -95,12 +98,43 @@ test("the page says plainly that nothing here is affiliated", async ({ page }) =
   await expect(page.getByText(/sans affiliation ni suivi/)).toBeVisible();
 });
 
+/**
+ * The route is PRERENDERED, asserted on the build output.
+ *
+ * This is the one that matters, and it has to read the manifest rather than the
+ * page. `content/shop/categories.yaml` is read with `readFileSync` at module
+ * scope (`lib/shop/retailers.ts`); on a prerendered route that happens at build
+ * time and the grid is baked into the HTML, on a per-request route it happens
+ * per request — and Next's output tracing does not follow a computed
+ * `readFileSync` path, so the file is simply absent from the deployment. That
+ * failure is invisible to every test that only looks at the rendered page:
+ * `next start` serves from the checkout, where the YAML is still on disk, so a
+ * dynamic `/acheter` renders a perfect grid locally and 500s in production.
+ * Verified by mutation — adding `export const dynamic = "force-dynamic"` to the
+ * page turned the build's `● /fr/acheter` into `ƒ /[locale]/acheter` and left
+ * every other test in this file green, this one included until it read the
+ * manifest.
+ *
+ * `.next/prerender-manifest.json` is present wherever the e2e tier runs: the
+ * suite needs `npm run start`, and CI's e2e job downloads the whole `next-build`
+ * artifact into `.next/` before it starts.
+ */
+test("/acheter is prerendered, in both locales", () => {
+  const manifest = JSON.parse(
+    readFileSync(join(process.cwd(), ".next", "prerender-manifest.json"), "utf8"),
+  ) as { routes?: Record<string, unknown> };
+  const prerendered = Object.keys(manifest.routes ?? {});
+
+  expect(
+    prerendered,
+    "/acheter must stay prerendered: content/**.yaml is read at module scope and " +
+      "Next's tracing does not copy it into a per-request deployment (§5.5)",
+  ).toEqual(expect.arrayContaining(["/fr/acheter", "/en/acheter"]));
+});
+
 test.describe("without JavaScript", () => {
-  // The categories come from `content/shop/categories.yaml`, read at BUILD
-  // time. If this route ever became dynamic — a `useSearchParams` consumer
-  // escaping its `<Suspense>` boundary is the usual way — that read would move
-  // to request time, and the file is not one Next's tracing copies into a
-  // deployment. A browser with no JavaScript sees exactly the prerendered HTML.
+  // The grid is server-rendered markup, not something hydration builds. This
+  // says nothing about WHEN it was rendered — the assertion above owns that.
   test.use({ javaScriptEnabled: false });
 
   test("the grid is in the HTML, not built after hydration", async ({ page }) => {
