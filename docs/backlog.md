@@ -97,6 +97,23 @@ needs a column contract nobody has asked for yet.
 Everything is metric. Tyre pressure is displayed in bar with a read-only psi
 equivalent.
 
+### A saved bike's in-progress checkup forgets which symptom was ticked
+
+`CheckupItem` records the verdict, the note and the part, but there is no column
+for the `reasonKey` the visitor chose on a KO — it materialises as
+`BuildListItem.reasonKey` when the checkup is FINISHED. So a signed-in visitor
+who answers "ça ne marche pas → garniture trop fine" and then reloads
+mid-checkup gets the KO back but not the symptom, and a KO with no symptom falls
+back to every consequence of the step (§5.4) — too much on the list rather than
+the wrong thing. A guest's checkup keeps the whole state in `va:checkup:<ref>`
+and is unaffected, and so is any checkup finished in one sitting, because the
+browser sends its symptoms with `finishCheckupAction`.
+
+_To pick up_: a `reasonKeys String[]` (or a small `Json`) column on
+`CheckupItem`, written by `saveCheckupAction` and read by `loadStoredCheckup`.
+It is one migration and about ten lines; it was left out of W3-T1 because
+`prisma/schema.prisma` is shared with three parallel branches (§8.0).
+
 ### Guides that need a workshop
 
 Hydraulic bleeding, wheel truing, bottom-bracket and headset bearing

@@ -128,22 +128,28 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   // guest's lives in `localStorage`, which the server cannot see: it arrives
   // below, after hydration.
   const [state, setState] = useState<CheckupState>(() => restore(props, props.initialStored));
-  const [started, setStarted] = useState(() => answeredAny(props.initialStored));
+  const [started, setStarted] = useState(() => alreadyStarted(props, props.initialStored));
   const [creating, setCreating] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
 
   const guestRef = guestRefOf(props.bikeRef);
   const bikeId = props.bikeRef.kind === "db" ? props.bikeRef.id : null;
 
-  // Adjusted DURING RENDER, React's own "a prop changed, reset the state"
-  // pattern — not in an effect, which would paint an empty checkup first and
-  // then replace it (and is what `react-hooks/set-state-in-effect` forbids).
+  // Adjusted DURING RENDER — React's own "a prop changed, reset the state"
+  // pattern — rather than in an effect, which would paint an empty checkup and
+  // replace it a frame later (and is what `react-hooks/set-state-in-effect`
+  // forbids). ONCE, on the first render that has the stored value: this
+  // component is what changes that value, and re-hydrating after its own
+  // autosave would throw the visitor back to wherever the reconciled cursor
+  // lands, mid-question.
   const stored = useStoredCheckup(guestRef);
-  const [hydratedFrom, setHydratedFrom] = useState<StoredCheckup | null>(null);
-  if (stored !== STORED_CHECKUP_PENDING && stored !== null && stored !== hydratedFrom) {
-    setHydratedFrom(stored);
-    setState(restore(props, stored));
-    setStarted(answeredAny(stored));
+  const [hydrated, setHydrated] = useState(false);
+  if (!hydrated && stored !== STORED_CHECKUP_PENDING) {
+    setHydrated(true);
+    if (stored !== null) {
+      setState(restore(props, stored));
+      setStarted(alreadyStarted(props, stored));
+    }
   }
 
   const store = useMemo<CheckupStore>(
@@ -207,10 +213,15 @@ export function Wizard(props: WizardProps): React.JSX.Element {
 
   // `?step=` is the resume link (§6.5). `replaceState`, not a navigation: the
   // App Router has no shallow routing and a push would re-render the page.
+  //
+  // It is REMOVED on the tool list and on the summary, and that matters: the
+  // parameter wins over the stored cursor on load, so a checkup that was
+  // finished and then reloaded would come back on its last question instead of
+  // on its summary.
   useEffect(() => {
-    if (phase !== "step" || step === null) return;
     const url = new URL(window.location.href);
-    url.searchParams.set("step", step.key);
+    if (phase === "step" && step !== null) url.searchParams.set("step", step.key);
+    else url.searchParams.delete("step");
     window.history.replaceState(null, "", `${url.pathname}${url.search}`);
   }, [phase, step]);
 
@@ -412,20 +423,33 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
     contentVersion: props.contentVersion,
     ...(stored === null ? {} : { startedAt: stored.startedAt }),
   });
-  if (stored === null) return empty;
-  const restored = fromStored(stored, props.steps, props.contentVersion);
+  const restored = stored === null ? empty : fromStored(stored, props.steps, props.contentVersion);
+  // `?step=` wins over "where you had got to": it IS the resume link, and it is
+  // also what a deep link into one question of a checkup means.
   const at = stepIndexOf(restored, props.initialStepKey);
   return at < 0 ? restored : { ...restored, cursor: at };
 }
 
-function answeredAny(stored: StoredCheckup | null): boolean {
-  return stored !== null && Object.keys(stored.answers).length > 0;
+/**
+ * Does the visitor go straight to a question, or to the tool list first?
+ *
+ * The tool list is for someone about to start. Somebody coming back to answers
+ * they have already given, or following a `?step=` link, is not starting.
+ */
+function alreadyStarted(props: WizardProps, stored: StoredCheckup | null): boolean {
+  if (stored !== null && Object.keys(stored.answers).length > 0) return true;
+  return props.steps.some((step) => step.key === props.initialStepKey);
 }
 
-/** "Sauvegardé", or the honest admission that nothing was (§6.5). */
-function SaveChip({ state }: { state: "idle" | "saved" | "error" }): React.JSX.Element | null {
+/**
+ * "Sauvegardé", or the honest admission that nothing was (§6.5).
+ *
+ * Always rendered, empty when there is nothing to say: a chip that appears and
+ * disappears every time an answer is given moves everything below it — the
+ * question, the guide, and the verdict bar a thumb is already reaching for.
+ */
+function SaveChip({ state }: { state: "idle" | "saved" | "error" }): React.JSX.Element {
   const t = useTranslations("checkup");
-  if (state === "idle") return null;
   return (
     <p
       role="status"
@@ -433,11 +457,12 @@ function SaveChip({ state }: { state: "idle" | "saved" | "error" }): React.JSX.E
       data-testid="checkup-save-state"
       data-state={state}
       className={cn(
-        "self-start rounded-full px-2 py-0.5 text-sm",
-        state === "saved" ? "bg-success/10 text-success-fg" : "bg-danger/10 text-danger-fg",
+        "min-h-6 self-start rounded-full px-2 py-0.5 text-sm",
+        state === "saved" && "bg-success/10 text-success-fg",
+        state === "error" && "bg-danger/10 text-danger-fg",
       )}
     >
-      {t(state === "saved" ? "save.saved" : "save.failed")}
+      {state === "idle" ? "" : t(state === "saved" ? "save.saved" : "save.failed")}
     </p>
   );
 }

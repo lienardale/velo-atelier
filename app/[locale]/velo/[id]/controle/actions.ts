@@ -183,7 +183,15 @@ function acceptedState(
   return fromStored(stored, steps, CONTENT_VERSION);
 }
 
-/** The in-progress checkup of this bike, or a new one. */
+/**
+ * The row this run of the checkup belongs to, created if it is new.
+ *
+ * Matched on `startedAt`, not on `status`: the client's own "when did I start"
+ * is what identifies a run, so editing a verdict on the summary and pressing
+ * "Créer ma liste" again updates the checkup that was just finished instead of
+ * opening a second one (and orphaning its list). The client's `id` is
+ * deliberately NOT used — a row id is the server's to choose.
+ */
 async function currentCheckup(
   bikeId: string,
   userId: string,
@@ -191,7 +199,7 @@ async function currentCheckup(
   startedAt: string,
 ): Promise<{ id: string }> {
   const existing = await prisma.checkup.findFirst({
-    where: { bikeId, status: "IN_PROGRESS", bike: { userId } },
+    where: { bikeId, bike: { userId }, startedAt: new Date(startedAt) },
     orderBy: { startedAt: "desc" },
     select: { id: true },
   });
@@ -206,8 +214,15 @@ async function currentCheckup(
   });
 }
 
-/** One row per answered step; the rows of steps that lost their verdict go. */
-async function writeItems(checkupId: string, state: CheckupState): Promise<void> {
+/**
+ * One row per answered step; the rows of steps that lost their verdict go.
+ *
+ * `updateMany` + `create`, not `upsert`: an upsert's `where` is a unique
+ * selector and cannot carry the owner, and §4.7 is that the ownership predicate
+ * is IN the query — `tests/security/checkup-input.test.ts` walks every recorded
+ * call and fails on one that is not.
+ */
+async function writeItems(checkupId: string, userId: string, state: CheckupState): Promise<void> {
   const answered = state.steps.flatMap((step) => {
     const result = Object.hasOwn(state.answers, step.key) ? state.answers[step.key] : undefined;
     if (result === undefined) return [];
@@ -223,15 +238,20 @@ async function writeItems(checkupId: string, state: CheckupState): Promise<void>
     ];
   });
 
+  const owned = { checkup: { bike: { userId } } };
   await prisma.checkupItem.deleteMany({
-    where: { checkupId, stepKey: { notIn: answered.map((item) => item.stepKey) } },
+    where: {
+      checkupId,
+      stepKey: { notIn: answered.map((item) => item.stepKey) },
+      ...owned,
+    },
   });
   for (const item of answered) {
-    await prisma.checkupItem.upsert({
-      where: { checkupId_stepKey: { checkupId, stepKey: item.stepKey } },
-      create: { checkupId, ...item },
-      update: { result: item.result, notes: item.notes, partId: item.partId },
+    const updated = await prisma.checkupItem.updateMany({
+      where: { checkupId, stepKey: item.stepKey, ...owned },
+      data: { result: item.result, notes: item.notes, partId: item.partId },
     });
+    if (updated.count === 0) await prisma.checkupItem.create({ data: { checkupId, ...item } });
   }
 }
 
@@ -295,7 +315,7 @@ export const saveCheckupAction = withUser(
 
     const state = acceptedState(parsed.data.checkup, planned.steps, parsed.data.bikeId);
     const checkup = await currentCheckup(parsed.data.bikeId, user.id, state.scope, state.startedAt);
-    await writeItems(checkup.id, state);
+    await writeItems(checkup.id, user.id, state);
 
     revalidatePath("/[locale]/velo/[id]", "page");
     return ok(null);
@@ -320,7 +340,7 @@ export const finishCheckupAction = withUser(
 
     const state = acceptedState(parsed.data.checkup, planned.steps, parsed.data.bikeId);
     const checkup = await currentCheckup(parsed.data.bikeId, user.id, state.scope, state.startedAt);
-    await writeItems(checkup.id, state);
+    await writeItems(checkup.id, user.id, state);
     await prisma.checkup.updateMany({
       where: { id: checkup.id, bike: { userId: user.id } },
       data: { status: "COMPLETED", completedAt: new Date() },
@@ -328,6 +348,7 @@ export const finishCheckupAction = withUser(
 
     const buildListId = await writeBuildList(
       parsed.data.bikeId,
+      user.id,
       checkup.id,
       deriveBuildList(state),
     );
@@ -349,11 +370,13 @@ export const finishCheckupAction = withUser(
  */
 async function writeBuildList(
   bikeId: string,
+  userId: string,
   checkupId: string,
   items: readonly BuildListItem[],
 ): Promise<string> {
-  const existing = await prisma.buildList.findUnique({
-    where: { checkupId },
+  const ownedList = { bike: { userId } };
+  const existing = await prisma.buildList.findFirst({
+    where: { checkupId, ...ownedList },
     select: { id: true },
   });
   const list =
@@ -366,21 +389,24 @@ async function writeBuildList(
   const itemsByStepKey = new Map(
     (
       await prisma.checkupItem.findMany({
-        where: { checkupId },
+        where: { checkupId, checkup: { bike: { userId } } },
         select: { id: true, stepKey: true },
       })
     ).map((row) => [row.stepKey, row.id]),
   );
 
+  const owned = { buildList: { bike: { userId } } };
   const keep = new Set(items.map((item) => `${item.partId}|${toBuildAction(item.action)}`));
   const stale = (
     await prisma.buildListItem.findMany({
-      where: { buildListId: list.id },
+      where: { buildListId: list.id, ...owned },
       select: { id: true, partId: true, action: true },
     })
   ).filter((row) => !keep.has(`${row.partId}|${row.action}`));
   if (stale.length > 0) {
-    await prisma.buildListItem.deleteMany({ where: { id: { in: stale.map((row) => row.id) } } });
+    await prisma.buildListItem.deleteMany({
+      where: { id: { in: stale.map((row) => row.id) }, ...owned },
+    });
   }
 
   for (const item of items) {
@@ -390,24 +416,17 @@ async function writeBuildList(
       sortOrder: item.sortOrder,
       checkupItemId: itemsByStepKey.get(item.stepKey) ?? null,
     };
-    await prisma.buildListItem.upsert({
-      where: {
-        buildListId_partId_action: {
-          buildListId: list.id,
-          partId: item.partId,
-          action: toBuildAction(item.action),
-        },
-      },
-      create: {
-        buildListId: list.id,
-        partId: item.partId,
-        action: toBuildAction(item.action),
-        done: item.done,
-        ...data,
-      },
-      // `done` and the visitor's own columns are deliberately NOT in the update.
-      update: data,
-    });
+    const where = {
+      buildListId: list.id,
+      partId: item.partId,
+      action: toBuildAction(item.action),
+    };
+    // `done` and the visitor's own columns (`refinement`, `chosenProduct`) are
+    // deliberately NOT in the update.
+    const updated = await prisma.buildListItem.updateMany({ where: { ...where, ...owned }, data });
+    if (updated.count === 0) {
+      await prisma.buildListItem.create({ data: { ...where, done: item.done, ...data } });
+    }
   }
 
   return list.id;

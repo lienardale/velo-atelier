@@ -45,6 +45,7 @@ export function GuestResumeBanner({
       startedAt={stored.startedAt}
       scope={stored.scope.kind === "full" ? "FULL" : "PARTIAL"}
       answered={answered}
+      partIds={stored.scope.kind === "parts" ? stored.scope.partIds : undefined}
       specCode={specCode}
     />
   );

@@ -53,10 +53,21 @@ export function VerdictBar({
       )}
     >
       <p className="mb-2 text-sm text-ink">{prompt}</p>
+      {/* A GRID, not a wrapping flex row: the three columns are a fraction of
+          the bar and do not depend on how long "ça ne marche pas" is in this
+          locale. A `flex-1` row resolves its widths from content, animates them
+          through shadcn's `transition-all`, and leaves a tap landing on the
+          neighbouring button for as long as that lasts.
+          The column count does not depend on the QUESTION either: "ça marche"
+          and "ça ne marche pas" sit in the same two cells whether or not this
+          step can be skipped, so a thumb aiming at one of them between two
+          questions never finds the other there. `transition-none` closes the
+          same hole one layer down — a width that is still animating is a width
+          a tap can miss. */}
       <div
         role="group"
         aria-label={t("verdict.legend")}
-        className="flex flex-wrap items-center gap-2"
+        className="grid grid-cols-2 items-center gap-2 sm:grid-cols-3"
       >
         <Button
           type="button"
@@ -64,7 +75,7 @@ export function VerdictBar({
           aria-pressed={current === "ok"}
           data-testid="verdict-ok"
           className={cn(
-            "tap-target flex-1 bg-success text-white hover:bg-success/90",
+            "tap-target w-full min-w-0 bg-success px-2 text-white transition-none hover:bg-success/90",
             current === "ok" && "ring-2 ring-ring ring-offset-2",
           )}
         >
@@ -76,7 +87,7 @@ export function VerdictBar({
           aria-pressed={current === "ko"}
           data-testid="verdict-ko"
           className={cn(
-            "tap-target flex-1 bg-danger text-white hover:bg-danger/90",
+            "tap-target w-full min-w-0 bg-danger px-2 text-white transition-none hover:bg-danger/90",
             current === "ko" && "ring-2 ring-ring ring-offset-2",
           )}
         >
@@ -89,16 +100,20 @@ export function VerdictBar({
             onClick={onSkip}
             aria-pressed={current === "skipped"}
             data-testid="verdict-skip"
-            className={cn("tap-target", current === "skipped" && "ring-2 ring-ring ring-offset-2")}
+            className={cn(
+              "tap-target col-span-2 w-full min-w-0 px-2 transition-none sm:col-span-1",
+              current === "skipped" && "ring-2 ring-ring ring-offset-2",
+            )}
           >
             {t("verdict.skip")}
           </Button>
-        ) : (
-          <p className="text-sm text-ink-muted" data-testid="verdict-required">
-            {t("verdict.required")}
-          </p>
-        )}
+        ) : null}
       </div>
+      {skippable ? null : (
+        <p className="mt-2 text-sm text-ink-muted" data-testid="verdict-required">
+          {t("verdict.required")}
+        </p>
+      )}
       <p className="sr-only">{t("verdict.shortcuts")}</p>
     </div>
   );

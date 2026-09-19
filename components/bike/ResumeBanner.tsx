@@ -25,6 +25,12 @@ export interface ResumeBannerProps {
   scope: "FULL" | "PARTIAL";
   /** How many steps already have a verdict, when that is known. */
   answered?: number;
+  /**
+   * The parts a PARTIAL checkup was scoped to, so "reprendre" comes back to the
+   * same questions instead of re-planning a full one (W3-T1). Absent for a full
+   * checkup, and for a saved bike, whose row records the scope but not the set.
+   */
+  partIds?: readonly string[];
   specCode?: string | null;
   className?: string;
 }
@@ -34,13 +40,18 @@ export function ResumeBanner({
   startedAt,
   scope,
   answered,
+  partIds,
   specCode,
   className,
 }: ResumeBannerProps): React.JSX.Element {
   const t = useTranslations("bike");
   const format = useFormatter();
   const started = new Date(startedAt);
-  const query = specCode ? { spec: specCode } : undefined;
+  const query = {
+    ...(specCode ? { spec: specCode } : {}),
+    ...(partIds && partIds.length > 0 ? { parts: partIds.join(",") } : {}),
+  };
+  const search = Object.keys(query).length > 0 ? query : undefined;
 
   return (
     <div
@@ -68,7 +79,7 @@ export function ResumeBanner({
           href={{
             pathname: "/velo/[id]/controle",
             params: { id: bikeParam },
-            ...(query === undefined ? {} : { query }),
+            ...(search === undefined ? {} : { query: search }),
           }}
           prefetch={false}
           data-testid="resume-cta"
