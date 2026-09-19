@@ -15,11 +15,13 @@
  * W1 namespaces were registered up front (W1 integration, 2026-09-12) with empty
  * `{}` files, because tasks that run in parallel cannot each append to this one
  * array without racing. Each task fills only its own JSON files; the owner of
- * every namespace is Appendix A of the plan.
+ * every namespace is Appendix A of the plan. `checkup`, `seo` and `shop` were
+ * registered the same way before W3's four tasks branched (2026-09-19).
  */
 import type account from "@/messages/fr/account.json";
 import type bike from "@/messages/fr/bike.json";
 import type bike3d from "@/messages/fr/bike3d.json";
+import type checkup from "@/messages/fr/checkup.json";
 import type auth from "@/messages/fr/auth.json";
 import type common from "@/messages/fr/common.json";
 import type decision from "@/messages/fr/decision.json";
@@ -29,6 +31,8 @@ import type guides from "@/messages/fr/guides.json";
 import type illustrations from "@/messages/fr/illustrations.json";
 import type parts from "@/messages/fr/parts.json";
 import type rules from "@/messages/fr/rules.json";
+import type seo from "@/messages/fr/seo.json";
+import type shop from "@/messages/fr/shop.json";
 import type tools from "@/messages/fr/tools.json";
 
 export const NAMESPACES = [
@@ -36,6 +40,7 @@ export const NAMESPACES = [
   "auth",
   "bike",
   "bike3d",
+  "checkup",
   "common",
   "decision",
   "decision-tree",
@@ -44,6 +49,8 @@ export const NAMESPACES = [
   "illustrations",
   "parts",
   "rules",
+  "seo",
+  "shop",
   "tools",
 ] as const;
 
@@ -60,6 +67,7 @@ export interface NamespaceMessages {
   auth: typeof auth;
   bike: typeof bike;
   bike3d: typeof bike3d;
+  checkup: typeof checkup;
   common: typeof common;
   decision: typeof decision;
   "decision-tree": typeof decisionTree;
@@ -68,6 +76,8 @@ export interface NamespaceMessages {
   illustrations: typeof illustrations;
   parts: typeof parts;
   rules: typeof rules;
+  seo: typeof seo;
+  shop: typeof shop;
   tools: typeof tools;
 }
 
