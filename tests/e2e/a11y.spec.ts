@@ -120,6 +120,31 @@ async function axeReport(page: Page, where: string): Promise<string | null> {
   );
 }
 
+/**
+ * Open the header sheet, retrying the click until it actually opens.
+ *
+ * `domcontentloaded` (above) returns before the client bundle has run, and
+ * `MobileNav`'s sheet is a native `<dialog>` opened by an `onClick` handler: a
+ * click that lands before React attaches it does nothing at all — no error, no
+ * dialog, and ten seconds later `toBeVisible` reports "element(s) not found".
+ * Reproduced on `--project=no-webgl` under six workers, five runs out of six.
+ *
+ * Only the CLICK is retried, and only while the dialog is closed (the open
+ * sheet is modal, so its backdrop covers the button). The assertion that the
+ * menu opens is unchanged — a menu that never opens still fails, it just fails
+ * for a reason about the menu.
+ */
+async function openHeaderMenu(page: Page, locale: Locale): Promise<void> {
+  const button = page.getByRole("button", { name: COMMON[locale].nav.openMenu });
+  const dialog = page.getByRole("dialog", { name: COMMON[locale].nav.menu });
+
+  await expect(button).toBeVisible();
+  await expect(async () => {
+    if (!(await dialog.isVisible())) await button.click();
+    await expect(dialog).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 30_000 });
+}
+
 forEachLocale((locale) => {
   for (const target of TARGETS) {
     test(`${target.label} has no serious or critical axe violation (${locale})`, async ({
@@ -157,8 +182,7 @@ forEachLocale((locale) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto(href(locale, "/"), { waitUntil: "domcontentloaded" });
 
-      await page.getByRole("button", { name: COMMON[locale].nav.openMenu }).click();
-      await expect(page.getByRole("dialog", { name: COMMON[locale].nav.menu })).toBeVisible();
+      await openHeaderMenu(page, locale);
 
       const report = await axeReport(page, `header menu · ${locale} · ${scheme}`);
       if (report) problems.push(report);
