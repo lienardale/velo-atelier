@@ -27,6 +27,8 @@ const ANSWERS = BIKE_PRESETS["gravel-1x11"] as Record<string, string>;
 const DERIVED = deriveBike(BIKE_PRESETS["gravel-1x11"]);
 const LOCAL_ID = "11111111-2222-4333-8444-555555555555";
 const CHECKUP_ID = "3f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a90";
+/** A second checkup, patterned rather than random: gitleaks reads a high-entropy uuid literal as a key. */
+const OLDER_CHECKUP_ID = "00000000-0000-4000-8000-0000000000c1";
 
 function guestBike(patch: Partial<GuestBike> = {}): GuestBike {
   return {
@@ -338,6 +340,36 @@ describe("checkups", () => {
     expect(states.get("tire-front")?.status).toBe("UNKNOWN");
   });
 
+  it("lets the most recent verdict on a part stand", async () => {
+    const older = {
+      ...COMPLETED_CHECKUP,
+      guestKey: OLDER_CHECKUP_ID,
+      completedAt: "2026-09-01T08:00:00.000Z",
+    };
+    const newer = {
+      ...COMPLETED_CHECKUP,
+      items: [{ ...COMPLETED_CHECKUP.items[0], result: "ok" as const }],
+    };
+    // Given newest-first, as a history page would hold them.
+    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [newer, older] })), {
+      now,
+    });
+
+    const chain = (fakeDb.rows("BikePartState") as { partId: string; status: string }[]).find(
+      (row) => row.partId === "chain",
+    );
+    expect(chain?.status).toBe("OK");
+  });
+
+  it("falls back to now for a date it cannot parse at all", async () => {
+    const broken = { ...COMPLETED_CHECKUP, startedAt: "bientôt", completedAt: undefined };
+    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [broken] })), {
+      now,
+    });
+    const [checkup] = fakeDb.rows("Checkup") as { startedAt: Date }[];
+    expect(checkup.startedAt.getTime()).toBe(NOW);
+  });
+
   it("leaves the parts alone while the checkup is unfinished", async () => {
     const running = { ...COMPLETED_CHECKUP, completedAt: undefined };
     await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [running] })), {
@@ -402,6 +434,21 @@ describe("build lists", () => {
       now,
     });
     expect(fakeDb.rows("BuildListItem")).toHaveLength(1);
+  });
+
+  it("numbers a line the payload did not number, in the order it arrived", async () => {
+    const unordered = {
+      name: "Sans ordre",
+      items: [
+        { ...list.items[0], sortOrder: 1.5 },
+        { ...list.items[1], sortOrder: 2.5 },
+      ],
+    };
+    await importGuestState(fakeDb.client, userId, state(guestBike({ lists: [unordered] })), {
+      now,
+    });
+    const items = fakeDb.rows("BuildListItem") as { sortOrder: number }[];
+    expect(items.map((item) => item.sortOrder)).toEqual([0, 1]);
   });
 
   it("drops a line about a part the catalogue no longer has", async () => {

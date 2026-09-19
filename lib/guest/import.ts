@@ -241,13 +241,13 @@ export async function importGuestState(
     const base = deriveBike(bike.answers as Answers);
     const checked = validateBuild({ spec: base.spec, parts: bike.parts });
     const derived = checked.ok ? deriveBike(bike.answers as Answers, checked.build.parts) : base;
-    if (
-      !withinJsonBudget(derived.parts) ||
-      !withinJsonBudget(derived.spec) ||
-      !withinJsonBudget(derived.answers)
-    ) {
-      return fail("TOO_MANY");
-    }
+    // The same ceiling `createBikeAction` applies, on the same column: `parts`
+    // is the only one a payload can inflate (the answers are a partial map over
+    // twelve known question ids, and the spec is derived from them). It is
+    // deliberately belt-and-braces — the largest build `validateBuild` accepts
+    // today measures under 4 KB against a 32 KB column — because the catalogue
+    // grows and a `TOO_MANY` is a sentence while a Postgres error is a 500.
+    if (!withinJsonBudget(derived.parts)) return fail("TOO_MANY");
 
     const fit = coerceFit(bike.fit);
     const statuses = partStatesFrom(bike.checkups, at);

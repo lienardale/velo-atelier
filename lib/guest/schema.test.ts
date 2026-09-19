@@ -239,6 +239,86 @@ describe("collectGuestState", () => {
     };
     expect(collectGuestState({ storage: throwing, ...NAMES }).bikes).toEqual([]);
   });
+
+  it("keeps the bike when only the checkup and list keys are unreadable", () => {
+    // A quota error part-way through a read is one key failing, not all three.
+    const partly: KeyValueStorage = {
+      getItem: (key) => {
+        if (key === LOCAL_BIKE_KEY) return LOCAL_BIKE_RAW;
+        throw new Error("blocked");
+      },
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    };
+    const [bike] = collectGuestState({ storage: partly, ...NAMES }).bikes;
+    expect(bike.localId).toBe(localBike.id);
+    expect(bike.checkups).toEqual([]);
+    expect(bike.lists).toEqual([]);
+  });
+
+  it("has nothing to read on a server, where there is no window", () => {
+    // `collectGuestState` is called from a client component, but the module is
+    // imported by the action too: the default storage must not throw in Node.
+    expect(collectGuestState({ ...NAMES }).bikes).toEqual([]);
+  });
+
+  it("carries no note for a step the visitor left blank", () => {
+    const storage = memoryStorage({
+      [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
+      [checkupKey("local")]: JSON.stringify({
+        ...storedCheckup,
+        notes: { "check-drivetrain#chain-wear": "" },
+      }),
+    });
+    const [checkup] = collectGuestState({ storage, ...NAMES }).bikes[0].checkups;
+    expect(checkup.items[0]).not.toHaveProperty("notes");
+  });
+
+  it("reads a checkup that has no notes at all", () => {
+    const withoutNotes: Record<string, unknown> = { ...storedCheckup };
+    delete withoutNotes.notes;
+    const storage = memoryStorage({
+      [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
+      [checkupKey("local")]: JSON.stringify(withoutNotes),
+    });
+    const [checkup] = collectGuestState({ storage, ...NAMES }).bikes[0].checkups;
+    expect(checkup.items).toHaveLength(2);
+    expect(checkup.items[0]).not.toHaveProperty("notes");
+  });
+
+  it("names an unnamed (or blank-named) list in the visitor's language", () => {
+    for (const stored of [{ items: storedListItems }, { name: "   ", items: storedListItems }]) {
+      const storage = memoryStorage({
+        [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
+        [buildListKey("local")]: JSON.stringify(stored),
+      });
+      const [list] = collectGuestState({ storage, ...NAMES }).bikes[0].lists;
+      expect(list.name).toBe(NAMES.listName);
+    }
+  });
+
+  it("drops an empty list, and defaults the fields W3-T2 may not have written", () => {
+    const empty = memoryStorage({
+      [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
+      [buildListKey("local")]: JSON.stringify({ name: "Vide", items: [] }),
+    });
+    expect(collectGuestState({ storage: empty, ...NAMES }).bikes[0].lists).toEqual([]);
+
+    const sparse = memoryStorage({
+      [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
+      [buildListKey("local")]: JSON.stringify([
+        { partId: "chain", action: "replace", reasonKey: "chain-elongation" },
+      ]),
+    });
+    const [list] = collectGuestState({ storage: sparse, ...NAMES }).bikes[0].lists;
+    expect(list.items[0]).toEqual({
+      partId: "chain",
+      action: "replace",
+      reasonKey: "chain-elongation",
+      done: false,
+      sortOrder: 0,
+    });
+  });
 });
 
 // ── the contract ─────────────────────────────────────────────────────────────
@@ -252,6 +332,7 @@ describe("GuestStateSchema", () => {
   it("refuses a key the contract does not name (mass assignment)", () => {
     for (const extra of ["id", "userId", "spec", "createdAt", "specVersion"]) {
       const payload = JSON.parse(JSON.stringify(collected)) as Record<string, unknown>;
+      // eslint-disable-next-line security/detect-object-injection -- `extra` is a literal from the list above, into a fresh clone
       (payload.bikes as Record<string, unknown>[])[0][extra] = "x";
       expect(parseGuestState(payload).ok, extra).toBe(false);
     }
