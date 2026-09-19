@@ -28,6 +28,9 @@ import { Link, useRouter } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
 import { cn } from "@/lib/utils";
 
+import { GuestResumeBanner } from "@/components/checkup/GuestResumeBanner";
+import { viewerStatus } from "@/components/checkup/viewer-status";
+
 import { BikeCanvasFallback } from "./BikeCanvasFallback";
 import { PartsPanel, type PanelTab } from "./PartsPanel";
 import { ResumeBanner } from "./ResumeBanner";
@@ -107,6 +110,11 @@ export function BikeWorkspace(props: BikeWorkspaceProps): React.JSX.Element {
       build={build}
       initialPartId={props.initialPartId ?? null}
       initialPickedIds={props.initialPickedIds ?? []}
+      // A `?parts=` deep link is a partial checkup coming back: the viewer
+      // opens in pick mode so the selection is visible from the first frame
+      // (W3-T1, §6.4).
+      mode={(props.initialPickedIds?.length ?? 0) > 0 ? "pick" : "browse"}
+      status={viewerStatus(props.statuses)}
     >
       <WorkspaceBody
         {...props}
@@ -241,6 +249,10 @@ function WorkspaceBody({
   // changing the tab, so `PartsList` can scroll the selected row into view.
   const lastCanvasSelection = useRef<PartId | null>(null);
   const selectedPartId = useViewerStore((state) => state.selectedPartId);
+  // Picking a part puts the viewer in `pick` mode, where a tap adds to the
+  // selection instead of replacing it — the gesture a partial checkup needs.
+  const pickedCount = useViewerStore((state) => state.pickedPartIds.size);
+  const tint = useMemo(() => viewerStatus(statuses), [statuses]);
   const lastSource = useViewerStore((state) => state.lastSource);
   useEffect(() => {
     if (docked || selectedPartId === null) return;
@@ -309,7 +321,11 @@ function WorkspaceBody({
           answered={resume.answered}
           specCode={specCode}
         />
-      ) : null}
+      ) : (
+        // `demo` and `local` have no row to read: their unfinished checkup
+        // lives in `va:checkup:<ref>` and is found after hydration (W3-T1).
+        <GuestResumeBanner refKind={refKind} bikeParam={bikeParam} specCode={specCode} />
+      )}
 
       <p className="sr-only" role="status" aria-live="polite" data-testid="selection-live">
         {selectedPartId
@@ -327,6 +343,8 @@ function WorkspaceBody({
         // a build without the variable folds this to `false` and the probe chunk
         // is never referenced (`scripts/bundle-guard.ts` checks the output).
         probe={process.env.NEXT_PUBLIC_TEST_HOOKS === "1"}
+        mode={pickedCount > 0 ? "pick" : "browse"}
+        status={tint}
         renderPanel={docked ? () => panel : undefined}
         className={cn("min-h-0", !docked && "flex-1")}
       />

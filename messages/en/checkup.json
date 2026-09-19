@@ -1,1 +1,68 @@
-{}
+{
+  "metaTitle": "Check my bike",
+  "metaDescription": "A guided check, one question at a time: what is fine, what is not, and the list of what to replace.",
+  "title": "Bike checkup",
+  "intro": "One question at a time. Answer what you see — the to-fix list builds itself.",
+  "scopeFull": "Full checkup",
+  "scopePartial": "Partial checkup",
+  "needsBike": "The checkup needs to know which bike you have. Open your bike, then start the checkup from the Actions tab.",
+  "openBike": "Open my bike",
+  "emptyTitle": "Nothing to check here",
+  "emptyBody": "No question applies to the parts you picked. Try a full checkup.",
+  "emptyCta": "Start a full checkup",
+  "tools": {
+    "title": "Tools for this checkup",
+    "intro": "This is what the guides in this checkup ask for. Tick anything you do not have and we will offer a stand-in when it matters.",
+    "none": "This checkup needs no tools.",
+    "missing": "I do not have this tool",
+    "alternative": "Instead: {alternatives}",
+    "noAlternative": "No stand-in: skip the step, or ask a shop.",
+    "start": "Start the checkup",
+    "resume": "Resume the checkup"
+  },
+  "step": {
+    "counter": "{current}/{total}",
+    "progress": "Step {current} of {total}",
+    "substitutionTitle": "Without that tool",
+    "substitution": "{tool}: use {alternatives} instead.",
+    "substitutionNone": "{tool}: there is no stand-in. Skip this step, or ask a shop.",
+    "guide": "Read the whole guide",
+    "back": "Previous question"
+  },
+  "verdict": {
+    "legend": "Your verdict",
+    "ok": "It's fine",
+    "ko": "It's not fine",
+    "skip": "Skip",
+    "required": "This question cannot be skipped.",
+    "shortcuts": "Keyboard shortcuts: 1 for “it's fine”, 2 for “it's not fine”, 3 to skip."
+  },
+  "symptom": {
+    "legend": "What is wrong?",
+    "note": "Anything to add? (optional)",
+    "notePlaceholder": "What you saw or heard",
+    "inspectShop": "One for a bike shop"
+  },
+  "stubBadge": "Guide still being written",
+  "save": {
+    "saved": "Saved",
+    "failed": "This checkup could not be saved on this device."
+  },
+  "summary": {
+    "title": "Summary",
+    "intro": "Here is what you answered. You can still change a verdict before creating the list.",
+    "ko": "To sort out",
+    "ok": "Nothing to report",
+    "skipped": "Skipped",
+    "empty": "No question in this group.",
+    "edit": "Change",
+    "open": "{count, plural, =1 {1 question is still unanswered.} other {# questions are still unanswered.}}",
+    "create": "Create my list",
+    "nothingToDo": "Nothing to replace: your bike passed the checkup.",
+    "counts": "{ok} fine · {ko} to sort out · {skipped} skipped"
+  },
+  "resume": {
+    "scopeFull": "a full checkup",
+    "scopePartial": "a partial checkup"
+  }
+}
