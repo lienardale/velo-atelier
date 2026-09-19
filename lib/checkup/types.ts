@@ -58,6 +58,19 @@ export interface CheckStepRef {
   ko: readonly KoConsequence[];
   skippable: boolean;
   tools: readonly ToolRef[];
+  /**
+   * The step's heading, in the GUIDE's own language — the frontmatter's
+   * `steps[].title`, not a message key. The wizard shows it next to the
+   * counter ("Étape 4/12 — Mesurer l'usure des plaquettes"), and the guide's
+   * documents are read per locale, so the planned title is already localized.
+   */
+  title: string;
+  /** The `checkQuestion.prompt` the verdict bar answers, same language. */
+  prompt: string;
+  /** 1-based position inside its guide — what `<Step>` numbers. */
+  number: number;
+  /** Set when the guide is a stub, so the wizard can badge it (§6.5). */
+  stub?: boolean;
 }
 
 /** Bumped only by a shape change that `storage.ts` cannot read (§1.2). */
@@ -74,6 +87,17 @@ export interface CheckupState {
   /** Position in `steps`; `steps.length` means "on the summary". */
   cursor: number;
   answers: Readonly<Record<CheckStepKey, CheckupAnswer>>;
+  /**
+   * The symptoms the visitor ticked on a KO step: `reasonKey`s drawn from that
+   * step's own `ko[]`, never free text.
+   *
+   * This is what turns "ça ne marche pas" into ONE line of the to-fix list
+   * instead of every consequence the step can lead to: `deriveBuildList` keeps
+   * the consequences whose reason was ticked, and falls back to all of them
+   * only when the visitor said KO without saying which symptom (a verdict given
+   * and then abandoned mid-step).
+   */
+  symptoms: Readonly<Record<CheckStepKey, readonly string[]>>;
   /** Free text the visitor added, per step. Never a message key. */
   notes: Readonly<Record<CheckStepKey, string>>;
   /** Tools the visitor said they do not have, so the step offers alternatives. */
@@ -91,7 +115,14 @@ export interface CheckupState {
 }
 
 export type CheckupEvent =
-  | { type: "ANSWER"; key: CheckStepKey; result: Exclude<CheckupAnswer, "skipped">; notes?: string }
+  | {
+      type: "ANSWER";
+      key: CheckStepKey;
+      result: Exclude<CheckupAnswer, "skipped">;
+      notes?: string;
+      /** `reasonKey`s of the step's `ko[]`; anything else is dropped. */
+      symptoms?: readonly string[];
+    }
   | { type: "SKIP"; key: CheckStepKey }
   | { type: "BACK" }
   | { type: "JUMP"; key: CheckStepKey }

@@ -1,0 +1,154 @@
+/**
+ * From verdicts to a to-fix list (§5.4) — `deriveBuildList` is W3-T1's half of
+ * the contract; the list PAGE (W3-T2) consumes what comes out and never
+ * recomputes it.
+ *
+ * One line per thing to do, and "one thing" is a `(action, partId)` pair:
+ * the brake pads named by the wear question and again by the contamination
+ * question are one line, not two. The id is
+ *
+ *     `${stepKey}|${partId}|${action}`
+ *
+ * built from the FIRST step that produced the pair — deterministic without
+ * hashing (§5.4), stable when a later step adds the same pair, and meaningful
+ * when it turns up in a database row or a test failure. `sourceKeys` keeps
+ * every step that contributed, in plan order, which is what a recheck consults.
+ *
+ * ## What a KO actually produces
+ *
+ * A KO step offers the symptoms of its `checkQuestion.ko[]`. The visitor picks
+ * one (§6.5's radios) and that reason's consequences are the ones that land:
+ * "garniture trop fine" replaces the pads, "trace de gras" cleans them. The
+ * same reason can name several parts — pads wear front AND rear — and that is
+ * two lines, correctly, because it is two parts to buy.
+ *
+ * A KO with **no** symptom is a verdict the visitor gave and then left: the
+ * step's whole `ko[]` lands, which is §5.4's literal "one per ko consequence"
+ * and errs towards showing too much rather than losing the problem.
+ *
+ * ## Skipped never creates, and a later OK closes
+ *
+ * "Passer" produces nothing — the visitor did not look. And an OK on a question
+ * that could have produced a line marks that line `done` with
+ * `doneReason: 'recheck-ok'` (§5.4, §6.7): re-running the brake check and
+ * saying the pads are fine is how an open item gets closed, whether it happens
+ * later in the same checkup or in a partial checkup a month afterwards
+ * ({@link markRechecked} takes the persisted list for that).
+ */
+import type { PartId } from "@/lib/domain/data/parts";
+
+import type { BuildAction, BuildListItem, CheckStepKey, CheckStepRef, CheckupState } from "./types";
+
+/** `(action, partId)` — the identity of one line. */
+function pairOf(action: BuildAction, partId: string): string {
+  return `${action}|${partId}`;
+}
+
+/** The consequences a KO verdict on this step produces. */
+function consequencesFor(
+  step: CheckStepRef,
+  symptoms: readonly string[] | undefined,
+): CheckStepRef["ko"] {
+  if (symptoms === undefined || symptoms.length === 0) return step.ko;
+  return step.ko.filter((consequence) => symptoms.includes(consequence.reasonKey));
+}
+
+/** Could an OK on this step have closed a line about `(action, partId)`? */
+function answers(step: CheckStepRef, item: Pick<BuildListItem, "partId" | "action">): boolean {
+  return step.ko.some(
+    (consequence) => consequence.partId === item.partId && consequence.action === item.action,
+  );
+}
+
+/**
+ * Close the lines a fresh set of OK verdicts contradicts.
+ *
+ * Deliberately generic over the item so the list page can hand its persisted
+ * rows in: the only fields read are `partId`, `action` and `done`, and an item
+ * the visitor ticked by hand keeps its `manual` reason.
+ */
+export function markRechecked(
+  items: readonly BuildListItem[],
+  state: CheckupState,
+): BuildListItem[] {
+  const cleared = state.steps.filter((step) => answerOf(state, step.key) === "ok");
+  if (cleared.length === 0) return [...items];
+  return items.map((item) =>
+    item.done || !cleared.some((step) => answers(step, item))
+      ? item
+      : { ...item, done: true, doneReason: "recheck-ok" },
+  );
+}
+
+function answerOf(state: CheckupState, key: CheckStepKey): string | undefined {
+  // eslint-disable-next-line security/detect-object-injection -- guarded by Object.hasOwn
+  return Object.hasOwn(state.answers, key) ? state.answers[key] : undefined;
+}
+
+function symptomsOf(state: CheckupState, key: CheckStepKey): readonly string[] | undefined {
+  // eslint-disable-next-line security/detect-object-injection -- guarded by Object.hasOwn
+  return Object.hasOwn(state.symptoms, key) ? state.symptoms[key] : undefined;
+}
+
+/**
+ * The to-fix list this checkup implies, in plan order.
+ *
+ * Pure: the same state always yields the same items, ids included, which is
+ * what lets the server derive the list independently of the browser that
+ * answered the questions.
+ */
+export function deriveBuildList(state: CheckupState): BuildListItem[] {
+  const byPair = new Map<string, BuildListItem>();
+
+  for (const step of state.steps) {
+    if (answerOf(state, step.key) !== "ko") continue;
+    for (const consequence of consequencesFor(step, symptomsOf(state, step.key))) {
+      const pair = pairOf(consequence.action, consequence.partId);
+      const existing = byPair.get(pair);
+      if (existing !== undefined) {
+        if (!existing.sourceKeys.includes(step.key)) {
+          existing.sourceKeys = [...existing.sourceKeys, step.key];
+        }
+        continue;
+      }
+      byPair.set(pair, {
+        id: `${step.key}|${consequence.partId}|${consequence.action}`,
+        stepKey: step.key,
+        sourceKeys: [step.key],
+        partId: consequence.partId as PartId,
+        action: consequence.action,
+        reasonKey: consequence.reasonKey,
+        ...(consequence.guideSlug === undefined ? {} : { guideSlug: consequence.guideSlug }),
+        done: false,
+        sortOrder: byPair.size,
+      });
+    }
+  }
+
+  return markRechecked([...byPair.values()], state);
+}
+
+/**
+ * The per-part tint the viewer shows after a checkup (§6.4 `status`).
+ *
+ * Host-expanded, like `CheckStepRef.partIds`: a hosted part has no mesh of its
+ * own, so its verdict colours the part it is reached through. KO wins over OK —
+ * a caliper whose pads are worn is not fine because its alignment is — and a
+ * step with no verdict yet leaves `todo`.
+ */
+export function statusByPart(state: CheckupState): Partial<Record<PartId, "ok" | "ko" | "todo">> {
+  const status: Partial<Record<PartId, "ok" | "ko" | "todo">> = {};
+  for (const step of state.steps) {
+    const answer = answerOf(state, step.key);
+    const tone = answer === "ko" ? "ko" : answer === "ok" ? "ok" : "todo";
+    for (const partId of step.partIds) {
+      /* eslint-disable security/detect-object-injection -- `partId` is a PartId from the plan */
+      const current = status[partId];
+      if (current === "ko") continue;
+      if (current === "ok" && tone === "todo") continue;
+      status[partId] = tone;
+      /* eslint-enable security/detect-object-injection */
+    }
+  }
+  return status;
+}
