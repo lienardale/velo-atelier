@@ -47,5 +47,21 @@
     "cancel": "Cancel",
     "confirm": "Delete permanently",
     "submitting": "Deleting…"
+  },
+  "import": {
+    "title": "Import my bike",
+    "running": "Importing your bike…",
+    "done": "Your bike is saved to your account.",
+    "alreadyDone": "That bike was already in your account.",
+    "failedHelp": "The import did not go through. Your bike is still on this device: nothing is lost.",
+    "retry": "Try again",
+    "skip": "Go to my bikes",
+    "bikeName": "My bike",
+    "listName": "My list"
+  },
+  "guestBanner": {
+    "title": "A bike is waiting on this device",
+    "text": "You described this bike while signed out. Import it to find it on all your devices.",
+    "cta": "Import this bike"
   }
 }

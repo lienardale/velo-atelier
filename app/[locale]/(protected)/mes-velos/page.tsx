@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { BikeCard } from "@/components/account/BikeCard";
+import { GuestBanner } from "@/components/auth/GuestBanner";
 import { Button } from "@/components/ui/button";
 import { currentUser, redirectToSignIn } from "@/lib/actions/with-user";
 import { describeDetails } from "@/lib/bike/describe";
@@ -70,6 +71,14 @@ export default async function MyBikesPage({ params }: PageProps): Promise<React.
           </Link>
         </Button>
       </header>
+
+      {/*
+       * The one entry point to `/import` (W3-T3): a guest bike lives in this
+       * browser's `localStorage`, which the server cannot see, so the invitation
+       * to import it can only be raised on the client. It renders nothing when
+       * there is nothing stored.
+       */}
+      <GuestBanner />
 
       {rows.length === 0 ? (
         <section
