@@ -1,0 +1,119 @@
+"use server";
+
+/**
+ * The build list of one saved bike (§4.4, §5.5).
+ *
+ * Three writes, and every one of them is an edit the VISITOR made to a list the
+ * checkup produced: a line ticked off, a refinement chosen, the done lines
+ * cleared. Nothing here derives a list — that is `deriveBuildList` — and
+ * nothing here creates one.
+ *
+ * Ownership is in the `where`, nested twice (`buildList: { bike: { userId } }`):
+ * an item id that is not the caller's simply finds no row, which is
+ * `NOT_FOUND`, never `FORBIDDEN` (§4.7 — a 403 would confirm the id exists).
+ *
+ * The refinement is a `Json` column, so it is capped on both axes before it is
+ * written: keys and values are attribute-sized, and the whole object has to fit
+ * the JSON budget every other JSON column is held to (`withinJsonBudget`). A
+ * guest's list is bounded by `localStorage` itself; a saved one is bounded
+ * here.
+ *
+ * `"use server"` files export only async functions, so the input schemas are
+ * module-private (a `const` schema exported from here fails the module at
+ * request time — CLAUDE.md, `.debug/006`).
+ */
+
+import { revalidatePath } from "next/cache";
+import * as z from "zod";
+
+import { fail, ok, type ActionResult } from "@/lib/actions/result";
+import { withUser } from "@/lib/actions/with-user";
+import { withinJsonBudget } from "@/lib/bike/rules";
+import { prisma } from "@/lib/db/prisma";
+import type { Prisma } from "@/lib/generated/prisma/client";
+
+/** A refinement answer is an attribute key and a value a control produced. */
+const refinementSchema = z.record(
+  z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9-]+$/, "errors.VALIDATION"),
+  z.string().max(64),
+);
+
+const setDoneSchema = z.object({ itemId: z.uuid("errors.VALIDATION"), done: z.boolean() }).strict();
+
+const setRefinementSchema = z
+  .object({ itemId: z.uuid("errors.VALIDATION"), refinement: refinementSchema })
+  .strict();
+
+const clearDoneSchema = z.object({ buildListId: z.uuid("errors.VALIDATION") }).strict();
+
+/** At most this many answers on one item — a part has a handful of attributes. */
+const MAX_REFINEMENT_KEYS = 24;
+
+/** Tick a line off, or untick it. `doneReason` is always `manual` from here. */
+export const setBuildListItemDoneAction = withUser(
+  async ({ user }, input: unknown): Promise<ActionResult<null>> => {
+    const parsed = setDoneSchema.safeParse(input);
+    if (!parsed.success) return fail("VALIDATION");
+
+    const updated = await prisma.buildListItem.updateMany({
+      where: { id: parsed.data.itemId, buildList: { bike: { userId: user.id } } },
+      data: { done: parsed.data.done },
+    });
+    if (updated.count === 0) return fail("NOT_FOUND");
+
+    revalidatePath("/[locale]/velo/[id]/liste", "page");
+    return ok(null);
+  },
+);
+
+/** Replace one item's buying-guide answers. A patch would leave stale keys behind. */
+export const setBuildListItemRefinementAction = withUser(
+  async ({ user }, input: unknown): Promise<ActionResult<null>> => {
+    const parsed = setRefinementSchema.safeParse(input);
+    if (!parsed.success) return fail("VALIDATION");
+
+    const refinement = parsed.data.refinement;
+    if (Object.keys(refinement).length > MAX_REFINEMENT_KEYS) return fail("TOO_MANY");
+    if (!withinJsonBudget(refinement)) return fail("TOO_MANY");
+
+    const updated = await prisma.buildListItem.updateMany({
+      where: { id: parsed.data.itemId, buildList: { bike: { userId: user.id } } },
+      data: { refinement: refinement as Prisma.InputJsonValue },
+    });
+    if (updated.count === 0) return fail("NOT_FOUND");
+
+    revalidatePath("/[locale]/velo/[id]/liste", "page");
+    return ok(null);
+  },
+);
+
+/**
+ * "Retirer ce qui est fait": delete every done item of one list.
+ *
+ * By list rather than by id: the visitor pressed one button meaning "clear
+ * them", and sending the ids back would let a stale tab delete a line someone
+ * unticked in the meantime.
+ */
+export const clearDoneBuildListItemsAction = withUser(
+  async ({ user }, input: unknown): Promise<ActionResult<{ removed: number }>> => {
+    const parsed = clearDoneSchema.safeParse(input);
+    if (!parsed.success) return fail("VALIDATION");
+
+    const list = await prisma.buildList.findFirst({
+      where: { id: parsed.data.buildListId, bike: { userId: user.id } },
+      select: { id: true },
+    });
+    if (list === null) return fail("NOT_FOUND");
+
+    const removed = await prisma.buildListItem.deleteMany({
+      where: { buildListId: list.id, done: true },
+    });
+
+    revalidatePath("/[locale]/velo/[id]/liste", "page");
+    return ok({ removed: removed.count });
+  },
+);

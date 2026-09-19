@@ -208,7 +208,11 @@ export function shopQuestionsFor(
       label: brandLabel?.label ?? BRAND_QUESTION.labelKey,
       help: brandLabel?.help ?? null,
       unit: null,
-      options: BRAND_TIERS.map((tier) => ({ value: tier, label: tierLabels[tier] })),
+      options: BRAND_TIERS.map((tier) => ({
+        value: tier,
+        // eslint-disable-next-line security/detect-object-injection -- `tier` is a BrandTier literal
+        label: tierLabels[tier],
+      })),
       min: null,
       max: null,
       askedBecause: null,

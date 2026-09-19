@@ -83,6 +83,7 @@
       "vendors": "Où l'acheter",
       "refine": "Préciser la pièce",
       "refineHelp": "Plus vous précisez, plus la recherche tombe juste.",
+      "howToMeasure": "Comment mesurer",
       "buyingGuide": "Aide à l'achat",
       "chosen": "Vous avez retenu {brand} {model}",
       "askedBecause": "Demandé pour vérifier la compatibilité."

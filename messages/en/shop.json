@@ -83,6 +83,7 @@
       "vendors": "Where to buy it",
       "refine": "Narrow the part down",
       "refineHelp": "The more you narrow it down, the closer the search gets.",
+      "howToMeasure": "How to measure it",
       "buyingGuide": "Buying help",
       "chosen": "You settled on {brand} {model}",
       "askedBecause": "Asked to check compatibility."
