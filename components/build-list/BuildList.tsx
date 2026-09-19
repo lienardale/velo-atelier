@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import * as z from "zod/mini";
 
@@ -278,6 +278,26 @@ export function BuildList({
   }, [guestRef, serverItems, stored]);
 
   /**
+   * Server writes run one after another, never at the same time.
+   *
+   * "Retirer ce qui est fait" deletes by LIST — it asks the server which lines
+   * are done rather than trusting the ids a stale tab is holding — so it has to
+   * run AFTER the tick that made one of them done. Without this queue, ticking
+   * a line and clearing straight away raced: the delete reached the database
+   * before the update did, found nothing done, and removed nothing, while the
+   * screen had already dropped the line. A build list is exactly the page where
+   * someone does both in one gesture.
+   */
+  const pendingWrites = useRef<Promise<void>>(Promise.resolve());
+  const enqueue = useCallback((write: () => Promise<boolean>): Promise<void> => {
+    const next = pendingWrites.current.then(async () => {
+      if (!(await write())) setFailed(true);
+    });
+    pendingWrites.current = next.catch(() => undefined);
+    return next;
+  }, []);
+
+  /**
    * One changed item, persisted where this list lives.
    *
    * The optimistic update comes first and the write follows, because the
@@ -297,22 +317,24 @@ export function BuildList({
       }
       setServerItems((current) => current.map((item) => (item.id === next.id ? next : item)));
 
-      const writes: Promise<{ ok: boolean }>[] = [];
-      if (previous === undefined || previous.done !== next.done) {
-        writes.push(setBuildListItemDoneAction({ itemId: next.id, done: next.done }));
-      }
-      if (previous === undefined || previous.refinement !== next.refinement) {
-        writes.push(
-          setBuildListItemRefinementAction({
-            itemId: next.id,
-            refinement: next.refinement ?? {},
-          }),
-        );
-      }
-      const results = await Promise.all(writes);
-      if (results.some((result) => !result.ok)) setFailed(true);
+      await enqueue(async () => {
+        const writes: Promise<{ ok: boolean }>[] = [];
+        if (previous === undefined || previous.done !== next.done) {
+          writes.push(setBuildListItemDoneAction({ itemId: next.id, done: next.done }));
+        }
+        if (previous === undefined || previous.refinement !== next.refinement) {
+          writes.push(
+            setBuildListItemRefinementAction({
+              itemId: next.id,
+              refinement: next.refinement ?? {},
+            }),
+          );
+        }
+        const results = await Promise.all(writes);
+        return results.every((result) => result.ok);
+      });
     },
-    [guestRef, items],
+    [enqueue, guestRef, items],
   );
 
   const clearDone = useCallback(async () => {
@@ -325,9 +347,8 @@ export function BuildList({
     }
     setServerItems(kept);
     if (buildListId === null) return;
-    const result = await clearDoneBuildListItemsAction({ buildListId });
-    if (!result.ok) setFailed(true);
-  }, [guestRef, items, buildListId]);
+    await enqueue(async () => (await clearDoneBuildListItemsAction({ buildListId })).ok);
+  }, [enqueue, guestRef, items, buildListId]);
 
   const doneCount = items.filter((item) => item.done).length;
   const visible = hideDone ? items.filter((item) => !item.done) : items;
