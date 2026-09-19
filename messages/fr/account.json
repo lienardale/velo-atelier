@@ -49,6 +49,8 @@
     "submitting": "Suppression…"
   },
   "import": {
+    "metaTitle": "Importer mon vélo",
+    "metaDescription": "Retrouvez sur votre compte le vélo, le contrôle et la liste préparés sur cet appareil.",
     "title": "Importer mon vélo",
     "running": "Import de votre vélo en cours…",
     "done": "Votre vélo est enregistré sur votre compte.",

@@ -244,7 +244,9 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   (demo = read-only, local = `localStorage`, db = server actions), so no
   component branches on the ref kind.
 - **The guest import is a contract, not three storage shapes forwarded.**
-  `/import` (client) projects `va:bike:local`, `va:checkup:local` and
+  `/import` is a server page (`auth()` + `buildMetadata`, like its `(protected)`
+  siblings) wrapping one client component, which is what reads `localStorage`:
+  it projects `va:bike:local`, `va:checkup:local` and
   `va:buildlist:local` onto the `GuestState` payload of `lib/guest/schema.ts`
   (`zod/mini`, `strictObject` everywhere, caps in the schema), and
   `importGuestStateAction` validates only that. Idempotency is a database fact:

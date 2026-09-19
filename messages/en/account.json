@@ -49,6 +49,8 @@
     "submitting": "Deleting…"
   },
   "import": {
+    "metaTitle": "Import my bike",
+    "metaDescription": "Move the bike, the checkup and the list you prepared on this device into your account.",
     "title": "Import my bike",
     "running": "Importing your bike…",
     "done": "Your bike is saved to your account.",
