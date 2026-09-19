@@ -12,11 +12,15 @@
  * `next build` / `next dev` once `next.config.ts` wraps the config in
  * `withContentCollections`.
  */
-import { allGuides } from "content-collections";
+import { allGuides, allLegalPages } from "content-collections";
 
+import type { LegalDocument } from "./legal";
 import type { GuideDocument } from "./types";
 
 // The generated type is inferred from the transform's return type, which is
 // `GuideDocument` itself; the annotation keeps every consumer on the contract
 // type rather than on content-collections' derived one.
 export const GUIDES: readonly GuideDocument[] = allGuides;
+
+/** The two legal pages, both locales (`lib/content/legal.ts`). */
+export const LEGAL: readonly LegalDocument[] = allLegalPages;

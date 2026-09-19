@@ -38,6 +38,21 @@ export interface BuildMetadataInput {
 /** `og:locale` values (language_TERRITORY). */
 export const OPEN_GRAPH_LOCALES: Readonly<Record<Locale, string>> = { fr: "fr_FR", en: "en_GB" };
 
+/**
+ * The site's origin, without a trailing slash.
+ *
+ * `Metadata` URLs stay relative and are resolved against `metadataBase` (set in
+ * `app/[locale]/layout.tsx`), but `app/sitemap.ts` and `app/robots.ts` have no
+ * `metadataBase`: a sitemap URL and a `Sitemap:` line must be absolute. Both
+ * read this, so the fallback used when `NEXT_PUBLIC_SITE_URL` is unset is
+ * written once. A local `next build` without the variable then produces
+ * canonicals and a sitemap that agree with each other instead of half and half
+ * (`.debug/004 §10`).
+ */
+export function siteUrl(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+}
+
 const PRIVATE_KEYS: ReadonlySet<string> = new Set<string>([...PROTECTED_KEYS, ...ANON_ONLY_KEYS]);
 
 /** The internal pathname key of an href (`/velo/[id]` for `{ pathname: '/velo/[id]', params }`). */

@@ -4,6 +4,7 @@
  * `content-collections` (tsconfig `paths`).
  *
  *   guides   content/guides/<slug>/{fr,en}.mdx  → GuideDocument (lib/content/types.ts)
+ *   legal    content/legal/<id>.{fr,en}.mdx     → LegalDocument (lib/content/legal.ts)
  *
  * MDX is compiled HERE, once, by mdx-bundler; the compiled string is rendered
  * only in React Server Components (`components/mdx/GuideContent.tsx`), so no
@@ -16,9 +17,9 @@
  * `npm run content:check` (`lib/content/check.ts`), which runs before
  * `next build`.
  *
- * `parts` (optional per-part notes) and `legal` pages are declared by the tasks
- * that write them (W2-T3, W3-T4); declaring a collection over a folder that
- * does not exist yet would only produce an empty module and a warning.
+ * `parts` (optional per-part notes) is declared by the task that writes it
+ * (W2-T3); declaring a collection over a folder that does not exist yet would
+ * only produce an empty module and a warning.
  *
  * Wiring: `next.config.ts` wraps the config in `withContentCollections`
  * (orchestrator-owned file); `npm run content:build` runs the same build from
@@ -27,6 +28,12 @@
 import { defineCollection, defineConfig } from "@content-collections/core";
 import { compileMDX } from "@content-collections/mdx";
 
+import {
+  isLegalPageId,
+  LegalSourceSchema,
+  toCalendarDate,
+  type LegalDocument,
+} from "./lib/content/legal";
 import { GuideSourceSchema } from "./lib/content/schema";
 import { GUIDE_LOCALES, type GuideDocument } from "./lib/content/types";
 
@@ -82,4 +89,36 @@ const guides = defineCollection({
   },
 });
 
-export default defineConfig({ content: [guides] });
+/**
+ * The legal pages (§6.6). One file per page and locale, named `<id>.<locale>.mdx`
+ * directly under `content/legal/` — the id is the document, not a folder, because
+ * there are exactly two of them and they have no assets of their own.
+ */
+const legal = defineCollection({
+  name: "legalPage",
+  directory: "content/legal",
+  include: "*.mdx",
+  schema: LegalSourceSchema,
+  transform: async (document, context): Promise<Plain<LegalDocument>> => {
+    const { _meta, content, updatedAt, ...frontmatter } = document;
+    const [id, locale, ...rest] = _meta.fileName.replace(/\.mdx$/, "").split(".");
+
+    if (rest.length > 0 || !isLegalPageId(id)) {
+      throw new Error(`${_meta.filePath}: a legal file is named <id>.<locale>.mdx`);
+    }
+    if (!(GUIDE_LOCALES as readonly string[]).includes(locale)) {
+      throw new Error(`${_meta.filePath}: "${locale}" is not a locale (fr, en)`);
+    }
+
+    const mdx = await compileMDX(context, document);
+    return {
+      ...frontmatter,
+      id,
+      locale: locale as LegalDocument["locale"],
+      updatedAt: toCalendarDate(updatedAt),
+      mdx,
+    };
+  },
+});
+
+export default defineConfig({ content: [guides, legal] });

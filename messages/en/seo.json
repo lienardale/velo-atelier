@@ -1,1 +1,5 @@
-{}
+{
+  "legal": {
+    "updated": "Last updated: {date}"
+  }
+}
