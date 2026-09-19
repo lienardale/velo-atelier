@@ -50,6 +50,18 @@ const isDevRoute = (key: Pathname): boolean => key.startsWith("/dev/");
 
 const PUBLIC = KEYS.filter((key) => !isDevRoute(key) && !PROTECTED.has(key));
 
+/**
+ * `domcontentloaded`, not the default `load`.
+ *
+ * What AC1 asks of each route — a 200 and the right `<html lang>` — is settled
+ * the moment the document is parsed. Waiting for `load` on `/velo/demo/piece/saddle`
+ * means waiting for the 3D workspace to finish fetching and warming a
+ * SwiftShader context: ~32 s on this machine, which is most of the 45 s budget
+ * and made the route walk time out under four parallel workers rather than
+ * report anything about the route.
+ */
+const DOM_READY = { waitUntil: "domcontentloaded" } as const;
+
 /** The params `key` needs, taken from {@link PARAMS}. */
 function paramsFor(key: Pathname): Record<string, string> {
   return Object.fromEntries(
@@ -60,7 +72,7 @@ function paramsFor(key: Pathname): Record<string, string> {
 forEachLocale((locale) => {
   for (const key of PUBLIC) {
     test(`${key} renders 200 anonymously (${locale})`, async ({ page }) => {
-      const response = await page.goto(href(locale, key as RouteKey, paramsFor(key)));
+      const response = await page.goto(href(locale, key as RouteKey, paramsFor(key)), DOM_READY);
 
       expect(response?.status()).toBe(200);
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
@@ -73,7 +85,7 @@ forEachLocale((locale) => {
       signedInContext,
     }) => {
       await signedInContext();
-      const response = await page.goto(href(locale, key as RouteKey, paramsFor(key)));
+      const response = await page.goto(href(locale, key as RouteKey, paramsFor(key)), DOM_READY);
 
       expect(response?.status()).toBe(200);
       await expect(page.locator("html")).toHaveAttribute("lang", locale);

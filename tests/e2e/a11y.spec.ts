@@ -26,6 +26,14 @@
  *
  * `/velo/demo/controle` and `/velo/demo/liste` are W3-T1's and W3-T2's routes;
  * their rows are written here in full and are red until those branches land.
+ *
+ * **Every test here is two page loads and two axe analyses**, and one of the
+ * pages warms a SwiftShader WebGL context. That is 16 s for `/velo/demo` on
+ * this machine with the workers idle, and it timed out at the config's 45 s
+ * under four parallel workers — reporting nothing about accessibility. The
+ * budget is therefore raised per test rather than the whole suite's being
+ * loosened, and every `goto` stops at `domcontentloaded` and waits for the
+ * element that proves the page is up, instead of for every asset.
  */
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
@@ -117,11 +125,14 @@ forEachLocale((locale) => {
     test(`${target.label} has no serious or critical axe violation (${locale})`, async ({
       page,
     }) => {
+      test.setTimeout(120_000);
       const problems: string[] = [];
 
       for (const scheme of SCHEMES) {
         await page.emulateMedia({ colorScheme: scheme });
-        const response = await page.goto(href(locale, target.key, target.params));
+        const response = await page.goto(href(locale, target.key, target.params), {
+          waitUntil: "domcontentloaded",
+        });
         expect(response?.status(), `${target.label} did not render`).toBe(200);
         await target.settle?.(page);
 
@@ -136,6 +147,7 @@ forEachLocale((locale) => {
   test(`the open header menu has no serious or critical axe violation (${locale})`, async ({
     page,
   }) => {
+    test.setTimeout(120_000);
     // The sheet exists below lg only; narrow the viewport so this row runs on
     // every project rather than being skipped wherever the nav is inline.
     await page.setViewportSize({ width: 390, height: 844 });
@@ -143,7 +155,7 @@ forEachLocale((locale) => {
 
     for (const scheme of SCHEMES) {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto(href(locale, "/"));
+      await page.goto(href(locale, "/"), { waitUntil: "domcontentloaded" });
 
       await page.getByRole("button", { name: COMMON[locale].nav.openMenu }).click();
       await expect(page.getByRole("dialog", { name: COMMON[locale].nav.menu })).toBeVisible();

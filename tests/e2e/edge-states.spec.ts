@@ -163,7 +163,8 @@ test("/mes-velos empty → illustration + CTA", async ({ page, signupEmail }) =>
 
 test("/velo/[id]/liste empty → CTA", async ({ page }) => {
   // No checkup has been answered, so the list is derived from nothing.
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+  const response = await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+  expect(response?.status()).toBe(200);
 
   const main = page.getByRole("main");
   await expect(main).toBeVisible();
@@ -182,8 +183,11 @@ test("?parts= with unknown ids → dropped, none left → full checkup + info ca
   page,
 }) => {
   // Half-valid first: the unknown id is dropped and the real one is kept.
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }, { parts: "chain,not-a-part" }));
-  await expect(page.getByRole("main")).toBeVisible();
+  const response = await page.goto(
+    href("fr", "/velo/[id]/controle", { id: "demo" }, { parts: "chain,not-a-part" }),
+  );
+  expect(response?.status()).toBe(200);
+  await expect(page.locator("[data-step-key]").first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText("not-a-part");
 
   // Nothing left: the scope falls back to a FULL checkup, and says so.
@@ -247,13 +251,22 @@ async function answerFirstStepKo(page: Page): Promise<{ partId: string }> {
   return { partId };
 }
 
-/** Answer OK on every step of the current plan, then finish. */
+/**
+ * Answer OK on every step of the current plan.
+ *
+ * It asserts that there WAS a plan: a page with no step at all would otherwise
+ * make "every step answered" trivially true, which is exactly how a row that
+ * depends on a route nobody has written yet passes for the wrong reason.
+ */
 async function answerEveryStepOk(page: Page): Promise<void> {
+  let answered = 0;
   for (let guard = 0; guard < 40; guard += 1) {
     const step = page.locator("[data-step-key]").first();
     if ((await step.count()) === 0) break;
     await step.getByRole("button", { name: /.+/ }).first().click();
+    answered += 1;
   }
+  expect(answered, "the checkup planned no step at all").toBeGreaterThan(0);
 }
 
 // ───────────────────────────────────────────────────────────────── row 10 ──
@@ -333,7 +346,8 @@ test("WebGL unavailable → SVG + list still complete the checkup", async ({ pag
   await expect(page.getByTestId("parts-list").getByRole("listitem")).not.toHaveCount(0);
 
   // …and a checkup can be answered to the end without ever seeing the 3D bike.
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }));
+  const checkup = await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }));
+  expect(checkup?.status(), "the checkup route did not render").toBe(200);
   await answerEveryStepOk(page);
   await expect(page.getByRole("main")).toBeVisible();
   await expect(page.locator("[data-step-key]")).toHaveCount(0);
