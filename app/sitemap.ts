@@ -34,12 +34,20 @@ import { localizedAlternates, siteUrl, type MetadataHref } from "@/lib/seo/metad
  * (`proxy.ts`), so this URL is never locale-prefixed.
  */
 
-/** A sitemap entry's `alternates.languages`, absolute — `getPathname` yields paths. */
-function languagesOf(href: MetadataHref): Record<Locale, string> {
+/**
+ * A sitemap entry's `alternates.languages`, absolute — `getPathname` yields
+ * paths, and a `<loc>` or an `xhtml:link` must not be relative.
+ *
+ * `x-default` → French, the same mapping `buildMetadata` puts in every page's
+ * head (§6.6). A sitemap that disagreed with the `<link rel="alternate">` tags
+ * would be a second, contradictory answer to the same question.
+ */
+function languagesOf(href: MetadataHref): Record<string, string> {
   const paths = localizedAlternates(href);
-  return Object.fromEntries(
+  const absolute = Object.fromEntries(
     routing.locales.map((locale) => [locale, `${siteUrl()}${paths[locale]}`]),
   ) as Record<Locale, string>;
+  return { ...absolute, "x-default": absolute[routing.defaultLocale] };
 }
 
 function entry(
