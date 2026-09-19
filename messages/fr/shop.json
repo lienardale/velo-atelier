@@ -1,1 +1,99 @@
-{}
+{
+  "meta": {
+    "title": "Acheter des pièces de vélo",
+    "description": "Par où commencer pour acheter la bonne pièce : les questions à se poser, les tailles à relever, et des liens vers trois boutiques."
+  },
+  "title": "Acheter",
+  "intro": "Aucune boutique ici : des liens vers trois marchands, et surtout de quoi savoir quoi demander avant de commander.",
+  "categories": {
+    "title": "Par catégorie",
+    "intro": "Chaque carte ouvre la même recherche chez les trois marchands."
+  },
+  "search": {
+    "title": "Recherche libre",
+    "label": "Que cherchez-vous ?",
+    "placeholder": "chaîne 11 vitesses",
+    "submit": "Chercher",
+    "hint": "Tapez ce que vous taperiez dans la boutique : la pièce, la taille, le nombre de vitesses.",
+    "empty": "Tapez quelque chose pour obtenir les trois liens."
+  },
+  "outbound": {
+    "newWindow": "(nouvelle fenêtre)",
+    "unverified": "lien non vérifié récemment",
+    "unverifiedHelp": "Personne n'a rouvert ce lien depuis un moment : il peut avoir bougé.",
+    "verified": "lien vérifié le {date}",
+    "disclosure": "Liens simples, sans affiliation ni suivi : nous ne gagnons rien sur un achat."
+  },
+  "brand": {
+    "label": "Gamme",
+    "help": "Ce qui change vraiment entre une pièce bon marché et une pièce chère.",
+    "title": "Marques par gamme",
+    "any": "Peu importe"
+  },
+  "tiers": {
+    "entry": "Entrée de gamme",
+    "mid": "Milieu de gamme",
+    "high": "Haut de gamme"
+  },
+  "part": {
+    "title": "Acheter : {part}",
+    "intro": "Ce que votre vélo impose déjà, et ce qu'il vous reste à décider.",
+    "constraints": "Imposé par votre vélo",
+    "questions": "À décider",
+    "vendors": "Où l'acheter",
+    "query": "Recherche envoyée : « {query} »",
+    "noQuestions": "Rien d'autre à décider : la pièce est entièrement déterminée par votre vélo.",
+    "unknown": "Cette pièce n'existe pas dans le catalogue.",
+    "needsBike": "Ouvrez votre vélo pour que ces questions tiennent compte de vos pièces.",
+    "backToList": "Retour à ma liste"
+  },
+  "list": {
+    "meta": {
+      "title": "Ma liste de courses",
+      "description": "Ce qu'il faut changer, réparer, nettoyer ou régler sur ce vélo, avec les liens pour l'acheter."
+    },
+    "title": "Ma liste",
+    "intro": "Une ligne par pièce à traiter. Cochez ce qui est fait ; le reste vous attend.",
+    "loading": "Lecture de votre liste…",
+    "needsBike": "Ouvrez votre vélo : la liste s'appuie sur ses pièces.",
+    "openBike": "Ouvrir le vélo",
+    "empty": {
+      "title": "Rien à acheter pour l'instant",
+      "body": "La liste se remplit toute seule à la fin d'un contrôle.",
+      "cta": "Lancer un contrôle"
+    },
+    "sections": {
+      "replace": "À changer",
+      "fix": "À réparer",
+      "clean": "À nettoyer",
+      "adjust": "À régler",
+      "inspect-shop": "À faire voir"
+    },
+    "count": "{count, plural, =0 {aucune ligne} one {# ligne} other {# lignes}}",
+    "done": {
+      "label": "C'est fait",
+      "hide": "Masquer ce qui est fait",
+      "clear": "Retirer ce qui est fait",
+      "auto": "Marqué fait par un contrôle",
+      "state": "{done} sur {total} fait"
+    },
+    "item": {
+      "reason": "Pourquoi",
+      "guide": "Voir le guide",
+      "vendors": "Où l'acheter",
+      "refine": "Préciser la pièce",
+      "refineHelp": "Plus vous précisez, plus la recherche tombe juste.",
+      "buyingGuide": "Aide à l'achat",
+      "chosen": "Vous avez retenu {brand} {model}",
+      "askedBecause": "Demandé pour vérifier la compatibilité."
+    },
+    "compat": {
+      "title": "Attention à la compatibilité"
+    },
+    "print": "Imprimer",
+    "copy": "Copier la liste",
+    "copied": "Liste copiée",
+    "copyFailed": "Copie impossible",
+    "saveFailed": "Modification non enregistrée"
+  }
+}

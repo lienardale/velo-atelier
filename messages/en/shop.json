@@ -1,1 +1,99 @@
-{}
+{
+  "meta": {
+    "title": "Buying bike parts",
+    "description": "Where to start when you buy a part: the questions to ask, the sizes to read off the bike, and links to three shops."
+  },
+  "title": "Shop",
+  "intro": "No shop here: links to three retailers, and above all enough to know what to ask for before you order.",
+  "categories": {
+    "title": "By category",
+    "intro": "Each card opens the same search at all three retailers."
+  },
+  "search": {
+    "title": "Free search",
+    "label": "What are you looking for?",
+    "placeholder": "chain 11 speed",
+    "submit": "Search",
+    "hint": "Type what you would type in the shop: the part, the size, the number of speeds.",
+    "empty": "Type something to get the three links."
+  },
+  "outbound": {
+    "newWindow": "(opens in a new window)",
+    "unverified": "link not checked recently",
+    "unverifiedHelp": "Nobody has reopened this link in a while: it may have moved.",
+    "verified": "link checked on {date}",
+    "disclosure": "Plain links, no affiliation and no tracking: we earn nothing on a purchase."
+  },
+  "brand": {
+    "label": "Range",
+    "help": "What actually changes between a cheap part and an expensive one.",
+    "title": "Brands by range",
+    "any": "No preference"
+  },
+  "tiers": {
+    "entry": "Entry level",
+    "mid": "Mid range",
+    "high": "High end"
+  },
+  "part": {
+    "title": "Buying: {part}",
+    "intro": "What your bike already decides, and what is left for you to choose.",
+    "constraints": "Decided by your bike",
+    "questions": "Left to decide",
+    "vendors": "Where to buy it",
+    "query": "Search sent: “{query}”",
+    "noQuestions": "Nothing else to decide: your bike settles this part completely.",
+    "unknown": "There is no such part in the catalogue.",
+    "needsBike": "Open your bike so these questions take your own parts into account.",
+    "backToList": "Back to my list"
+  },
+  "list": {
+    "meta": {
+      "title": "My build list",
+      "description": "What to replace, fix, clean or adjust on this bike, with the links to buy it."
+    },
+    "title": "My list",
+    "intro": "One line per part to deal with. Tick what is done; the rest waits for you.",
+    "loading": "Reading your list…",
+    "needsBike": "Open your bike: the list is built from its parts.",
+    "openBike": "Open the bike",
+    "empty": {
+      "title": "Nothing to buy yet",
+      "body": "The list fills itself at the end of a checkup.",
+      "cta": "Start a checkup"
+    },
+    "sections": {
+      "replace": "To replace",
+      "fix": "To fix",
+      "clean": "To clean",
+      "adjust": "To adjust",
+      "inspect-shop": "For a shop to look at"
+    },
+    "count": "{count, plural, =0 {no lines} one {# line} other {# lines}}",
+    "done": {
+      "label": "Done",
+      "hide": "Hide what is done",
+      "clear": "Remove what is done",
+      "auto": "Marked done by a checkup",
+      "state": "{done} of {total} done"
+    },
+    "item": {
+      "reason": "Why",
+      "guide": "Read the guide",
+      "vendors": "Where to buy it",
+      "refine": "Narrow the part down",
+      "refineHelp": "The more you narrow it down, the closer the search gets.",
+      "buyingGuide": "Buying help",
+      "chosen": "You settled on {brand} {model}",
+      "askedBecause": "Asked to check compatibility."
+    },
+    "compat": {
+      "title": "Watch the compatibility"
+    },
+    "print": "Print",
+    "copy": "Copy the list",
+    "copied": "List copied",
+    "copyFailed": "Could not copy",
+    "saveFailed": "Change not saved"
+  }
+}
