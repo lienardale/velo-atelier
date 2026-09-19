@@ -32,13 +32,25 @@ import { withinJsonBudget } from "@/lib/bike/rules";
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
-/** A refinement answer is an attribute key and a value a control produced. */
+/**
+ * A refinement answer is an attribute key and a value a control produced.
+ *
+ * The key shape is the domain's own id pattern, which already excludes
+ * `__proto__` (underscores) — but not `constructor` or `prototype`, which are
+ * all-lowercase and would pass. They are refused by name: this object is
+ * written to a `Json` column and read back into a record, and a key that means
+ * something to an object is a key that does not belong in stored data, whatever
+ * the reader does with it.
+ */
+const POISON_KEYS = ["__proto__", "constructor", "prototype"];
+
 const refinementSchema = z.record(
   z
     .string()
     .min(1)
     .max(64)
-    .regex(/^[a-z0-9-]+$/, "errors.VALIDATION"),
+    .regex(/^[a-z0-9-]+$/, "errors.VALIDATION")
+    .refine((key) => !POISON_KEYS.includes(key), "errors.VALIDATION"),
   z.string().max(64),
 );
 
