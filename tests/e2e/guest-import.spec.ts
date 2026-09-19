@@ -118,6 +118,14 @@ forEachLocale((locale) => {
     page,
     signupEmail,
   }) => {
+    // The longest journey in the suite: a sign-up, two imports, and two loads of
+    // `/velo/<uuid>` — the heaviest route in the app, which the import pushes to
+    // with `router.replace` (the URL only changes once its RSC payload lands).
+    // It measures ~15 s alone and over the 45 s default when the six tests of
+    // this file share four workers, so the budget is tripled rather than left to
+    // whatever else the machine is doing. Nothing below is relaxed.
+    test.slow();
+
     // A guest with work in this browser.
     const { bike } = localBikePayload(BIKE_PRESETS["gravel-1x11"], { saddleHeightMm: 742 });
     await page.goto(href(locale, "/"));
@@ -135,8 +143,16 @@ forEachLocale((locale) => {
     await page.getByTestId("guest-banner-cta").click();
 
     // `/import` runs by itself and opens the bike it just created.
-    await page.waitForURL(new RegExp(`${href(locale, "/velo/[id]", { id: "" })}${UUID.source}`));
+    //
+    // The toast first, the URL second, because that is the order they happen in:
+    // `/import` raises the toast and calls `router.replace` in the same tick, and
+    // the URL only changes once `/velo/<uuid>` — the heaviest route in the app —
+    // has sent its payload. sonner hides a toast after four seconds, so asserting
+    // it AFTER the navigation is a race the transition wins often enough to be
+    // red (seen on the second import, where the sonner chunk is already cached
+    // and the toast is therefore raised sooner).
     await expect(page.getByText(account.import.done)).toBeVisible();
+    await page.waitForURL(new RegExp(`${href(locale, "/velo/[id]", { id: "" })}${UUID.source}`));
     const bikeUrl = page.url();
     expect(bikeUrl).toMatch(UUID);
 
@@ -154,8 +170,8 @@ forEachLocale((locale) => {
     await expect(page.getByTestId("guest-banner")).toBeVisible();
     await page.getByTestId("guest-banner-cta").click();
 
-    await page.waitForURL(new RegExp(`${href(locale, "/velo/[id]", { id: "" })}${UUID.source}`));
     await expect(page.getByText(account.import.alreadyDone)).toBeVisible();
+    await page.waitForURL(new RegExp(`${href(locale, "/velo/[id]", { id: "" })}${UUID.source}`));
     // The same bike as the first import, not a second one.
     expect(page.url()).toBe(bikeUrl);
     expect(await storedKeys(page)).toEqual([null, null, null]);
