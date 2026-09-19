@@ -80,6 +80,15 @@ describe("<CategoryGrid>", () => {
     expect(rose).toHaveAttribute("href", "https://www.rosebikes.com/search?q=bike%20chain");
   });
 
+  it("falls back to the three shops for a card that names none", async () => {
+    const orphan = [{ ...cards[0], id: "orphan", retailers: [] }];
+    const { container } = await renderWithIntl(<CategoryGrid categories={orphan} locale="fr" />);
+    const node = container.querySelector('div[data-category="orphan"]') as HTMLElement;
+    for (const retailer of ["rosebikes", "alltricks", "decathlon"]) {
+      expect(node.querySelector(`a[data-retailer="${retailer}"]`), retailer).not.toBeNull();
+    }
+  });
+
   it("marks each card so the print sheet keeps it in one piece", async () => {
     const { container } = await renderWithIntl(<CategoryGrid categories={cards} locale="fr" />);
     expect(container.querySelectorAll("[data-print-card]")).toHaveLength(cards.length);

@@ -88,6 +88,18 @@ describe("<OutboundLink>", () => {
     expect(screen.getByRole("link").textContent).toContain("(opens in a new window)");
   });
 
+  it("can drop the icon where the row already shows one, keeping the announcement", async () => {
+    await renderWithIntl(
+      <OutboundLink href="https://www.rosebikes.fr/" showIcon={false}>
+        Rose
+      </OutboundLink>,
+    );
+    const link = screen.getByRole("link");
+    expect(link.querySelector("svg")).toBeNull();
+    expect(link.textContent).toContain("(nouvelle fenêtre)");
+    expect(link).toHaveAttribute("rel", OUTBOUND_REL);
+  });
+
   it("makes no request when it is clicked (§5.8 AC5)", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const beacon = vi.fn(() => true);
