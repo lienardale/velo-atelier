@@ -273,6 +273,29 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   people importing from one shared browser hold the same state id. Only the
   `local` keys are read and cleared — `va:*:demo` belongs to the demo bike,
   which no account owns.
+- **Two content collections, one import.** `content-collections.ts` compiles
+  `guides` (`content/guides/<slug>/{fr,en}.mdx`) and `legalPage`
+  (`content/legal/<id>.{fr,en}.mdx`, schema and accessors in
+  `lib/content/legal.ts`); the generated module's export is `all` + the
+  collection name pluralised, and `lib/content/collection.ts` is the single
+  place that imports it (`GUIDES`, `LEGAL`). Both bodies are rendered in RSC —
+  `components/mdx/{GuideContent,LegalContent}.tsx` — which is what keeps
+  `script-src` free of `'unsafe-eval'`. The legal pages import `LegalContent`
+  **by path**, never through `components/mdx/index.ts`: the barrel also exports
+  `Step`, `StepScope` and `Measure`, and pulling it in adds `guides` and `parts`
+  to a legal page's browser payload for components it never renders
+  (`client-namespaces` fails with exactly that list).
+- **A file-convention `opengraph-image` must sit in the SAME segment as the page
+  it is for.** `lib/seo/metadata.ts` gives every page an explicit `openGraph`
+  object, and on Next 16.3.4 an explicit `openGraph` in a descendant segment
+  replaces the parent's — images included. An `app/opengraph-image.tsx` at the
+  app root (where §1.1 draws it) therefore reached exactly one route, Next's own
+  `/_not-found`, which then warned five times per build that it had no
+  `metadataBase` to resolve it against, while `/fr` and `/en` built with no
+  `og:image` at all. The site card lives in `app/[locale]/`; the guide card
+  already lived beside its page, which is why that one always worked. An image
+  route inherits no `params` from the layout above it either — both spell out
+  their own `generateStaticParams`.
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently

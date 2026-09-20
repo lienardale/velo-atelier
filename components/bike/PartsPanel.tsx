@@ -77,14 +77,25 @@ export function PartsPanel({
       className={cn("flex min-h-0 flex-col", className)}
       data-testid="parts-panel"
     >
+      {/*
+       * `text-ink-muted` on every trigger, replacing shadcn's `text-foreground/60`
+       * (components/ui/tabs.tsx, generated — not hand-edited). Sixty percent of
+       * `--color-ink` over `--color-paper-2` lands around 3.9:1 and axe reports
+       * the two inactive tabs as a serious `color-contrast` violation on
+       * /velo/demo (§6.8 AC4). `--color-ink-muted` is the token
+       * `tests/unit/tokens-contrast.test.ts` holds at ≥ 4.5:1 against both
+       * papers in both schemes, and it flips with the scheme on its own — so no
+       * `dark:` variant is needed and the active tab still wins through
+       * `data-[state=active]:text-foreground`.
+       */}
       <TabsList className="shrink-0">
-        <TabsTrigger value="parts" className="min-h-[var(--tap-min)]">
+        <TabsTrigger value="parts" className="min-h-[var(--tap-min)] text-ink-muted">
           {t("workspace.partsTab")}
         </TabsTrigger>
-        <TabsTrigger value="info" className="min-h-[var(--tap-min)]">
+        <TabsTrigger value="info" className="min-h-[var(--tap-min)] text-ink-muted">
           {t("workspace.infoTab")}
         </TabsTrigger>
-        <TabsTrigger value="actions" className="min-h-[var(--tap-min)]">
+        <TabsTrigger value="actions" className="min-h-[var(--tap-min)] text-ink-muted">
           {t("workspace.actionsTab")}
         </TabsTrigger>
       </TabsList>
