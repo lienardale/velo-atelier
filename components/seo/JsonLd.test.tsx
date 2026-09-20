@@ -8,6 +8,15 @@
  * document into the page as markup. That is the whole reason `serializeJsonLd`
  * exists, and why it is tested at the string level rather than through a DOM:
  * jsdom has already parsed the escape away by the time a test can read it.
+ *
+ * **React has one backstop of its own, and it is narrower than this component.**
+ * Measured on react-dom 19.2.8: `&`, `>` and a bare `<` reach the document
+ * verbatim, while the exact sequences `<script` / `</script` come out with their
+ * `s` escaped as `\u0073`. So "the payload did not close the element" is true
+ * even with `serializeJsonLd` reduced to `JSON.stringify` — asserting only that
+ * would be asserting React's behaviour, not ours. Each breakout case therefore
+ * also asserts that NO `<` survives into the body, which is this component's own
+ * promise and fails the moment the escape is removed.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -52,6 +61,12 @@ describe("serializeJsonLd", () => {
     expect(markup.match(/<\/script/gi)).toHaveLength(1);
     expect(markup.startsWith('<script type="application/ld+json"')).toBe(true);
     expect(markup.endsWith("</script>")).toBe(true);
+
+    // …and it is OUR escape that did it, not React's `<script`-only backstop:
+    // the body carries no `<` at all. (Drop the `.replace()` in JsonLd.tsx and
+    // the four assertions above still pass; this one goes red.)
+    const body = markup.slice(markup.indexOf(">") + 1, markup.lastIndexOf("</script>"));
+    expect(body).not.toContain("<");
   });
 
   it("is rendered as a text child, so React hands the JSON through unaltered", () => {

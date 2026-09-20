@@ -10,20 +10,23 @@
  * which is why the prop is not named here — to keep it that way. One
  * "harmless" exception is how a codebase stops having a rule.
  *
- * A text child works, and is strictly safer. React's server renderer does not
- * HTML-escape the children of a `<script>` (it is a raw-text element: escaping
- * would corrupt the JSON), so what lands in the document is the string handed
- * to it, byte for byte. That is exactly why the `<` escaping below is the
- * component's whole job.
+ * A text child works, and is strictly safer. A `<script>` is a raw-text element,
+ * so React's server renderer does not HTML-escape its children — escaping would
+ * corrupt the JSON. Measured on the installed react-dom 19.2.8: `&`, `>` and a
+ * bare `<` all reach the document verbatim; only the exact sequences `<script`
+ * and `</script` are rewritten, with their `s` escaped as `\u0073`. React's
+ * rewrite is a backstop for that one sequence. The escaping below is what this
+ * component promises, and it is wider.
  *
  * ## The escape
  *
  * An HTML parser ends a `<script>` at the first `</script` — inside a string
- * literal, inside a comment, anywhere. So any `<` in the serialised data is
- * written as `<`, which is the same character to `JSON.parse` and an inert
+ * literal, inside a comment, anywhere. So every `<` in the serialised data is
+ * written as `\u003c`, which is the same character to `JSON.parse` and an inert
  * backslash-u sequence to the HTML tokenizer. `</script>`, `<!--` and `<script`
  * in a title, a summary or a URL are therefore all incapable of closing the
- * element or opening a new one.
+ * element or opening a new one — and so is any `<` a future payload reaches for
+ * that React has no special case of its own for.
  *
  * Every field this component receives is authored in-repo (guide frontmatter,
  * message catalogues, `routing.pathnames`), never typed by a visitor. The
@@ -46,7 +49,7 @@ export interface JsonLdDocument {
   readonly [key: string]: JsonLdValue | undefined;
 }
 
-/** `<` → `<`, so no value can close the `<script>` element. See above. */
+/** `<` → `\u003c`, so no value can close the `<script>` element. See above. */
 export function serializeJsonLd(data: JsonLdDocument): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
