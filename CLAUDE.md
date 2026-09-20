@@ -232,6 +232,22 @@ scripts/             ci/, db/, perf/, content tooling
   no longer set a 404. A route-level `loading.tsx` anywhere must also be
   **silent**: it gets no `params`, so it cannot `setRequestLocale`, and one
   `useTranslations` in it turns the whole segment dynamic.
+- **The checkup is planned on the server, answered in the browser** (W3-T1).
+  `planCheckup(build, scope, guides)` (`lib/checkup/plan.ts`) is a pure function
+  of the bike and the corpus, recomputed on every request; the client sends back
+  a step KEY and nothing else (§4.4). What is STORED is answers, never questions
+  — `StoredCheckup` has no `steps` and no `cursor`, and `reconcile()` marries
+  the stored answers to a freshly computed plan on load, so a corpus that grew a
+  question costs nobody the fourteen they already answered. The payload's
+  vocabulary is pinned to the GENERATED enums (`lib/content/generated/slugs`
+  and `reason-keys`), which is why `scripts/ci/test-unit.sh` generates them like
+  `test-integration.sh` does. `lib/checkup/**` is zod/mini-only (ESLint) and
+  carries a 100 % statements/branches gate.
+- **A `use server` file cannot hold a function that takes a `userId`.** Every
+  export becomes a callable server reference, so
+  `app/[locale]/velo/[id]/controle/load.ts` sits NEXT TO `actions.ts` rather
+  than inside it: the page needs to read a checkup during a document GET, which
+  `withUser` refuses (no `Origin` header, `lib/security/origin.ts`).
 - **`"use server"` files export only async functions.** A zod schema next to an
   action fails the module at request time (`found object`), with `tsc` and
   `next build` both green. Keep input schemas module-private.
