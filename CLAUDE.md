@@ -177,6 +177,10 @@ scripts/             ci/, db/, perf/, content tooling
   renders `null` and exists only to notice a router navigation that changes the
   query without leaving the route (the header logo): an empty fallback means
   React discards nothing.
+  **A prerendered tree is on screen before it is listening**, so it sets
+  `data-hydrated="true"` on its `<section>` from a ref callback and e2e waits
+  for that, not for the element: a click in that window is dropped, and
+  `networkidle` is not "Next has finished prefetching" either (`.debug/011`).
 - **`server-only`** is imported only in `app/**` server files,
   `lib/auth/password-policy.ts` and `lib/actions/with-user.ts`. Everything
   reachable from `prisma/seed.ts` and `scripts/**` must be plain Node.

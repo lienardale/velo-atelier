@@ -229,6 +229,24 @@ export function DecisionTree({
 
   const edit = (question: QuestionId) => writeUrl({ ...state, step: question }, "push");
 
+  /**
+   * `data-hydrated` on the section, once React has taken this subtree over.
+   *
+   * The tree is in the prerendered document now, so it is on screen — readable,
+   * and with its buttons drawn — before any JavaScript has run, and a click in
+   * that window does nothing. Nothing in the markup said so, and
+   * `tests/e2e/decision-tree.spec.ts`'s `waitForTree()` used to get that
+   * guarantee for free, because the tree did not exist until it was hydrated.
+   * This is that guarantee, said out loud.
+   *
+   * A ref callback rather than an effect, for the reason `Disclosure` gives:
+   * it runs on the commit that mounted the node, and it does not schedule a
+   * second render just to move one attribute.
+   */
+  const markHydrated = useCallback((node: HTMLElement | null) => {
+    node?.setAttribute("data-hydrated", "true");
+  }, []);
+
   // The landing heading lives above this boundary (see `DecisionTreeFrame`);
   // report which screen we are on so it can step aside for the question's `<h1>`.
   useEffect(() => {
@@ -237,6 +255,7 @@ export function DecisionTree({
 
   return (
     <section
+      ref={markHydrated}
       aria-labelledby={headingId}
       data-testid="decision-tree"
       data-screen={screenKey}

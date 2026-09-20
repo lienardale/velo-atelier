@@ -120,6 +120,47 @@ fallback swap that `.debug/007` diagnosed cannot happen any more, but:
    node no re-render in the tree can touch — the property `.debug/007` paid
    1.7 s of LCP to establish, kept independently of what made it necessary.
 
+## A prerendered tree is on screen before it is listening
+
+This is the part that did not come out of the plan, and it is the part worth
+reading. The first full e2e run was green; the second failed
+`keyboard-only completion … zero RSC requests`, and running the same spec on its
+own passed eight times out of eight. The control settles it: the same spec, three
+times over, on both Chromium projects —
+
+| build                      | keyboard/RSC test |
+| -------------------------- | ----------------- |
+| `c750daf` (before)         | 0 failures of 12  |
+| this change, first attempt | 3 failures of 12  |
+
+The requests were three identical `…/fr?_rsc=` — the three `<Link href="/">` in
+the header (logo, inline nav, mobile sheet) prefetching the page the visitor is
+already on, which Next schedules from an idle callback once hydration has run.
+They are load noise, the test counts every home-page request on purpose, and it
+had always got them for free because they landed before it started looking.
+
+**Why "for free" stopped working.** `waitForTree()` waited for
+`[data-testid="decision-tree"]` to be visible, and that used to mean "hydrated",
+because the tree did not exist until it was built on the client. Now the tree is
+in the document, so it means "the HTML arrived" — hundreds of milliseconds
+earlier, and before the prefetch burst rather than after it. Two things follow,
+and only the second is about the test:
+
+- **The tree is drawn, and clickable-looking, before React is listening.** Any
+  click in that window is dropped. `DecisionTree` now says so: a ref callback
+  sets `data-hydrated="true"` on its `<section>` at the commit that mounts it
+  — the same technique, and the same reason, as `Disclosure`'s stored-state ref
+  — and `waitForTree()` waits for that. This is a real property of the page, not
+  a test hook: it is exactly what changed about it.
+- **`networkidle` is the wrong wait for "Next has finished prefetching".** It
+  means 500 ms with no request at all, and under load the lull BEFORE an
+  idle-scheduled burst outlasts the lull it waits for. Waiting for quiet on the
+  home-page requests alone is no better: a burst that has not begun looks exactly
+  like one that is over — that is the shape that failed. `watchSelfPrefetches()`
+  watches from before the navigation and waits for the first, then for the last.
+
+With both, the same stress ran 108 tests three times with no failure.
+
 ## Result
 
 Measured back to back on a quiet machine, both builds `ENABLE_TEST_PAGES=1
@@ -175,6 +216,9 @@ build output (§6.8 AC2).
   skeleton not to be. This is the assertion that fails the day the tree goes
   back under a boundary, and it is the one that replaces
   `DecisionTreeSkeleton.test.tsx`.
+- The same test asserts `data-hydrated` is **not** in the document: it is set by
+  a ref callback, so its presence in the HTML would mean the tree had gone back
+  to being rendered somewhere it should not be.
 - `components/decision-tree/RouterSearch.test.tsx` — renders nothing, says
   nothing about the query the page loaded with, reports a navigation once.
 - `components/decision-tree/DecisionTree.test.tsx` — "does not steal focus when

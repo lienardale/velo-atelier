@@ -47,9 +47,67 @@ const MTB_UP_TO_SUSPENSION = [
 
 const query = (page: Page) => new URL(page.url()).searchParams;
 
-/** The tree has hydrated when its question (or summary) is on screen, not the skeleton. */
+/**
+ * The tree is on screen AND hydrated.
+ *
+ * Both halves matter since `.debug/011`. The tree is prerendered into the
+ * document now, so its question is drawn — and its buttons are clickable-looking
+ * — before a line of JavaScript has run; waiting only for it to be visible would
+ * hand the test a tree that silently drops the next click. `data-hydrated` is
+ * set by `DecisionTree`'s ref callback, on the commit that mounts it.
+ */
 async function waitForTree(page: Page): Promise<void> {
   await expect(page.getByTestId("decision-tree")).toBeVisible();
+  await expect(page.getByTestId("decision-tree")).toHaveAttribute("data-hydrated", "true");
+}
+
+/**
+ * Watches the page prefetching ITSELF, from before the navigation, and gives
+ * back a `settle()` that waits until it has both happened and stopped.
+ *
+ * The header holds several `<Link href="/">` — the logo, the inline nav, the
+ * mobile sheet — and once hydration has run Next prefetches each of them, at
+ * the page the visitor is already on. Those `…/fr?_rsc=` requests have nothing
+ * to do with answering a question, and the RSC assertion below counts every
+ * home-page request on purpose, so they have to be over before it starts.
+ *
+ * Neither half can be skipped, and both are the reason this exists.
+ * `networkidle` means 500 ms with no request AT ALL, while Next schedules
+ * these from an idle callback after hydration — on a loaded machine the lull
+ * BEFORE the burst outlasts the lull being waited for. And waiting only for
+ * quiet cannot tell a burst that is over from one that has not begun, which is
+ * exactly the case that fails. So: wait for the first, then for the last.
+ *
+ * It used to be enough to wait for the tree, because the tree was
+ * client-rendered and that held the test open until well past all of this.
+ * Since `.debug/011` the tree is in the document and the wait is gone.
+ *
+ * Never fails: a page that stops prefetching its own route is not what this
+ * test is about.
+ */
+function watchSelfPrefetches(page: Page, homePath: string, quietMs = 750) {
+  let seen = 0;
+  let last = 0;
+  const onRequest = (request: Request) => {
+    const url = new URL(request.url());
+    if (url.pathname === homePath && url.searchParams.has("_rsc")) {
+      seen += 1;
+      last = Date.now();
+    }
+  };
+  page.on("request", onRequest);
+
+  return async function settle(): Promise<number> {
+    // The burst normally starts within ~200 ms of hydration, so this is 25x
+    // margin; it is a bound on a wait, not a budget anything should use.
+    const deadline = Date.now() + 5_000;
+    while (seen === 0 && Date.now() < deadline) await page.waitForTimeout(100);
+    while (seen > 0 && Date.now() - last < quietMs && Date.now() < deadline) {
+      await page.waitForTimeout(100);
+    }
+    page.off("request", onRequest);
+    return seen;
+  };
 }
 
 /** Press Tab until `predicate` holds for the focused element (keyboard only, no .focus()). */
@@ -129,11 +187,13 @@ forEachLocale((locale) => {
   test(`keyboard-only completion reaches the summary, focus on each h1, zero RSC requests (${locale})`, async ({
     page,
   }) => {
-    await page.goto(href(locale, "/"));
+    const homePath = href(locale, "/");
+    const selfPrefetches = watchSelfPrefetches(page, homePath);
+    await page.goto(homePath);
     await waitForTree(page);
     await page.waitForLoadState("networkidle");
+    await selfPrefetches();
 
-    const homePath = new URL(page.url()).pathname;
     const rsc: string[] = [];
     const onRequest = (request: Request) => {
       const url = new URL(request.url());
@@ -266,6 +326,9 @@ forEachLocale((locale) => {
     expect(html).toContain('data-testid="home-hero"');
     // Nothing is waiting on the client: there is no skeleton left to show.
     expect(html).not.toContain("decision-tree-skeleton");
+    // And the other half of the same fact: what is in the document is not yet
+    // listening. `data-hydrated` is set by a ref callback, so it cannot be here.
+    expect(html).not.toContain("data-hydrated");
   });
 
   test(`option cards and tree buttons are at least 44 px (${locale})`, async ({ page }) => {
