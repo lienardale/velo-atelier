@@ -178,8 +178,9 @@ test("?parts= with unknown ids → dropped, none left → full checkup + info ca
     href("fr", "/velo/[id]/controle", { id: "demo" }, { parts: "chain,not-a-part" }),
   );
   expect(response?.status()).toBe(200);
-  await expect(page.locator("[data-step-key]").first()).toBeVisible();
+  await startWizard(page);
   await expect(page.locator("body")).not.toContainText("not-a-part");
+  const kept = await plannedStepCount(page);
 
   // Nothing left: the scope falls back to a FULL checkup, and says so.
   await page.goto(
@@ -187,9 +188,9 @@ test("?parts= with unknown ids → dropped, none left → full checkup + info ca
   );
   const callout = page.locator('[data-slot="callout"]');
   await expect(callout.first()).toBeVisible();
-  // A full checkup plans more steps than any two-part scope could.
-  const scoped = await page.evaluate(() => document.querySelectorAll("[data-step-key]").length);
-  expect(scoped).toBeGreaterThan(2);
+  await startWizard(page);
+  // A full checkup plans more questions than the one-part scope above.
+  expect(await plannedStepCount(page)).toBeGreaterThan(kept);
 });
 
 // ────────────────────────────────────────────────────────────────── row 8 ──
@@ -210,42 +211,89 @@ test('/guides?kind=… no result → "Aucun guide" + reset', async ({ page }) =>
 test("partial checkup OK on a part with an open item → item done (recheck-ok)", async ({
   page,
 }) => {
-  await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+  const { specCode } = await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
 
-  // 1. A full checkup, answering KO on the first step, produces an open item.
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "local" }));
-  const openItem = await answerFirstStepKo(page);
+  // 1. A full checkup, KO on the first question, finished: an OPEN line.
+  await page.goto(href("fr", "/velo/[id]/controle", { id: "local" }, { spec: specCode }));
+  await startWizard(page);
+  const koStep = await answerStepKo(page);
+  await answerEveryStepOk(page);
+  await page.getByTestId("summary-create").click();
+
+  const opened = await storedItems(page);
+  expect(opened.length, "the first checkup produced no list to close").toBeGreaterThan(0);
+  const target = opened.find((item) => (item.sourceKeys as string[]).includes(koStep));
+  expect(target, `no line came from ${koStep}`).toBeDefined();
+  expect(target!.done, "the line starts open").toBe(false);
 
   // 2. A partial checkup on that same part, answered OK, closes it — and says
   //    WHY it closed, which is the part of §5.4 a "done" flag alone loses.
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "local" }, { parts: openItem.partId }));
+  //
+  //    Scoped by the line's own part, which is what the parts panel would send:
+  //    `brake-pads-front` is a consumable with no mesh, so the planner expands
+  //    it to the caliper that hosts it (§5.4) and the question that produced
+  //    the line is planned again. `markRechecked` then matches that step's
+  //    `ko[]` against the line.
+  await page.goto(
+    href(
+      "fr",
+      "/velo/[id]/controle",
+      { id: "local" },
+      { spec: specCode, parts: String(target!.partId) },
+    ),
+  );
+  await startWizard(page);
   await answerEveryStepOk(page);
+  await page.getByTestId("summary-create").click();
 
-  // `va:buildlist:local`, not `va:checkup:local` — the list is what closes.
-  const items = await page.evaluate((key) => {
+  const closed = (await storedItems(page)).find((item) => item.partId === target!.partId);
+  expect(closed?.done).toBe(true);
+  expect(closed?.doneReason).toBe("recheck-ok");
+});
+
+/**
+ * The wizard opens on its TOOL CHECKLIST, not on a question (§6.5) — nothing
+ * carries `data-step-key` until "commencer" is pressed. These three rows were
+ * written against a route W3-T1 was still building, so they reached for the
+ * step directly; the contract they now use is the one `checkup.spec.ts` uses.
+ */
+/** The guest to-fix list under `va:buildlist:local`. */
+async function storedItems(page: Page): Promise<Array<Record<string, unknown>>> {
+  return page.evaluate((key) => {
     const raw = window.localStorage.getItem(key);
     return raw === null
       ? []
       : ((JSON.parse(raw) as { items?: Array<Record<string, unknown>> }).items ?? []);
   }, buildListKey("local"));
-  expect(items.length, "the first checkup produced no list to close").toBeGreaterThan(0);
+}
 
-  const closed = items.find((item) => item.partId === openItem.partId);
-  expect(closed?.done).toBe(true);
-  expect(closed?.doneReason).toBe("recheck-ok");
-});
+async function startWizard(page: Page): Promise<void> {
+  await page.getByTestId("checkup-start").click();
+  await expect(page.getByTestId("step-card")).toBeVisible();
+}
 
-/** Answer KO on the first planned step and return the part it reported on. */
-async function answerFirstStepKo(page: Page): Promise<{ partId: string }> {
-  const step = page.locator("[data-step-key]").first();
-  await expect(step).toBeVisible();
-  const partId = (await step.getAttribute("data-part-id")) ?? "";
-  await step.getByRole("button", { name: /.+/ }).last().click();
-  return { partId };
+/** How many questions the plan holds, from the progress bar that announces it. */
+async function plannedStepCount(page: Page): Promise<number> {
+  const max = await page.getByRole("progressbar").first().getAttribute("aria-valuemax");
+  return Number(max ?? 0);
+}
+
+/** Answer KO + its first symptom on the current step, and name that step. */
+async function answerStepKo(page: Page): Promise<string> {
+  const card = page.getByTestId("step-card");
+  const stepKey = (await card.getAttribute("data-step-key")) ?? "";
+  await page.getByTestId("verdict-ko").click();
+  // A KO does not advance until a symptom is chosen, so the consequence that
+  // reaches the list is the one the visitor picked rather than all of them —
+  // unless the step declares none, in which case the whole `ko[]` lands (§5.4)
+  // and the wizard moves on by itself.
+  const picker = page.getByTestId("symptom-picker");
+  if ((await picker.count()) > 0) await picker.getByRole("radio").first().click();
+  return stepKey;
 }
 
 /**
- * Answer OK on every step of the current plan.
+ * Answer OK on every remaining step, leaving the wizard on its summary.
  *
  * It asserts that there WAS a plan: a page with no step at all would otherwise
  * make "every step answered" trivially true, which is exactly how a row that
@@ -253,13 +301,13 @@ async function answerFirstStepKo(page: Page): Promise<{ partId: string }> {
  */
 async function answerEveryStepOk(page: Page): Promise<void> {
   let answered = 0;
-  for (let guard = 0; guard < 40; guard += 1) {
-    const step = page.locator("[data-step-key]").first();
-    if ((await step.count()) === 0) break;
-    await step.getByRole("button", { name: /.+/ }).first().click();
+  for (let guard = 0; guard < 60; guard += 1) {
+    if ((await page.getByTestId("step-card").count()) === 0) break;
+    await page.getByTestId("verdict-ok").click();
     answered += 1;
   }
   expect(answered, "the checkup planned no step at all").toBeGreaterThan(0);
+  await expect(page.getByTestId("checkup-summary")).toBeVisible();
 }
 
 // ───────────────────────────────────────────────────────────────── row 10 ──
@@ -341,7 +389,8 @@ test("WebGL unavailable → SVG + list still complete the checkup", async ({ pag
   // …and a checkup can be answered to the end without ever seeing the 3D bike.
   const checkup = await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }));
   expect(checkup?.status(), "the checkup route did not render").toBe(200);
+  await startWizard(page);
   await answerEveryStepOk(page);
   await expect(page.getByRole("main")).toBeVisible();
-  await expect(page.locator("[data-step-key]")).toHaveCount(0);
+  await expect(page.getByTestId("step-card")).toHaveCount(0);
 });

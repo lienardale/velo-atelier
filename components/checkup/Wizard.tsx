@@ -10,6 +10,7 @@ import {
   saveCheckupAction,
 } from "@/app/[locale]/velo/[id]/controle/actions";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui-ext/Callout";
 import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
 import {
@@ -64,6 +65,8 @@ export interface WizardProps {
   /** `demo`, `local`, or the UUID — the `[id]` of every link out of here. */
   bikeParam: string;
   scope: CheckupScope;
+  /** `?parts=` named nothing this bike has, so the scope widened (§6.7). */
+  scopeDropped?: boolean;
   /** The plan, computed on the server from (spec, scope). */
   steps: readonly CheckStepRef[];
   /**
@@ -275,13 +278,16 @@ export function Wizard(props: WizardProps): React.JSX.Element {
           // so this is where a later OK closes an earlier line (§5.4, §6.7)
           // and where the cassette they already chose survives a re-run. The
           // server path does the same thing in `writeBuildList`.
+          const stored = readGuestBuildList(guestRef);
           writeGuestBuildList(
             guestRef,
             mergeGuestBuildList(
-              readGuestBuildList(guestRef)?.items ?? [],
+              stored?.items ?? [],
               deriveBuildList(finished),
               finished,
+              stored?.checkupId === finished.id,
             ),
+            finished.id,
           );
         } else {
           // The server re-plans, re-derives and writes the list itself (§5.4):
@@ -319,6 +325,12 @@ export function Wizard(props: WizardProps): React.JSX.Element {
         </p>
         <SaveChip state={saveState} />
       </header>
+
+      {props.scopeDropped === true ? (
+        <Callout tone="info" data-testid="checkup-scope-dropped">
+          {t("scopeDropped")}
+        </Callout>
+      ) : null}
 
       {phase === "tools" ? (
         <>
@@ -425,6 +437,24 @@ export function Wizard(props: WizardProps): React.JSX.Element {
  * questions are the ones on disk now, and the cursor lands on the first one
  * still open.
  */
+/**
+ * A FINISHED checkup is history, not something to resume.
+ *
+ * `va:checkup:<ref>` holds one checkup per bike, so without this a guest who
+ * completed one and came back could only ever edit that same checkup — and
+ * §5.4's "a later OK on a part with an open item closes it" was unreachable,
+ * because changing a verdict inside one checkup DROPS the line (the visitor
+ * withdrew the finding) instead of closing it with `recheck-ok` (the bike
+ * answered differently a month later). The list under `va:buildlist:<ref>`
+ * survives, which is exactly what `mergeGuestBuildList` closes against.
+ *
+ * `?step=` still wins: a resume link into a finished checkup is a deliberate
+ * request to look at it, and the summary is reachable from the list page.
+ */
+function isFinished(stored: StoredCheckup | null): boolean {
+  return stored !== null && stored.completedAt !== undefined;
+}
+
 function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState {
   const empty = createCheckupState({
     id: stored?.id ?? props.newCheckupId,
@@ -435,7 +465,10 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
     contentVersion: props.contentVersion,
     ...(stored === null ? {} : { startedAt: stored.startedAt }),
   });
-  const restored = stored === null ? empty : fromStored(stored, props.steps, props.contentVersion);
+  const resumable = stored !== null && !(isFinished(stored) && props.initialStepKey === null);
+  const restored = resumable
+    ? fromStored(stored, props.steps, props.contentVersion)
+    : { ...empty, id: props.newCheckupId };
   // `?step=` wins over "where you had got to": it IS the resume link, and it is
   // also what a deep link into one question of a checkup means.
   const at = stepIndexOf(restored, props.initialStepKey);
@@ -449,6 +482,7 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
  * they have already given, or following a `?step=` link, is not starting.
  */
 function alreadyStarted(props: WizardProps, stored: StoredCheckup | null): boolean {
+  if (isFinished(stored) && props.initialStepKey === null) return false;
   if (stored !== null && Object.keys(stored.answers).length > 0) return true;
   return props.steps.some((step) => step.key === props.initialStepKey);
 }

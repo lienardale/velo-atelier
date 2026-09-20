@@ -5,6 +5,7 @@
   "intro": "Une question à la fois. Répondez ce que vous voyez : la liste de ce qu'il y a à faire se construit toute seule.",
   "scopeFull": "Contrôle complet",
   "scopePartial": "Contrôle partiel",
+  "scopeDropped": "Les pièces demandées dans le lien n'existent pas sur ce vélo : le contrôle porte sur le vélo entier.",
   "needsBike": "Le contrôle a besoin de savoir quel vélo vous avez. Ouvrez votre vélo, puis relancez le contrôle depuis l'onglet Actions.",
   "openBike": "Ouvrir mon vélo",
   "emptyTitle": "Rien à contrôler ici",

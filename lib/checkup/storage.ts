@@ -121,6 +121,10 @@ export const StoredCheckupSchema = z.object({
 const StoredBuildListSchema = z.object({
   version: z.literal(CHECKUP_STATE_VERSION),
   updatedAt: z.iso.datetime({ offset: true }),
+  // Optional so a list written before the field existed still reads: without
+  // it the merge treats the previous list as a LATER checkup's, which keeps
+  // the visitor's findings rather than pruning them.
+  checkupId: z.optional(z.string().check(z.maxLength(64))),
   items: z.array(z.unknown()).check(z.maxLength(200)),
 });
 
@@ -379,6 +383,14 @@ export function createAutosave(store: CheckupStore, options: AutosaveOptions = {
 export interface StoredBuildList {
   version: typeof CHECKUP_STATE_VERSION;
   updatedAt: string;
+  /**
+   * The checkup that wrote it. A guest has ONE list key per bike where an
+   * account has one `BuildList` row per `Checkup`, so this is what lets
+   * `mergeGuestBuildList` tell a re-run of the same checkup (the visitor
+   * corrected a verdict: prune the line) from a later one (the bike answered
+   * differently: close the line, §6.7).
+   */
+  checkupId: string;
   items: BuildListItem[];
 }
 
@@ -398,6 +410,7 @@ export function readGuestBuildList(
 export function writeGuestBuildList(
   ref: GuestBikeRef,
   items: readonly BuildListItem[],
+  checkupId: string,
   storage: KeyValueStorage | null = defaultStorage(),
   now: () => Date = () => new Date(),
 ): boolean {
@@ -405,6 +418,7 @@ export function writeGuestBuildList(
   const payload: StoredBuildList = {
     version: CHECKUP_STATE_VERSION,
     updatedAt: now().toISOString(),
+    checkupId,
     items: [...items],
   };
   return writeRaw(storage, buildListKey(ref), JSON.stringify(payload));

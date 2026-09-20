@@ -311,21 +311,31 @@ describe("the guest to-fix list", () => {
     }),
   );
 
+  const CHECKUP_ID = "9f2c1d40-5b3e-4a7c-8d21-6e0f4a9b3c55";
+
   it("round-trips through va:buildlist:<ref>", () => {
     const storage = memoryStorage();
     expect(
-      writeGuestBuildList("demo", items, storage, () => new Date("2026-09-19T10:00:00.000Z")),
+      writeGuestBuildList(
+        "demo",
+        items,
+        CHECKUP_ID,
+        storage,
+        () => new Date("2026-09-19T10:00:00.000Z"),
+      ),
     ).toBe(true);
     expect(storage.map.has("va:buildlist:demo")).toBe(true);
 
     const read = readGuestBuildList("demo", storage);
     expect(read?.updatedAt).toBe("2026-09-19T10:00:00.000Z");
     expect(read?.items).toEqual(items);
+    // The checkup that wrote it: what tells a re-run from a later checkup.
+    expect(read?.checkupId).toBe(CHECKUP_ID);
   });
 
   it("stamps the write with the real clock by default", () => {
     const storage = memoryStorage();
-    writeGuestBuildList("local", items, storage);
+    writeGuestBuildList("local", items, CHECKUP_ID, storage);
     expect(Number.isNaN(Date.parse(readGuestBuildList("local", storage)?.updatedAt ?? ""))).toBe(
       false,
     );
@@ -342,7 +352,9 @@ describe("the guest to-fix list", () => {
   });
 
   it("reports a write the browser refused, and does nothing without storage", () => {
-    expect(writeGuestBuildList("demo", items, memoryStorage({ write: true }))).toBe(false);
-    expect(writeGuestBuildList("demo", items, null)).toBe(false);
+    expect(writeGuestBuildList("demo", items, CHECKUP_ID, memoryStorage({ write: true }))).toBe(
+      false,
+    );
+    expect(writeGuestBuildList("demo", items, CHECKUP_ID, null)).toBe(false);
   });
 });

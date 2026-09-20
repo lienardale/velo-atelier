@@ -237,7 +237,7 @@ describe("mergeGuestBuildList", () => {
 
   it("keeps what the visitor typed on a line the checkup found again", () => {
     const state = koOnChain();
-    const [merged] = mergeGuestBuildList([stored], deriveBuildList(state), state);
+    const [merged] = mergeGuestBuildList([stored], deriveBuildList(state), state, true);
     expect(merged).toMatchObject({
       done: true,
       doneReason: "manual",
@@ -263,7 +263,7 @@ describe("mergeGuestBuildList", () => {
       sortOrder: 3,
     };
     const state = koOnChain();
-    const [merged] = mergeGuestBuildList([untouched], deriveBuildList(state), state);
+    const [merged] = mergeGuestBuildList([untouched], deriveBuildList(state), state, true);
 
     expect(merged).toMatchObject({ done: false, sortOrder: 3, partId: "chain" });
     expect(Object.hasOwn(merged, "doneReason")).toBe(false);
@@ -276,14 +276,14 @@ describe("mergeGuestBuildList", () => {
       answers: { [PADS.key]: "ko" },
       symptoms: { [PADS.key]: ["pad-worn"] },
     });
-    const merged = mergeGuestBuildList([stored], deriveBuildList(state), state);
+    const merged = mergeGuestBuildList([stored], deriveBuildList(state), state, true);
     expect(merged.some((item) => item.partId === "chain")).toBe(false);
     expect(merged).toHaveLength(1);
   });
 
   it("numbers a line the visitor has never seen from its place in the new list", () => {
     const state = koOnChain();
-    const [fresh] = mergeGuestBuildList([], deriveBuildList(state), state);
+    const [fresh] = mergeGuestBuildList([], deriveBuildList(state), state, true);
     expect(fresh).toMatchObject({ done: false, sortOrder: 0 });
     expect(fresh.refinement).toBeUndefined();
     expect(fresh.chosenProduct).toBeUndefined();
@@ -299,7 +299,7 @@ describe("mergeGuestBuildList", () => {
     // The line survives only if the derivation still produces it, so derive a
     // list that contains it and check the CLOSE rather than the drop.
     const derived = [...deriveBuildList(state), { ...stored, done: false, sortOrder: 9 }];
-    const merged = mergeGuestBuildList([open], derived, state);
+    const merged = mergeGuestBuildList([open], derived, state, false);
     const chain = merged.find((item) => item.partId === "chain");
     expect(chain).toMatchObject({ done: true, doneReason: "recheck-ok" });
   });

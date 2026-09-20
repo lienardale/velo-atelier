@@ -208,6 +208,29 @@ test("the sitemap lists every indexable page, in both locales", async ({ request
   expect(xml).toContain('hreflang="x-default"');
 });
 
+/**
+ * Every `<loc>` resolves.
+ *
+ * The list above is built from the same data `app/sitemap.ts` reads, so the two
+ * agree by construction and neither knows whether the ROUTE exists: during W3
+ * the sitemap advertised `/acheter` for two days while its page lived on an
+ * unmerged branch. Walking the real URLs is what turns "the sitemap says so"
+ * into "a crawler gets a page".
+ */
+test("every URL the sitemap advertises answers 200", async ({ request }) => {
+  const xml = await (await request.get("/sitemap.xml")).text();
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+
+  expect(locs.length, "the sitemap is empty").toBeGreaterThan(20);
+  const broken: string[] = [];
+  for (const loc of locs) {
+    const path = new URL(loc).pathname;
+    const status = (await request.get(path)).status();
+    if (status !== 200) broken.push(`${path} -> ${status}`);
+  }
+  expect(broken).toEqual([]);
+});
+
 test("the sitemap advertises no page that is noindex", async ({ request }) => {
   const xml = await (await request.get("/sitemap.xml")).text();
 

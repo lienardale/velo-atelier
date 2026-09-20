@@ -5,6 +5,7 @@
   "intro": "One question at a time. Answer what you see — the to-fix list builds itself.",
   "scopeFull": "Full checkup",
   "scopePartial": "Partial checkup",
+  "scopeDropped": "The parts the link asked for are not on this bike, so the checkup covers the whole bike.",
   "needsBike": "The checkup needs to know which bike you have. Open your bike, then start the checkup from the Actions tab.",
   "openBike": "Open my bike",
   "emptyTitle": "Nothing to check here",

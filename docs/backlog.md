@@ -87,6 +87,47 @@ guides currently define terms inline on first use.
 
 Content is edited by pull request. No admin role, no moderation UI.
 
+### `setChosenProductAction` is specified but not built
+
+§4.4 lists it beside the build-list actions and `BuildListItem.chosenProduct`
+exists in the schema (the seed writes one), but nothing in §6.5's build list
+asks the visitor to record what they bought — the card offers vendor links, a
+refinement form and a done checkbox. W3-T2 built what §6.5 describes. Today the
+only writer of `chosenProduct` is the guest importer, which is why the retailer
+host allow-list (§4.4) lives in `lib/guest/schema.ts`.
+
+_To pick up_: decide the UI first ("j'ai acheté ça" on a done item?), then the
+action, reusing `isRetailerUrl` from `lib/domain/data/retailers.ts` so the two
+entry points enforce the same rule.
+
+### The brand tier never renders on the build list
+
+`components/build-list/RefinementForm.tsx` calls `shopQuestionsFor(build,
+partId, locale)` without `tierLabels`, and that argument is the only thing that
+appends the entry/mid/high question — so §6.5's "brand tier" control exists on
+`/acheter` and nowhere else. The obstacle is real: `content/brands.yaml` is read
+with `readFileSync` at module scope, and `/velo/[id]/liste` is a dynamic route
+whose form is a client component (a guest's list is in `localStorage`).
+
+_To pick up_: hand the tiers to the form as props from the server page, the way
+`/acheter` already does.
+
+### `?item=` is written and never read
+
+`BuildItemCard` links to `/acheter` with `{part, bike, item}`, but
+`components/shop/PartQuestions.tsx` reads only `part` and `bike`, so §5.5's
+"pre-fills from the build-list item" is half-done: the visitor lands on the
+right part with an empty form. The fix needs a build-list reader `/acheter` can
+import without pulling in `components/build-list/BuildList.tsx`.
+
+### The refinement disclosure has no illustration
+
+§6.5 asks for "Comment mesurer" disclosures **with** an illustration;
+`RefinementForm` ships the help text alone. A `"use client"` module may not
+import `components/illustrations/index.ts` — all ~70 drawings would land in the
+route's first-load JS — and the form is necessarily client-side. It needs an RSC
+path like `components/mdx/Illustration.tsx`, handed down as a prop.
+
 ### CSV export of a build list
 
 Print and copy-as-text cover the "take it to the shop" use case. A CSV export
@@ -109,10 +150,17 @@ the wrong thing. A guest's checkup keeps the whole state in `va:checkup:<ref>`
 and is unaffected, and so is any checkup finished in one sitting, because the
 browser sends its symptoms with `finishCheckupAction`.
 
-_To pick up_: a `reasonKeys String[]` (or a small `Json`) column on
-`CheckupItem`, written by `saveCheckupAction` and read by `loadStoredCheckup`.
-It is one migration and about ten lines; it was left out of W3-T1 because
-`prisma/schema.prisma` is shared with three parallel branches (§8.0).
+A second column belongs in the same migration. `finishCheckupAction` closes an
+open build-list line that a later checkup answered OK (§5.4, §6.7), but
+`BuildListItem` has no `doneReason`, so an account cannot say whether a line was
+ticked by the visitor or closed by the bike — the distinction a guest keeps in
+`va:buildlist:<ref>`, and the one `markRechecked` exists to record.
+
+_To pick up_: `reasonKeys String[]` (or a small `Json`) on `CheckupItem`, written
+by `saveCheckupAction` and read by `loadStoredCheckup`, plus `doneReason
+String?` on `BuildListItem` set by `closeRecheckedItems`. One migration, about
+twenty lines. Both were left out of W3 because `prisma/schema.prisma` is shared
+with three parallel branches (§8.0) and the wave froze it.
 
 ### Guides that need a workshop
 
@@ -176,6 +224,26 @@ definitions, and `form-parts.tsx` resolves a message key a server action
 returned. Pinning those the way `useDecisionText()` pins the tree's keys is the
 largest remaining payload win — `/velo/demo`'s document is 43.8 kB and it owns
 the worst TBT on the site (910 ms on CI).
+
+### `scripts/ci/e2e-docker.sh` has no way to choose its database
+
+The script takes the Postgres CONTAINER through `E2E_DOCKER_PG_CONTAINER`, but
+the database NAME comes from `.env.test` (`velo_atelier_test`) with no override.
+During a parallel wave that is the one database shared with local dev and with
+every other worktree, and the script migrates, truncates and seeds it — so the
+three W3 agents whose specs perform no touch gesture (the `.debug/005` hazard
+the script exists for) correctly declined to run it, and it was left to the
+single-tenant integration run.
+
+_To pick up_: honour `POSTGRES_URL` from the environment the way the vitest
+tiers do, so a worktree can point it at its own `*_test` database.
+
+### mobile-webkit cannot run on this Mac
+
+`browserType.launch` fails with `Executable doesn't exist at
+~/Library/Caches/ms-playwright/webkit-2359/pw_run.sh`. The project is
+non-blocking in CI, so nothing is red — but there is no local signal either.
+`npx playwright install webkit` fixes it for whoever wants one.
 
 ### `docker-compose.yml` pins `container_name`, so `db:up` cannot run from a worktree
 

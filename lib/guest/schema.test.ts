@@ -231,7 +231,7 @@ describe("collectGuestState", () => {
     // The producer, not a hand-built shape: `writeGuestBuildList` is the only
     // writer of `va:buildlist:<ref>`, so this fails if its envelope moves.
     const storage = memoryStorage({ [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW });
-    expect(writeGuestBuildList("local", storedListItems, storage)).toBe(true);
+    expect(writeGuestBuildList("local", storedListItems, CHECKUP_ID, storage)).toBe(true);
     const [list] = collectGuestState({ storage, ...NAMES }).bikes[0].lists;
     // The envelope carries no name, so the list takes the caller's.
     expect(list.name).toBe(NAMES.listName);

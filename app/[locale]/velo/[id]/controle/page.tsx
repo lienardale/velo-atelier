@@ -93,7 +93,15 @@ export default async function CheckupPage({
     );
   }
 
-  const scope = scopeFromPartIds(parsePartIds(query.parts));
+  const requestedPartIds = parsePartIds(query.parts);
+  const scope = scopeFromPartIds(requestedPartIds);
+  /**
+   * §6.7: `?parts=` naming nothing this bike has falls back to a FULL checkup
+   * — and says so. Silently widening the scope is the failure mode worth
+   * naming: the visitor asked about their brakes and got a twelve-question
+   * checkup with no explanation.
+   */
+  const scopeDropped = query.parts !== undefined && requestedPartIds.length === 0;
   const documents = GUIDES.filter((guide) => guide.locale === resolvedLocale);
   const steps = planCheckup(bike.build, scope, documents as unknown as PlannableGuide[]);
 
@@ -131,6 +139,7 @@ export default async function CheckupPage({
       bikeRef={ref}
       bikeParam={bike.param}
       scope={scope}
+      scopeDropped={scopeDropped}
       steps={steps}
       guideNodes={guideNodes}
       guideRefs={guideRefsFor(steps, bySlug)}

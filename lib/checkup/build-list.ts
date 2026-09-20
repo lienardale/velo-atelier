@@ -157,6 +157,12 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
  * question. Deliberately the same key the server merges on
  * (`writeBuildList`), so the two agree.
  *
+ * And, like the server, it treats a re-run of the SAME checkup differently from
+ * a later one: `writeBuildList` prunes the lines its own checkup no longer
+ * produces, while `closeRecheckedItems` only ever closes lines on OTHER lists.
+ * A guest has one list key per bike, so `sameCheckup` is what carries that
+ * distinction here.
+ *
  * What survives from the previous line is what the visitor typed: `done`,
  * `doneReason`, `refinement`, `chosenProduct` and its place in the list. What
  * comes from the new derivation is what the checkup found: `reasonKey`,
@@ -167,23 +173,39 @@ export function mergeGuestBuildList(
   previous: readonly BuildListItem[],
   derived: readonly BuildListItem[],
   state: CheckupState,
+  /** Did the SAME checkup write `previous`? (`StoredBuildList.checkupId`) */
+  sameCheckup: boolean,
 ): BuildListItem[] {
   const before = new Map(
     markRechecked(previous, state).map((item) => [pairOf(item.action, item.partId), item]),
   );
 
-  return derived.map((item, index) => {
-    const kept = before.get(pairOf(item.action, item.partId));
-    if (kept === undefined) return { ...item, sortOrder: index };
-    return {
-      ...item,
-      done: kept.done,
-      ...(kept.doneReason === undefined ? {} : { doneReason: kept.doneReason }),
-      ...(kept.refinement === undefined ? {} : { refinement: kept.refinement }),
-      ...(kept.chosenProduct === undefined ? {} : { chosenProduct: kept.chosenProduct }),
-      sortOrder: kept.sortOrder,
-    };
-  });
+  const carry = (item: BuildListItem, kept: BuildListItem | undefined, sortOrder: number) =>
+    kept === undefined
+      ? { ...item, sortOrder }
+      : {
+          ...item,
+          done: kept.done,
+          ...(kept.doneReason === undefined ? {} : { doneReason: kept.doneReason }),
+          ...(kept.refinement === undefined ? {} : { refinement: kept.refinement }),
+          ...(kept.chosenProduct === undefined ? {} : { chosenProduct: kept.chosenProduct }),
+          sortOrder: kept.sortOrder,
+        };
+
+  const merged = derived.map((item, index) =>
+    carry(item, before.get(pairOf(item.action, item.partId)), index),
+  );
+  if (sameCheckup) return merged;
+
+  // A LATER checkup does not delete what an earlier one found — it can only
+  // contradict it, which `markRechecked` has already recorded as
+  // `recheck-ok`. Only a re-run of the same checkup prunes, because there the
+  // missing line means the visitor withdrew the verdict that created it.
+  const seen = new Set(merged.map((item) => pairOf(item.action, item.partId)));
+  const survivors = [...before.values()].filter(
+    (item) => !seen.has(pairOf(item.action, item.partId)),
+  );
+  return [...merged, ...survivors].map((item, index) => ({ ...item, sortOrder: index }));
 }
 
 /**
