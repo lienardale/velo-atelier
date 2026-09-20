@@ -251,17 +251,31 @@ tiers do, so a worktree can point it at its own `*_test` database.
 `tests/e2e/bike3d/reduced-motion.spec.ts` focuses a part twice — once under
 `prefers-reduced-motion: reduce`, once without — and asserts the second renders
 at least five more frames in the same 1.2 s window. The inference only holds
-while the render loop is fast enough for the difference to show. On this Mac
-after a long session both halves collapse to **3 frames** and the comparison
-says nothing; verified as pre-existing by building `5748bf9` (pre-W3) in a
-worktree and failing it identically. CI's Linux Chromium has passed it at every
-wave, so nothing is red — but the test cannot distinguish "the camera did not
-animate" from "this machine cannot draw".
+while the render loop is fast enough for the difference to show. With two cores
+lost to runaway processes (`.debug/010 §9`) both halves collapsed to **3
+frames** and the comparison said nothing, deterministically, in a way that read
+as a code regression for an hour. It passes on an idle machine and has passed on
+CI at every wave — but the test still cannot distinguish "the camera did not
+animate" from "this machine could not draw".
 
 _To pick up_ (W4-T2, which owns the perf tier): assert the thing itself rather
 than a proxy — sample `window.__va.bike` camera state across the 1.2 s window
 and require it to be monotonic under motion and to arrive in the first frame
 under reduced motion. Frame counts stay useful as a soft annotation.
+
+### A killed Playwright run leaves its `next start` behind, at 100 % CPU
+
+`playwright.config.ts` sets `reuseExistingServer: !CI`, so the web server is
+started outside the test process and nothing reaps it when a run is killed or an
+agent ends mid-run. Two of them — from the W3 sub-agents' worktrees, ports 3101
+and 3103 — were found spinning at 97 % CPU each, up to three days old, holding
+no port and producing no output (`.debug/010 §9`). The only symptom is that
+_other_ tests get slower, which reads as flakiness in whatever is under test.
+
+_To pick up_: have `scripts/ci/e2e*.sh` refuse to start when a `next start` on
+the target port is already running and older than the current build, or drop
+`reuseExistingServer` locally and pay the start-up cost. Until then:
+`pgrep -fl "npm run start -p 31"` before trusting any local timing.
 
 ### mobile-webkit cannot run on this Mac
 
