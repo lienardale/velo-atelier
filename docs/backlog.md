@@ -225,6 +225,14 @@ returned. Pinning those the way `useDecisionText()` pins the tree's keys is the
 largest remaining payload win — `/velo/demo`'s document is 43.8 kB and it owns
 the worst TBT on the site (910 ms on CI).
 
+W3 widened the blast radius rather than the problem: `/velo/[id]/controle` and
+`/velo/[id]/liste` inherit the `velo/[id]` layout's declaration, and `/import`
+inherits `(protected)`'s, so five more routes now ship the whole catalogue —
+the checkup wizard reads `checkup`, `tools` and `guides`, and `/import` reads
+`account` and `errors`. Only `/acheter` declares its own (`["shop"]`), because
+its part and retailer names are resolved server-side through
+`lib/domain/i18n.ts` with an explicit locale.
+
 ### `scripts/ci/e2e-docker.sh` has no way to choose its database
 
 The script takes the Postgres CONTAINER through `E2E_DOCKER_PG_CONTAINER`, but
