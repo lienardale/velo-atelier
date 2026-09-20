@@ -263,6 +263,20 @@ than a proxy — sample `window.__va.bike` camera state across the 1.2 s window
 and require it to be monotonic under motion and to arrive in the first frame
 under reduced motion. Frame counts stay useful as a soft annotation.
 
+### Every nightly `Perf` run had failed since the workflow was written
+
+`.github/workflows/perf.yml` uploaded its `.next` artifact without
+`include-hidden-files: true`. `.next` is a dotfile, so upload-artifact v4 skipped
+it, **warned, and left the step green**; `perf (nightly)` and
+`lighthouse (nightly)` then failed one stage later with "Artifact not found for
+name: next-build". Fixed at the W3 integration by copying the two options the
+identical step in `ci.yml` has always carried — the second,
+`if-no-files-found: error`, is what makes the empty upload fail where it
+happens.
+
+Nothing was measured by that workflow in the meantime, so **W4-T2 inherits no
+nightly perf history**: the first green run is the first data point.
+
 ### A killed Playwright run leaves its `next start` behind, at 100 % CPU
 
 `playwright.config.ts` sets `reuseExistingServer: !CI`, so the web server is

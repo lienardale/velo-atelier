@@ -82,6 +82,15 @@ jobs:
           path: |
             .next
             !.next/cache
+          # `.next` is a dotfile, and upload-artifact v4 skips hidden files
+          # unless told not to: without this the step uploaded NOTHING, warned
+          # about it, and stayed green — the two jobs that download the artifact
+          # failed instead, one stage later, with "Artifact not found". Every
+          # nightly Perf run had failed this way. `if-no-files-found: error`
+          # makes the empty upload the failure, where it belongs. Both are
+          # copied from the identical step in ci.yml, which has always worked.
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 3
 
   perf:
