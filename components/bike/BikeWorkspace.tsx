@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 
 import { updateBikePartAction } from "@/app/[locale]/velo/[id]/actions";
@@ -28,12 +29,31 @@ import { Link, useRouter } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
 import { cn } from "@/lib/utils";
 
-import { GuestResumeBanner } from "@/components/checkup/GuestResumeBanner";
 import { viewerStatus } from "@/components/checkup/viewer-status";
 
 import { BikeCanvasFallback } from "./BikeCanvasFallback";
 import { PartsPanel, type PanelTab } from "./PartsPanel";
 import { ResumeBanner } from "./ResumeBanner";
+
+/**
+ * Deferred, and the 11 kB is the reason.
+ *
+ * The banner reads `va:checkup:<ref>` through `lib/checkup/storage.ts`, which
+ * brings `zod/mini` and the whole stored-checkup schema with it — into the
+ * first-load JS of EVERY bike page, for a strip of text that is usually not
+ * shown at all. `/velo/demo` went 240.8 kB -> 251.9 kB gzip when this landed,
+ * and its Lighthouse performance score fell below its gate on CI.
+ *
+ * `ssr: false` because there is nothing to render on the server anyway: the
+ * only copy of a guest's checkup is in a `localStorage` the server cannot see,
+ * so this component's own doc already accepts appearing a frame later. Deferring
+ * it moves the parser out of the eager bundle without touching that contract —
+ * and the guard on the stored value stays exactly where §1.2 wants it.
+ */
+const GuestResumeBanner = dynamic(
+  () => import("@/components/checkup/GuestResumeBanner").then((m) => m.GuestResumeBanner),
+  { ssr: false, loading: () => null },
+);
 
 /**
  * The 3D workspace (§6.4) — the page `/velo/demo`, `/velo/local` and

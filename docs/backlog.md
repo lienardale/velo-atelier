@@ -277,6 +277,20 @@ happens.
 Nothing was measured by that workflow in the meantime, so **W4-T2 inherits no
 nightly perf history**: the first green run is the first data point.
 
+### The sticky verdict bar does not stay put on Linux WebKit
+
+`tests/e2e/checkup.mobile.spec.ts:82` ("the verdict bar stays on screen while
+the guide is scrolled") fails on `mobile-webkit` and passes on every Chromium
+project — deterministically, three runs out of three including both retries.
+That project is non-blocking by design (Linux WebKit is not iOS Safari), so CI
+is not red for it, and the rest of the leg is 356 passed / 3 flaky.
+
+_To pick up_ (W4-T3, which owns the WebKit and no-WebGL matrix): find out whether
+it is the `position: sticky` container or the scroll container the sheet
+creates, and either fix the layout or skip the row on WebKit with the reason
+written down. Do not leave it silently failing — a non-blocking project whose
+failures nobody reads is not a signal.
+
 ### A killed Playwright run leaves its `next start` behind, at 100 % CPU
 
 `playwright.config.ts` sets `reuseExistingServer: !CI`, so the web server is
