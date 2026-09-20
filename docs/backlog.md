@@ -246,6 +246,23 @@ single-tenant integration run.
 _To pick up_: honour `POSTGRES_URL` from the environment the way the vitest
 tiers do, so a worktree can point it at its own `*_test` database.
 
+### `reduced-motion.spec.ts` infers "the camera animated" from a frame count
+
+`tests/e2e/bike3d/reduced-motion.spec.ts` focuses a part twice — once under
+`prefers-reduced-motion: reduce`, once without — and asserts the second renders
+at least five more frames in the same 1.2 s window. The inference only holds
+while the render loop is fast enough for the difference to show. On this Mac
+after a long session both halves collapse to **3 frames** and the comparison
+says nothing; verified as pre-existing by building `5748bf9` (pre-W3) in a
+worktree and failing it identically. CI's Linux Chromium has passed it at every
+wave, so nothing is red — but the test cannot distinguish "the camera did not
+animate" from "this machine cannot draw".
+
+_To pick up_ (W4-T2, which owns the perf tier): assert the thing itself rather
+than a proxy — sample `window.__va.bike` camera state across the 1.2 s window
+and require it to be monotonic under motion and to arrive in the first frame
+under reduced motion. Frame counts stay useful as a soft annotation.
+
 ### mobile-webkit cannot run on this Mac
 
 `browserType.launch` fails with `Executable doesn't exist at

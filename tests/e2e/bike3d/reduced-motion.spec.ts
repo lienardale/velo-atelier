@@ -48,6 +48,9 @@ test("reduced motion: instant camera, no fade, governor off @webgl", async ({ pa
     type: "focus frames",
     description: `reduced ${reduced}, animated ${animated}`,
   });
-  expect(animated).toBeGreaterThan(reduced + 4);
-  expect(reduced).toBeLessThan(15);
+  // Both numbers in the message: the annotation is not in the failure output,
+  // and "expected > 6, received 3" alone does not say which half went wrong.
+  const measured = `reduced ${reduced}, animated ${animated}`;
+  expect(animated, measured).toBeGreaterThan(reduced + 4);
+  expect(reduced, measured).toBeLessThan(15);
 });
