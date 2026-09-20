@@ -137,7 +137,7 @@ export default async function CheckupPage({
       tools={toolsFor(steps)}
       contentVersion={CONTENT_VERSION}
       newCheckupId={crypto.randomUUID()}
-      initialStored={await storedFor(ref, bike.bikeId)}
+      initialStored={await storedFor(ref, bike.bikeId, resolvedLocale)}
       initialStepKey={firstValue(query.step) ?? null}
       specCode={specCode ?? null}
     />
@@ -189,13 +189,26 @@ function guideRefsFor(
  * The stored checkup of a SAVED bike, read here so the wizard renders it on
  * first paint instead of flashing an empty one. A guest bike's copy lives in
  * `localStorage` and can only be read after hydration.
+ *
+ * Through `./load`, NOT through `loadCheckupAction`: a document GET carries no
+ * `Origin` header and `withUser` refuses it (`lib/security/origin.ts`), so the
+ * action would answer `FORBIDDEN` here and the wizard would start every reload
+ * from nothing — minting a fresh `startedAt` and, with it, a second `Checkup`
+ * row. That is the whole reason `load.ts` exists (CLAUDE.md), and
+ * `tests/security/checkup-input.test.ts` pins both halves.
+ *
+ * The imports are dynamic so `server-only` and the Prisma client stay out of
+ * the module graph of the `demo` and `local` branches, which reach neither.
  */
 async function storedFor(
   ref: ReturnType<typeof resolveBikeRef>,
   bikeId: string | null,
+  locale: Locale,
 ): Promise<StoredCheckup | null> {
   if (ref.kind !== "db" || bikeId === null) return null;
-  const { loadCheckupAction } = await import("./actions");
-  const result = await loadCheckupAction({ bikeId });
-  return result.ok ? result.data : null;
+  const { currentUser } = await import("@/lib/actions/with-user");
+  const user = await currentUser();
+  if (user === null) return null;
+  const { loadStoredCheckup } = await import("./load");
+  return loadStoredCheckup(bikeId, user.id, locale);
 }

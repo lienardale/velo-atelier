@@ -13,8 +13,10 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { deriveBuildList } from "@/lib/checkup/build-list";
 import { planCheckup, toolsFor } from "@/lib/checkup/plan";
 import { deriveBike } from "@/lib/bike/rules";
+import { makeState } from "@/tests/_helpers/checkup";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import type { PartId } from "@/lib/domain/data/parts";
 import type { BikeBuild } from "@/lib/domain/schema/part";
@@ -95,6 +97,33 @@ describe("a partial checkup asks about the parts that were picked", () => {
   it("is the full checkup again when nothing was picked", () => {
     expect(planCheckup(GRAVEL, { kind: "parts", partIds: [] }, FR).map((s) => s.key)).toEqual([]);
     expect(GRAVEL_FULL.length).toBeGreaterThan(20);
+  });
+});
+
+describe("a finding survives the rest of the checkup", () => {
+  it("never derives a line that is already done, whatever else was answered OK", () => {
+    // The corpus is full of steps that share an `(action, partId)` without
+    // being the same question — `check-brakes-disc#lever-feel` and
+    // `#hose-leak` both send `brake-line-front` to a shop, as do
+    // `check-wheels-tires#wheel-true` and `#hub-play`. A full demo checkup has
+    // 22 such pairs, and closing across them handed the visitor their one
+    // finding back already ticked done. One KO, everything else OK: the line
+    // stays open, every time.
+    const closed: string[] = [];
+    for (const step of GRAVEL_FULL) {
+      if (step.ko.length === 0) continue;
+      const answers = Object.fromEntries(
+        GRAVEL_FULL.map((other) => [other.key, other.key === step.key ? "ko" : "ok"]),
+      ) as Record<string, "ok" | "ko">;
+      const state = makeState(GRAVEL_FULL, {
+        answers,
+        symptoms: { [step.key]: [step.ko[0].reasonKey] },
+      });
+      for (const item of deriveBuildList(state)) {
+        if (item.done) closed.push(`${step.key} -> ${item.id}`);
+      }
+    }
+    expect(closed).toEqual([]);
   });
 });
 

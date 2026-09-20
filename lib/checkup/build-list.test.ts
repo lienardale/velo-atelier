@@ -129,28 +129,37 @@ describe("deriveBuildList", () => {
     ]);
   });
 
-  it("closes a line a later OK contradicts", () => {
-    // Two questions about the same pads: the wear one says KO, a second one
-    // that could produce exactly that line says OK.
-    const recheck = makeStep({
+  it("leaves a line open when another question about the same part says OK", () => {
+    // The real shape of the bug this pins: `(action, partId)` is the identity
+    // of a LINE, not of a question. On the demo bike
+    // `check-brakes-disc#lever-feel` ("levier spongieux") and
+    // `check-brakes-disc#hose-leak` both name `inspect-shop brake-line-front`,
+    // so closing across them handed the visitor their one finding already
+    // ticked done. A KO in THIS state stays open; `recheck-ok` is for a line
+    // that was already on the list (§6.7, {@link markRechecked}).
+    const leverFeel = makeStep({
       guideSlug: "check-brakes-disc",
-      stepId: "pad-recheck",
-      ko: [
-        {
-          action: "replace",
-          partId: "brake-pads-front",
-          reasonKey: "pad-worn",
-          guideSlug: "replace-brake-pads-disc",
-        },
-      ],
+      stepId: "lever-feel",
+      ko: [{ action: "inspect-shop", partId: "brake-line-front", reasonKey: "lever-spongy" }],
+    });
+    const hoseLeak = makeStep({
+      guideSlug: "check-brakes-disc",
+      stepId: "hose-leak",
+      ko: [{ action: "inspect-shop", partId: "brake-line-front", reasonKey: "hose-leak" }],
     });
     const items = deriveBuildList(
-      makeState([PADS, recheck], {
-        answers: { [PADS.key]: "ko", [recheck.key]: "ok" },
-        symptoms: { [PADS.key]: ["pad-worn"] },
+      makeState([leverFeel, hoseLeak], {
+        answers: { [leverFeel.key]: "ko", [hoseLeak.key]: "ok" },
+        symptoms: { [leverFeel.key]: ["lever-spongy"] },
       }),
     );
-    expect(items[0]).toMatchObject({ done: true, doneReason: "recheck-ok" });
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      partId: "brake-line-front",
+      reasonKey: "lever-spongy",
+      done: false,
+    });
+    expect(items[0].doneReason).toBeUndefined();
   });
 
   it("does not close a line an unrelated OK sits next to", () => {

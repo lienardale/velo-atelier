@@ -26,14 +26,24 @@
  * step's whole `ko[]` lands, which is §5.4's literal "one per ko consequence"
  * and errs towards showing too much rather than losing the problem.
  *
- * ## Skipped never creates, and a later OK closes
+ * ## Skipped never creates, and a later OK closes — a line that already EXISTS
  *
- * "Passer" produces nothing — the visitor did not look. And an OK on a question
- * that could have produced a line marks that line `done` with
- * `doneReason: 'recheck-ok'` (§5.4, §6.7): re-running the brake check and
- * saying the pads are fine is how an open item gets closed, whether it happens
- * later in the same checkup or in a partial checkup a month afterwards
- * ({@link markRechecked} takes the persisted list for that).
+ * "Passer" produces nothing — the visitor did not look.
+ *
+ * `recheck-ok` (§5.4, §6.7) is about a line that was already on the list when
+ * this checkup started: re-running the brake check a month later and saying the
+ * pads are fine is what closes it. {@link markRechecked} takes the persisted
+ * list for exactly that, and it is the list page's to call.
+ *
+ * `deriveBuildList` does NOT apply it to the lines it has just derived, and
+ * that is a fix, not an omission. `(action, partId)` is the identity of a LINE,
+ * not of a question: on the demo bike alone, `check-brakes-disc#lever-feel`
+ * ("levier spongieux") and `check-brakes-disc#hose-leak` both name
+ * `inspect-shop brake-line-front`, and so do `check-wheels-tires#wheel-true`
+ * ("roue voilée") and `#hub-play`. Closing across them meant a visitor who
+ * reported a spongy lever and then said the hose was not leaking got their one
+ * finding back already ticked done — 22 such pairs in a full demo checkup. A
+ * line derived from a KO in THIS state stays open; the visitor said so.
  */
 import type { PartId } from "@/lib/domain/data/parts";
 
@@ -61,11 +71,16 @@ function answers(step: CheckStepRef, item: Pick<BuildListItem, "partId" | "actio
 }
 
 /**
- * Close the lines a fresh set of OK verdicts contradicts.
+ * Close the lines of an EXISTING list that a fresh set of OK verdicts
+ * contradicts (§6.7).
  *
- * Deliberately generic over the item so the list page can hand its persisted
- * rows in: the only fields read are `partId`, `action` and `done`, and an item
- * the visitor ticked by hand keeps its `manual` reason.
+ * For persisted rows only — the list page hands in what it stored before this
+ * checkup ran. Never for the lines `deriveBuildList` has just produced from the
+ * same state (see this file's header): there, an OK is a different question,
+ * not a recheck.
+ *
+ * The only fields read are `partId`, `action` and `done`, and an item the
+ * visitor ticked by hand keeps its `manual` reason.
  */
 export function markRechecked(
   items: readonly BuildListItem[],
@@ -125,7 +140,7 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
     }
   }
 
-  return markRechecked([...byPair.values()], state);
+  return [...byPair.values()];
 }
 
 /**

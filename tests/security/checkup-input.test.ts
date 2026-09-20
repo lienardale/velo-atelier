@@ -28,6 +28,8 @@
  *      single Prisma call, and a cross-origin POST `FORBIDDEN` before that.
  */
 /* eslint-disable security/detect-object-injection -- step keys the test spells out, into its own fixtures */
+import { readFileSync } from "node:fs";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectScopedToUser, fakeDb } from "@/tests/_fakes/prisma";
@@ -48,6 +50,7 @@ vi.mock("content-collections", async () => ({
 
 const { saveCheckupAction, finishCheckupAction, loadCheckupAction, listCheckupsAction } =
   await import("@/app/[locale]/velo/[id]/controle/actions");
+const { loadStoredCheckup } = await import("@/app/[locale]/velo/[id]/controle/load");
 const { deriveBike } = await import("@/lib/bike/rules");
 const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
 const { CONTENT_VERSION } = await import("@/lib/content/generated/version");
@@ -319,5 +322,49 @@ describe("no session, no work", () => {
       code: "FORBIDDEN",
     });
     expect(fakeDb.calls).toHaveLength(0);
+  });
+});
+
+/**
+ * The same lock, seen from the other side.
+ *
+ * `withUser` refuses a request with no `Origin` — which is EVERY document GET —
+ * so a server component may not read a checkup through `loadCheckupAction`. It
+ * would not fail loudly: the action answers `FORBIDDEN`, the page reads `null`,
+ * and the wizard silently starts a signed-in visitor's reload from nothing,
+ * minting a fresh `startedAt` and a second `Checkup` row with it. Hence
+ * `load.ts`, whose ownership predicate is its own (`bike: { userId }`) because
+ * it takes the user id as an argument and therefore must never be an export of
+ * a `"use server"` module.
+ */
+describe("the page reads the row itself, not through the action", () => {
+  it("refuses the action on a document GET and answers the plain reader instead", async () => {
+    await saveCheckupAction({ bikeId: myBike.id, checkup: payload() });
+
+    // A top-level navigation: a host, and no `Origin` at all.
+    setRequestHeaders({ host: "localhost:3000" });
+    expect(await loadCheckupAction({ bikeId: myBike.id })).toEqual({
+      ok: false,
+      code: "FORBIDDEN",
+    });
+
+    const stored = await loadStoredCheckup(myBike.id, me.id, "fr");
+    expect(stored?.answers[PLANNED]).toBe("ko");
+    // …and it is still the owner's row only.
+    expect(await loadStoredCheckup(victimBike.id, me.id, "fr")).toBeNull();
+  });
+
+  it("is what the checkup page calls", () => {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- the path is derived from `import.meta.url`, never from input
+    const source = readFileSync(
+      new URL("../../app/[locale]/velo/[id]/controle/page.tsx", import.meta.url),
+      "utf8",
+    );
+    // Comments out: this file's own explanation names the action it must not
+    // call, and a test that reads prose is a test that fails on a rewording.
+    const code = source.replaceAll(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+    expect(code).toMatch(/loadStoredCheckup/);
+    expect(code).not.toMatch(/loadCheckupAction/);
+    expect(code).not.toMatch(/["']\.\/actions["']/);
   });
 });
