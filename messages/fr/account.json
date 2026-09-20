@@ -47,5 +47,23 @@
     "cancel": "Annuler",
     "confirm": "Supprimer définitivement",
     "submitting": "Suppression…"
+  },
+  "import": {
+    "metaTitle": "Importer mon vélo",
+    "metaDescription": "Retrouvez sur votre compte le vélo, le contrôle et la liste préparés sur cet appareil.",
+    "title": "Importer mon vélo",
+    "running": "Import de votre vélo en cours…",
+    "done": "Votre vélo est enregistré sur votre compte.",
+    "alreadyDone": "Ce vélo était déjà sur votre compte.",
+    "failedHelp": "L’import n’a pas abouti. Votre vélo est toujours sur cet appareil : rien n’est perdu.",
+    "retry": "Réessayer",
+    "skip": "Aller à mes vélos",
+    "bikeName": "Mon vélo",
+    "listName": "Ma liste"
+  },
+  "guestBanner": {
+    "title": "Un vélo attend sur cet appareil",
+    "text": "Vous avez décrit ce vélo sans être connecté. Importez-le pour le retrouver sur tous vos appareils.",
+    "cta": "Importer ce vélo"
   }
 }

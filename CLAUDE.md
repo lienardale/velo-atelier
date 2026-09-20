@@ -259,6 +259,20 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   alike. `lib/bike/repo.ts` is the one interface over the three destinations
   (demo = read-only, local = `localStorage`, db = server actions), so no
   component branches on the ref kind.
+- **The guest import is a contract, not three storage shapes forwarded.**
+  `/import` is a server page (`auth()` + `buildMetadata`, like its `(protected)`
+  siblings) wrapping one client component, which is what reads `localStorage`:
+  it projects `va:bike:local`, `va:checkup:local` and
+  `va:buildlist:local` onto the `GuestState` payload of `lib/guest/schema.ts`
+  (`zod/mini`, `strictObject` everywhere, caps in the schema), and
+  `importGuestStateAction` validates only that. Idempotency is a database fact:
+  a bike is created only when `(userId, guestLocalId)` is absent, so a second
+  device's older copy is answered `skipped: 'already-imported'` with **nothing
+  written** — never a merge, never a compare. `Checkup.guestKey` is globally
+  unique, so it is stored user-scoped (`${userId}:${CheckupState.id}`): two
+  people importing from one shared browser hold the same state id. Only the
+  `local` keys are read and cleared — `va:*:demo` belongs to the demo bike,
+  which no account owns.
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
