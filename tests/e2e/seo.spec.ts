@@ -249,6 +249,16 @@ test("robots.txt disallows the private routes in both locales and points at the 
   expect(body).toContain("Allow: /");
   expect(body).toContain(`Sitemap: ${siteOrigin}/sitemap.xml`);
 
+  // Whole lines, not substrings. `toContain("Disallow: /fr/velo/")` over the
+  // body is also satisfied by `Disallow: /fr/velo/[id]` — a rule that matches
+  // the literal brackets and therefore leaves every real bike crawlable. The
+  // truncation in `disallowPrefix` is the whole point of that function, so the
+  // assertion has to be able to see it disappear.
+  const disallowed = body
+    .split("\n")
+    .filter((line) => line.startsWith("Disallow:"))
+    .map((line) => line.slice("Disallow:".length).trim());
+
   for (const path of [
     "/fr/velo/",
     "/en/bike/",
@@ -266,12 +276,16 @@ test("robots.txt disallows the private routes in both locales and points at the 
     "/en/dev/bike3d",
     "/api/",
   ]) {
-    expect(body, `${path} is crawlable`).toContain(`Disallow: ${path}`);
+    expect(disallowed, `${path} is crawlable`).toContain(path);
   }
 
-  // …and nothing public is swept up with them.
+  // …and nothing public is swept up with them. `robots.txt` matches by prefix,
+  // so a public path is safe only while no rule is a prefix OF it.
   for (const path of ["/fr/guides", "/en/guides", "/fr/mentions-legales", "/en/legal"]) {
-    expect(body, `${path} is disallowed`).not.toContain(`Disallow: ${path}`);
+    expect(
+      disallowed.filter((rule) => path.startsWith(rule)),
+      `${path} is disallowed`,
+    ).toEqual([]);
   }
 });
 
