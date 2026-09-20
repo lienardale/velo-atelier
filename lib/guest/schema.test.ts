@@ -20,8 +20,10 @@ import { describe, expect, it } from "vitest";
 
 import { writeLocalBike, type KeyValueStorage } from "@/lib/bike/local-bike";
 import { buildListKey, checkupKey, LOCAL_BIKE_KEY } from "@/lib/bike/storage-keys";
+import { writeGuestBuildList } from "@/lib/checkup/storage";
 import { CHECKUP_STATE_VERSION, type BuildListItem, type CheckupState } from "@/lib/checkup/types";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+import { makeStep } from "@/tests/_helpers/checkup";
 
 import {
   clearGuestState,
@@ -68,35 +70,37 @@ const storedCheckup: CheckupState = {
   bikeRef: { kind: "local" },
   scope: { kind: "parts", partIds: ["chain"] },
   locale: "fr",
+  // Built with W3-T1's shared `makeStep` rather than by hand: the planner owns
+  // `CheckStepRef`, and it grew `title`, `prompt` and `number` between this
+  // fixture being written and the wave being merged. What matters here is the
+  // key, the slug and the parts — the fields the importer reads.
   steps: [
-    {
-      key: "check-drivetrain#chain-wear",
+    makeStep({
       guideSlug: "check-drivetrain",
       stepId: "chain-wear",
       partIds: ["chain"],
-      ko: [],
-      skippable: true,
-      tools: [],
-    },
-    {
-      key: "check-drivetrain#cassette-teeth",
+      ko: [
+        {
+          action: "replace",
+          partId: "chain",
+          reasonKey: "chain-elongation",
+          guideSlug: "replace-chain",
+        },
+      ],
+    }),
+    makeStep({
       guideSlug: "check-drivetrain",
       stepId: "cassette-teeth",
       partIds: ["cassette"],
       ko: [],
-      skippable: true,
-      tools: [],
-    },
-    {
-      // A step that reports on no part has no `CheckupItem` row to become.
-      key: "check-frame-bolts#bolt-torque",
+    }),
+    // A step that reports on no part has no `CheckupItem` row to become.
+    makeStep({
       guideSlug: "check-frame-bolts",
       stepId: "bolt-torque",
       partIds: [],
       ko: [],
-      skippable: true,
-      tools: [],
-    },
+    }),
   ],
   cursor: 3,
   answers: {
@@ -107,6 +111,10 @@ const storedCheckup: CheckupState = {
     "check-brakes-rim#pad-wear": "ok",
   },
   notes: { "check-drivetrain#chain-wear": "élongation 0,8 %" },
+  // The symptom the visitor ticked on the KO. The importer does not read it —
+  // `StoredCheckupSchema` is `z.object`, not `strictObject`, so it is dropped
+  // rather than refused — and this fixture is here to keep that true.
+  symptoms: { "check-drivetrain#chain-wear": ["chain-elongation"] },
   toolsMissing: [],
   startedAt: "2026-09-10T08:00:00.000Z",
   completedAt: "2026-09-10T08:12:00.000Z",
@@ -203,7 +211,7 @@ describe("collectGuestState", () => {
     expect(collectGuestState({ storage, ...NAMES }).bikes[0].checkups).toEqual([]);
   });
 
-  it("reads a build list stored as an envelope or as a bare array", () => {
+  it("reads what writeGuestBuildList actually writes, named after the bike", () => {
     expect(collected.bikes[0].lists).toEqual([
       {
         name: "Révision",
@@ -220,11 +228,12 @@ describe("collectGuestState", () => {
       },
     ]);
 
-    const storage = memoryStorage({
-      [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
-      [buildListKey("local")]: JSON.stringify(storedListItems),
-    });
+    // The producer, not a hand-built shape: `writeGuestBuildList` is the only
+    // writer of `va:buildlist:<ref>`, so this fails if its envelope moves.
+    const storage = memoryStorage({ [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW });
+    expect(writeGuestBuildList("local", storedListItems, storage)).toBe(true);
     const [list] = collectGuestState({ storage, ...NAMES }).bikes[0].lists;
+    // The envelope carries no name, so the list takes the caller's.
     expect(list.name).toBe(NAMES.listName);
     expect(list.items).toHaveLength(1);
   });
@@ -297,18 +306,20 @@ describe("collectGuestState", () => {
     }
   });
 
-  it("drops an empty list, and defaults the fields W3-T2 may not have written", () => {
+  it("drops an empty list, and defaults the item fields the envelope may omit", () => {
     const empty = memoryStorage({
       [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
       [buildListKey("local")]: JSON.stringify({ name: "Vide", items: [] }),
     });
     expect(collectGuestState({ storage: empty, ...NAMES }).bikes[0].lists).toEqual([]);
 
+    // `done` and `sortOrder` are optional in the stored item: a list written by
+    // an older build, or hand-edited, still imports with the defaults.
     const sparse = memoryStorage({
       [LOCAL_BIKE_KEY]: LOCAL_BIKE_RAW,
-      [buildListKey("local")]: JSON.stringify([
-        { partId: "chain", action: "replace", reasonKey: "chain-elongation" },
-      ]),
+      [buildListKey("local")]: JSON.stringify({
+        items: [{ partId: "chain", action: "replace", reasonKey: "chain-elongation" }],
+      }),
     });
     const [list] = collectGuestState({ storage: sparse, ...NAMES }).bikes[0].lists;
     expect(list.items[0]).toEqual({

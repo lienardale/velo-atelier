@@ -352,6 +352,7 @@ export const finishCheckupAction = withUser(
       checkup.id,
       deriveBuildList(state),
     );
+    await closeRecheckedItems(parsed.data.bikeId, user.id, buildListId, state);
     await writePartStates(parsed.data.bikeId, user.id, state);
 
     revalidatePath("/[locale]/velo/[id]", "page");
@@ -430,6 +431,47 @@ async function writeBuildList(
   }
 
   return list.id;
+}
+
+/**
+ * §5.4 / §6.7: an OK closes a line that was already open, on ANOTHER list.
+ *
+ * `writeBuildList` merges within this checkup's own list, which is where a
+ * re-run of the same checkup is handled. This is the other half: a PARTIAL
+ * checkup answered OK a month later gets its own `Checkup` row and its own
+ * `BuildList`, so the line it should close lives on the list the first checkup
+ * produced. `done` is set with `doneReason: 'recheck-ok'` rather than deleted —
+ * §5.4 wants the list to say why it closed, and a visitor who ticks a box by
+ * hand must stay distinguishable from one the bike answered for.
+ *
+ * A guest's equivalent is `mergeGuestBuildList`: `va:buildlist:<ref>` is one
+ * list per bike, so there the two halves are the same merge.
+ */
+async function closeRecheckedItems(
+  bikeId: string,
+  userId: string,
+  currentListId: string,
+  state: CheckupState,
+): Promise<void> {
+  const okPartIds = Object.entries(statusByPart(state))
+    .filter(([, status]) => status === "ok")
+    .map(([partId]) => partId);
+  if (okPartIds.length === 0) return;
+
+  await prisma.buildListItem.updateMany({
+    where: {
+      buildListId: { not: currentListId },
+      partId: { in: okPartIds },
+      done: false,
+      buildList: { bikeId, bike: { userId } },
+    },
+    // `done` only: `BuildListItem` has no `doneReason` column, so an account
+    // loses the WHY that a guest keeps in `va:buildlist:<ref>`. One nullable
+    // column fixes it, together with `CheckupItem.symptoms` — both are in
+    // docs/backlog.md behind the single migration they share. The schema is
+    // frozen for this wave (§8.0: W0-T4 owns it).
+    data: { done: true },
+  });
 }
 
 function toBuildAction(action: string): BuildAction {

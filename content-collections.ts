@@ -27,6 +27,7 @@
  */
 import { defineCollection, defineConfig } from "@content-collections/core";
 import { compileMDX } from "@content-collections/mdx";
+import remarkGfm from "remark-gfm";
 
 import {
   isLegalPageId,
@@ -110,7 +111,23 @@ const legal = defineCollection({
       throw new Error(`${_meta.filePath}: "${locale}" is not a locale (fr, en)`);
     }
 
-    const mdx = await compileMDX(context, document);
+    /**
+     * GFM, for the LEGAL pages only.
+     *
+     * An RGPD privacy policy is a table — data, purpose, legal basis, and a
+     * second one for cookies — and MDX without `remark-gfm` renders a pipe
+     * table as a paragraph of pipe characters, which is what
+     * `/fr/confidentialite` shipped as until the W3 integration. §1.4 pins the
+     * dependency set and predates this content; adding the plugin was the
+     * smaller of the two honest fixes (the other being to rewrite the policy
+     * without tables).
+     *
+     * Scoped to this collection deliberately. GFM also turns on strikethrough,
+     * autolinks, task lists and footnotes, and the 47 guides are validated by
+     * `lib/content/check.ts` against a closed set of components — changing how
+     * their bodies parse is a content decision for a wave that owns the guides.
+     */
+    const mdx = await compileMDX(context, document, { remarkPlugins: [remarkGfm] });
     return {
       ...frontmatter,
       id,

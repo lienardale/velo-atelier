@@ -20,7 +20,7 @@
 /* eslint-disable security/detect-non-literal-regexp -- locale-keyed message fixtures and patterns built from paths this file computed itself */
 import type { Page } from "@playwright/test";
 
-import { checkupKey } from "../../lib/bike/storage-keys";
+import { buildListKey } from "../../lib/bike/storage-keys";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
 import { routing, type Pathname } from "../../lib/i18n/routing";
 import enBike from "../../messages/en/bike.json";
@@ -46,14 +46,6 @@ const FOREIGN_BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
 const BIKE_ROUTES = (Object.keys(routing.pathnames) as Pathname[]).filter((key) =>
   key.startsWith("/velo/[id]"),
 );
-
-/**
- * Bike sub-routes whose page file does not exist yet, so a request for them is
- * a 404 for the wrong reason. They are excluded from the "…and the same URL on
- * the demo bike answers 200" control below, and from nothing else. **Delete
- * these two lines at the W3 integration**, once W3-T1 and W3-T2 have landed.
- */
-const ROUTES_PENDING: readonly string[] = ["/velo/[id]/controle", "/velo/[id]/liste"];
 
 /** The params a `/velo/[id]…` key needs, for the given bike. */
 function bikeParams(key: Pathname, id: string): Record<string, string> {
@@ -96,7 +88,6 @@ test("/velo/<other-user-uuid> and sub-routes → 404 (never 403)", async ({
     expect(foreign.status(), `${key} for another user's bike`).toBe(404);
     expect(foreign.status(), `${key} must never answer 403`).not.toBe(403);
 
-    if (ROUTES_PENDING.includes(key)) continue;
     // …and the same URL on a bike this visitor may see is a 200, so the 404
     // above is about ownership and not about the route being absent.
     const own = await request.get(href("fr", key as RouteKey, bikeParams(key, "demo")));
@@ -230,12 +221,14 @@ test("partial checkup OK on a part with an open item → item done (recheck-ok)"
   await page.goto(href("fr", "/velo/[id]/controle", { id: "local" }, { parts: openItem.partId }));
   await answerEveryStepOk(page);
 
+  // `va:buildlist:local`, not `va:checkup:local` — the list is what closes.
   const items = await page.evaluate((key) => {
     const raw = window.localStorage.getItem(key);
     return raw === null
       ? []
       : ((JSON.parse(raw) as { items?: Array<Record<string, unknown>> }).items ?? []);
-  }, checkupKey("local"));
+  }, buildListKey("local"));
+  expect(items.length, "the first checkup produced no list to close").toBeGreaterThan(0);
 
   const closed = items.find((item) => item.partId === openItem.partId);
   expect(closed?.done).toBe(true);

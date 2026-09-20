@@ -10,7 +10,7 @@ import {
   saveCheckupAction,
 } from "@/app/[locale]/velo/[id]/controle/actions";
 import { Button } from "@/components/ui/button";
-import { deriveBuildList } from "@/lib/checkup/build-list";
+import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
 import {
   canFinish,
@@ -27,6 +27,7 @@ import {
   verdictOf,
 } from "@/lib/checkup/selectors";
 import {
+  readGuestBuildList,
   createAutosave,
   createServerStore,
   fromStored,
@@ -270,7 +271,18 @@ export function Wizard(props: WizardProps): React.JSX.Element {
       try {
         if (guestRef !== null) {
           await store.save(finished);
-          writeGuestBuildList(guestRef, deriveBuildList(finished));
+          // Merged, not replaced: `va:buildlist:<ref>` is the guest's ONE list,
+          // so this is where a later OK closes an earlier line (§5.4, §6.7)
+          // and where the cassette they already chose survives a re-run. The
+          // server path does the same thing in `writeBuildList`.
+          writeGuestBuildList(
+            guestRef,
+            mergeGuestBuildList(
+              readGuestBuildList(guestRef)?.items ?? [],
+              deriveBuildList(finished),
+              finished,
+            ),
+          );
         } else {
           // The server re-plans, re-derives and writes the list itself (§5.4):
           // the browser never says what is on it.

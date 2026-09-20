@@ -309,4 +309,35 @@ forEachLocale((locale) => {
       await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
     });
   }
+
+  /**
+   * The privacy policy is a TABLE — data, purpose, legal basis, and a second
+   * one for cookies. Without `remark-gfm` (legal collection only, see
+   * `content-collections.ts`) MDX renders a pipe table as a paragraph of pipe
+   * characters, which is what this page shipped as until the W3 integration.
+   * Asserting the rendered role, not the plugin, so the day someone drops it
+   * this test is what says so.
+   */
+  test(`/confidentialite renders its RGPD tables, and they scroll inside themselves (${locale})`, async ({
+    page,
+  }) => {
+    await page.goto(href(locale, "/confidentialite"));
+
+    const tables = page.getByRole("table");
+    expect(await tables.count()).toBeGreaterThanOrEqual(2);
+    await expect(tables.first().getByRole("columnheader").first()).toBeVisible();
+    await expect(page.getByTestId("legal-page")).not.toContainText("| ---");
+
+    // A three-column table does not fit a phone: it gets its own scroll
+    // container so the DOCUMENT never scrolls sideways (§6.8 AC5).
+    const overflows = await tables.first().evaluate((table) => {
+      const box = table.parentElement as HTMLElement;
+      return {
+        scrolls: getComputedStyle(box).overflowX,
+        document: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      };
+    });
+    expect(overflows.scrolls).toBe("auto");
+    expect(overflows.document).toBe(true);
+  });
 });

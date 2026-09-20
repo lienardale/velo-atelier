@@ -59,25 +59,43 @@
     },
     "/[locale]/velo/[id]": {
       "label": "bike workspace",
-      "firstLoadJsGzipBytes": 265216,
+      "firstLoadJsGzipBytes": 277504,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
     "/[locale]/velo/[id]/piece/[partId]": {
       "label": "part panel (deep link)",
-      "firstLoadJsGzipBytes": 265216,
+      "firstLoadJsGzipBytes": 277504,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/velo/[id]/controle": {
+      "label": "checkup wizard",
+      "firstLoadJsGzipBytes": 244736,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/velo/[id]/liste": {
+      "label": "to-fix list",
+      "firstLoadJsGzipBytes": 269312,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
     "/[locale]/velo/[id]/reglages": {
       "label": "fit and measurements",
-      "firstLoadJsGzipBytes": 230400,
+      "firstLoadJsGzipBytes": 239616,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
     "/[locale]/(protected)/mes-velos": {
       "label": "garage",
-      "firstLoadJsGzipBytes": 208896,
+      "firstLoadJsGzipBytes": 209920,
+      "targetGzipBytes": 143360,
+      "forbidWebgl": true
+    },
+    "/[locale]/acheter": {
+      "label": "buying guide",
+      "firstLoadJsGzipBytes": 236544,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     }

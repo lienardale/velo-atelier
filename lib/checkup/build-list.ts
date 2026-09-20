@@ -144,6 +144,49 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
 }
 
 /**
+ * A guest's stored list, brought up to date by a checkup that has just finished.
+ *
+ * `va:buildlist:<ref>` holds ONE list per bike, so this is where a guest's
+ * §5.4 "a later OK closes an open line" lives: the previous list is
+ * {@link markRechecked} against the new state before anything is merged into
+ * it. An account's equivalent is `finishCheckupAction`, which closes matching
+ * open lines on the bike's other lists after writing this checkup's.
+ *
+ * Merged on `(action, partId)`, NOT on `id` — the id embeds the first step that
+ * produced the line, and a re-run can reach the same line from a different
+ * question. Deliberately the same key the server merges on
+ * (`writeBuildList`), so the two agree.
+ *
+ * What survives from the previous line is what the visitor typed: `done`,
+ * `doneReason`, `refinement`, `chosenProduct` and its place in the list. What
+ * comes from the new derivation is what the checkup found: `reasonKey`,
+ * `guideSlug`, `sourceKeys`. Lines the checkup no longer produces are dropped,
+ * again as the server does.
+ */
+export function mergeGuestBuildList(
+  previous: readonly BuildListItem[],
+  derived: readonly BuildListItem[],
+  state: CheckupState,
+): BuildListItem[] {
+  const before = new Map(
+    markRechecked(previous, state).map((item) => [pairOf(item.action, item.partId), item]),
+  );
+
+  return derived.map((item, index) => {
+    const kept = before.get(pairOf(item.action, item.partId));
+    if (kept === undefined) return { ...item, sortOrder: index };
+    return {
+      ...item,
+      done: kept.done,
+      ...(kept.doneReason === undefined ? {} : { doneReason: kept.doneReason }),
+      ...(kept.refinement === undefined ? {} : { refinement: kept.refinement }),
+      ...(kept.chosenProduct === undefined ? {} : { chosenProduct: kept.chosenProduct }),
+      sortOrder: kept.sortOrder,
+    };
+  });
+}
+
+/**
  * The per-part tint the viewer shows after a checkup (§6.4 `status`).
  *
  * Host-expanded, like `CheckStepRef.partIds`: a hosted part has no mesh of its

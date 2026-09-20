@@ -42,6 +42,7 @@ import { buildListKey, checkupKey, LOCAL_BIKE_KEY } from "@/lib/bike/storage-key
 import { QUOTAS } from "@/lib/bike/rules";
 import { CHECKUP_ANSWERS, type CheckupAnswer } from "@/lib/checkup/types";
 import { QUESTION_IDS } from "@/lib/domain/data/decision-tree";
+import { isRetailerId, isRetailerUrl } from "@/lib/domain/data/retailers";
 import { KO_ACTIONS, type KoAction } from "@/lib/domain/schema/procedure";
 import { MAX_BUILD_PARTS } from "@/lib/domain/engine/validate-build";
 
@@ -185,13 +186,30 @@ function isPlainHttpsUrl(value: string): boolean {
   return url.protocol === "https:" && url.username === "" && url.password === "";
 }
 
-const ChosenProductSchema = z.strictObject({
-  brand: z.string().check(z.maxLength(80)),
-  model: z.string().check(z.maxLength(120)),
-  size: z.string().check(z.maxLength(40)),
-  vendor: z.string().check(z.regex(/^[a-z0-9-]{1,40}$/)),
-  url: z.string().check(z.maxLength(1000), z.refine(isPlainHttpsUrl)),
-});
+/**
+ * §4.4: the link must be https AND on the named retailer's own hosts, unless
+ * the visitor pasted their own (`vendor: 'other'`).
+ *
+ * The host set is derived from `RETAILERS` itself (`retailerHosts`), so adding
+ * a retailer or changing a template moves this guard with it. Checked as a pair
+ * because the two fields only mean anything together: a product claiming
+ * `vendor: "rosebikes"` and pointing somewhere that is not Rose is the case
+ * worth refusing.
+ */
+function isAllowedProductUrl(product: { vendor: string; url: string }): boolean {
+  if (!isPlainHttpsUrl(product.url)) return false;
+  return isRetailerId(product.vendor) ? isRetailerUrl(product.vendor, product.url) : true;
+}
+
+const ChosenProductSchema = z
+  .strictObject({
+    brand: z.string().check(z.maxLength(80)),
+    model: z.string().check(z.maxLength(120)),
+    size: z.string().check(z.maxLength(40)),
+    vendor: z.string().check(z.regex(/^[a-z0-9-]{1,40}$/)),
+    url: z.string().check(z.maxLength(1000), z.refine(isPlainHttpsUrl)),
+  })
+  .check(z.refine(isAllowedProductUrl));
 
 const CheckupItemSchema = z.strictObject({
   stepKey: StepKeyPattern,
@@ -307,10 +325,13 @@ const StoredCheckupSchema = z.object({
  * What a stored build list has to have.
  *
  * The ITEM shape is pinned — `BuildListItem` in `lib/checkup/types.ts` is the
- * W3 contract — but the ENVELOPE around it is W3-T2's and is not yet written,
- * so both plausible forms are accepted: the bare array, and `{ items: [...] }`
- * with whatever else it carries. When W3-T2 lands, this narrows to the one it
- * writes (reported as a follow-up at the wave integration).
+ * W3 contract — and so now is the envelope: `writeGuestBuildList`
+ * (`lib/checkup/storage.ts`, W3-T1) is the only writer of `va:buildlist:<ref>`
+ * and it writes `{ version, updatedAt, items }`. This was a union of two
+ * plausible shapes while that producer was being written on a sibling branch;
+ * narrowed at the W3 integration to the one that exists. `z.object` rather than
+ * `strictObject`, so `version` and `updatedAt` are dropped rather than refused
+ * — the database keeps neither.
  */
 const StoredBuildListItemSchema = z.object({
   partId: z.string(),
@@ -331,10 +352,10 @@ const StoredBuildListItemSchema = z.object({
   ),
 });
 
-const StoredBuildListSchema = z.union([
-  z.array(StoredBuildListItemSchema),
-  z.object({ name: z.optional(z.string()), items: z.array(StoredBuildListItemSchema) }),
-]);
+const StoredBuildListSchema = z.object({
+  name: z.optional(z.string()),
+  items: z.array(StoredBuildListItemSchema),
+});
 
 /** `window.localStorage`, or `null` where it cannot be reached (Safari private mode). */
 function defaultStorage(): KeyValueStorage | null {
@@ -403,8 +424,8 @@ function collectBuildLists(storage: KeyValueStorage, listName: string): GuestBui
   const parsed = StoredBuildListSchema.safeParse(readJson(storage, buildListKey("local")));
   if (!parsed.success) return [];
   const stored = parsed.data;
-  const rawItems = Array.isArray(stored) ? stored : stored.items;
-  const name = Array.isArray(stored) ? listName : (stored.name ?? listName);
+  const rawItems = stored.items;
+  const name = stored.name ?? listName;
   if (rawItems.length === 0) return [];
 
   const items: GuestBuildListItem[] = rawItems

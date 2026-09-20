@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { makeState, makeStep, threeStepPlan } from "@/tests/_helpers/checkup";
 
-import { deriveBuildList, markRechecked, statusByPart } from "./build-list";
+import { deriveBuildList, markRechecked, mergeGuestBuildList, statusByPart } from "./build-list";
 import type { BuildListItem } from "./types";
 import type { PartId } from "@/lib/domain/data/parts";
 
@@ -203,6 +203,105 @@ describe("markRechecked", () => {
     const manual = { ...item, done: true, doneReason: "manual" as const };
     const [kept] = markRechecked([manual], makeState(PLAN, { answers: { [CHAIN.key]: "ok" } }));
     expect(kept.doneReason).toBe("manual");
+  });
+});
+
+describe("mergeGuestBuildList", () => {
+  const stored: BuildListItem = {
+    id: "check-drivetrain#chain-wear|chain|replace",
+    stepKey: CHAIN.key,
+    sourceKeys: [CHAIN.key],
+    partId: "chain" as PartId,
+    action: "replace",
+    reasonKey: "chain-elongation",
+    guideSlug: "replace-chain",
+    done: true,
+    doneReason: "manual",
+    refinement: { speeds: "11" },
+    chosenProduct: {
+      brand: "Shimano",
+      model: "CN-HG601",
+      size: "11v",
+      vendor: "alltricks",
+      url: "https://www.alltricks.fr/C-40598-toutes-les-chaines",
+    },
+    sortOrder: 7,
+  };
+
+  /** A state that derives the same (replace, chain) line, from a KO. */
+  const koOnChain = () =>
+    makeState(PLAN, {
+      answers: { [CHAIN.key]: "ko" },
+      symptoms: { [CHAIN.key]: ["chain-elongation"] },
+    });
+
+  it("keeps what the visitor typed on a line the checkup found again", () => {
+    const state = koOnChain();
+    const [merged] = mergeGuestBuildList([stored], deriveBuildList(state), state);
+    expect(merged).toMatchObject({
+      done: true,
+      doneReason: "manual",
+      refinement: { speeds: "11" },
+      chosenProduct: stored.chosenProduct,
+      sortOrder: 7,
+    });
+    // …and takes what the checkup found from the new derivation.
+    expect(merged.sourceKeys).toEqual([CHAIN.key]);
+  });
+
+  it("re-runs the same checkup over an untouched line without inventing fields", () => {
+    // The commonest case: a line from last month's checkup that the visitor
+    // never ticked, refined or shopped for. None of the three optional fields
+    // exists, and the merge must not put `undefined` ones on the item — the
+    // guest list is JSON, and `{ refinement: undefined }` round-trips as a key.
+    const untouched: BuildListItem = {
+      ...stored,
+      done: false,
+      doneReason: undefined,
+      refinement: undefined,
+      chosenProduct: undefined,
+      sortOrder: 3,
+    };
+    const state = koOnChain();
+    const [merged] = mergeGuestBuildList([untouched], deriveBuildList(state), state);
+
+    expect(merged).toMatchObject({ done: false, sortOrder: 3, partId: "chain" });
+    expect(Object.hasOwn(merged, "doneReason")).toBe(false);
+    expect(Object.hasOwn(merged, "refinement")).toBe(false);
+    expect(Object.hasOwn(merged, "chosenProduct")).toBe(false);
+  });
+
+  it("drops a stored line the checkup no longer produces", () => {
+    const state = makeState(PLAN, {
+      answers: { [PADS.key]: "ko" },
+      symptoms: { [PADS.key]: ["pad-worn"] },
+    });
+    const merged = mergeGuestBuildList([stored], deriveBuildList(state), state);
+    expect(merged.some((item) => item.partId === "chain")).toBe(false);
+    expect(merged).toHaveLength(1);
+  });
+
+  it("numbers a line the visitor has never seen from its place in the new list", () => {
+    const state = koOnChain();
+    const [fresh] = mergeGuestBuildList([], deriveBuildList(state), state);
+    expect(fresh).toMatchObject({ done: false, sortOrder: 0 });
+    expect(fresh.refinement).toBeUndefined();
+    expect(fresh.chosenProduct).toBeUndefined();
+  });
+
+  it("closes an open stored line the new checkup answered OK (§6.7)", () => {
+    // The chain is fine now, and the KO that keeps the line alive is elsewhere.
+    const state = makeState(PLAN, {
+      answers: { [CHAIN.key]: "ok", [PADS.key]: "ko" },
+      symptoms: { [PADS.key]: ["pad-worn"] },
+    });
+    const open = { ...stored, done: false, doneReason: undefined };
+    // The line survives only if the derivation still produces it, so derive a
+    // list that contains it and check the CLOSE rather than the drop.
+    const derived = [...deriveBuildList(state), { ...stored, done: false, sortOrder: 9 }];
+    const merged = mergeGuestBuildList([open], derived, state);
+    const chain = merged.find((item) => item.partId === "chain");
+    expect(chain).toMatchObject({ done: true, doneReason: "recheck-ok" });
   });
 });
 

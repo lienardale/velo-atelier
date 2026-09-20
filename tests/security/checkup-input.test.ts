@@ -44,8 +44,12 @@ vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModul
 
 // The compiled corpus only exists after `content-collections build`; the
 // frontmatter on disk is the same contract and needs no build step.
+// `lib/content/collection.ts` reads BOTH collections at module scope, so a
+// mock that names only one fails the whole file on import (W3 integration:
+// `legalPage` arrived on a sibling branch). These tests never read a legal page.
 vi.mock("content-collections", async () => ({
   allGuides: (await import("@/tests/_helpers/guides")).diskGuides(),
+  allLegalPages: [],
 }));
 
 const { saveCheckupAction, finishCheckupAction, loadCheckupAction, listCheckupsAction } =

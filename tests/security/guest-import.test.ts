@@ -311,6 +311,46 @@ describe("hostile strings", () => {
     }
     expectNoWrites();
   });
+
+  it("stores no chosen product whose link is not on the retailer it names (§4.4)", async () => {
+    const base = { brand: "Shimano", model: "CN-HG601", size: "11v" };
+    for (const product of [
+      // Somewhere else entirely.
+      { ...base, vendor: "alltricks", url: "https://evil.example/chain" },
+      // A real retailer, but not the one the product claims to come from.
+      { ...base, vendor: "alltricks", url: "https://www.rosebikes.fr/search?q=chain" },
+      // The host is a SUFFIX of a retailer's, which a substring check would pass.
+      { ...base, vendor: "rosebikes", url: "https://www.rosebikes.fr.evil.example/x" },
+      // A subdomain nobody declared.
+      { ...base, vendor: "decathlon", url: "https://promo.decathlon.fr/x" },
+    ]) {
+      const payload = tampered({
+        lists: [{ ...LIST, items: [{ ...LIST.items[0], chosenProduct: product }] }],
+      });
+      expect(await importGuestStateAction(payload), product.url).toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+    }
+    expectNoWrites();
+  });
+
+  it("keeps a retailer's own link, and a link the visitor pasted (§4.4)", async () => {
+    const base = { brand: "Shimano", model: "CN-HG601", size: "11v" };
+    for (const product of [
+      { ...base, vendor: "alltricks", url: "https://www.alltricks.fr/C-40598-toutes-les-chaines" },
+      { ...base, vendor: "rosebikes", url: "https://www.rosebikes.com/search?q=chain" },
+      // `other` is the escape hatch the plan names: plain https is the only bar.
+      { ...base, vendor: "other", url: "https://mon-velociste-du-coin.fr/chaine-11v" },
+    ]) {
+      fakeDb.resetCalls();
+      const payload = state(
+        bike({ lists: [{ ...LIST, items: [{ ...LIST.items[0], chosenProduct: product }] }] }),
+      );
+      const result = await importGuestStateAction(payload);
+      expect(result.ok, product.url).toBe(true);
+    }
+  });
 });
 
 describe("importing the same browser twice", () => {

@@ -103,6 +103,17 @@ function resolveSpecifier(specifier: string, from: string): Resolution {
   return { kind: "missing" };
 }
 
+/**
+ * Three caches, all keyed by path and all pure functions of the file's bytes:
+ * its text, its import specifiers, and whether it is a `"use client"` entry.
+ *
+ * Every route walks its own graph, and the graphs overlap almost completely —
+ * `lib/i18n/navigation`, the domain barrel, the UI primitives are in all of
+ * them. Uncached, `ts.createSourceFile` re-PARSES each shared module once per
+ * route: W3 added six routes and two cases crossed the 5 s per-test timeout
+ * (.debug/009 named this file as the next one to trip, and said the fix was a
+ * shared walk rather than a bigger number). The slowest case went 5.3 s -> 0.4 s.
+ */
 const sources = new Map<string, string>();
 function read(file: string): string {
   const cached = sources.get(file);
@@ -120,24 +131,39 @@ function read(file: string): string {
  * hand-written regex gets wrong. It does not distinguish type-only imports,
  * which is the safe direction here (see the file header).
  */
+const specifiers = new Map<string, string[]>();
 function specifiersOf(file: string): string[] {
-  if (file.endsWith(".json")) return [];
-  const info = ts.preProcessFile(read(file), true, true);
-  return info.importedFiles.map((reference) => reference.fileName);
+  const cached = specifiers.get(file);
+  if (cached !== undefined) return cached;
+  const found = file.endsWith(".json")
+    ? []
+    : ts.preProcessFile(read(file), true, true).importedFiles.map((r) => r.fileName);
+  specifiers.set(file, found);
+  return found;
 }
 
 /** The `"use client"` directive, which must be the first statement of the module. */
+const clientEntries = new Map<string, boolean>();
 function isClientEntry(file: string): boolean {
-  if (file.endsWith(".json")) return false;
-  const source = read(file);
-  const statements = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true).statements;
-  const first = statements[0];
-  return (
-    first !== undefined &&
-    ts.isExpressionStatement(first) &&
-    ts.isStringLiteral(first.expression) &&
-    first.expression.text === "use client"
-  );
+  const cached = clientEntries.get(file);
+  if (cached !== undefined) return cached;
+  let answer = false;
+  if (!file.endsWith(".json")) {
+    const statements = ts.createSourceFile(
+      file,
+      read(file),
+      ts.ScriptTarget.Latest,
+      true,
+    ).statements;
+    const first = statements[0];
+    answer =
+      first !== undefined &&
+      ts.isExpressionStatement(first) &&
+      ts.isStringLiteral(first.expression) &&
+      first.expression.text === "use client";
+  }
+  clientEntries.set(file, answer);
+  return answer;
 }
 
 /**
@@ -191,8 +217,12 @@ type Requirement = Namespace | "*";
  * no literal namespace can reach any message there is, and no static analysis
  * can say which. `useMessages()` hands over the catalogue itself.
  */
+const requirements = new Map<string, Set<Requirement>>();
 function requirementsOf(file: string): Set<Requirement> {
+  const cached = requirements.get(file);
+  if (cached !== undefined) return cached;
   const found = new Set<Requirement>();
+  requirements.set(file, found);
   if (file.endsWith(".json")) return found;
   const tree = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true);
 

@@ -64,3 +64,54 @@ export const RETAILERS: Record<RetailerId, RetailerDef> = {
     verifiedAt: null,
   },
 };
+
+/**
+ * The hosts a retailer is allowed to send a visitor to, derived from its own
+ * `byLocale` targets so the two can never drift.
+ *
+ * §4.4 requires a `chosenProduct.url` to be https AND on the host of the
+ * retailer it names, unless the visitor typed their own link (`vendor: 'other'`).
+ * A stored product is user-supplied data — it arrives through the guest import
+ * (`lib/guest/schema.ts`) — so "rosebikes" must not be able to carry a link to
+ * anywhere at all.
+ *
+ * Plain Node, no zod: this module is reachable from `prisma/seed.ts` and from
+ * `zod/mini` client code alike.
+ */
+export function retailerHosts(retailer: RetailerId): readonly string[] {
+  const urls: string[] = [];
+  for (const target of Object.values(RETAILERS[retailer].byLocale)) {
+    if (target.kind === "search") urls.push(target.template.replace("{q}", "x"));
+    else
+      urls.push(
+        target.fallback,
+        // `byPartId` is a Partial record: its values are `string | undefined`.
+        ...Object.values(target.byPartId).filter((url): url is string => url !== undefined),
+      );
+  }
+  const hosts = new Set<string>();
+  for (const url of urls) {
+    try {
+      hosts.add(new URL(url).host);
+    } catch {
+      // A malformed template is the retailer schema's problem, not this one's.
+    }
+  }
+  return [...hosts].sort();
+}
+
+/** Is `url` an https link on `retailer`'s own hosts? */
+export function isRetailerUrl(retailer: RetailerId, url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === "https:" && retailerHosts(retailer).includes(parsed.host);
+}
+
+/** `true` when `vendor` names one of the retailers this site links to. */
+export function isRetailerId(vendor: string): vendor is RetailerId {
+  return (RETAILER_ORDER as readonly string[]).includes(vendor);
+}

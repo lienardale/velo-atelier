@@ -54,6 +54,34 @@ const legalComponents = {
   hr: (props: React.ComponentPropsWithoutRef<"hr">) => (
     <hr {...props} className="border-rule my-8" />
   ),
+  /**
+   * The RGPD tables (data / purpose / legal basis, and cookies), which GFM
+   * gives these documents and only these (`content-collections.ts`).
+   *
+   * The `<table>` is wrapped in its OWN horizontal scroll container and keeps a
+   * `min-w`: three columns of prose do not fit 320 px, and §6.8 AC5 measures
+   * `document.documentElement.scrollWidth` against the viewport on every mobile
+   * project. A wide element that scrolls inside a `overflow-x-auto` parent does
+   * not extend the document; the same element left bare fails that check on
+   * every page visit after it.
+   */
+  table: (props: React.ComponentPropsWithoutRef<"table">) => (
+    <div className="border-rule mt-6 overflow-x-auto rounded border">
+      <table {...props} className="w-full min-w-[34rem] border-collapse text-left text-sm" />
+    </div>
+  ),
+  thead: (props: React.ComponentPropsWithoutRef<"thead">) => (
+    <thead {...props} className="bg-paper-2" />
+  ),
+  tr: (props: React.ComponentPropsWithoutRef<"tr">) => (
+    <tr {...props} className="border-rule border-b last:border-b-0" />
+  ),
+  th: (props: React.ComponentPropsWithoutRef<"th">) => (
+    <th {...props} scope="col" className="px-3 py-2 align-top font-semibold" />
+  ),
+  td: (props: React.ComponentPropsWithoutRef<"td">) => (
+    <td {...props} className="px-3 py-2 align-top" />
+  ),
 };
 
 export interface LegalContentProps {

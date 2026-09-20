@@ -60,9 +60,5 @@
     "create": "Créer ma liste",
     "nothingToDo": "Rien à changer : votre vélo a passé le contrôle.",
     "counts": "{ok} ok · {ko} à reprendre · {skipped} passées"
-  },
-  "resume": {
-    "scopeFull": "un contrôle complet",
-    "scopePartial": "un contrôle partiel"
   }
 }

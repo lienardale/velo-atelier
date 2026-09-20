@@ -60,9 +60,5 @@
     "create": "Create my list",
     "nothingToDo": "Nothing to replace: your bike passed the checkup.",
     "counts": "{ok} fine · {ko} to sort out · {skipped} skipped"
-  },
-  "resume": {
-    "scopeFull": "a full checkup",
-    "scopePartial": "a partial checkup"
   }
 }

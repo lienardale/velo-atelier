@@ -11,6 +11,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { Notices } from "@/components/ui-ext/Notices";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/ui-ext/SkipLink";
 import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
+import { siteUrl } from "@/lib/seo/metadata";
 import { routing } from "@/lib/i18n/routing";
 
 import "@/styles/globals.css";
@@ -49,8 +50,16 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
 
   return {
     // NEXT_PUBLIC_* is inlined at build time: every canonical / hreflang / OG
-    // URL built by lib/seo/metadata.ts is resolved against it.
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+    // URL built by lib/seo/metadata.ts is resolved against it — so the ORIGIN
+    // comes from that module too. Inlining it here a second time meant a value
+    // with a trailing slash (which a hosting dashboard happily accepts) gave
+    // `//fr` in the sitemap and `/fr` in the canonicals.
+    //
+    // This is a new import in the locale layout, which W2 lesson 2 warns about
+    // (`.debug/004 §10`): measured, `/[locale]` first-load JS is unchanged —
+    // `generateMetadata` runs server-side only and `lib/seo/metadata.ts` is
+    // already in this route's server graph.
+    metadataBase: new URL(siteUrl()),
     title: { default: siteName, template: `%s · ${siteName}` },
     description: t("site.description"),
     applicationName: siteName,
