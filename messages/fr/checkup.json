@@ -1,1 +1,68 @@
-{}
+{
+  "metaTitle": "Contrôler mon vélo",
+  "metaDescription": "Un contrôle guidé, question par question : ce qui va, ce qui ne va pas, et la liste de ce qu'il faut changer.",
+  "title": "Contrôle du vélo",
+  "intro": "Une question à la fois. Répondez ce que vous voyez : la liste de ce qu'il y a à faire se construit toute seule.",
+  "scopeFull": "Contrôle complet",
+  "scopePartial": "Contrôle partiel",
+  "needsBike": "Le contrôle a besoin de savoir quel vélo vous avez. Ouvrez votre vélo, puis relancez le contrôle depuis l'onglet Actions.",
+  "openBike": "Ouvrir mon vélo",
+  "emptyTitle": "Rien à contrôler ici",
+  "emptyBody": "Aucune question ne s'applique aux pièces choisies. Essayez un contrôle complet.",
+  "emptyCta": "Lancer un contrôle complet",
+  "tools": {
+    "title": "Les outils du contrôle",
+    "intro": "Voici ce que demandent les guides de ce contrôle. Cochez ce que vous n'avez pas : on vous proposera un remplaçant au moment voulu.",
+    "none": "Ce contrôle ne demande aucun outil.",
+    "missing": "Je n'ai pas cet outil",
+    "alternative": "À défaut : {alternatives}",
+    "noAlternative": "Pas de remplaçant : sautez l'étape ou passez en atelier.",
+    "start": "Commencer le contrôle",
+    "resume": "Reprendre le contrôle"
+  },
+  "step": {
+    "counter": "{current}/{total}",
+    "progress": "Étape {current} sur {total}",
+    "substitutionTitle": "Sans cet outil",
+    "substitution": "{tool} : utilisez plutôt {alternatives}.",
+    "substitutionNone": "{tool} : pas de remplaçant possible. Passez cette étape, ou demandez à un atelier.",
+    "guide": "Voir le guide complet",
+    "back": "Question précédente"
+  },
+  "verdict": {
+    "legend": "Votre verdict",
+    "ok": "Ça marche",
+    "ko": "Ça ne marche pas",
+    "skip": "Passer",
+    "required": "Cette question ne peut pas être passée.",
+    "shortcuts": "Raccourcis clavier : 1 pour « ça marche », 2 pour « ça ne marche pas », 3 pour passer."
+  },
+  "symptom": {
+    "legend": "Qu'est-ce qui ne va pas ?",
+    "note": "Une précision ? (facultatif)",
+    "notePlaceholder": "Ce que vous avez vu ou entendu",
+    "inspectShop": "À faire voir par un atelier"
+  },
+  "stubBadge": "Guide en cours d'écriture",
+  "save": {
+    "saved": "Sauvegardé",
+    "failed": "Impossible de sauvegarder ce contrôle sur cet appareil."
+  },
+  "summary": {
+    "title": "Récapitulatif",
+    "intro": "Voici ce que vous avez répondu. Vous pouvez encore changer un verdict avant de créer la liste.",
+    "ko": "À reprendre",
+    "ok": "Rien à signaler",
+    "skipped": "Passé",
+    "empty": "Aucune question dans cette catégorie.",
+    "edit": "Modifier",
+    "open": "{count, plural, =1 {Il reste 1 question sans réponse.} other {Il reste # questions sans réponse.}}",
+    "create": "Créer ma liste",
+    "nothingToDo": "Rien à changer : votre vélo a passé le contrôle.",
+    "counts": "{ok} ok · {ko} à reprendre · {skipped} passées"
+  },
+  "resume": {
+    "scopeFull": "un contrôle complet",
+    "scopePartial": "un contrôle partiel"
+  }
+}
