@@ -1,0 +1,90 @@
+/**
+ * The search terms (§5.8 AC5).
+ *
+ * `buildQuery` is a thin call into the domain, so what is worth pinning here is
+ * the boundary: the exact strings of the acceptance criterion, the brand that
+ * is appended only when asked for, and the free-text cleaning that decides what
+ * a visitor's paste becomes in a URL.
+ */
+import { describe, expect, it } from "vitest";
+
+import { buildQuery, normalizeQuery, QUERY_MAX_LENGTH } from "./query";
+import { refinementAnswers } from "./questions";
+import { buildOf, deriveBike } from "@/lib/bike/rules";
+import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+
+const CASSETTE = { speeds: 11, range: "11-34", freehub: "hg" } as const;
+// Hoisted: deriving a build walks the whole catalogue, and the unit tier's
+// testTimeout is 5 s on a runner ~3x slower than this machine (`.debug/009`).
+const gravel = buildOf(deriveBike(BIKE_PRESETS["gravel-1x11"]));
+
+describe("buildQuery", () => {
+  it("spells the cassette the way §5.8 AC5 does", () => {
+    expect(buildQuery("cassette", CASSETTE, "fr")).toBe("cassette 11 vitesses 11-34 hg");
+    expect(buildQuery("cassette", CASSETTE, "en")).toBe("cassette 11 speed 11-34 hg");
+  });
+
+  it("puts the number of speeds in words, and nothing else", () => {
+    expect(buildQuery("chain", { speeds: 11 }, "fr")).toBe("chaîne 11 vitesses");
+    expect(buildQuery("chain", { speeds: 11 }, "en")).toBe("chain 11 speed");
+  });
+
+  it("drops an attribute the part does not search on", () => {
+    // `e-rated` is a real chain attribute and is not a shop search term.
+    expect(buildQuery("chain", { speeds: 11, "e-rated": true }, "fr")).toBe("chaîne 11 vitesses");
+  });
+
+  it("appends a brand last, and only when there is one", () => {
+    expect(buildQuery("chain", { speeds: 11 }, "fr", {})).toBe("chaîne 11 vitesses");
+    expect(buildQuery("chain", { speeds: 11 }, "fr", { brand: "Shimano HG601" })).toBe(
+      "chaîne 11 vitesses Shimano HG601",
+    );
+  });
+
+  it("does not mutate the answers it is given", () => {
+    const answers = { ...CASSETTE };
+    buildQuery("cassette", answers, "fr", { brand: "Shimano" });
+    expect(answers).toEqual(CASSETTE);
+  });
+
+  it("says `11 vitesses` for a refinement that came back from a form", () => {
+    // A `<select>` gives back "11"; `refinementAnswers` is what puts it back
+    // into the number the catalogue declares, so the value the rules compare
+    // and the value the query spells are the same one.
+    const coerced = refinementAnswers(gravel, "cassette", {
+      speeds: "11",
+      range: "11-34",
+      freehub: "hg",
+    });
+    expect(coerced.speeds).toBe(11);
+    expect(buildQuery("cassette", coerced, "fr")).toBe("cassette 11 vitesses 11-34 hg");
+  });
+});
+
+describe("normalizeQuery", () => {
+  it("keeps ordinary text as it was typed", () => {
+    expect(normalizeQuery("chaîne 11 vitesses")).toBe("chaîne 11 vitesses");
+  });
+
+  it("collapses the whitespace a paste brings", () => {
+    expect(normalizeQuery("  chaîne \n\t 11   vitesses  ")).toBe("chaîne 11 vitesses");
+  });
+
+  it("removes control and formatting characters rather than encoding them", () => {
+    expect(normalizeQuery("chaîne\u0000\u200b11")).toBe("chaîne 11");
+  });
+
+  it("caps the length, trimmed", () => {
+    const long = normalizeQuery(`${"a".repeat(QUERY_MAX_LENGTH + 40)} tail`);
+    expect(long).toHaveLength(QUERY_MAX_LENGTH);
+    expect(normalizeQuery(`${"a".repeat(QUERY_MAX_LENGTH - 1)}  b`)).toBe(
+      "a".repeat(QUERY_MAX_LENGTH - 1),
+    );
+  });
+
+  it("answers `` for anything that is not usable text", () => {
+    for (const value of [undefined, null, 42, {}, [], "   ", "\u0000"]) {
+      expect(normalizeQuery(value)).toBe("");
+    }
+  });
+});

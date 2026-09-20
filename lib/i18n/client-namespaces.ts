@@ -41,6 +41,15 @@ export const CLIENT_NAMESPACES = {
    */
   "app/[locale]/page.tsx": ["common", "decision", "decision-tree", "illustrations"],
 
+  /**
+   * `/acheter`. The three client islands — the part panel, the free-text
+   * search and the vendor buttons under both — read `shop` and nothing else:
+   * part, attribute and value names are resolved by `lib/domain/i18n.ts` with
+   * an explicit locale, the same way the search query itself is assembled, so
+   * this route never has to declare the `parts` catalogue.
+   */
+  "app/[locale]/acheter/page.tsx": ["shop"],
+
   "app/[locale]/guides/page.tsx": ["common", "guides", "parts"],
   "app/[locale]/guides/[slug]/page.tsx": ["common", "guides", "illustrations", "parts"],
 
