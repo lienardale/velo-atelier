@@ -5,7 +5,7 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { DecisionTreeFrame } from "@/components/decision-tree/DecisionTreeFrame";
-import { DecisionTreeHero } from "@/components/decision-tree/DecisionTreeSkeleton";
+import { DecisionTreeHero } from "@/components/decision-tree/DecisionTreeHero";
 import { renderTreeIllustrations } from "@/components/decision-tree/tree-illustrations";
 import { GuideCard } from "@/components/guides/GuideCard";
 import { ClientMessages } from "@/components/i18n/ClientMessages";
@@ -55,17 +55,17 @@ const FEATURES = [
  * Home (§6.2): the decision tree, then — below the fold — what the site does,
  * a few guides, and the no-account note.
  *
- * Static (`○ /[locale]` in the build output, §6.8 AC2). The tree reads the
- * query string with `useSearchParams`, which on a static route must sit under a
- * `<Suspense>` boundary: the prerendered HTML carries the skeleton, and the
- * client renders the question the URL asks for. Nothing here reads a request
- * API, and nothing imports three.js (bundle budget `/[locale]`, `forbidWebgl`).
+ * Static (`● /fr`, `● /en` in the build output, §6.8 AC2), and the whole tree
+ * is **prerendered into this document**: it reads the query string on mount,
+ * not during render, so it needs no `<Suspense>` boundary and is hydrated
+ * rather than built again on the client (`.debug/011` — that second render was
+ * the home page's extra long task). Nothing here reads a request API, and
+ * nothing imports three.js (bundle budget `/[locale]`, `forbidWebgl`).
  *
  * The page's `<h1>` block (`DecisionTreeHero`) is handed to `DecisionTreeFrame`
- * as an already-rendered node so that it sits OUTSIDE that boundary: its
- * paragraph is the LCP element, and a node the fallback-to-content swap
- * re-creates is reported by Chrome as a second, much later LCP candidate
- * (`.debug/007`).
+ * as an already-rendered node rather than imported by it: it is server code
+ * that way, so it ships no JavaScript on the site's tightest bundle, and it is
+ * the LCP element, which `.debug/007` paid 1.7 s to stop anything re-creating.
  */
 export default async function HomePage({ params }: HomePageProps): Promise<React.JSX.Element> {
   const { locale } = await params;

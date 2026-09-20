@@ -1,6 +1,6 @@
 # 008 — the whole catalogue on every page, and what it actually costs
 
-**Date** 2026-09-18 · **Status** resolved (payload), **open** (the TBT gate itself) · **Branch** `fix/home-tbt`
+**Date** 2026-09-18 · **Status** resolved (payload); the TBT gate itself was closed by `.debug/011` · **Branch** `fix/home-tbt`
 
 ## Symptom
 
@@ -195,13 +195,23 @@ render — see **Follow-up**.
 
 ## Follow-up: what would actually move TBT
 
+**Done — see `.debug/011` (2026-09-21), which confirmed this reading by
+measurement: `/fr` went from two long tasks to one.**
+
 The measured cause is the second long task, and the change that removes it is
 architectural: the tree reads the query string during render, so it sits under a
 `<Suspense>` boundary on a static route, so its prerendered fallback is thrown
 away and the tree is built on the client instead of hydrated. Reading the query
-in an effect instead would let the whole tree be server-rendered and hydrated
+after hydration instead lets the whole tree be server-rendered and hydrated
 once — but it moves the tree's state source off the router, and `.debug/007`'s
 LCP fix, `DecisionTreeSkeleton.test.tsx`, `DecisionTreeFrame.test.tsx` and the
 repo-wide "every `useSearchParams` consumer sits inside a `<Suspense>` boundary"
 rule all sit on the current arrangement. It is a task of its own, with its own
 e2e pass — not a line to slip into a payload change.
+
+How each of those turned out: `useSyncExternalStore` over `window.location`
+replaced the render-time read; the LCP fix is kept, for a different and better
+reason; `DecisionTreeSkeleton` is deleted, its test replaced by an assertion on
+the prerendered HTML; and the `useSearchParams` rule still holds, because one
+consumer survives — a component that renders `null` purely to notice a router
+navigation, in a boundary whose fallback is empty.

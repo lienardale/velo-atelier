@@ -171,9 +171,19 @@ LCP 3949 → **1927 ms**, and LCP == FCP on every run; `/en` 0.86 → **0.97**.
 - `components/decision-tree/DecisionTreeFrame.test.tsx` — the landing heading is
   the only `<h1>` on the first screen (fr + en) and steps aside for the
   question's.
-- `components/decision-tree/DecisionTreeSkeleton.test.tsx` — _"carries no
-  heading: the h1 lives above the boundary this is the fallback of"_. Putting
-  the heading back in the fallback is the regression, and this fails on it.
+- ~~`components/decision-tree/DecisionTreeSkeleton.test.tsx` — _"carries no
+  heading: the h1 lives above the boundary this is the fallback of"_.~~
+  **Superseded by `.debug/011` (2026-09-21).** There is no `<Suspense>`
+  boundary and no fallback any more: the tree reads the URL after hydration, so
+  it is prerendered into the document and hydrated once, and the second client
+  render this note is about cannot happen. The skeleton is deleted and
+  `DecisionTreeHero` now lives in `components/decision-tree/DecisionTreeHero.tsx`.
+  **The fix below is not undone** — the hero is still rendered by the server and
+  handed to `DecisionTreeFrame` as a node, so it is still server-only code and
+  still a node no re-render can re-create. What guards that today is
+  `tests/e2e/decision-tree.spec.ts` — "the home DOCUMENT carries the landing
+  screen, not a loading state" — which asserts on the raw HTML, with no
+  JavaScript run, that both the hero and the first question are in it.
 - `tests/security/xss-form-inputs.test.ts` — "uses dangerously-set HTML nowhere
   outside `components/mdx/`". It is a grep over every file under `app`, `lib`
   and `components`, prose included; the drawings must stay data.

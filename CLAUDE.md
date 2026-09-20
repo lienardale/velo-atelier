@@ -159,7 +159,24 @@ scripts/             ci/, db/, perf/, content tooling
   `next/navigation`.
 - **URL state** — the App Router has no shallow routing. Decision-tree answers
   and `?part=` are written with `history.replaceState` / `pushState`, and every
-  `useSearchParams` consumer sits inside a `<Suspense>` boundary.
+  `useSearchParams` consumer sits inside a `<Suspense>` boundary. **That
+  boundary is not free, so keep what is inside it small.** A `useSearchParams()`
+  read during render on a statically prerendered route makes Next render the
+  fallback into the HTML and mark the boundary for client rendering — React then
+  DISCARDS the prerendered DOM and builds that subtree again instead of
+  hydrating it. The decision tree used to be inside one, and that second render
+  was the home page's extra long task and the 7 % `/fr` and `/en` were over
+  their 300 ms TBT budget by, plus 59 % of their CLS budget in the
+  fallback-to-content swap (`.debug/008` measured it, `.debug/011` removed it).
+  The tree reads `window.location.search` through
+  `components/decision-tree/location-search.ts` (a `useSyncExternalStore` with
+  an empty **server snapshot**, so the prerendered HTML and the first client
+  render agree), subscribes to `popstate`, and calls
+  `notifyLocationSearchChanged()` after its own history writes, which fire no
+  event. Its one surviving `useSearchParams` consumer is `RouterSearch`, which
+  renders `null` and exists only to notice a router navigation that changes the
+  query without leaving the route (the header logo): an empty fallback means
+  React discards nothing.
 - **`server-only`** is imported only in `app/**` server files,
   `lib/auth/password-policy.ts` and `lib/actions/with-user.ts`. Everything
   reachable from `prisma/seed.ts` and `scripts/**` must be plain Node.
@@ -206,12 +223,16 @@ scripts/             ci/, db/, perf/, content tooling
   uses React's raw-HTML escape hatch nowhere outside `components/mdx/`, and
   `tests/security/xss-form-inputs.test.ts` greps every source file, comments
   included, to keep it that way.
-- **The home page's `<h1>` block sits above the tree's `<Suspense>` boundary**
-  (`app/[locale]/page.tsx` → `DecisionTreeFrame hero=`). It is the LCP element,
-  and React destroys a fallback's DOM when the hydrated tree replaces it —
-  Chrome then reports the re-created node as a second, much later LCP candidate.
-  Every other page of the site has LCP == FCP; the home page did not.
-  `DecisionTreeSkeleton.test.tsx` fails if the heading moves back inside.
+- **The home page's `<h1>` block is rendered by the SERVER and handed to
+  `DecisionTreeFrame` as a node** (`app/[locale]/page.tsx` → `hero=`), never
+  imported by it. Two reasons: `DecisionTreeHero` has no `"use client"`, so that
+  way it ships no JavaScript on the site's tightest first-load budget; and it is
+  the LCP element, so it must be a node nothing re-renders — `.debug/007` is
+  LCP 3.6 s on a 1.7 s FCP, caused by Chrome reporting a re-created node as a
+  second, much later candidate. Every other page of the site has LCP == FCP; the
+  home page did not. `tests/e2e/decision-tree.spec.ts` asserts on the raw
+  document, with no JavaScript run, that the hero AND the tree's first question
+  are both in it.
 - **Build-time flags must be literals** — Next only inlines a `NEXT_PUBLIC_*`
   variable that EXISTS at build time; an unset one stays a runtime lookup, so
   `process.env.X === "1" ? dynamic(…) : null` keeps its `import()` in the graph

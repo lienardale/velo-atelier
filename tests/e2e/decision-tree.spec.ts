@@ -8,7 +8,9 @@
  *     the `<h1>` after every step, and answering costs no RSC request (the URL
  *     is written with `history.pushState` / `replaceState`, never the router);
  *   - "Générer mon vélo" stores `va:bike:local` and opens `/velo/local`, asking
- *     first when a guest bike already exists.
+ *     first when a guest bike already exists;
+ *   - the home DOCUMENT already contains the first question, with no
+ *     JavaScript run at all (`.debug/011`).
  *
  * Runs in FR and EN on every e2e project it is given (the §6.8 command uses
  * desktop-chromium and mobile-chromium).
@@ -241,6 +243,29 @@ forEachLocale((locale) => {
     );
     expect(secondId).toMatch(/^[0-9a-f-]{36}$/);
     expect(secondId).not.toBe(firstId);
+  });
+
+  test(`the home DOCUMENT carries the landing screen, not a loading state (${locale})`, async ({
+    page,
+  }) => {
+    // The tree reads the URL after hydration rather than during render, so it
+    // is prerendered into the document and hydrated once instead of being
+    // built again on the client behind a `<Suspense>` fallback — which is the
+    // home page's second long task, and the 7 % it was over its TBT budget by
+    // (`.debug/008`, fixed in `.debug/011`). This is the assertion that fails
+    // the day the tree goes back under a boundary: no JavaScript runs here.
+    const response = await page.request.get(href(locale, "/"));
+    expect(response.status()).toBe(200);
+    const html = await response.text();
+
+    expect(html).toContain('data-testid="decision-tree"');
+    expect(html).toContain('data-question="drive"');
+    expect(html).toContain(decision.drive.title);
+    expect(html).toContain('role="radiogroup"');
+    // And the `<h1>` block above it, which is the LCP element (`.debug/007`).
+    expect(html).toContain('data-testid="home-hero"');
+    // Nothing is waiting on the client: there is no skeleton left to show.
+    expect(html).not.toContain("decision-tree-skeleton");
   });
 
   test(`option cards and tree buttons are at least 44 px (${locale})`, async ({ page }) => {

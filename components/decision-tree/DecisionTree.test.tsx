@@ -12,7 +12,7 @@ import { setNavigationState } from "@/tests/_fakes/session";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 
 import { DecisionTreeFrame } from "./DecisionTreeFrame";
-import { DecisionTreeHero } from "./DecisionTreeSkeleton";
+import { DecisionTreeHero } from "./DecisionTreeHero";
 import type { LoadLocalBike } from "./Summary";
 import { renderTreeIllustrations } from "./tree-illustrations";
 
@@ -28,9 +28,12 @@ function go(search: string) {
  * The tree as the home page composes it: `DecisionTreeFrame` around the tree,
  * with the landing heading passed in as the already-rendered node the server
  * gives it. Rendering the frame rather than `DecisionTree` alone is what keeps
- * the heading assertions below honest — the `<h1>` lives above the tree's
- * `<Suspense>` boundary now (`.debug/007`), and the tree only reports which
- * screen it is on.
+ * the heading assertions below honest — the `<h1>` is created outside the tree
+ * (`.debug/007`), and the tree only reports which screen it is on.
+ *
+ * `go()` sets `window.location` AND the fake router's query, because the tree
+ * reads the first on mount and follows the second through `RouterSearch`
+ * (`.debug/011`). A test that wants one without the other says so.
  */
 async function renderTree(
   search = "",
@@ -97,6 +100,17 @@ describe("DecisionTree — URL state", () => {
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "4");
     expect(screen.getByTestId("question-step")).toHaveAttribute("data-question", "brake-type");
     expect(document.title).toBe(`${frDecision["brake-type"].title} · vélo-atelier`);
+  });
+
+  it("does not steal focus when a deep link corrects the screen on load", async () => {
+    // The URL is adopted in an effect now (.debug/011), so arriving at step 4
+    // is a screen CHANGE one render after mount. It is still a page load, and a
+    // page load never moves the focus — only something the visitor did does.
+    await renderTree(GRAVEL_AT_BRAKES);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      frDecision["brake-type"].title,
+    );
+    expect(document.body).toHaveFocus();
   });
 
   it("clamps a step beyond the next question to the next question", async () => {
@@ -238,11 +252,20 @@ describe("DecisionTree — URL state", () => {
 
   it("adopts a query changed by a router navigation (header logo → bare home)", async () => {
     const { rerender } = await renderTree(GRAVEL_AT_BRAKES);
-    setNavigationState({ search: "" });
+    // What a soft navigation to `<Link href="/">` really does: the App Router
+    // writes the new URL with `history.pushState` — no `popstate` — and
+    // `useSearchParams` follows. `go()` does both, which is why the tree hears
+    // about it: `RouterSearch` sees the router move and asks
+    // `useLocationSearch` to re-read (`.debug/011`).
+    go("");
     rerender(
       <DecisionTreeFrame hero={<DecisionTreeHero />} illustrations={renderTreeIllustrations()} />,
     );
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(frCommon.site.tagline);
+    // A navigation is a move the visitor made, so the new screen takes the
+    // focus — which a page load does not. This is also what pins `RouterSearch`
+    // into the tree: nothing else tells the difference between the two.
+    expect(screen.getByRole("heading", { level: 2, name: frDecision.drive.title })).toHaveFocus();
   });
 
   it("renders the question in English", async () => {

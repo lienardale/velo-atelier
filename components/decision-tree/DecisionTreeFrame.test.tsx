@@ -1,14 +1,13 @@
 /**
  * `DecisionTreeFrame` — the home page's composition of the landing heading and
- * the suspended tree.
+ * the tree.
  *
- * The heading is the page's LCP element and it must be rendered OUTSIDE the
- * tree's `<Suspense>` boundary, because React throws the fallback's DOM away
- * when the hydrated tree replaces it and Chrome reports the re-created node as
- * a new, much later LCP candidate (`.debug/007`). These tests pin the two
- * user-visible halves of that arrangement: the heading is on the landing
- * screen, in both locales, and it steps aside — leaving exactly one `<h1>` —
- * as soon as the question itself becomes the `<h1>`.
+ * The heading is the page's LCP element and it is rendered by the SERVER and
+ * handed in as a node, so nothing here can re-create it — `.debug/007` is the
+ * 3.6 s LCP that cost. These tests pin the two user-visible halves of that
+ * arrangement: the heading is on the landing screen, in both locales, and it
+ * steps aside — leaving exactly one `<h1>` — as soon as the question itself
+ * becomes the `<h1>`.
  */
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -21,7 +20,7 @@ import { setNavigationState } from "@/tests/_fakes/session";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 
 import { DecisionTreeFrame } from "./DecisionTreeFrame";
-import { DecisionTreeHero } from "./DecisionTreeSkeleton";
+import { DecisionTreeHero } from "./DecisionTreeHero";
 import { renderTreeIllustrations } from "./tree-illustrations";
 
 const GRAVEL_AT_BRAKES = "drive=muscular&discipline=gravel&wheel-size=700c&step=brake-type";
