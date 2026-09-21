@@ -26,6 +26,16 @@ const OUTBOUND_REL = "noopener noreferrer nofollow";
 const SHOP_T: Record<Locale, typeof frShop> = { fr: frShop, en: enShop };
 const RETAILERS = ["rosebikes", "alltricks", "decathlon"];
 
+/**
+ * What the disclosure must SAY, in each language. Rendering `outbound.disclosure`
+ * proves only that the key renders: an edit that dropped the promise from the
+ * message would render just as well.
+ */
+const NO_AFFILIATION: Record<Locale, RegExp> = {
+  fr: /sans affiliation ni suivi/,
+  en: /no affiliation and no tracking/,
+};
+
 forEachLocale((locale) => {
   test(`the grid lists every category, three shops each (${locale})`, async ({ page }) => {
     await page.goto(href(locale, "/acheter"));
@@ -136,7 +146,9 @@ forEachLocale((locale) => {
 
   test(`the page says plainly that nothing here is affiliated (${locale})`, async ({ page }) => {
     await page.goto(href(locale, "/acheter"));
-    await expect(page.getByText(SHOP_T[locale].outbound.disclosure)).toBeVisible();
+    const disclosure = page.getByText(SHOP_T[locale].outbound.disclosure);
+    await expect(disclosure).toBeVisible();
+    await expect(disclosure).toHaveText(NO_AFFILIATION[locale]);
   });
 });
 
