@@ -482,8 +482,12 @@ export function Wizard(props: WizardProps): React.JSX.Element {
  * answered differently a month later). The list under `va:buildlist:<ref>`
  * survives, which is exactly what `mergeGuestBuildList` closes against.
  *
- * `?step=` still wins: a resume link into a finished checkup is a deliberate
- * request to look at it, and the summary is reachable from the list page.
+ * Not even through `?step=`. The wizard writes that parameter for the question
+ * on screen, and after a finished checkup that question belongs to a NEW run: a
+ * reload before the new run's first save (a phone that discarded the tab) came
+ * back with it, reopened the FINISHED run with its old verdicts on screen, and
+ * wrote the next answers into it. `?step=` only says which question of the new
+ * run to open (`tests/e2e/checkup-second-run.spec.ts`).
  */
 function isFinished(stored: StoredCheckup | null): boolean {
   return stored !== null && stored.completedAt !== undefined;
@@ -508,7 +512,7 @@ function isFinished(stored: StoredCheckup | null): boolean {
  * (`tests/e2e/checkup-second-run.spec.ts`).
  */
 function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState {
-  const resumable = stored !== null && !(isFinished(stored) && props.initialStepKey === null);
+  const resumable = stored !== null && !isFinished(stored);
   const restored = resumable
     ? fromStored(stored, props.steps, props.contentVersion)
     : createCheckupState({
@@ -532,8 +536,8 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
  * they have already given, or following a `?step=` link, is not starting.
  */
 function alreadyStarted(props: WizardProps, stored: StoredCheckup | null): boolean {
-  if (isFinished(stored) && props.initialStepKey === null) return false;
-  if (stored !== null && Object.keys(stored.answers).length > 0) return true;
+  const resumable = stored !== null && !isFinished(stored);
+  if (resumable && Object.keys(stored.answers).length > 0) return true;
   return props.steps.some((step) => step.key === props.initialStepKey);
 }
 

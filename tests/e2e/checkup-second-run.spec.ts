@@ -10,9 +10,10 @@
  * verdicts, finishing deleted the line the first run had put on the list
  * instead of closing it `recheck-ok`, and the bike never got a second
  * `Checkup` or `BuildList` row — the 50-checkup and 10-list quotas (§4.2 c)
- * could never be reached from the UI. Every lower tier hands the server two
- * hand-picked dates; only the browser builds the payload, so only this row
- * covers what it sends.
+ * could never be reached from the UI. And a reload of that second run before
+ * its first save came back with the run's own `?step=`, which reopened the
+ * FINISHED run. Every lower tier hands the server two hand-picked dates; only
+ * the browser builds the payload, so only this row covers what it sends.
  *
  * Every test writes its own user and bike (label = locale + project): the
  * Playwright projects share one database.
@@ -135,11 +136,17 @@ forEachLocale((locale) => {
     await page.waitForURL((url) => url.pathname === listPath);
 
     // The second run: a finished checkup is history, so the wizard opens a new
-    // one on its tool list — and this time the chain is fine.
+    // one on its tool list — and this time the chain is fine. It is reloaded
+    // before anything is answered, as a phone that discards the tab would: the
+    // URL then carries the new run's `?step=`, which must reopen the NEW run.
     await page.goto(checkupUrl);
     await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "tools");
     await page.getByTestId("checkup-start").click();
     await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", CHAIN_STEP);
+    await page.waitForURL((url) => url.searchParams.get("step") === CHAIN_STEP);
+    await page.reload();
+    await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", CHAIN_STEP);
+    await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "none");
     await page.getByTestId("verdict-ok").click();
     await page.getByTestId("summary-create").click();
     await page.waitForURL((url) => url.pathname === listPath);
