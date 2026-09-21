@@ -161,7 +161,9 @@ docs/                contributor and operator docs — every one is linked from 
   and `velo/[id]` entries still declare the whole catalogue: `form-parts.tsx`
   resolves a key a server action returned, `BikeCard` and four `/velo`
   components (`PartInfo`, `PartEditForm`, `MeasureCard`, `MeasurementForm`)
-  translate `parts.*` keys the part catalogue carries. Making a route
+  translate `parts.*` keys the part catalogue carries, and the list's
+  `BuildList` and `BuildItemCard` resolve `guides.reasons.*` and rule keys the
+  same way. Making a route
   lighter means making what it reads visible: `useDecisionText()`
   (`components/decision-tree/decision-text.ts`) is how the tree does it.
 - **Navigation** — always import `Link`, `redirect`, `usePathname`, `useRouter`
@@ -204,8 +206,9 @@ docs/                contributor and operator docs — every one is linked from 
   ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
   prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
 - **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is the
-  generated barrel of all 68 drawings (72 exports with the placeholder and the
-  name → component map; `docs/illustrations.md`). Only server files may import
+  generated barrel of all 68 drawings (72 exports: the 68, the placeholder, the
+  props type, and the name → component map with its lookup;
+  `docs/illustrations.md`). Only server files may import
   it: guides go through `components/mdx/Illustration.tsx`, the decision tree
   through `components/decision-tree/tree-illustrations.tsx`, which hands the
   client tree already-rendered nodes. A `"use client"` file that imports the
@@ -271,10 +274,10 @@ docs/                contributor and operator docs — every one is linked from 
   hooks flag rather than refusing it. The comments in
   `components/auth/SignInForm.tsx` and `app/[locale]/(auth)/connexion/page.tsx`
   that say the boot fails are wrong. Wiring it needs the production test scoped
-  to `VERCEL_ENV` first: the `next` CLI runs every `next start` with
-  `NODE_ENV=production`, the CI boot check and the e2e server included
-  (`docs/backlog.md`, W5). Until then the Vercel env list in `docs/deploy.md`
-  is the only guard.
+  to `VERCEL_ENV` first: the `next` CLI defaults `NODE_ENV` to `production` for
+  every `next start` (unless it is set), the CI boot check and the e2e server
+  included (`docs/backlog.md`, W5). Until then the Vercel env list in
+  `docs/deploy.md` is the only guard.
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
   under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
   `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
@@ -369,7 +372,10 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
 
 ## Quality gates
 
-Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
+Every gate but CodeQL is a `scripts/ci/*.sh` script that runs the same way
+locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
+Lighthouse), which need a production build and run on their own, and the
+PR-only `visual-baseline-guard`.
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
@@ -412,7 +418,8 @@ Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
 - Lighthouse CI, a bundle budget, and WebGL draw-call/triangle counters.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
 
-Husky runs the fast subset pre-commit and the full local mirror pre-push.
+Husky runs the fast subset pre-commit and, pre-push, the local mirror without
+its `build` step (`SKIP_BUILD=1`; `RUN_BUILD=1` keeps it).
 
 ---
 
