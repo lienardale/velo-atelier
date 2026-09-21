@@ -5,6 +5,7 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
+import { loadBuildListItemAction } from "@/app/[locale]/velo/[id]/liste/actions";
 import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { CategoryGrid, type CategoryCard } from "@/components/shop/CategoryGrid";
 import { PartQuestions } from "@/components/shop/PartQuestions";
@@ -105,8 +106,17 @@ export default async function ShopPage({ params }: ShopPageProps): Promise<React
          * nothing: there is no layout to hold open, and a skeleton where most
          * visits show nothing at all would be a flash of furniture.
          */}
+        {/*
+         * `readItem` is the owner-scoped read behind `?item=` on a saved bike
+         * (§5.5). A server action passed as a prop is a reference: the panel
+         * calls it after hydration, and this page stays static.
+         */}
         <Suspense fallback={null}>
-          <PartQuestions locale={locale} brandsByPart={brandsFor(locale)} />
+          <PartQuestions
+            locale={locale}
+            brandsByPart={brandsFor(locale)}
+            readItem={loadBuildListItemAction}
+          />
         </Suspense>
 
         <section aria-labelledby="shop-search-title" className="flex flex-col gap-3">

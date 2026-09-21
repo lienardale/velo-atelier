@@ -45,6 +45,7 @@
     "noQuestions": "Nothing else to decide: your bike settles this part completely.",
     "unknown": "There is no such part in the catalogue.",
     "needsBike": "Open your bike so these questions take your own parts into account.",
+    "prefilled": "The answers you already gave on your list are filled in below.",
     "backToList": "Back to my list"
   },
   "list": {

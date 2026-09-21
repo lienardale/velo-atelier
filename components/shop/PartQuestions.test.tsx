@@ -6,15 +6,23 @@
  * the query the three shops receive. The URL is untrusted input like any other,
  * which is most of what is checked here.
  */
-import { screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildListKey } from "@/lib/bike/storage-keys";
+import { writeGuestBuildList } from "@/lib/checkup/storage";
+import type { BuildListItem } from "@/lib/checkup/types";
+import type { PartId } from "@/lib/domain/data/parts";
 import { outboundUrl } from "@/lib/shop/outbound";
 import { BRAND_TIER_KEY, partQuestions } from "@/lib/shop/questions";
 import { setNavigationState } from "@/tests/_fakes/session";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 
-import { PartQuestions, typedValue } from "./PartQuestions";
+import { PartQuestions, prefillFor, typedValue } from "./PartQuestions";
+import { resetItemPrefillCache, type ReadBuildListItem } from "./item-prefill";
+
+/** Stands in for `loadBuildListItemAction`, which the page hands down. */
+const readItem = vi.fn<ReadBuildListItem>(async () => ({ ok: false, code: "NOT_FOUND" }));
 
 const BRANDS = {
   chain: {
@@ -25,11 +33,16 @@ const BRANDS = {
 
 async function renderPanel(search: string, locale: "fr" | "en" = "fr") {
   setNavigationState({ pathname: "/fr/acheter", search });
-  return renderWithIntl(<PartQuestions locale={locale} brandsByPart={BRANDS} />, { locale });
+  return renderWithIntl(
+    <PartQuestions locale={locale} brandsByPart={BRANDS} readItem={readItem} />,
+    { locale },
+  );
 }
 
 beforeEach(() => {
   setNavigationState({ pathname: "/fr/acheter", search: "" });
+  window.localStorage.clear();
+  resetItemPrefillCache();
 });
 
 describe("what the URL is allowed to ask for", () => {
@@ -140,5 +153,111 @@ describe("typedValue", () => {
     const number = { ...speeds, kind: "number" as const, values: null };
     expect(typedValue(number, "17")).toBe(17);
     expect(typedValue(number, "nope")).toBeUndefined();
+  });
+});
+
+/**
+ * §5.5: "with `?part=<id>&bike=<ref>&item=<id>` it pre-fills from the
+ * build-list item" — written by `BuildItemCard`, and read by nothing until W4.
+ */
+describe("?item= pre-fills from the build-list line", () => {
+  const ITEM = "check-drivetrain#chain-wear|chain|replace";
+  const line = (overrides: Partial<BuildListItem> = {}): BuildListItem => ({
+    id: ITEM,
+    stepKey: "check-drivetrain#chain-wear",
+    sourceKeys: ["check-drivetrain#chain-wear"],
+    partId: "chain" as PartId,
+    action: "replace",
+    reasonKey: "chain-elongation",
+    done: false,
+    sortOrder: 0,
+    refinement: { speeds: "11", [BRAND_TIER_KEY]: "mid" },
+    ...overrides,
+  });
+  const guestList = (items: BuildListItem[]) =>
+    writeGuestBuildList("local", items, "11111111-1111-4111-8111-111111111111");
+  const search = (item = ITEM, part = "chain", bike = "local") =>
+    new URLSearchParams({ part, bike, item }).toString();
+
+  it("opens a guest's line with the answers it already has, in the query too", async () => {
+    guestList([line()]);
+    await renderPanel(search());
+
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("11");
+    expect(screen.getByLabelText("Gamme")).toHaveValue("mid");
+    expect(screen.getByTestId("part-query")).toHaveTextContent("chaîne 11 vitesses Shimano HG601");
+    expect(screen.getByTestId("part-questions-prefilled")).toBeInTheDocument();
+  });
+
+  it("lets the visitor change a pre-filled answer", async () => {
+    guestList([line()]);
+    const { user } = await renderPanel(search());
+    await user.selectOptions(screen.getByLabelText("Vitesses"), "12");
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("12");
+    expect(screen.getByTestId("part-query")).toHaveTextContent("chaîne 12 vitesses Shimano HG601");
+  });
+
+  it("prefills nothing from a line about another part, or a line that is not there", async () => {
+    guestList([line({ partId: "cassette" as PartId })]);
+    await renderPanel(search());
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("");
+
+    cleanup();
+    await renderPanel(search("not-a-line"));
+    expect(screen.queryByTestId("part-questions-prefilled")).not.toBeInTheDocument();
+  });
+
+  it("drops an answer this panel cannot show, and survives a corrupted list", async () => {
+    guestList([
+      line({ refinement: { speeds: "99", "not-a-question": "x", [BRAND_TIER_KEY]: "luxe" } }),
+    ]);
+    await renderPanel(search());
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("");
+    expect(screen.getByLabelText("Gamme")).toHaveValue("");
+
+    window.localStorage.setItem(
+      buildListKey("local"),
+      JSON.stringify({ version: 1, updatedAt: "2026-09-21T08:00:00.000Z", items: [null, 3] }),
+    );
+    resetItemPrefillCache();
+    cleanup();
+    await renderPanel(search());
+    expect(screen.getByTestId("part-questions")).toBeInTheDocument();
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("");
+  });
+
+  it("asks the server for a saved bike's line, and shows what the owner's read returned", async () => {
+    const bike = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    const item = "6f9619ff-8b86-4d11-b42d-00c04fc964ff";
+    readItem.mockResolvedValueOnce({
+      ok: true,
+      data: { partId: "chain", refinement: { speeds: "10" } },
+    });
+
+    await renderPanel(search(item, "chain", bike));
+
+    await waitFor(() => expect(screen.getByLabelText("Vitesses")).toHaveValue("10"));
+    expect(readItem).toHaveBeenCalledWith({ bikeId: bike, itemId: item });
+  });
+
+  it("opens empty when the server says the line is not the caller's", async () => {
+    const bike = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    await renderPanel(search("6f9619ff-8b86-4d11-b42d-00c04fc964ff", "chain", bike));
+    await waitFor(() => expect(readItem).toHaveBeenCalled());
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("");
+  });
+});
+
+describe("prefillFor", () => {
+  it("keeps an answer only under one of the questions, with a value it accepts", () => {
+    expect(
+      prefillFor(partQuestions("chain"), {
+        speeds: "11",
+        [BRAND_TIER_KEY]: "high",
+        "e-rated": "maybe",
+        constructor: "x",
+      }),
+    ).toEqual({ speeds: "11", [BRAND_TIER_KEY]: "high" });
+    expect(prefillFor(partQuestions("chain"), null)).toEqual({});
   });
 });
