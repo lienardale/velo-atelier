@@ -116,6 +116,14 @@ forEachLocale((locale) => {
     await page.goto(`${href(locale, "/velo/[id]/controle", { id: "demo" })}?parts=chain`);
     await expect(page.getByTestId("checkup-summary")).toBeVisible();
     await page.getByTestId("summary-create").click();
+    // Finishing opens the list: the wizard writes it, then `router.push`es. Let
+    // that soft navigation land before leaving. A `goto` issued while its RSC
+    // fetch is in flight makes WebKit cancel the fetch; Next falls back to a
+    // browser navigation to the list, and the `goto` is "interrupted by another
+    // navigation" (.debug/015 §8).
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: "demo" }),
+    );
     await expect.poll(async () => (await storedBuildList(page))?.items.length).toBe(1);
 
     await page.goto(href(locale, "/velo/[id]", { id: "demo" }));

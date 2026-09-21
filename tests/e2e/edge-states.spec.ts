@@ -226,6 +226,13 @@ forEachLocale((locale) => {
     const koStep = await answerStepKo(page);
     await answerEveryStepOk(page);
     await page.getByTestId("summary-create").click();
+    // Finishing opens the list (`router.push` after the write). Let it land: a
+    // `goto` issued while its RSC fetch is in flight makes WebKit cancel the
+    // fetch; Next falls back to a browser navigation to the list, and the
+    // `goto` below is "interrupted by another navigation" (.debug/015 §8).
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: "local" }),
+    );
 
     const opened = await storedItems(page);
     expect(opened.length, "the first checkup produced no list to close").toBeGreaterThan(0);
