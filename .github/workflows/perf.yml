@@ -142,6 +142,11 @@ jobs:
             .perf/
             tests/perf/baselines/
             test-results/
+          # `.perf/` is a dotfile: without this, upload-artifact v4 skips it and
+          # the artifact holds only test-results/ — the run's timings, the thing
+          # this upload exists for, were silently dropped (the same trap as
+          # `.next` in the build job above).
+          include-hidden-files: true
           retention-days: 90
 
   lighthouse:
@@ -187,6 +192,8 @@ jobs:
         with:
           name: lighthouse-nightly
           path: .lighthouseci/
+          # A dotfile again: without this the artifact was empty.
+          include-hidden-files: true
           retention-days: 90
 
   update-snapshots:
