@@ -276,8 +276,12 @@ describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
             ).toBe(true);
           },
         ),
-        { numRuns: 50 },
+        // A failure is reported as its first counterexample, unshrunk: shrinking
+        // fifty runs of two finishes each takes several seconds, past the tier's
+        // 5 s timeout, while a passing run takes under one (0.8 s at most under
+        // the full coverage run). No timeout of its own (the W4 gate rules).
+        { numRuns: 50, endOnFailure: true },
       );
-    }, 20_000);
+    });
   });
 });
