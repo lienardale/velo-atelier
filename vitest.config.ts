@@ -239,8 +239,20 @@ export default defineConfig(async (): Promise<ViteUserConfig> => {
         // actions, route handlers, and the proxy-safe auth config.
         include: [
           "lib/**/*.{ts,tsx}",
-          "components/**/*.tsx",
+          // `.ts` too: the stores, hooks and selectors next to the components
+          // (`bike3d/store.ts`, `checkup/viewer-status.ts`, `decision-tree/tree-state.ts`, …)
+          // are logic, and a `components/**/*.tsx` include left ten of them outside the gate.
+          "components/**/*.{ts,tsx}",
           "app/**/actions.ts",
+          // A page's data load lives next to its actions (`controle/load.ts`: a
+          // `"use server"` file cannot hold a function that takes a `userId`,
+          // CLAUDE.md), and is the half of the route that decides whose rows
+          // are read.
+          "app/**/load.ts",
+          // The two metadata routes are logic, not wiring: which URLs are crawled
+          // and which languages are paired (§6.6).
+          "app/sitemap.ts",
+          "app/robots.ts",
           "app/api/**/*.ts",
           "auth.config.ts",
         ],
@@ -277,6 +289,9 @@ export default defineConfig(async (): Promise<ViteUserConfig> => {
           "app/**/dev/**",
           // Barrel file: re-exports only.
           "components/mdx/index.ts",
+          // Type declarations only (`BikeViewerProps`): no statement to cover, so
+          // counting it would only ever add an empty row.
+          "components/bike3d/types.ts",
         ],
         // A blob run is one shard of the gate (see isCoverageShard); every
         // other coverage run enforces the final thresholds.
