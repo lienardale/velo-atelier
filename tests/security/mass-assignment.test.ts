@@ -35,7 +35,11 @@ vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModul
 
 const { updateProfileAction } = await import("@/app/[locale]/(protected)/compte/actions");
 const { signUpAction } = await import("@/app/[locale]/(auth)/inscription/actions");
+const { createBikeAction, updateBikeAction } =
+  await import("@/app/[locale]/(protected)/mes-velos/actions");
 const { IDLE } = await import("@/lib/actions/result");
+const { deriveBike } = await import("@/lib/bike/rules");
+const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
 
 const PASSWORD = "Guidon-Tandem-47!";
 
@@ -214,5 +218,66 @@ describe("React's own action fields", () => {
 
     expect(Object.hasOwn(fields, "__proto__")).toBe(true);
     expect(({} as Record<string, unknown>).isAdmin).toBeUndefined();
+  });
+});
+
+/**
+ * The bike's own dangerous fields: `spec` (§4.2 a — it is DERIVED from the
+ * answers on every write and never taken from a caller), the row's `id`, its
+ * `createdAt`, and its owner. `mes-velos/actions.ts` says `.strict()` refuses
+ * them; until W4 only `userId` was ever posted to prove it.
+ */
+describe("bike create and update", () => {
+  const GRAVEL = BIKE_PRESETS["gravel-1x11"];
+  const FORGED = {
+    spec: { discipline: "road", brakeType: "rim-caliper", wheelSize: "700c" },
+    id: "00000000-0000-4000-8000-00000000dead",
+    createdAt: "2001-01-01T00:00:00.000Z",
+    userId: "00000000-0000-4000-8000-0000000000b2",
+    parts: [],
+  } as const;
+
+  beforeEach(async () => {
+    fakeDb.reset();
+    setRequestHeaders(sameOriginHeaders());
+    const me = (await fakeDb.seed("User", {
+      email: "camille@velo-atelier.test",
+      name: "Camille",
+      locale: "fr",
+    })) as { id: string; email: string; name: string; locale: "fr" };
+    setSession(sessionFor(me));
+    fakeDb.resetCalls();
+  });
+
+  it.each(Object.entries(FORGED))("refuses `%s` posted with a new bike", async (key, value) => {
+    const result = await createBikeAction({ name: "Gravel", answers: GRAVEL, [key]: value });
+
+    expect(result).toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(fakeDb.rows("Bike")).toHaveLength(0);
+    expect(fakeDb.calls.filter((call) => call.op === "create")).toEqual([]);
+  });
+
+  it.each(Object.entries(FORGED))("refuses `%s` posted with an update", async (key, value) => {
+    const created = await createBikeAction({ name: "Gravel", answers: GRAVEL });
+    if (!created.ok) throw new Error("fixture: could not create the bike");
+    const before = fakeDb.rows("Bike");
+    fakeDb.resetCalls();
+
+    const result = await updateBikeAction({
+      bikeId: created.data.id,
+      answers: BIKE_PRESETS["road-rim-2x11"],
+      [key]: value,
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(fakeDb.rows("Bike")).toEqual(before);
+    expect(fakeDb.calls.filter((call) => call.op.startsWith("update"))).toEqual([]);
+  });
+
+  it("stores the spec the answers imply, never one it was handed", async () => {
+    // The legitimate keys only — and the stored spec is the derivation.
+    const created = await createBikeAction({ name: "Gravel", answers: GRAVEL });
+    expect(created.ok).toBe(true);
+    expect(fakeDb.rows("Bike")[0]?.spec).toEqual(deriveBike(GRAVEL).spec);
   });
 });

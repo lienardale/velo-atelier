@@ -45,6 +45,7 @@
     "noQuestions": "Rien d'autre à décider : la pièce est entièrement déterminée par votre vélo.",
     "unknown": "Cette pièce n'existe pas dans le catalogue.",
     "needsBike": "Ouvrez votre vélo pour que ces questions tiennent compte de vos pièces.",
+    "prefilled": "Les réponses déjà données sur votre liste sont reprises ci-dessous.",
     "backToList": "Retour à ma liste"
   },
   "list": {

@@ -5,6 +5,7 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Suspense } from "react";
 
+import { loadBuildListItemAction } from "@/app/[locale]/velo/[id]/liste/actions";
 import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { CategoryGrid, type CategoryCard } from "@/components/shop/CategoryGrid";
 import { PartQuestions } from "@/components/shop/PartQuestions";
@@ -81,9 +82,10 @@ function brandsFor(
  * whole route out of static rendering — the W2 lesson).
  *
  * The brand tables are therefore serialised into the payload rather than
- * fetched: ~25 parts × 3 tiers, in one language. It is the page whose entire
- * job is "which one do I buy", and it is not one of the routes the bundle
- * ratchet guards.
+ * fetched: ~25 parts × 3 tiers, in one language — the page whose entire job is
+ * "which one do I buy". The route IS in the bundle ratchet
+ * (`perf.budgets.json`), which is why the `?item=` prefill loads its guest
+ * reader on demand (`components/shop/item-prefill.ts`).
  */
 export default async function ShopPage({ params }: ShopPageProps): Promise<React.JSX.Element> {
   const { locale } = await params;
@@ -105,8 +107,17 @@ export default async function ShopPage({ params }: ShopPageProps): Promise<React
          * nothing: there is no layout to hold open, and a skeleton where most
          * visits show nothing at all would be a flash of furniture.
          */}
+        {/*
+         * `readItem` is the owner-scoped read behind `?item=` on a saved bike
+         * (§5.5). A server action passed as a prop is a reference: the panel
+         * calls it after hydration, and this page stays static.
+         */}
         <Suspense fallback={null}>
-          <PartQuestions locale={locale} brandsByPart={brandsFor(locale)} />
+          <PartQuestions
+            locale={locale}
+            brandsByPart={brandsFor(locale)}
+            readItem={loadBuildListItemAction}
+          />
         </Suspense>
 
         <section aria-labelledby="shop-search-title" className="flex flex-col gap-3">

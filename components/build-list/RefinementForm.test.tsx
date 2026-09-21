@@ -104,3 +104,67 @@ describe("<RefinementForm>", () => {
     expect(screen.getByLabelText("Range")).toBeInTheDocument();
   });
 });
+
+/**
+ * §6.5's brand tier on the build list: asked when the page handed this part's
+ * tiers down, and not otherwise — a part `content/brands.yaml` does not cover
+ * has no brand a tier could put in the search.
+ */
+describe("the brand tier", () => {
+  const CASSETTE_TIERS = {
+    entry: ["Shimano Deore"],
+    mid: ["Shimano SLX"],
+    high: ["Shimano XTR"],
+  };
+
+  it("is asked, in the visitor's language, when the page knows the part's brands", async () => {
+    const { user, onChange } = await renderForm({ brandTiers: CASSETTE_TIERS });
+    const tier = screen.getByLabelText("Gamme");
+    expect([...tier.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      "Peu importe",
+      "Entrée de gamme",
+      "Milieu de gamme",
+      "Haut de gamme",
+    ]);
+    await user.selectOptions(tier, "high");
+    expect(onChange).toHaveBeenCalledWith({ "brand-tier": "high" });
+  });
+
+  it("is not asked for a part with no brands", async () => {
+    await renderForm();
+    expect(screen.queryByLabelText("Gamme")).not.toBeInTheDocument();
+  });
+
+  it("speaks English on the English page", async () => {
+    const { container } = await renderForm({ brandTiers: CASSETTE_TIERS }, "en");
+    const tier = container.querySelector('[data-question="brand-tier"]') as HTMLSelectElement;
+    expect([...tier.options].map((option) => option.textContent)).toEqual([
+      "No preference",
+      "Entry level",
+      "Mid range",
+      "High end",
+    ]);
+  });
+});
+
+/** §6.5: "Comment mesurer" disclosures WITH an illustration, where one exists. */
+describe("the drawings in 'Comment mesurer'", () => {
+  it("puts the page's drawing inside the disclosure of its own question, and nowhere else", async () => {
+    const { container } = await renderForm({
+      drawings: { "largest-cog": <svg data-testid="drawing-largest-cog" aria-hidden="true" /> },
+    });
+    const drawing = screen.getByTestId("drawing-largest-cog");
+    const question = container
+      .querySelector('[data-question="largest-cog"]')!
+      .closest("div") as HTMLElement;
+    expect(question.contains(drawing)).toBe(true);
+    expect(drawing.closest("details")).not.toBeNull();
+    expect(screen.getAllByTestId("drawing-largest-cog")).toHaveLength(1);
+  });
+
+  it("keeps the help text alone where no drawing was handed down", async () => {
+    const { container } = await renderForm();
+    expect(container.querySelector("details svg[data-illustration]")).toBeNull();
+    expect(screen.getAllByText("Comment mesurer").length).toBeGreaterThan(0);
+  });
+});

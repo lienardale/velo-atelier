@@ -20,9 +20,13 @@
  *      no lookup, no write, nothing that could be timed or observed.
  *   4. The order is origin-then-session. A cross-origin request with a valid
  *      session is `FORBIDDEN`, never `UNAUTHORIZED`, and never executed.
+ *   5. **Every** `withUser` action is in the table — not the four `compte`
+ *      actions this file started with in W1. The list is read back from
+ *      `app/**\/actions.ts`, so an action added later without a row here fails
+ *      the run instead of shipping untested.
  */
 /* eslint-disable security/detect-non-literal-fs-filename -- every path read here is derived from `import.meta.url`, never from input */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,9 +40,20 @@ import {
 } from "@/tests/_fakes/session";
 
 vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModule());
+vi.mock("content-collections", async () => ({
+  allGuides: (await import("@/tests/_helpers/guides")).diskGuides(),
+  allLegalPages: [],
+}));
 
+const compte = await import("@/app/[locale]/(protected)/compte/actions");
 const { updateProfileAction, changePasswordAction, setPasswordAction, deleteAccountAction } =
-  await import("@/app/[locale]/(protected)/compte/actions");
+  compte;
+const mesVelos = await import("@/app/[locale]/(protected)/mes-velos/actions");
+const guestImport = await import("@/app/[locale]/(protected)/import/actions");
+const velo = await import("@/app/[locale]/velo/[id]/actions");
+const controle = await import("@/app/[locale]/velo/[id]/controle/actions");
+const liste = await import("@/app/[locale]/velo/[id]/liste/actions");
+const reglages = await import("@/app/[locale]/velo/[id]/reglages/actions");
 
 const { IDLE } = await import("@/lib/actions/result");
 
@@ -188,5 +203,92 @@ describe("anonymous auth actions", () => {
       code: "FORBIDDEN",
     });
     expect(authSpies.signOut).not.toHaveBeenCalled();
+  });
+});
+
+// ── every `withUser` action ──────────────────────────────────────────────────
+
+const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+const ITEM = "6f9619ff-8b86-4d11-b42d-00c04fc964ff";
+
+/**
+ * Each action with an input that WOULD run if the request were allowed — the
+ * origin and session checks come first, so the payload never matters here, but
+ * a payload that parses keeps the test honest if the order ever flips.
+ */
+const EVERY_WITH_USER_ACTION: ReadonlyArray<readonly [string, () => Promise<{ ok: boolean }>]> = [
+  ["updateProfileAction", () => updateProfileAction(IDLE, form({ name: "C", locale: "fr" }))],
+  [
+    "changePasswordAction",
+    () => changePasswordAction(IDLE, form({ current: "a", next: "Chaine-Cassette-58?" })),
+  ],
+  ["setPasswordAction", () => setPasswordAction(IDLE, form({ next: "Chaine-Cassette-58?" }))],
+  ["deleteAccountAction", () => deleteAccountAction(IDLE, form({ confirmation: "SUPPRIMER" }))],
+  ["reauthenticateWithGoogleAction", () => compte.reauthenticateWithGoogleAction()],
+  ["createBikeAction", () => mesVelos.createBikeAction({ name: "Vélo", answers: {} })],
+  ["updateBikeAction", () => mesVelos.updateBikeAction({ bikeId: BIKE, answers: {} })],
+  ["renameBikeAction", () => mesVelos.renameBikeAction({ bikeId: BIKE, name: "Vélo" })],
+  ["deleteBikeAction", () => mesVelos.deleteBikeAction({ bikeId: BIKE })],
+  ["importGuestStateAction", () => guestImport.importGuestStateAction({ version: 1, bikes: [] })],
+  ["updateBikePartAction", () => velo.updateBikePartAction({ bikeId: BIKE, partId: "chain" })],
+  ["updateBikeFitAction", () => reglages.updateBikeFitAction({ bikeId: BIKE, fit: {} })],
+  ["loadCheckupAction", () => controle.loadCheckupAction({ bikeId: BIKE })],
+  ["listCheckupsAction", () => controle.listCheckupsAction({ bikeId: BIKE })],
+  ["saveCheckupAction", () => controle.saveCheckupAction({ bikeId: BIKE, checkup: {} })],
+  ["finishCheckupAction", () => controle.finishCheckupAction({ bikeId: BIKE, checkup: {} })],
+  [
+    "setBuildListItemDoneAction",
+    () => liste.setBuildListItemDoneAction({ itemId: ITEM, done: true }),
+  ],
+  [
+    "setBuildListItemRefinementAction",
+    () => liste.setBuildListItemRefinementAction({ itemId: ITEM, refinement: {} }),
+  ],
+  [
+    "clearDoneBuildListItemsAction",
+    () => liste.clearDoneBuildListItemsAction({ buildListId: ITEM }),
+  ],
+  ["loadBuildListItemAction", () => liste.loadBuildListItemAction({ bikeId: BIKE, itemId: ITEM })],
+];
+
+/** `export const <name> = withUser(` in every `actions.ts` under `app/`. */
+function withUserActionsInTheTree(): string[] {
+  const app = new URL("../../app/", import.meta.url);
+  const names: string[] = [];
+  for (const entry of readdirSync(app, { recursive: true, encoding: "utf8" })) {
+    if (!entry.endsWith("actions.ts")) continue;
+    const source = readFileSync(new URL(entry, app), "utf8");
+    for (const match of source.matchAll(/export const (\w+) = withUser\(/g)) names.push(match[1]);
+  }
+  return names.sort();
+}
+
+describe("every withUser action", () => {
+  it("is in the table — an action added without a row fails here", () => {
+    const tree = withUserActionsInTheTree();
+    expect(tree.length).toBeGreaterThanOrEqual(20);
+    expect(EVERY_WITH_USER_ACTION.map(([name]) => name).sort()).toEqual(tree);
+  });
+
+  describe.each(EVERY_WITH_USER_ACTION)("%s", (_name, call) => {
+    it("refuses a cross-origin POST with FORBIDDEN before any query", async () => {
+      setSession(sessionFor(USER));
+      setRequestHeaders({ origin: "https://evil.test", host: "localhost:3100" });
+      expect(await call()).toEqual({ ok: false, code: "FORBIDDEN" });
+      expect(fakeDb.calls).toHaveLength(0);
+    });
+
+    it("refuses a POST with no Origin at all", async () => {
+      setSession(sessionFor(USER));
+      setRequestHeaders({ host: "localhost:3100" });
+      expect(await call()).toEqual({ ok: false, code: "FORBIDDEN" });
+      expect(fakeDb.calls).toHaveLength(0);
+    });
+
+    it("answers UNAUTHORIZED to an anonymous same-origin caller before any query", async () => {
+      setSession(null);
+      expect(await call()).toEqual({ ok: false, code: "UNAUTHORIZED" });
+      expect(fakeDb.calls).toHaveLength(0);
+    });
   });
 });

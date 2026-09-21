@@ -37,6 +37,7 @@ vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModul
 
 const {
   clearDoneBuildListItemsAction,
+  loadBuildListItemAction,
   setBuildListItemDoneAction,
   setBuildListItemRefinementAction,
 } = await import("@/app/[locale]/velo/[id]/liste/actions");
@@ -89,7 +90,7 @@ async function loadSeed(): Promise<void> {
 async function restoreBuildListState(): Promise<void> {
   await prisma.buildListItem.deleteMany({ where: { action: { not: "REPLACE" } } });
   await prisma.buildListItem.updateMany({
-    data: { done: false, refinement: Prisma.DbNull },
+    data: { done: false, doneReason: null, refinement: Prisma.DbNull },
   });
 }
 
@@ -138,7 +139,7 @@ describe("the seeded list (§4.8 AC1)", () => {
 });
 
 describe("ticking a line off", () => {
-  it("writes it, and untickes it again", async () => {
+  it("writes it with `doneReason: 'manual'`, and unticks it again", async () => {
     const { list } = await seededList();
     const item = list.items[0];
 
@@ -146,14 +147,16 @@ describe("ticking a line off", () => {
       ok: true,
       data: null,
     });
-    expect((await prisma.buildListItem.findUniqueOrThrow({ where: { id: item.id } })).done).toBe(
-      true,
-    );
+    expect(await prisma.buildListItem.findUniqueOrThrow({ where: { id: item.id } })).toMatchObject({
+      done: true,
+      doneReason: "manual",
+    });
 
     await setBuildListItemDoneAction({ itemId: item.id, done: false });
-    expect((await prisma.buildListItem.findUniqueOrThrow({ where: { id: item.id } })).done).toBe(
-      false,
-    );
+    expect(await prisma.buildListItem.findUniqueOrThrow({ where: { id: item.id } })).toMatchObject({
+      done: false,
+      doneReason: null,
+    });
   });
 
   it("answers NOT_FOUND for another account's line, and changes nothing", async () => {
@@ -273,6 +276,37 @@ describe("the refinement", () => {
     expect(
       await setBuildListItemRefinementAction({ itemId: chain.id, refinement: { speeds: "11" } }),
     ).toEqual({ ok: false, code: "NOT_FOUND" });
+  });
+});
+
+describe("reading one line for the buying guide (`/acheter?item=`)", () => {
+  it("returns the line's part and refinement to its owner, through its own bike", async () => {
+    const { list } = await seededList();
+    const item = list.items[0];
+    await setBuildListItemRefinementAction({ itemId: item.id, refinement: { speeds: "11" } });
+
+    expect(await loadBuildListItemAction({ bikeId: list.bikeId, itemId: item.id })).toEqual({
+      ok: true,
+      data: { partId: item.partId, refinement: { speeds: "11" } },
+    });
+  });
+
+  it("answers NOT_FOUND for another account's line, and for a line of another bike", async () => {
+    const { user, list } = await seededList();
+    const item = list.items[0];
+    const otherBike = await prisma.bike.findFirstOrThrow({
+      where: { userId: user.id, id: { not: list.bikeId } },
+    });
+    expect(await loadBuildListItemAction({ bikeId: otherBike.id, itemId: item.id })).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+    });
+
+    await otherUser("reader@velo-atelier.test");
+    expect(await loadBuildListItemAction({ bikeId: list.bikeId, itemId: item.id })).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+    });
   });
 });
 

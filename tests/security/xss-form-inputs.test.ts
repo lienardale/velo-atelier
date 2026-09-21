@@ -26,6 +26,12 @@
  * refuses 81 characters, so a payload cannot be smuggled in by being long), and
  * the rule that a rendered message is always a KEY from a closed set, never
  * text the visitor supplied.
+ *
+ * W4 widened "free text" past the auth surface to everything else a visitor
+ * types and gets shown again — a bike's name, a checkup note, a refinement
+ * answer, a chosen product's brand and model — each written through its REAL
+ * action (or the guest import, for the product), read back through its real
+ * reader, and rendered by the component that shows it on the site.
  */
 /* eslint-disable security/detect-non-literal-fs-filename -- every path read here is derived from `import.meta.url`, never from input */
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -46,6 +52,10 @@ import {
 } from "@/tests/_fakes/session";
 
 vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModule());
+vi.mock("content-collections", async () => ({
+  allGuides: (await import("@/tests/_helpers/guides")).diskGuides(),
+  allLegalPages: [],
+}));
 
 const { updateProfileAction } = await import("@/app/[locale]/(protected)/compte/actions");
 
@@ -185,6 +195,316 @@ describe("the tree as a whole", () => {
       "RATE_LIMITED",
       "TOO_MANY",
       "CONFLICT",
+    ]);
+  });
+});
+
+// ── the rest of what a visitor types ────────────────────────────────────────
+
+const { renameBikeAction } = await import("@/app/[locale]/(protected)/mes-velos/actions");
+const { saveCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/actions");
+const { loadStoredCheckup } = await import("@/app/[locale]/velo/[id]/controle/load");
+const { setBuildListItemRefinementAction } = await import("@/app/[locale]/velo/[id]/liste/actions");
+const { loadBuildList } = await import("@/app/[locale]/velo/[id]/liste/load");
+const { importGuestStateAction } = await import("@/app/[locale]/(protected)/import/actions");
+const { BikeCard } = await import("@/components/account/BikeCard");
+const { SymptomPicker } = await import("@/components/checkup/SymptomPicker");
+const { BuildItemCard } = await import("@/components/build-list/BuildItemCard");
+const { RefinementForm } = await import("@/components/build-list/RefinementForm");
+const { NextIntlClientProvider } = await import("next-intl");
+const { loadMessages } = await import("@/lib/i18n/request");
+const { deriveBike } = await import("@/lib/bike/rules");
+const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
+const { CONTENT_VERSION } = await import("@/lib/content/generated/version");
+const { shopQuestionsFor } = await import("@/lib/shop/questions");
+const { GUEST_STATE_VERSION } = await import("@/lib/guest/schema");
+
+const FR = await loadMessages("fr");
+
+/** Server-side render inside the provider the app uses, with the real catalogue. */
+function render(node: React.ReactNode): string {
+  return renderToStaticMarkup(
+    // A `.ts` file has no JSX, and the provider's props type requires `children`.
+    // eslint-disable-next-line react/no-children-prop
+    createElement(NextIntlClientProvider, {
+      locale: "fr",
+      messages: FR,
+      timeZone: "Europe/Paris",
+      children: node,
+    }),
+  );
+}
+
+/** What React's renderer does to text and attribute values (`escapeTextForBrowser`). */
+function escaped(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+/** The tags a payload would try to smuggle in, counted per render. */
+const TAGS = [/<script\b/gi, /<img\b/gi, /<svg\b/gi, /<iframe\b/gi] as const;
+const tagCounts = (html: string) => TAGS.map((tag) => (html.match(tag) ?? []).length);
+
+/**
+ * The payload reached the page as TEXT: the component renders exactly the tags
+ * it renders for a harmless value (its own icons included), the payload is
+ * there in its escaped form, never raw, and no link points at script.
+ */
+function expectInert(html: string, benign: string, payload: string): void {
+  expect(tagCounts(html)).toEqual(tagCounts(benign));
+  expect(html).not.toMatch(/href="javascript:/i);
+  expect(html).toContain(escaped(payload));
+  if (/[<>"']/.test(payload)) expect(html).not.toContain(payload);
+}
+
+describe("stored verbatim, rendered as text — the rest of the site", () => {
+  const PLANNED = "check-drivetrain#chain-wear";
+  const DERIVED = deriveBike(BIKE_PRESETS["gravel-1x11"]);
+  let userId: string;
+  let bikeId: string;
+
+  beforeEach(async () => {
+    const user = (await fakeDb.seed("User", {
+      email: "camille@velo-atelier.test",
+      name: "Camille",
+      locale: "fr",
+    })) as { id: string; email: string; name: string; locale: "fr" };
+    userId = user.id;
+    bikeId = (
+      (await fakeDb.seed("Bike", {
+        userId,
+        name: "Gravel",
+        answers: DERIVED.answers,
+        spec: DERIVED.spec,
+        parts: DERIVED.parts,
+      })) as { id: string }
+    ).id;
+    setSession(sessionFor(user));
+  });
+
+  it.each(PAYLOADS)("a bike name %j, on its card", async (payload) => {
+    expect((await renameBikeAction({ bikeId, name: payload })).ok).toBe(true);
+    const stored = fakeDb.rows("Bike")[0]?.name as string;
+    expect(stored).toBe(payload.trim());
+
+    const view = (name: string) =>
+      render(
+        createElement(BikeCard, {
+          id: bikeId,
+          name,
+          summary: "Gravel",
+          updatedAt: "2026-09-21T08:00:00.000Z",
+        }),
+      );
+    expectInert(view(stored), view("Gravel"), payload);
+  });
+
+  it.each(PAYLOADS)("a checkup note %j, in the symptom picker", async (payload) => {
+    const checkup = {
+      version: 1,
+      id: "11111111-1111-4111-8111-111111111111",
+      bikeRef: { kind: "demo" },
+      scope: { kind: "full" },
+      locale: "fr",
+      answers: { [PLANNED]: "ko" },
+      symptoms: { [PLANNED]: ["chain-elongation"] },
+      notes: { [PLANNED]: payload },
+      toolsMissing: [],
+      startedAt: "2026-09-21T08:00:00.000Z",
+      contentVersion: CONTENT_VERSION,
+    };
+    expect((await saveCheckupAction({ bikeId, checkup })).ok).toBe(true);
+    expect(fakeDb.rows("CheckupItem")[0]?.notes).toBe(payload);
+
+    const restored = await loadStoredCheckup(bikeId, userId, "fr");
+    const view = (note: string) =>
+      render(
+        createElement(SymptomPicker, {
+          stepKey: PLANNED,
+          options: [],
+          value: "chain-elongation",
+          onPick: () => undefined,
+          note,
+          onNoteChange: () => undefined,
+          reasonLabel: (key: string) => key,
+          guideTitle: () => null,
+          isStub: () => false,
+        }),
+      );
+    // eslint-disable-next-line security/detect-object-injection -- a literal step key
+    expectInert(view(restored?.notes[PLANNED] ?? ""), view("elle saute"), payload);
+  });
+
+  it.each(PAYLOADS)("a refinement answer %j, back in its form", async (payload) => {
+    const build = { spec: DERIVED.spec, parts: DERIVED.parts };
+    // A part whose buying question is a free field, where the raw value is echoed.
+    const [partId, key] = DERIVED.parts
+      .map((part) => [part.partId, shopQuestionsFor(build, part.partId as never, "fr")] as const)
+      .flatMap(([id, questions]) =>
+        questions.filter((q) => q.options === null && q.partId === id).map((q) => [id, q.key]),
+      )[0];
+    const list = (await fakeDb.seed("BuildList", { bikeId, name: "" })) as { id: string };
+    const item = (await fakeDb.seed("BuildListItem", {
+      buildListId: list.id,
+      partId,
+      action: "REPLACE",
+      reasonKey: "chain-elongation",
+    })) as { id: string };
+
+    expect(
+      await setBuildListItemRefinementAction({ itemId: item.id, refinement: { [key]: payload } }),
+    ).toEqual({ ok: true, data: null });
+    const [loaded] = (await loadBuildList(bikeId, userId)).items;
+    // eslint-disable-next-line security/detect-object-injection -- `key` is an attribute key from the catalogue
+    expect(loaded.refinement?.[key]).toBe(payload);
+
+    const view = (refinement: Readonly<Record<string, string>>) =>
+      render(
+        createElement(RefinementForm, {
+          build,
+          partId,
+          refinement,
+          locale: "fr",
+          itemId: loaded.id,
+          onChange: () => undefined,
+        }),
+      );
+    expectInert(view(loaded.refinement ?? {}), view({ [key]: "42" }), payload);
+  });
+
+  it.each(PAYLOADS)("a chosen product's brand and model %j, on the list", async (payload) => {
+    const imported = await importGuestStateAction({
+      version: GUEST_STATE_VERSION,
+      bikes: [
+        {
+          localId: "11111111-2222-4333-8444-555555555555",
+          name: "Mon vélo",
+          answers: BIKE_PRESETS["gravel-1x11"],
+          parts: DERIVED.parts,
+          fit: null,
+          updatedAt: "2026-09-14T09:00:00.000Z",
+          checkups: [],
+          lists: [
+            {
+              name: "Révision",
+              items: [
+                {
+                  partId: "chain",
+                  action: "replace",
+                  reasonKey: "chain-elongation",
+                  guideSlug: "replace-chain",
+                  done: false,
+                  sortOrder: 0,
+                  chosenProduct: {
+                    brand: payload,
+                    model: payload,
+                    size: "11v",
+                    vendor: "alltricks",
+                    url: "https://www.alltricks.fr/C-40598-toutes-les-chaines",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(imported.ok).toBe(true);
+    const importedBike = fakeDb.rows("Bike").find((row) => row.name === "Mon vélo");
+    const [line] = (await loadBuildList(importedBike?.id as string, userId)).items;
+    expect(line.chosenProduct).toMatchObject({ brand: payload, model: payload });
+
+    const view = (item: typeof line) =>
+      render(
+        createElement(BuildItemCard, {
+          item,
+          build: null,
+          locale: "fr",
+          bikeParam: importedBike?.id as string,
+          onChange: () => undefined,
+        }),
+      );
+    const html = view(line);
+    expect(html).toContain('data-testid="build-item-chosen"');
+    const benign = view({
+      ...line,
+      chosenProduct: { ...line.chosenProduct!, brand: "KMC", model: "X11" },
+    });
+    expectInert(html, benign, payload);
+  });
+});
+
+// ── the chosenProduct link rule, on the way OUT (§4.4) ──────────────────────
+
+/**
+ * The guest import refuses a product whose link does not go where its vendor
+ * says (`guest-import.test.ts`). The `/liste` loader applies the same rule
+ * (`lib/shop/chosen-product.ts`) to what is ALREADY in the `Json` column —
+ * written by an earlier release, the seed, or anything that is not the import:
+ * a product that fails is dropped, and its line is still shown. The guest
+ * list's parser is held to the same rule in
+ * `components/build-list/BuildList.test.tsx`.
+ */
+describe("the chosenProduct link rule, on the way out", () => {
+  const KEPT = {
+    brand: "KMC",
+    model: "X11",
+    size: "118",
+    vendor: "alltricks",
+    url: "https://www.alltricks.fr/C-40598-toutes-les-chaines",
+  };
+
+  it.each([
+    [
+      "the retailer's name on another host",
+      { ...KEPT, url: "https://www.alltricks.fr.evil.example/x" },
+    ],
+    [
+      "a vendor that is neither a retailer nor 'other'",
+      { ...KEPT, vendor: "velo-shop", url: "https://velo-shop.example/x" },
+    ],
+    ["a script link, even from 'other'", { ...KEPT, vendor: "other", url: "javascript:alert(1)" }],
+    [
+      "credentials in the link",
+      { ...KEPT, vendor: "other", url: "https://user:secret@example.org/x" },
+    ],
+  ])("the /liste loader drops %s, and keeps the line", async (_label, product) => {
+    const user = (await fakeDb.seed("User", {
+      email: "camille@velo-atelier.test",
+      name: "Camille",
+      locale: "fr",
+    })) as { id: string };
+    const bike = (await fakeDb.seed("Bike", {
+      userId: user.id,
+      name: "Gravel",
+      answers: {},
+      spec: {},
+      parts: [],
+    })) as { id: string };
+    const list = (await fakeDb.seed("BuildList", { bikeId: bike.id, name: "" })) as { id: string };
+    const stored = [
+      ["chain", KEPT],
+      ["cassette", product],
+    ] as const;
+    for (const [sortOrder, [partId, chosenProduct]] of stored.entries()) {
+      await fakeDb.seed("BuildListItem", {
+        buildListId: list.id,
+        partId,
+        action: "REPLACE",
+        reasonKey: "worn",
+        sortOrder,
+        chosenProduct,
+      });
+    }
+
+    const { items } = await loadBuildList(bike.id, user.id);
+    expect(items.map((line) => [line.partId, line.chosenProduct])).toEqual([
+      ["chain", KEPT],
+      ["cassette", undefined],
     ]);
   });
 });

@@ -27,6 +27,8 @@ import {
 } from "@/lib/shop/questions";
 import { cn } from "@/lib/utils";
 
+import { useItemRefinement, type ItemRefinement, type ReadBuildListItem } from "./item-prefill";
+
 /**
  * The buying guide of `/acheter?part=<id>` (§5.5).
  *
@@ -66,6 +68,17 @@ import { cn } from "@/lib/utils";
  * `?part=`, `?bike=` and `?item=` all arrive from a URL and are all untrusted:
  * an unknown part renders nothing, an unparseable bike ref simply drops the
  * back-link.
+ *
+ * ## `?item=` pre-fills from the build-list line (§5.5)
+ *
+ * A visitor who refined "chaîne → 11 vitesses" on their list and clicks
+ * through lands on the same answers (`useItemRefinement`, `./item-prefill.ts`).
+ * Only answers that are valid for THIS panel's questions are taken — a value
+ * the catalogue no longer offers, or a key of another part's question, is
+ * dropped — and what the visitor then changes wins over what was pre-filled.
+ * The line is read after hydration (a guest's reader is loaded on demand, a
+ * saved bike's is a server action), so the panel is `aria-busy` until the read
+ * has answered.
  */
 export interface PartQuestionsProps {
   locale: Locale;
@@ -74,7 +87,32 @@ export interface PartQuestionsProps {
    * read on the server and serialised into the prerendered page.
    */
   brandsByPart: Readonly<Record<string, { note: string; tiers: Record<BrandTier, string[]> }>>;
+  /**
+   * `loadBuildListItemAction`, handed down by the page for `?item=` on a saved
+   * bike (a guest's list is read from `localStorage` instead).
+   */
+  readItem?: ReadBuildListItem;
   className?: string;
+}
+
+/**
+ * The answers of a stored refinement that this panel can show: a key of one of
+ * its questions, with a value that question accepts.
+ */
+export function prefillFor(
+  questions: readonly PartQuestion[],
+  refinement: ItemRefinement | null,
+): Record<string, string> {
+  if (refinement === null) return {};
+  const answers: Record<string, string> = {};
+  for (const question of questions) {
+    if (!Object.hasOwn(refinement, question.key)) continue;
+    const raw = refinement[question.key];
+    const valid =
+      question.key === BRAND_TIER_KEY ? isBrandTier(raw) : typedValue(question, raw) !== undefined;
+    if (valid) answers[question.key] = raw;
+  }
+  return answers;
 }
 
 /** The catalogue's own spelling of a value a control returned. */
@@ -94,20 +132,25 @@ export function typedValue(question: PartQuestion, raw: string): AttributeValue 
 export function PartQuestions({
   locale,
   brandsByPart,
+  readItem,
   className,
 }: PartQuestionsProps): React.JSX.Element | null {
   const t = useTranslations("shop");
   const fieldPrefix = useId();
   const params = useSearchParams();
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // What the visitor changed here; it wins over what the line pre-filled.
+  const [edits, setEdits] = useState<Record<string, string>>({});
 
   const raw = params.get("part");
   const partId: PartId | null = raw !== null && raw.length <= 64 && isPartId(raw) ? raw : null;
   const bikeRef = parseBikeRef(params.get("bike"));
+  const stored = useItemRefinement(partId, bikeRef, params.get("item"), readItem);
 
   if (partId === null) return null;
 
   const questions = partQuestions(partId);
+  const prefilled = prefillFor(questions, stored.refinement);
+  const answers: Record<string, string> = { ...prefilled, ...edits };
   const brands = Object.hasOwn(brandsByPart, partId) ? brandsByPart[partId] : null;
 
   const chosenTier = answers[BRAND_TIER_KEY];
@@ -127,6 +170,8 @@ export function PartQuestions({
     <section
       className={cn("flex flex-col gap-4", className)}
       aria-labelledby="part-questions-title"
+      // Still reading the `?item=` line: the answers below are about to change.
+      aria-busy={stored.pending ? true : undefined}
       data-testid="part-questions"
       data-part-id={partId}
     >
@@ -140,6 +185,11 @@ export function PartQuestions({
       {bikeRef === null ? null : (
         <Callout tone="info">
           <p>{t("part.needsBike")}</p>
+          {Object.keys(prefilled).length === 0 ? null : (
+            <p className="mt-2" data-testid="part-questions-prefilled">
+              {t("part.prefilled")}
+            </p>
+          )}
           <p className="mt-2">
             <Link
               href={{ pathname: "/velo/[id]/liste", params: { id: bikeRefParam(bikeRef) } }}
@@ -172,7 +222,7 @@ export function PartQuestions({
                     ? t(`tiers.${value as BrandTier}`)
                     : valueLabel(locale, question.key, value, question.unit ?? undefined)
                 }
-                onChange={(next) => setAnswers((current) => ({ ...current, [question.key]: next }))}
+                onChange={(next) => setEdits((current) => ({ ...current, [question.key]: next }))}
               />
               <p className="text-ink-muted text-xs">
                 {isTier

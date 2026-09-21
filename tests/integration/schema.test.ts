@@ -196,3 +196,68 @@ describe("referential integrity", () => {
     expect(names).toContain("User_email_key");
   });
 });
+
+describe("migration 20260921090547_checkup_symptoms_done_reason (W4)", () => {
+  it("adds the symptoms of a KO to CheckupItem, as a list defaulting to empty", async () => {
+    const found = await rows<{
+      data_type: string;
+      udt_name: string;
+      column_default: string | null;
+    }>(
+      prisma.$queryRaw`
+        SELECT data_type, udt_name, column_default FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'CheckupItem' AND column_name = 'reasonKeys'
+      `,
+    );
+    expect(found[0]).toMatchObject({ data_type: "ARRAY", udt_name: "_varchar" });
+    // Postgres spells it `(ARRAY[]::character varying[])::character varying(80)[]`.
+    expect(found[0]?.column_default).toContain("ARRAY[]");
+  });
+
+  it("adds why a line is done to BuildListItem, nullable", async () => {
+    const found = await rows<{ is_nullable: string; character_maximum_length: number }>(
+      prisma.$queryRaw`
+        SELECT is_nullable, character_maximum_length FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'BuildListItem' AND column_name = 'doneReason'
+      `,
+    );
+    expect(found[0]).toMatchObject({ is_nullable: "YES", character_maximum_length: 16 });
+  });
+
+  it("reads a row written without symptoms as none, and one written with them back", async () => {
+    // What a row from before the migration looks like: the column's default.
+    const user = await prisma.user.create({
+      data: { email: `symptoms-${Date.now()}@velo-atelier.test` },
+    });
+    try {
+      const bike = await prisma.bike.create({
+        data: { userId: user.id, name: "Test", answers: {}, spec: {}, parts: [] },
+      });
+      const checkup = await prisma.checkup.create({ data: { bikeId: bike.id, scope: "FULL" } });
+      const bare = await prisma.checkupItem.create({
+        data: {
+          checkupId: checkup.id,
+          stepKey: "check-brakes-disc#pad-wear",
+          partId: "brake-pads-front",
+          guideSlug: "check-brakes-disc",
+          result: "KO",
+        },
+      });
+      const ticked = await prisma.checkupItem.create({
+        data: {
+          checkupId: checkup.id,
+          stepKey: "check-drivetrain#chain-wear",
+          partId: "chain",
+          guideSlug: "check-drivetrain",
+          result: "KO",
+          reasonKeys: ["chain-elongation"],
+        },
+      });
+      expect(bare.reasonKeys).toEqual([]);
+      const read = await prisma.checkupItem.findUniqueOrThrow({ where: { id: ticked.id } });
+      expect(read.reasonKeys).toEqual(["chain-elongation"]);
+    } finally {
+      await prisma.user.delete({ where: { id: user.id } });
+    }
+  });
+});

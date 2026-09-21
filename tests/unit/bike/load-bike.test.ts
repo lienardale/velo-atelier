@@ -218,3 +218,93 @@ describe("db", () => {
     ).rejects.toBeInstanceOf(NotFound);
   });
 });
+
+/**
+ * §7.3's budget is for the ROUTE's data load, and `/velo/[id]/liste` and
+ * `/velo/[id]/controle` each add one read of their own to the bike's two. So
+ * the whole load of each is counted here — the bike, then the list or the
+ * stored checkup — and counted again with thirty lines: a query per line would
+ * be the N+1 this exists to catch, and it would not show on a one-line list.
+ */
+const { loadBuildList } = await import("@/app/[locale]/velo/[id]/liste/load");
+const { loadStoredCheckup } = await import("@/app/[locale]/velo/[id]/controle/load");
+
+describe("the sub-routes' data loads (§7.3)", () => {
+  async function seedHistory(bikeId: string, lines: number): Promise<void> {
+    const checkup = (await fakeDb.seed("Checkup", {
+      bikeId,
+      scope: "FULL",
+      status: "IN_PROGRESS",
+    })) as { id: string };
+    const list = (await fakeDb.seed("BuildList", { bikeId, checkupId: checkup.id, name: "" })) as {
+      id: string;
+    };
+    const parts = deriveBike(BIKE_PRESETS["gravel-1x11"]).parts.slice(0, lines);
+    for (const [index, part] of parts.entries()) {
+      const item = (await fakeDb.seed("CheckupItem", {
+        checkupId: checkup.id,
+        stepKey: `check-drivetrain#step-${index}`,
+        partId: part.partId,
+        guideSlug: "check-drivetrain",
+        result: "KO",
+        reasonKeys: ["chain-elongation"],
+      })) as { id: string };
+      await fakeDb.seed("BuildListItem", {
+        buildListId: list.id,
+        checkupItemId: item.id,
+        partId: part.partId,
+        action: "REPLACE",
+        reasonKey: "chain-elongation",
+        sortOrder: index,
+      });
+    }
+  }
+
+  const bikeLoad = (id: string) =>
+    loadBikeForRequest(
+      { kind: "db", id },
+      { getUser: async () => ({ id: OWNER }), prisma: fakeDb.client as never, onMissing },
+    );
+
+  it.each([1, 30])(
+    "/liste with %i line(s): the bike, its checkup, its list — three",
+    async (lines) => {
+      const bike = await seedBike(OWNER);
+      await seedHistory(bike.id, lines);
+      fakeDb.resetCalls();
+
+      await bikeLoad(bike.id);
+      const list = await loadBuildList(bike.id, OWNER, fakeDb.client as never);
+
+      expect(list.items).toHaveLength(lines);
+      expectQueryBudget(countQueries(fakeDb.calls), QUERY_BUDGET, "/velo/[id]/liste data load");
+      expect(countQueries(fakeDb.calls)).toBe(3);
+      expectScopedToUser(fakeDb.calls, OWNER);
+    },
+  );
+
+  it.each([1, 30])(
+    "/controle with %i answer(s): the bike, its checkup, the stored one — three",
+    async (answers) => {
+      const bike = await seedBike(OWNER);
+      await seedHistory(bike.id, answers);
+      fakeDb.resetCalls();
+
+      await bikeLoad(bike.id);
+      const stored = await loadStoredCheckup(bike.id, OWNER, "fr", fakeDb.client as never);
+
+      expect(Object.keys(stored?.answers ?? {})).toHaveLength(answers);
+      expectQueryBudget(countQueries(fakeDb.calls), QUERY_BUDGET, "/velo/[id]/controle data load");
+      expect(countQueries(fakeDb.calls)).toBe(3);
+      expectScopedToUser(fakeDb.calls, OWNER);
+    },
+  );
+
+  it("reads nothing of a list or a checkup that is not the caller's", async () => {
+    const bike = await seedBike(STRANGER);
+    await seedHistory(bike.id, 3);
+
+    expect((await loadBuildList(bike.id, OWNER, fakeDb.client as never)).items).toEqual([]);
+    expect(await loadStoredCheckup(bike.id, OWNER, "fr", fakeDb.client as never)).toBeNull();
+  });
+});
