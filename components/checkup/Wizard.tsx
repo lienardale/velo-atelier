@@ -93,6 +93,26 @@ export interface WizardProps {
 /** Guest storage writes immediately; a round trip to the server waits (§6.5). */
 const SERVER_AUTOSAVE_MS = 2000;
 
+/** The quota refusals `finishCheckupAction` names (§4.2 c), as `checkup.*` keys. */
+const FINISH_REFUSALS = [
+  "finish.tooManyLists",
+  "finish.tooManyCheckups",
+  "finish.tooManyLines",
+] as const;
+
+type FinishError = (typeof FINISH_REFUSALS)[number] | "finish.failed";
+
+/**
+ * What to tell the visitor when the server refused to finish. The action's
+ * `form` key says which limit it was (`checkup.finish.tooManyLists`, …); a
+ * refusal it did not name — or one from a future version of the action — is
+ * still said out loud, just less precisely.
+ */
+function finishErrorOf(failure: { fieldErrors?: Readonly<Record<string, string>> }): FinishError {
+  const key = failure.fieldErrors?.form?.replace(/^checkup\./, "");
+  return FINISH_REFUSALS.find((known) => known === key) ?? "finish.failed";
+}
+
 /**
  * The checkup, from the tool list to "Créer ma liste" (§6.5).
  *
@@ -135,6 +155,7 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const [started, setStarted] = useState(() => alreadyStarted(props, props.initialStored));
   const [creating, setCreating] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
+  const [finishError, setFinishError] = useState<FinishError | null>(null);
 
   const guestRef = guestRefOf(props.bikeRef);
   const bikeId = props.bikeRef.kind === "db" ? props.bikeRef.id : null;
@@ -266,6 +287,8 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const onCreate = useCallback(() => {
     if (!canFinish(state) || creating) return;
     setCreating(true);
+    setFinishError(null);
+    const before = state;
     const finished = reduce(state, { type: "FINISH" });
     setState(finished);
     autosave.cancel();
@@ -292,7 +315,19 @@ export function Wizard(props: WizardProps): React.JSX.Element {
         } else {
           // The server re-plans, re-derives and writes the list itself (§5.4):
           // the browser never says what is on it.
-          await finishCheckupAction({ bikeId: bikeId ?? "", checkup: toStored(finished) });
+          const result = await finishCheckupAction({
+            bikeId: bikeId ?? "",
+            checkup: toStored(finished),
+          });
+          if (!result.ok) {
+            // Refused (a quota, §4.2 c): nothing was written, so the checkup
+            // goes back to exactly where it was, and the visitor is told why —
+            // never a navigation to a list that does not exist.
+            setState(before);
+            setFinishError(finishErrorOf(result));
+            setCreating(false);
+            return;
+          }
         }
         setSaveState("saved");
       } catch {
@@ -425,6 +460,12 @@ export function Wizard(props: WizardProps): React.JSX.Element {
           onCreate={onCreate}
           creating={creating}
         />
+      ) : null}
+
+      {phase === "summary" && finishError !== null ? (
+        <Callout tone="danger" role="alert" data-testid="checkup-finish-error">
+          <p>{t(finishError)}</p>
+        </Callout>
       ) : null}
     </div>
   );

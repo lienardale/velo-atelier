@@ -21,12 +21,17 @@
  * ## What is stored, and what is not
  *
  * `CheckupItem` holds one row per answered step — `(stepKey, partId, guideSlug,
- * result, notes)`, unique on `(checkupId, stepKey)`. The chosen SYMPTOM has no
- * column of its own: it lands in the build list's `reasonKey` when the checkup
- * is finished, and `loadCheckupAction` reads it back from there. An in-progress
- * checkup on a saved bike therefore restores its verdicts but not its symptoms
- * after a reload (`docs/backlog.md`); a guest checkup, which keeps the whole
- * state in `localStorage`, restores both.
+ * result, notes, reasonKeys)`, unique on `(checkupId, stepKey)`. `reasonKeys`
+ * is the symptom ticked on a KO (W4), so a reloaded in-progress checkup gets
+ * back WHICH problem it was, not only that there was one; `load.ts` restores it.
+ *
+ * ## Quotas (§4.2 c), literally
+ *
+ * 50 checkups per bike, 10 lists per bike, 50 lines per list — each answered
+ * `TOO_MANY` BEFORE anything is written, so a refused finish leaves the checkup
+ * exactly as it was (the wizard shows the refusal; it never fails silently).
+ * Counted in the request that would create the next one, like
+ * `QUOTAS.bikesPerUser` in `mes-velos/actions.ts`.
  *
  * ## Ownership
  *
@@ -40,8 +45,8 @@ import * as z from "zod";
 
 import { fail, ok, type ActionResult } from "@/lib/actions/result";
 import { withUser, type ActionUser } from "@/lib/actions/with-user";
-import { deriveBike } from "@/lib/bike/rules";
-import { deriveBuildList, statusByPart } from "@/lib/checkup/build-list";
+import { deriveBike, QUOTAS, withinQuota } from "@/lib/bike/rules";
+import { deriveBuildList, recheckedLines, statusByPart } from "@/lib/checkup/build-list";
 import { planCheckup, type PlannableGuide } from "@/lib/checkup/plan";
 import { fromStored, type StoredCheckup, type StoredCheckupSummary } from "@/lib/checkup/storage";
 import {
@@ -184,7 +189,7 @@ function acceptedState(
 }
 
 /**
- * The row this run of the checkup belongs to, created if it is new.
+ * The row this run of the checkup belongs to, or `null` when it is new.
  *
  * Matched on `startedAt`, not on `status`: the client's own "when did I start"
  * is what identifies a run, so editing a verdict on the summary and pressing
@@ -192,18 +197,35 @@ function acceptedState(
  * opening a second one (and orphaning its list). The client's `id` is
  * deliberately NOT used — a row id is the server's to choose.
  */
-async function currentCheckup(
+async function existingCheckup(
   bikeId: string,
   userId: string,
-  scope: CheckupScope,
   startedAt: string,
-): Promise<{ id: string }> {
-  const existing = await prisma.checkup.findFirst({
+): Promise<{ id: string } | null> {
+  return prisma.checkup.findFirst({
     where: { bikeId, bike: { userId }, startedAt: new Date(startedAt) },
     orderBy: { startedAt: "desc" },
     select: { id: true },
   });
-  if (existing !== null) return existing;
+}
+
+/** Room for one more `Checkup` on this bike (`QUOTAS.checkupsPerBike`)? */
+async function roomForCheckup(bikeId: string, userId: string): Promise<boolean> {
+  const count = await prisma.checkup.count({ where: { bikeId, bike: { userId } } });
+  return withinQuota(count, QUOTAS.checkupsPerBike);
+}
+
+/** Room for one more `BuildList` on this bike (`QUOTAS.listsPerBike`)? */
+async function roomForList(bikeId: string, userId: string): Promise<boolean> {
+  const count = await prisma.buildList.count({ where: { bikeId, bike: { userId } } });
+  return withinQuota(count, QUOTAS.listsPerBike);
+}
+
+function createCheckup(
+  bikeId: string,
+  scope: CheckupScope,
+  startedAt: string,
+): Promise<{ id: string }> {
   return prisma.checkup.create({
     data: {
       bikeId,
@@ -212,6 +234,22 @@ async function currentCheckup(
     },
     select: { id: true },
   });
+}
+
+/**
+ * Which quota refused, as the key the wizard shows (§4.2 c). The code stays
+ * `TOO_MANY`; the key says which of the three limits it was, so the visitor is
+ * told something they can act on rather than "a limit was reached".
+ */
+const QUOTA_KEYS = {
+  checkups: "checkup.finish.tooManyCheckups",
+  lists: "checkup.finish.tooManyLists",
+  lines: "checkup.finish.tooManyLines",
+} as const;
+
+function tooMany(quota: keyof typeof QUOTA_KEYS): ActionResult<never> {
+  // eslint-disable-next-line security/detect-object-injection -- `quota` is one of three literals
+  return fail("TOO_MANY", { fieldErrors: { form: QUOTA_KEYS[quota] } });
 }
 
 /**
@@ -234,6 +272,12 @@ async function writeItems(checkupId: string, userId: string, state: CheckupState
         // eslint-disable-next-line security/detect-object-injection -- `result` is a CheckupAnswer literal
         result: TO_PRISMA[result],
         notes: Object.hasOwn(state.notes, step.key) ? state.notes[step.key] : null,
+        // Only a KO has a symptom, and `acceptedState` has already dropped any
+        // the re-planned step does not offer.
+        reasonKeys:
+          result === "ko" && Object.hasOwn(state.symptoms, step.key)
+            ? [...state.symptoms[step.key]]
+            : [],
       },
     ];
   });
@@ -249,14 +293,19 @@ async function writeItems(checkupId: string, userId: string, state: CheckupState
   for (const item of answered) {
     const updated = await prisma.checkupItem.updateMany({
       where: { checkupId, stepKey: item.stepKey, ...owned },
-      data: { result: item.result, notes: item.notes, partId: item.partId },
+      data: {
+        result: item.result,
+        notes: item.notes,
+        partId: item.partId,
+        reasonKeys: item.reasonKeys,
+      },
     });
     if (updated.count === 0) await prisma.checkupItem.create({ data: { checkupId, ...item } });
   }
 }
 
 /**
- * Read a saved bike's checkup back, symptoms included when a list was created.
+ * Read a saved bike's checkup back, symptoms included.
  *
  * `null` means "nothing in progress and nothing finished" — a fresh checkup.
  */
@@ -314,7 +363,12 @@ export const saveCheckupAction = withUser(
     if (planned === null) return fail("NOT_FOUND");
 
     const state = acceptedState(parsed.data.checkup, planned.steps, parsed.data.bikeId);
-    const checkup = await currentCheckup(parsed.data.bikeId, user.id, state.scope, state.startedAt);
+    const bikeId = parsed.data.bikeId;
+    let checkup = await existingCheckup(bikeId, user.id, state.startedAt);
+    if (checkup === null) {
+      if (!(await roomForCheckup(bikeId, user.id))) return tooMany("checkups");
+      checkup = await createCheckup(bikeId, state.scope, state.startedAt);
+    }
     await writeItems(checkup.id, user.id, state);
 
     revalidatePath("/[locale]/velo/[id]", "page");
@@ -339,27 +393,43 @@ export const finishCheckupAction = withUser(
     if (planned === null) return fail("NOT_FOUND");
 
     const state = acceptedState(parsed.data.checkup, planned.steps, parsed.data.bikeId);
-    const checkup = await currentCheckup(parsed.data.bikeId, user.id, state.scope, state.startedAt);
+    const bikeId = parsed.data.bikeId;
+
+    // Every quota is checked before the first write, so a refusal leaves the
+    // checkup exactly as the visitor left it — nothing half-finished.
+    const items = deriveBuildList(state);
+    if (items.length > QUOTAS.itemsPerList) return tooMany("lines");
+    let checkup = await existingCheckup(bikeId, user.id, state.startedAt);
+    const list = checkup === null ? null : await listOf(checkup.id, user.id);
+    if (list === null && !(await roomForList(bikeId, user.id))) return tooMany("lists");
+    if (checkup === null) {
+      if (!(await roomForCheckup(bikeId, user.id))) return tooMany("checkups");
+      checkup = await createCheckup(bikeId, state.scope, state.startedAt);
+    }
+
     await writeItems(checkup.id, user.id, state);
     await prisma.checkup.updateMany({
       where: { id: checkup.id, bike: { userId: user.id } },
       data: { status: "COMPLETED", completedAt: new Date() },
     });
 
-    const buildListId = await writeBuildList(
-      parsed.data.bikeId,
-      user.id,
-      checkup.id,
-      deriveBuildList(state),
-    );
-    await closeRecheckedItems(parsed.data.bikeId, user.id, buildListId, state);
-    await writePartStates(parsed.data.bikeId, user.id, state);
+    const buildListId = await writeBuildList(bikeId, user.id, checkup.id, items, list);
+    await closeRecheckedItems(bikeId, user.id, buildListId, state);
+    await writePartStates(bikeId, user.id, state);
 
     revalidatePath("/[locale]/velo/[id]", "page");
     revalidatePath("/[locale]/velo/[id]/liste", "page");
     return ok({ buildListId });
   },
 );
+
+/** The list a checkup already produced (a re-finish), or `null`. */
+function listOf(checkupId: string, userId: string): Promise<{ id: string } | null> {
+  return prisma.buildList.findFirst({
+    where: { checkupId, bike: { userId } },
+    select: { id: true },
+  });
+}
 
 /**
  * The derived list, merged into the bike's list for this checkup.
@@ -374,12 +444,9 @@ async function writeBuildList(
   userId: string,
   checkupId: string,
   items: readonly BuildListItem[],
+  /** The checkup's list if it has one already (read by the quota check). */
+  existing: { id: string } | null,
 ): Promise<string> {
-  const ownedList = { bike: { userId } };
-  const existing = await prisma.buildList.findFirst({
-    where: { checkupId, ...ownedList },
-    select: { id: true },
-  });
   const list =
     existing ??
     (await prisma.buildList.create({
@@ -444,6 +511,12 @@ async function writeBuildList(
  * §5.4 wants the list to say why it closed, and a visitor who ticks a box by
  * hand must stay distinguishable from one the bike answered for.
  *
+ * WHICH lines is `recheckedLines(state)` — the same rule the guest merge
+ * applies — matched on `(action, partId)`, the identity of a line. It used to be
+ * "every open line on a part some step answered OK", through the viewer's
+ * host-expanded tint: a hosted part (the pads, reached through the caliper)
+ * could never close, and a line with another action on the same part did.
+ *
  * A guest's equivalent is `mergeGuestBuildList`: `va:buildlist:<ref>` is one
  * list per bike, so there the two halves are the same merge.
  */
@@ -453,24 +526,17 @@ async function closeRecheckedItems(
   currentListId: string,
   state: CheckupState,
 ): Promise<void> {
-  const okPartIds = Object.entries(statusByPart(state))
-    .filter(([, status]) => status === "ok")
-    .map(([partId]) => partId);
-  if (okPartIds.length === 0) return;
+  const lines = recheckedLines(state);
+  if (lines.length === 0) return;
 
   await prisma.buildListItem.updateMany({
     where: {
       buildListId: { not: currentListId },
-      partId: { in: okPartIds },
       done: false,
+      OR: lines.map((line) => ({ partId: line.partId, action: toBuildAction(line.action) })),
       buildList: { bikeId, bike: { userId } },
     },
-    // `done` only: `BuildListItem` has no `doneReason` column, so an account
-    // loses the WHY that a guest keeps in `va:buildlist:<ref>`. One nullable
-    // column fixes it, together with `CheckupItem.symptoms` — both are in
-    // docs/backlog.md behind the single migration they share. The schema is
-    // frozen for this wave (§8.0: W0-T4 owns it).
-    data: { done: true },
+    data: { done: true, doneReason: "recheck-ok" },
   });
 }
 

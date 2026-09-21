@@ -44,6 +44,18 @@
  * reported a spongy lever and then said the hose was not leaking got their one
  * finding back already ticked done — 22 such pairs in a full demo checkup. A
  * line derived from a KO in THIS state stays open; the visitor said so.
+ *
+ * ## One rule for what a checkup closes, on both paths
+ *
+ * {@link recheckedLines} is the whole of it: the `(action, partId)` pairs named
+ * by the `ko[]` of a step answered OK, minus every pair a KO in the same state
+ * derives. A guest's merge ({@link markRechecked}, {@link mergeGuestBuildList})
+ * and an account's `closeRecheckedItems` (`app/[locale]/velo/[id]/controle/
+ * actions.ts`) both close exactly those — by PAIR, never by part: the server
+ * once closed every open line on any part a step answered OK, so a hosted part
+ * (brake pads, reached through the caliper) never closed and a line with a
+ * different action on the same part did. `tests/unit/checkup/
+ * line-identity.test.ts` holds both paths to that rule over all seven presets.
  */
 import type { PartId } from "@/lib/domain/data/parts";
 
@@ -63,21 +75,54 @@ function consequencesFor(
   return step.ko.filter((consequence) => symptoms.includes(consequence.reasonKey));
 }
 
-/** Could an OK on this step have closed a line about `(action, partId)`? */
-function answers(step: CheckStepRef, item: Pick<BuildListItem, "partId" | "action">): boolean {
-  return step.ko.some(
-    (consequence) => consequence.partId === item.partId && consequence.action === item.action,
-  );
+/** One line's identity, as the server's `BuildListItem` row and the recheck rule see it. */
+export interface BuildLine {
+  action: BuildAction;
+  partId: PartId;
+}
+
+/** The pairs a KO in this state puts on the list — what {@link deriveBuildList} keys on. */
+function derivedPairs(state: CheckupState): Set<string> {
+  const pairs = new Set<string>();
+  for (const step of state.steps) {
+    if (answerOf(state, step.key) !== "ko") continue;
+    for (const consequence of consequencesFor(step, symptomsOf(state, step.key))) {
+      pairs.add(pairOf(consequence.action, consequence.partId));
+    }
+  }
+  return pairs;
 }
 
 /**
- * Close the lines of an EXISTING list that a fresh set of OK verdicts
- * contradicts (§6.7).
+ * The lines this checkup CLOSES on a list that existed before it (§5.4, §6.7):
+ * every `(action, partId)` named by the `ko[]` of a step answered OK — "the
+ * pads are fine" answers the question whose KO would have replaced them —
+ * except the pairs a KO in this same state derives.
  *
- * For persisted rows only — the list page hands in what it stored before this
- * checkup ran. Never for the lines `deriveBuildList` has just produced from the
- * same state (see this file's header): there, an OK is a different question,
- * not a recheck.
+ * The exception is what keeps a line alive when two questions of one checkup
+ * name it and disagree (a spongy lever KO, a hose that does not leak OK, both
+ * `inspect-shop brake-line-front`): the KO is a finding, the OK is a different
+ * question, and the line stays open. In plan order, deduplicated.
+ */
+export function recheckedLines(state: CheckupState): BuildLine[] {
+  const keep = derivedPairs(state);
+  const seen = new Set<string>();
+  const lines: BuildLine[] = [];
+  for (const step of state.steps) {
+    if (answerOf(state, step.key) !== "ok") continue;
+    for (const consequence of step.ko) {
+      const pair = pairOf(consequence.action, consequence.partId);
+      if (keep.has(pair) || seen.has(pair)) continue;
+      seen.add(pair);
+      lines.push({ action: consequence.action, partId: consequence.partId as PartId });
+    }
+  }
+  return lines;
+}
+
+/**
+ * Close the lines of an EXISTING list that this checkup contradicts (§6.7) —
+ * exactly the pairs of {@link recheckedLines}.
  *
  * The only fields read are `partId`, `action` and `done`, and an item the
  * visitor ticked by hand keeps its `manual` reason.
@@ -86,10 +131,10 @@ export function markRechecked(
   items: readonly BuildListItem[],
   state: CheckupState,
 ): BuildListItem[] {
-  const cleared = state.steps.filter((step) => answerOf(state, step.key) === "ok");
-  if (cleared.length === 0) return [...items];
+  const closes = new Set(recheckedLines(state).map((line) => pairOf(line.action, line.partId)));
+  if (closes.size === 0) return [...items];
   return items.map((item) =>
-    item.done || !cleared.some((step) => answers(step, item))
+    item.done || !closes.has(pairOf(item.action, item.partId))
       ? item
       : { ...item, done: true, doneReason: "recheck-ok" },
   );
@@ -163,11 +208,22 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
  * A guest has one list key per bike, so `sameCheckup` is what carries that
  * distinction here.
  *
- * What survives from the previous line is what the visitor typed: `done`,
- * `doneReason`, `refinement`, `chosenProduct` and its place in the list. What
- * comes from the new derivation is what the checkup found: `reasonKey`,
- * `guideSlug`, `sourceKeys`. Lines the checkup no longer produces are dropped,
- * again as the server does.
+ * What survives from the previous line is what the visitor typed:
+ * `refinement`, `chosenProduct` and its place in the list. What comes from the
+ * new derivation is what the checkup found: `reasonKey`, `guideSlug`,
+ * `sourceKeys`. Lines the checkup no longer produces are dropped, again as the
+ * server does.
+ *
+ * ## A line a KO derived is open
+ *
+ * `done` survives only a re-run of the SAME checkup, and only when the visitor
+ * ticked it — the server's `writeBuildList` never touches `done` on the list of
+ * the checkup being re-finished. A LATER checkup whose KO derives the line
+ * again is a new finding: the line comes back open, whatever closed it before,
+ * exactly as it does on the fresh list the server writes for that checkup. And
+ * a `recheck-ok` is never carried onto a line a KO derived: it is the bike's
+ * earlier answer, and this KO is its newer one. Before W4 both were carried, so
+ * a line could come back from a KO already ticked "closed by a recheck".
  */
 export function mergeGuestBuildList(
   previous: readonly BuildListItem[],
@@ -180,13 +236,19 @@ export function mergeGuestBuildList(
     markRechecked(previous, state).map((item) => [pairOf(item.action, item.partId), item]),
   );
 
+  const ticked = (kept: BuildListItem) =>
+    sameCheckup && kept.done && kept.doneReason !== "recheck-ok";
   const carry = (item: BuildListItem, kept: BuildListItem | undefined, sortOrder: number) =>
     kept === undefined
       ? { ...item, sortOrder }
       : {
           ...item,
-          done: kept.done,
-          ...(kept.doneReason === undefined ? {} : { doneReason: kept.doneReason }),
+          ...(ticked(kept)
+            ? {
+                done: true,
+                ...(kept.doneReason === undefined ? {} : { doneReason: kept.doneReason }),
+              }
+            : {}),
           ...(kept.refinement === undefined ? {} : { refinement: kept.refinement }),
           ...(kept.chosenProduct === undefined ? {} : { chosenProduct: kept.chosenProduct }),
           sortOrder: kept.sortOrder,

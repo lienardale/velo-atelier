@@ -33,17 +33,23 @@ const FROM_PRISMA: Record<CheckupResult, CheckupAnswer> = {
  * wants. `null` when the bike has none, or is not this user's: the ownership
  * predicate is in the `where`, so a foreign id simply finds nothing (§4.7).
  *
- * The chosen SYMPTOMS are not restored: they have no column and live in the
- * build list once the checkup is finished (`docs/backlog.md`). A KO whose
- * symptom is gone falls back to every consequence of its step, which shows too
- * much rather than losing the problem.
+ * The chosen SYMPTOMS come back from `CheckupItem.reasonKeys` (W4). They were
+ * validated against the plan when they were written and are validated again by
+ * `fromStored` when the wizard marries them to today's plan, so a reason the
+ * corpus has since dropped simply falls away.
+ *
+ * One query, whatever the checkup's size: the items ride in the same `select`
+ * (`tests/unit/bike/load-bike.test.ts` holds `/controle`'s whole data load to
+ * the §7.3 budget of three). `db` is injectable for the integration-tier
+ * counter; everything else uses the app's client.
  */
 export async function loadStoredCheckup(
   bikeId: string,
   userId: string,
   locale: Locale,
+  db: Pick<typeof prisma, "checkup"> = prisma,
 ): Promise<StoredCheckup | null> {
-  const row = await prisma.checkup.findFirst({
+  const row = await db.checkup.findFirst({
     where: { bikeId, bike: { userId } },
     orderBy: [{ status: "asc" }, { startedAt: "desc" }],
     select: {
@@ -51,17 +57,21 @@ export async function loadStoredCheckup(
       scope: true,
       startedAt: true,
       completedAt: true,
-      items: { select: { stepKey: true, result: true, notes: true } },
+      items: { select: { stepKey: true, result: true, notes: true, reasonKeys: true } },
     },
   });
   if (row === null) return null;
 
   const answers: Record<string, CheckupAnswer> = {};
   const notes: Record<string, string> = {};
+  const symptoms: Record<string, string[]> = {};
   for (const item of row.items) {
     answers[item.stepKey] = FROM_PRISMA[item.result];
 
     if (item.notes !== null) notes[item.stepKey] = item.notes;
+    if (item.result === "KO" && item.reasonKeys.length > 0) {
+      symptoms[item.stepKey] = [...item.reasonKeys];
+    }
   }
 
   return {
@@ -74,7 +84,7 @@ export async function loadStoredCheckup(
     scope: row.scope === "FULL" ? { kind: "full" } : { kind: "parts", partIds: [] },
     locale,
     answers,
-    symptoms: {},
+    symptoms,
     notes,
     toolsMissing: [],
     startedAt: row.startedAt.toISOString(),
