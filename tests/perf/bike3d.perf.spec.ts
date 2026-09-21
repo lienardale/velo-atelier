@@ -225,9 +225,17 @@ test.describe("bike3d runtime budgets", () => {
     }
     if (!LOCAL_GPU) return;
 
-    // The manual gate (§7.3, §7.6 AC9): only a real GPU can answer it.
-    expect(renderer, "RUN_LOCAL_PERF=1 must render on a GPU, not SwiftShader").not.toMatch(
-      /swiftshader/i,
+    // The manual gate (§7.3, §7.6 AC9): only a real GPU can answer it, and only
+    // a renderer string that NAMES the device says which one rendered. A masked
+    // string ("WebKit WebGL", when WEBGL_debug_renderer_info is not exposed),
+    // none at all, or another software rasteriser (Mesa's llvmpipe / softpipe,
+    // Windows' WARP "Basic Render Driver", Apple's Software Renderer) would all
+    // pass a SwiftShader-only check.
+    expect(renderer, "RUN_LOCAL_PERF=1 needs the unmasked WebGL renderer").not.toMatch(
+      /^(unknown|WebKit WebGL)$/,
+    );
+    expect(renderer, "RUN_LOCAL_PERF=1 must render on a GPU, not in software").not.toMatch(
+      /swiftshader|llvmpipe|softpipe|software|basic render/i,
     );
     for (const [preset, metrics] of Object.entries(presets)) {
       expect(metrics.p95FrameMs, `${preset} p95 frame cost on ${renderer}`).toBeLessThanOrEqual(
