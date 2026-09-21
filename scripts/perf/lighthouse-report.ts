@@ -174,7 +174,16 @@ function pinRows(
   const perf = worst("performance", false);
   const perfNow = current(config, "categories:performance")?.minScore;
   if (perf !== null && perfNow !== undefined) {
-    const candidate = Math.min(BIKE_TARGET.performance, Math.floor((perf - 0.05) * 100) / 100);
+    // floor₀.₀₁ on the hundredths the rule means. In binary floating point
+    // (0.70 − 0.05) × 100 is 64.99999999999999, so a bare floor proposed 0.64
+    // for a 0.70 median: one hundredth LOOSER than the rule, for 20 of the 96
+    // two-decimal medians (0.57–0.63 and 0.69–0.71, the bike pages' band,
+    // among them). The epsilon moves only a value within a millionth of a
+    // hundredth of one, i.e. a two-decimal score sitting on it.
+    const candidate = Math.min(
+      BIKE_TARGET.performance,
+      Math.floor((perf - 0.05) * 100 + 1e-6) / 100,
+    );
     const proposal = Math.max(perfNow, candidate);
     const note =
       perf < perfNow
