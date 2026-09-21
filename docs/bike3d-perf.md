@@ -177,6 +177,21 @@ goes past the target: there the bike page meets the plan, and the guard in
 `lighthouserc.cjs` refuses a bike threshold tighter than it. Pins are taken
 from the nightly's five-run medians, never from a laptop.
 
+Two things that decide the bike pages' numbers (`.debug/014`):
+
+- **The LCP element is the largest text painted before any input**, and a
+  late text wins if it is larger. The `<h1>` is painted at first paint (the
+  inline silhouette SVG is never an LCP candidate in Chrome), so anything the
+  viewer adds later must not outgrow it: that is why the 3D loading notice is
+  announced but not painted. It used to put `/en/bike/demo`'s LCP at the 3D
+  mount — 4520 ms against 2302 ms for the same page in French, where the
+  `<h1>` is twice as wide.
+- **A laptop's Lighthouse timings are not CI's.** With the CI GL flags Chrome
+  rasterises the page through SwiftShader too, so the first paint waits for
+  software raster: on a machine busy with builds it lands seconds later than
+  on the idle runner. Run `lhci` locally only on an idle machine, and trust
+  the nightly table over it.
+
 ## Bundle sizes
 
 - **First-load JS per route** — `npx tsx scripts/perf/bundle-budget.ts`
