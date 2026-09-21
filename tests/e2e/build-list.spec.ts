@@ -51,7 +51,7 @@ const CHAIN_LINKS: Record<Locale, Record<string, string>> = {
   },
   en: {
     rosebikes: "https://www.rosebikes.com/search?q=chain%2011%20speed",
-    alltricks: "https://www.alltricks.com/",
+    alltricks: "https://www.alltricks.com/C-40598-chains",
     decathlon: "https://www.decathlon.co.uk/search?Ntt=chain%2011%20speed",
   },
 };

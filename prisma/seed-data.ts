@@ -212,7 +212,7 @@ export const DEMO_BUILD_LIST: DemoBuildListSeed = {
         model: "CN-HG601",
         size: "11v",
         vendor: "alltricks",
-        url: "https://www.alltricks.fr/Acheter/chaine-shimano-cn-hg601",
+        url: "https://www.alltricks.fr/F-32737-chaines/P-486335-chaine_shimano_105_slx_cn_hg601_11v_116_maillons__attache_rapide",
       },
     },
     {

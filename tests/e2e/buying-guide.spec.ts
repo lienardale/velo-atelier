@@ -47,8 +47,8 @@ const CHAIN_11: Record<
     query: "chain 11 speed",
     rosebikes: "https://www.rosebikes.com/search?q=chain%2011%20speed",
     decathlon: "https://www.decathlon.co.uk/search?Ntt=chain%2011%20speed",
-    // No English category map for this shop: the panel falls back to its home page.
-    alltricks: "https://www.alltricks.com/",
+    // The shop with no search endpoint gets the category page for the part.
+    alltricks: "https://www.alltricks.com/C-40598-chains",
     brandQuery: /chain .*(KMC|Shimano|SRAM)/,
   },
 };

@@ -132,12 +132,13 @@ describe("verification (§5.5 — the 'lien non vérifié récemment' note)", ()
   it("reports what the retailer table actually carries today", () => {
     // (verify) in the plan: recorded here so a hand-check that lands later is a
     // visible diff, and so the shop page's note is driven by data, not by hope.
-    expect(retailerVerifiedAt("rosebikes")).toBe("2026-09-07");
-    expect(retailerVerifiedAt("alltricks")).toBeNull();
-    expect(retailerVerifiedAt("decathlon")).toBeNull();
+    // The 2026-09-21 pass (docs/retailers.md): every row of both locales.
+    expect(retailerVerifiedAt("rosebikes")).toBe("2026-09-21");
+    expect(retailerVerifiedAt("alltricks")).toBe("2026-09-21");
+    expect(retailerVerifiedAt("decathlon")).toBe("2026-09-21");
     expect(isRetailerVerified("rosebikes")).toBe(true);
-    expect(isRetailerVerified("alltricks")).toBe(false);
-    expect(isRetailerVerified("decathlon")).toBe(false);
+    expect(isRetailerVerified("alltricks")).toBe(true);
+    expect(isRetailerVerified("decathlon")).toBe(true);
   });
 
   it("reads the dates from the domain table rather than repeating them", () => {
