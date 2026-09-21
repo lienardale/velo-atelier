@@ -81,13 +81,61 @@ if [[ "${SKIP_SECURITY:-0}" == "1" ]]; then
   log_warn "SKIP_SECURITY=1 — gitleaks/audit/semgrep/trivy disabled. Do NOT push this way."
 fi
 
+# `host port` of the database the integration tier will use: the shell wins over
+# `.env.test`, exactly as in scripts/ci/test-integration.sh. Empty when unknown.
+integration_db_endpoint() {
+  local url="${POSTGRES_URL_NON_POOLING:-${POSTGRES_URL:-}}"
+  if [[ -z "$url" && -f "$PROJECT_ROOT/.env.test" ]]; then
+    url="$(sed -n 's/^POSTGRES_URL_NON_POOLING=//p' "$PROJECT_ROOT/.env.test" | head -1)"
+  fi
+  [[ -n "$url" ]] || return 0
+  node -e 'try { const u = new URL(process.argv[1]); console.log(`${u.hostname} ${u.port || 5432}`) } catch {}' "$url"
+}
+
+# Does something already answer on that host:port? A TCP connect, nothing more.
+port_answers() {
+  node -e '
+    const s = require("node:net").connect({ host: process.argv[1], port: Number(process.argv[2]) });
+    s.setTimeout(1500, () => process.exit(1));
+    s.once("connect", () => { s.end(); process.exit(0); });
+    s.once("error", () => process.exit(1));
+  ' "$1" "$2"
+}
+
+# A linked `git worktree` (not the main checkout).
+in_linked_worktree() {
+  local dir common
+  dir="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 1
+  common="$(git -C "$PROJECT_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || return 1
+  [[ "$dir" != "$common" ]]
+}
+
 # The database tier expects Docker to be up; bring the container up here rather
 # than in the step so the step stays a faithful copy of what CI runs.
+#
+# `npm run db:up` is only ever run when nothing answers yet, and never from a
+# linked worktree. docker-compose.yml pins `container_name`, and the compose
+# project name is the directory name, so from a worktree `docker compose up`
+# either creates a second project fighting over that name or — with the project
+# name forced — RECREATES the container every other checkout is using (both
+# observed with `--dry-run`, W4 setup). The pre-push hook runs this script, so
+# without this guard every push from a worktree was one `db:up` away from that.
 case " $STEPS_TO_RUN " in
 *" test-integration "*)
   if docker info >/dev/null 2>&1; then
-    log_step "▶ docker compose up -d --wait"
-    npm run db:up
+    endpoint="$(integration_db_endpoint)"
+    where="${endpoint/ /:}"
+    # shellcheck disable=SC2086 # "host port" is split on purpose
+    if [[ -n "$endpoint" ]] && port_answers $endpoint; then
+      log_step "▶ database already up at $where — not touching compose"
+    elif in_linked_worktree; then
+      log_err "nothing answers at ${where:-the integration database} and this is a linked git worktree."
+      log_err "Start the database from the main checkout (npm run db:up there), or re-run with SKIP_DB=1."
+      exit 1
+    else
+      log_step "▶ docker compose up -d --wait"
+      npm run db:up
+    fi
     VITEST_REQUIRE_DB=1
     export VITEST_REQUIRE_DB
   else

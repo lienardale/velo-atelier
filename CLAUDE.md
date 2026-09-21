@@ -353,6 +353,15 @@ Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
   `NEXT_PUBLIC_SITE_URL` are derived from it, and `.env.test`'s pinned `:3100`
   never wins — only a value exported in the shell does. A test database's name
   must end in `_test` (`assertTestDatabaseUrl`).
+- **Compose runs from the main checkout only.** `docker-compose.yml` pins
+  `container_name`, so `docker compose up` from a linked worktree creates a
+  second project fighting over that name, or — with the project name forced —
+  recreates the container every checkout shares. `bash scripts/ci.sh` (and so
+  the pre-push hook) therefore skips `npm run db:up` when the integration
+  database already answers and refuses to run it from a worktree; a worktree
+  exports its own `POSTGRES_URL`/`POSTGRES_URL_NON_POOLING` (two separate
+  `export`s — `export A=… B=$A` leaves `B` empty) pointing at its own `*_test`
+  database on the shared container.
 - **A green local e2e run does not mean CI is green.** CI's Linux Chromium is a
   different browser build with software GL, and at least one input API scrolls
   on macOS while doing nothing there (`.debug/005`). Reproduce a CI-only failure
