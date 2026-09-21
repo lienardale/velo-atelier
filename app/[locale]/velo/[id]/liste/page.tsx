@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: BuildListPageProps): Promise<
  * never reaches the browser, and the build list's bundle never carries it.
  * This route is dynamic, so the read happens per request: the file is in the
  * route's traced output (`page.js.nft.json`), which is what makes that safe on
- * a deployment (W4-T1 report).
+ * a deployment (`.debug/013` §5).
  *
  * The "Comment mesurer" drawings travel the same way, rendered here
  * (`renderMeasureDrawings`), for the attributes this bike's parts can be asked
