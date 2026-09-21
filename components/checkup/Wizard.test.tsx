@@ -304,6 +304,48 @@ describe("a saved bike", () => {
     // And nothing was written to the guest key.
     expect(window.localStorage.getItem(checkupKey("demo"))).toBeNull();
   });
+
+  it("starts a NEW run after a finished checkup: its own id and its own startedAt", async () => {
+    // The server knows a run by its `startedAt` (`existingCheckup`,
+    // `controle/actions.ts`). A new checkup that inherited the finished one's
+    // was written INTO it: its verdicts overwritten by the first autosave, the
+    // lines of its list deleted instead of closed `recheck-ok` (§5.4), and never
+    // a second row for the §4.2 (c) quotas to count.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-01T09:00:00.000Z") });
+    const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    const finished: StoredCheckup = toStored(
+      makeState(PLAN, {
+        id: "22222222-2222-4222-8222-222222222222",
+        bikeRef: { kind: "db", id: BIKE },
+        answers: { [PADS.key]: "ko", [CALIPER.key]: "ok", [CHAIN.key]: "ok" },
+        symptoms: { [PADS.key]: ["pad-worn"] },
+        completedAt: "2026-09-19T08:30:00.000Z",
+      }),
+    );
+    const { finishCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/actions");
+    const { user } = await renderWithIntl(
+      wizard({ bikeRef: { kind: "db", id: BIKE }, bikeParam: BIKE, initialStored: finished }),
+    );
+
+    // History, not something to resume: a new checkup, from its tool list.
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "tools");
+    await user.click(screen.getByTestId("checkup-start"));
+    for (const step of PLAN) {
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", step.key);
+      await user.click(screen.getByTestId("verdict-ok"));
+    }
+    await user.click(screen.getByTestId("summary-create"));
+
+    await waitFor(() => expect(finishCheckupAction).toHaveBeenCalledTimes(1));
+    const [{ checkup }] = vi.mocked(finishCheckupAction).mock.calls[0] as [
+      { checkup: StoredCheckup },
+    ];
+    expect(checkup).toMatchObject({
+      id: "11111111-1111-4111-8111-111111111111",
+      startedAt: "2026-10-01T09:00:00.000Z",
+      answers: { [PADS.key]: "ok", [CALIPER.key]: "ok", [CHAIN.key]: "ok" },
+    });
+  });
 });
 
 describe("a refused finish (§4.2 c)", () => {

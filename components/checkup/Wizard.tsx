@@ -472,13 +472,6 @@ export function Wizard(props: WizardProps): React.JSX.Element {
 }
 
 /**
- * A stored checkup against today's plan, parked on `?step=` when there is one.
- *
- * `fromStored` is what keeps a corpus change cheap: the answers survive, the
- * questions are the ones on disk now, and the cursor lands on the first one
- * still open.
- */
-/**
  * A FINISHED checkup is history, not something to resume.
  *
  * `va:checkup:<ref>` holds one checkup per bike, so without this a guest who
@@ -496,20 +489,36 @@ function isFinished(stored: StoredCheckup | null): boolean {
   return stored !== null && stored.completedAt !== undefined;
 }
 
+/**
+ * A stored checkup against today's plan, parked on `?step=` when there is one —
+ * or a NEW run, when there is nothing to resume.
+ *
+ * `fromStored` is what keeps a corpus change cheap: the answers survive, the
+ * questions are the ones on disk now, and the cursor lands on the first one
+ * still open.
+ *
+ * A new run gets its own id AND its own `startedAt` (`createCheckupState`
+ * stamps "now"), and the second matters as much as the first: a saved bike's
+ * server knows a run by its `startedAt` (`existingCheckup` in
+ * `controle/actions.ts`, where the same `startedAt` again is the same checkup
+ * finished again). A new run that inherited a finished one's was written INTO
+ * it — its first autosave overwrote the finished verdicts, finishing deleted
+ * the lines of its list instead of closing them `recheck-ok` (§5.4), and the
+ * bike never got a second row for the §4.2 (c) quotas to count
+ * (`tests/e2e/checkup-second-run.spec.ts`).
+ */
 function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState {
-  const empty = createCheckupState({
-    id: stored?.id ?? props.newCheckupId,
-    bikeRef: props.bikeRef,
-    scope: props.scope,
-    locale: props.locale,
-    steps: props.steps,
-    contentVersion: props.contentVersion,
-    ...(stored === null ? {} : { startedAt: stored.startedAt }),
-  });
   const resumable = stored !== null && !(isFinished(stored) && props.initialStepKey === null);
   const restored = resumable
     ? fromStored(stored, props.steps, props.contentVersion)
-    : { ...empty, id: props.newCheckupId };
+    : createCheckupState({
+        id: props.newCheckupId,
+        bikeRef: props.bikeRef,
+        scope: props.scope,
+        locale: props.locale,
+        steps: props.steps,
+        contentVersion: props.contentVersion,
+      });
   // `?step=` wins over "where you had got to": it IS the resume link, and it is
   // also what a deep link into one question of a checkup means.
   const at = stepIndexOf(restored, props.initialStepKey);
