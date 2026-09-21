@@ -52,23 +52,26 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 
 ```bash
 npm run dev            # tree drawings, then Turbopack dev server on :3000
-npm run build          # tree drawings, content-check, then next build
+npm run build          # tree drawings, content:generate (structural check + lib/content/generated), next build
 npm run drawings       # render the decision tree's drawings to public/tree-drawings.json
-npm run drawings:check  # fail if that file is stale (runs in scripts/ci/content.sh)
+npm run drawings:check # fail if that file is stale (runs in scripts/ci/content.sh)
 npm run lint           # ESLint (flat config)
 npm run format:check   # Prettier
-npm run typecheck      # prisma generate && tsc --noEmit
-npm test               # every Vitest project
-npm run test:coverage  # Vitest + the 80 % gate (this is the gate, not a report)
-npm run e2e            # Playwright (needs a production build first)
+npm run typecheck      # prisma generate, content-collections build, content:generate, tsc --noEmit
+npm test               # every Vitest project (integration is dropped, with a warning, when no _test DB answers)
+npm run test:coverage  # Vitest + the coverage thresholds (this is the gate, not a report)
+npm run e2e            # Playwright, every project (needs a production build first; pass --project=<name>)
 npm run e2e:mobile     # Playwright on the mobile profiles
-npm run e2e:docker     # full Playwright suite in the amd64 container
+npm run e2e:docker     # Playwright in the amd64 CI image (scripts/ci/e2e-docker.sh)
+npm run perf           # Playwright perf + perf-mobile (hard WebGL counters)
 npm run lhci           # Lighthouse CI
-npm run db:up          # docker compose up -d --wait
+npm run db:up          # docker compose up -d --wait (main checkout only)
 npm run db:setup       # docker compose + migrate + seed (localhost only)
+npm run db:seed        # prisma db seed — idempotent upserts; refuses a non-local host unless ALLOW_REMOTE_SEED=1
 npm run db:reset       # destroy the volume and rebuild from scratch
-npm run content:check  # validate content/** frontmatter
-npm run ci:local       # local mirror of the GitHub Actions pipeline
+npm run content:check  # validate content/** (--strict)
+npm run content:new    # scaffold content/guides/<kind>-<slug>/{fr,en}.mdx; --part flags go after a --
+npm run ci:local       # bash scripts/ci.sh, the local mirror of the GitHub Actions pipeline
 ```
 
 ---
@@ -82,7 +85,8 @@ app/[locale]/…       routes (FR default, EN via routing.pathnames)
 auth.ts auth.config.ts proxy.ts     Auth.js split; proxy.ts is Node-only in Next 16
 lib/domain/          pure TS data + engine — zero React, zero Prisma
 lib/bike3d/          pure geometry (three imports allowed, no React)
-lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks
+lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks|seo|a11y|testing
+lib/env.ts           the environment contract (see "Contracts": not called at boot yet)
 components/ui/       generated shadcn — do not hand-edit
 components/ui-ext/   hand-rolled primitives (Stepper, Callout, MobileSheet, …)
 components/i18n/     ClientMessages — the per-route next-intl provider
@@ -92,6 +96,8 @@ messages/{fr,en}/    one JSON file per namespace
 prisma/              schema, migrations, seed
 tests/               unit, ui, bike3d, integration, security, e2e, perf
 scripts/             ci/, db/, perf/, content tooling
+docs/                contributor and operator docs — every one is linked from README.md
+.debug/              NNN-*.md investigation notes, indexed in .debug/README.md
 ```
 
 ---
@@ -136,8 +142,9 @@ scripts/             ci/, db/, perf/, content tooling
   user-facing string exists in **both** `messages/fr/` and `messages/en/`;
   `tests/unit/i18n/messages-parity.test.ts` enforces it.
 - **The catalogue the SERVER reads is whole; what reaches the BROWSER is
-  declared per route.** `lib/i18n/request.ts` still merges all 13 namespaces for
-  `getTranslations`. `NextIntlClientProvider` does not: every route mounts
+  declared per route.** `lib/i18n/request.ts` still merges all 16 namespaces
+  (`lib/i18n/namespaces.ts`) for `getTranslations`. `NextIntlClientProvider`
+  does not: every route mounts
   `components/i18n/ClientMessages.tsx` with its own entry of
   `lib/i18n/client-namespaces.ts` — the locale layout for the shell, a segment
   layout where one exists (`velo/[id]`, `(protected)`, so their `error.tsx` is
@@ -150,8 +157,13 @@ scripts/             ci/, db/, perf/, content tooling
   walks each route's client module graph and fails with the exact set to
   declare. It resolves every uncertainty against the payload — an import it
   cannot resolve fails the run, and a `useTranslations()` with **no literal
-  namespace** requires all 13 (which is why five `/velo` and `/compte`
-  components still pin their routes to the whole catalogue). Making a route
+  namespace** requires all 16. That is why the sign-in, sign-up, `(protected)`
+  and `velo/[id]` entries still declare the whole catalogue: `form-parts.tsx`
+  resolves a key a server action returned, `BikeCard` and four `/velo`
+  components (`PartInfo`, `PartEditForm`, `MeasureCard`, `MeasurementForm`)
+  translate `parts.*` keys the part catalogue carries, and the list's
+  `BuildList` and `BuildItemCard` resolve `guides.reasons.*` and rule keys the
+  same way. Making a route
   lighter means making what it reads visible: `useDecisionText()`
   (`components/decision-tree/decision-text.ts`) is how the tree does it.
 - **Navigation** — always import `Link`, `redirect`, `usePathname`, `useRouter`
@@ -182,20 +194,25 @@ scripts/             ci/, db/, perf/, content tooling
   for that, not for the element: a click in that window is dropped, and
   `networkidle` is not "Next has finished prefetching" either (`.debug/011`).
 - **`server-only`** is imported only in `app/**` server files,
-  `lib/auth/password-policy.ts` and `lib/actions/with-user.ts`. Everything
-  reachable from `prisma/seed.ts` and `scripts/**` must be plain Node.
+  `components/mdx/index.ts` (the MDX rendering boundary: importing that barrel
+  from a client component fails the build), `lib/auth/password-policy.ts` and
+  `lib/actions/with-user.ts`. Everything reachable from `prisma/seed.ts` and
+  `scripts/**` must be plain Node (`tests/unit/no-server-only-in-scripts.test.ts`
+  walks the graph).
 - **Prisma** — import the client from `@/lib/generated/prisma/client`, never
   from `@prisma/client` (ESLint enforces it; a type-only import is allowed for
   the adapter cast in `auth.ts`).
-- **No logic in `components/bike3d/parts/**`** — no `if`, no ternary, no `&&`
-  rendering, no loops. Decide in `lib/bike3d/**`, pass a prop. ESLint enforces
-  it via `no-restricted-syntax`.
-- **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is a
-  72-component barrel. Only server files may import it: guides go through
-  `components/mdx/Illustration.tsx`, the decision tree through
-  `components/decision-tree/tree-illustrations.tsx`, which hands the client tree
-  already-rendered nodes. A `"use client"` file that imports the barrel puts all
-  ~70 drawings in the route's first-load JS. A drawing with numbered
+- **No logic in `components/bike3d/parts/**`** — no `if`, no `switch`, no
+  ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
+  prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
+- **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is the
+  generated barrel of all 68 drawings (72 exports: the 68, the placeholder, the
+  props type, and the name → component map with its lookup;
+  `docs/illustrations.md`). Only server files may import
+  it: guides go through `components/mdx/Illustration.tsx`, the decision tree
+  through `components/decision-tree/tree-illustrations.tsx`, which hands the
+  client tree already-rendered nodes. A `"use client"` file that imports the
+  barrel puts all 68 drawings in the route's first-load JS. A drawing with numbered
   `data-callout`s always ships with its legend (`illustrations.<id>.callouts.<n>`),
   in the guide renderer and in the tree's `HelpFigure` alike.
 - **The decision tree's drawings are split: frame here, shapes over the wire**
@@ -249,6 +266,18 @@ scripts/             ci/, db/, perf/, content tooling
   ships `1` for `npm run dev` and `next build` reads `.env.local`, so without
   that pin every local build had the hooks on and `ci:local` asserted the
   _present_ direction, the same one CI's `build` job asserts (`.debug/009`).
+- **`lib/env.ts` declares the environment contract; nothing enforces it at
+  boot yet.** `parseEnv()` requires `AUTH_URL` and the Google pair in
+  production and refuses `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and
+  `NEXT_PUBLIC_DEMO_LOGIN` there (`tests/unit/db/env.test.ts`), but `getEnv()`
+  has no caller outside that test, and `scripts/bundle-guard.ts` follows the
+  hooks flag rather than refusing it. The comments in
+  `components/auth/SignInForm.tsx` and `app/[locale]/(auth)/connexion/page.tsx`
+  that say the boot fails are wrong. Wiring it needs the production test scoped
+  to `VERCEL_ENV` first: the `next` CLI defaults `NODE_ENV` to `production` for
+  every `next start` (unless it is set), the CI boot check and the e2e server
+  included (`docs/backlog.md`, W5). Until then the Vercel env list in
+  `docs/deploy.md` is the only guard.
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
   under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
   `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
@@ -257,6 +286,12 @@ scripts/             ci/, db/, perf/, content tooling
   no longer set a 404. A route-level `loading.tsx` anywhere must also be
   **silent**: it gets no `params`, so it cannot `setRequestLocale`, and one
   `useTranslations` in it turns the whole segment dynamic.
+  **§6.8 AC2, as amended** (W4 ruling — the plan's third clause also wanted
+  `/[locale]/velo/demo` static, which cannot hold beside §4.7's 404 for a
+  foreign bike, and the 404 wins; `.debug/010` §7): the criterion reads
+  "`/[locale]` and `/[locale]/guides/[slug]` static; `/velo/[id]` dynamic by
+  design (§4.7)". `npm run build` prints `●` for `/fr`, `/en` and every guide
+  path, and `ƒ` for `/[locale]/velo/[id]` and its sub-routes.
 - **The checkup is planned on the server, answered in the browser** (W3-T1).
   `planCheckup(build, scope, guides)` (`lib/checkup/plan.ts`) is a pure function
   of the bike and the corpus, recomputed on every request; the client sends back
@@ -337,12 +372,20 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
 
 ## Quality gates
 
-Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
+Every gate but CodeQL is a `scripts/ci/*.sh` script that runs the same way
+locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
+Lighthouse), which need a production build and run on their own, and the
+PR-only `visual-baseline-guard`.
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
 - Vitest projects `unit | ui | bike3d | integration | security`; coverage
-  thresholds 80 % overall, 100 % on `lib/domain/**`.
+  thresholds (`vitest.config.ts`, never lowered to pass): 80 % overall; 100 % on
+  `lib/domain/**`; 100 % statements and branches on `lib/checkup/**`; `lib/**`
+  90 % lines / functions / statements and 85 % branches; `components/**` 75 %
+  lines / functions / statements and 70 % branches. CI's two test jobs write
+  blob reports and `scripts/ci/coverage.sh` evaluates the thresholds on the
+  merge.
 - Playwright on desktop, Pixel 7, landscape, 320 px, WebKit (non-blocking) and
   a no-WebGL profile; axe sweep with zero serious/critical violations. e2e runs a
   production build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build`
@@ -375,7 +418,8 @@ Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
 - Lighthouse CI, a bundle budget, and WebGL draw-call/triangle counters.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
 
-Husky runs the fast subset pre-commit and the full local mirror pre-push.
+Husky runs the fast subset pre-commit and, pre-push, the local mirror without
+its `build` step (`SKIP_BUILD=1`; `RUN_BUILD=1` keeps it).
 
 ---
 

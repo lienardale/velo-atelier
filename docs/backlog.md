@@ -3,9 +3,91 @@
 Deliberately deferred work. Each entry says **what**, **why it was deferred**
 and **what would have to be true** to pick it up. Nothing here blocks the MVP.
 
-## Authentication
+Three sections:
 
-### Password reset by email
+- **W5 — launch**: what the launch wave has to settle before `v0.1.0`
+  ([`deploy.md`](./deploy.md) is its step-by-step).
+- **Post-MVP**: everything after launch. W5-T2 turns the entries marked
+  _(W5-T2 opens an issue)_ into the first GitHub issues (§8.6).
+- **In flight in W4**: entries a W4 task is working on right now. Each task
+  returns a disposition (done, or re-scoped with a reason), applied when W4 is
+  integrated; after that this section is empty.
+
+---
+
+## W5 — launch
+
+### Nothing enforces the production environment contract
+
+`lib/env.ts` states the production rules — `AUTH_URL` and the Google pair
+required; `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and
+`NEXT_PUBLIC_DEMO_LOGIN` refused — and `tests/unit/db/env.test.ts` proves
+`parseEnv` applies them. But nothing outside that test calls `getEnv()`, so no
+server ever evaluates them. Two comments say otherwise:
+`components/auth/SignInForm.tsx` ("`lib/env.ts` fails the boot if it is") and
+`app/[locale]/(auth)/connexion/page.tsx` ("`lib/env.ts` refuses to boot a
+production server that has it"). `scripts/bundle-guard.ts`, which
+`scripts/vercel-build.sh` runs, does not close the gap either: it asserts that
+`window.__va` is present exactly when `NEXT_PUBLIC_TEST_HOOKS=1`, so a
+production build made with the flag on passes it.
+
+_Why W5_: found while writing `docs/deploy.md` (W4-T4); it was never a
+deliberate deferral. Until it is fixed, `deploy.md` step 2 — the three flags in
+no Vercel scope — is the only guard.
+
+_To pick up_: validate once when the server starts — Next 16's
+`instrumentation.ts` `register()` runs once before a server takes requests
+(`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/instrumentation.md`).
+Not as the rule stands, though: `computeIsProduction()` treats any
+`NODE_ENV=production` server without `VERCEL_ENV` as production, and the `next`
+CLI defaults `NODE_ENV` to `production` for every command but `dev` — so that is
+every `next start`, including the CI boot check in `scripts/ci/build.sh`
+(`ENABLE_TEST_PAGES=1`) and the Playwright web server (`ENABLE_TEST_PAGES=1`,
+`NEXT_PUBLIC_DEMO_LOGIN=1`). Scope the refused flags to `VERCEL_ENV`, have
+`scripts/vercel-build.sh` refuse `NEXT_PUBLIC_TEST_HOOKS=1` when `VERCEL_ENV` is
+set, then correct the two comments.
+
+### The rate limiter logs a P2025 on every normal first attempt
+
+`lib/security/rate-limit.ts` decides on the row returned by each request's own
+conditional `UPDATE … WHERE` (that atomicity is the point — see `.debug/003`), and
+swallows the P2025 when no row matched. But `lib/db/prisma.ts` sets
+`log: ["error"]`, so the Prisma client logs it _before_ our code handles it: CI's
+e2e output is full of "An operation failed because it depends on one or more
+records that were required but not found." on a completely normal path. Harmless,
+but it makes a real error indistinguishable from an expected one in production
+logs. Fix by moving to `{ emit: "event", level: "error" }` and dropping P2025
+from the known conditional-update call sites — not by reintroducing a read.
+
+_Why W5_: production logs are read for the first time at launch (§9.5). Fix it
+before, or expect this line on every first attempt of a rate-limit window.
+
+### Retailer links: the human pass
+
+`verifiedAt` is `null` for Alltricks and Decathlon in
+`lib/domain/data/retailers.ts`; Rose Bikes carries the 2026-09-07 date of its
+FR check, and its EN template has only been confirmed by an automated fetch.
+W5-T2's launch gate requires a `verifiedAt` for every FR entry.
+
+_Why W5_: a link counts as verified only when a human has opened it in a real
+browser — never CI, never an agent (the plan's retailer decision, restated as a
+W4 ruling). The plan also expects Alltricks and Decathlon to block bots, and
+Decathlon did answer an automated fetch with HTTP 403 (the verification log in
+[`retailers.md`](./retailers.md)).
+
+_To pick up_: the maintainer runs the checklist in [`retailers.md`](./retailers.md)
+and records the dates; the ones given at the end of W4 are applied at the W4
+integration.
+
+---
+
+## Post-MVP
+
+### Authentication
+
+#### Password reset by email
+
+_(W5-T2 opens an issue)_
 
 There is no mailer in the MVP, so the only password paths are
 `changePasswordAction` (signed in, knows the current password) and
@@ -17,14 +99,246 @@ bilingual email templates, a single-use token table with a short TTL, and rate
 limiting on the request endpoint. Email verification for credential sign-ups
 belongs in the same change.
 
-### Passkeys / WebAuthn
+#### Sign-up says whether an address is registered
+
+The sign-up form answers "this address is already registered", which tells
+anyone whether an address has an account. Accepted for the MVP and written down
+in the header of `app/[locale]/(auth)/inscription/actions.ts` and in
+`SECURITY.md`; the mitigation is the per-IP bucket (`signup:<ip>`,
+`RATE_LIMITS.signupPerIp`: 5 attempts an hour, `lib/security/rate-limit.ts`).
+The login form has no such leak.
+
+_Why deferred_: the alternative — always answer success, and e-mail the owner
+"you already have an account" — needs a mailer, and e-mail is out of MVP scope.
+
+_To pick up_: in the same change as the password reset above, once there is a
+mailer.
+
+#### Passkeys / WebAuthn
 
 Auth.js v5 supports a `Passkey` provider, but it needs the database adapter's
 `Authenticator` model and a second device-management surface in `/compte`.
 
-## Security
+### Security
 
-### Client address behind non-Vercel proxies
+#### Account deletion confirmed by a word
+
+`deleteAccountAction` accepts the account's password OR the word `SUPPRIMER` / `DELETE`
+(§4 specifies both). A stolen session cookie can therefore delete an account that has a
+password without knowing it. _To pick up_: require the password when the account has
+one, and a fresh Google sign-in (`lib/auth/reauth.ts`) when it does not.
+
+#### Sign-out racing a document load in another tab
+
+Once a JWT session is at least a day old, a full page load in another tab can land
+after a sign-out and write the still-valid token back (`proxy.ts` keeps the daily
+refresh on document navigations). This is inherent to stateless JWT sessions.
+
+_To pick up_: a server-side revocation marker — for example bump `sessionVersion` on
+sign-out, which also signs out every other device — or database sessions.
+
+#### Nonce-based Content-Security-Policy
+
+_(W5-T2 opens an issue)_
+
+`next.config.ts` ships a **static** CSP with `script-src 'self' 'unsafe-inline'`.
+A nonce-based policy requires generating the nonce in `proxy.ts` and reading it
+per request, which forces every route to be dynamic — that would cost the static
+rendering of `/fr`, `/en` and every `/[locale]/guides/[slug]` page, which the
+Lighthouse budgets depend on (`/velo/[id]`, `/velo/demo` included, is dynamic by
+design already).
+
+_To pick up_: revisit when Next ships a way to inject a per-request nonce into
+otherwise-static routes, and measure the LCP cost before committing.
+
+#### Upstash (or any shared store) for rate limiting
+
+_(W5-T2 opens an issue)_
+
+Rate limits live in Postgres: `lib/security/rate-limit.ts` keeps its counters in
+the `AuthAttempt` table, one conditional statement per attempt.
+
+_Why deferred_: a plan decision — "No Upstash in MVP". A Vercel function shares
+no memory with the next invocation, so the counter has to live in a shared
+store, and a row in the database the app already has works everywhere,
+`docker compose up` included, with no second service to provision.
+
+_To pick up_: a reason the table no longer fits — attempt volume that makes one
+write per attempt a cost, or a limit needed on a path where a database round
+trip is too slow. `RateLimiter` is already the interface: `lib/auth/authorize.ts`
+takes one as a dependency (wired in `auth.ts`), and the sign-up, account and
+import actions each build theirs with `createPrismaRateLimiter(prisma)` — so a
+second implementation slots in behind it with one call site per file.
+
+### Content and search
+
+#### Search index
+
+_(W5-T2 opens an issue)_
+
+`/guides` filters client-side by kind, system and the visitor's bike
+(`lib/content/filter.ts`); there is no text search. A real index (build-time
+JSON + a scoring function, or an external service) adds moving parts and timing
+flakiness for no MVP requirement.
+
+#### Glossary
+
+_(W5-T2 opens an issue)_
+
+Cross-linking jargon inside MDX needs a term registry and a hover card; the
+guides currently define terms inline on first use.
+
+### Product surface
+
+#### Admin role and back-office
+
+Content is edited by pull request. No admin role, no moderation UI.
+
+#### The refinement disclosure has no illustration
+
+§6.5 asks for "Comment mesurer" disclosures **with** an illustration;
+`RefinementForm` ships the help text alone. A `"use client"` module may not
+import `components/illustrations/index.ts` — all ~70 drawings would land in the
+route's first-load JS — and the form is necessarily client-side. It needs an RSC
+path like `components/mdx/Illustration.tsx`, handed down as a prop.
+
+#### CSV export of a build list
+
+Print and copy-as-text cover the "take it to the shop" use case. A CSV export
+needs a column contract nobody has asked for yet.
+
+#### Imperial units
+
+Everything is metric. Tyre pressure is displayed in bar with a read-only psi
+equivalent.
+
+#### Guides that need a workshop
+
+Hydraulic bleeding, wheel truing, bottom-bracket and headset bearing
+replacement, and motor/battery service exist only as "see a shop" outcomes.
+Writing them responsibly needs photography and a safety review.
+
+### Shop and tracking
+
+#### Affiliate programmes
+
+_(W5-T2 opens an issue)_
+
+Retailer links are plain outbound URLs with no affiliate id and no click
+tracking (`lib/shop/outbound.ts`), and `/acheter` says so to the visitor
+(`shop.outbound.disclosure`: "Plain links, no affiliation and no tracking: we
+earn nothing on a purchase.").
+
+_Why deferred_: a plan decision, with the retailer links: plain URLs a human has
+verified, no scraping, no affiliate ids, no click tracking (§2.5); price
+scraping, affiliate programmes and click analytics are explicitly out of MVP
+scope.
+
+_To pick up_: a decision to earn from purchases, then per retailer and locale a
+programme and its link format; the disclosure rewritten in both locales; every
+link re-verified by hand, since each changes; and the consent question below
+answered if the programme tracks clicks.
+
+#### Analytics
+
+No third-party analytics, no click tracking on retailer links, and therefore no
+cookie banner. Any change here reopens the consent question.
+
+### 3D
+
+#### First-class variants not yet modelled
+
+Hub and coaster brakes, folding bikes, front-hub motors, 13-speed drivetrains
+and tubular tyres. Decision-tree options exist only where the parts data can
+back them.
+
+#### Full-suspension kinematics
+
+Rear suspension is visual only — no linkage simulation.
+
+### Infrastructure and tooling
+
+#### Neon preview branches per pull request
+
+_(W5-T2 opens an issue)_
+
+Preview deployments share a single `preview` Neon branch. Per-PR branches need a
+create/destroy hook and a quota conversation.
+
+#### A compose `seed` profile
+
+_(W5-T2 opens an issue)_
+
+Docker provides Postgres and nothing else: migrations and the seed run from the
+host (`npm run db:setup` → `scripts/db/local.sh --seed`).
+
+_Why deferred_: plan §10 question 8, default "no" — one code path to prepare a
+database, the one a contributor debugs (the header of `docker-compose.yml`).
+
+_To pick up_: a contributor with Docker but no host Node. §10 sketches a `seed`
+service (`node:24-alpine`, `profiles: ["seed"]`, `depends_on` the healthy `db`),
+but it cannot run `npm run db:setup` as sketched: `scripts/db/local.sh` calls
+`docker compose` itself and hard-codes `localhost`. The service would run
+`npx prisma migrate deploy && npx prisma db seed` against the host `db`, which
+the seed guard already accepts (`lib/db/guard.ts`). Acceptance from §10:
+`docker compose --profile seed up --exit-code-from seed` exits 0, then
+`npx tsx scripts/db/count.ts` prints `users=2 bikes=4`. Like `db:up`, it would
+run from the main checkout only (next entry).
+
+#### `docker-compose.yml` pins `container_name`, so `db:up` cannot run from a worktree
+
+`container_name: velo-atelier-postgres` means a worktree's compose project cannot
+adopt the already-running container — `docker compose up --dry-run` says it would
+**recreate** it, taking the database out from under every other session. Parallel
+agents therefore have to reuse the main checkout's container by hand.
+_To pick up_: drop `container_name` and address the container through its compose
+service name, or scope it per project (`scripts/ci/e2e-docker.sh` already takes
+the name through `E2E_DOCKER_PG_CONTAINER`).
+
+#### `scripts/ci/e2e-docker.sh` has no way to choose its database
+
+The script takes the Postgres CONTAINER through `E2E_DOCKER_PG_CONTAINER`, but
+the database NAME comes from `.env.test` (`velo_atelier_test`) with no override.
+During a parallel wave that is the one database shared with local dev and with
+every other worktree, and the script migrates, truncates and seeds it — so the
+three W3 agents whose specs perform no touch gesture (the `.debug/005` hazard
+the script exists for) correctly declined to run it, and it was left to the
+single-tenant integration run.
+
+_To pick up_: honour `POSTGRES_URL` from the environment the way the vitest
+tiers do, so a worktree can point it at its own `*_test` database.
+
+#### A killed Playwright run leaves its `next start` behind, at 100 % CPU
+
+`playwright.config.ts` sets `reuseExistingServer: !CI`, so the web server is
+started outside the test process and nothing reaps it when a run is killed or an
+agent ends mid-run. Two of them — from the W3 sub-agents' worktrees, ports 3101
+and 3103 — were found spinning at 97 % CPU each, up to three days old, holding
+no port and producing no output (`.debug/010 §9`). The only symptom is that
+_other_ tests get slower, which reads as flakiness in whatever is under test.
+
+_To pick up_: have `scripts/ci/e2e*.sh` refuse to start when a `next start` on
+the target port is already running and older than the current build, or drop
+`reuseExistingServer` locally and pay the start-up cost. Until then:
+`pgrep -fl "npm run start -p 31"` before trusting any local timing.
+
+#### mobile-webkit cannot run on this Mac
+
+`browserType.launch` fails with `Executable doesn't exist at
+~/Library/Caches/ms-playwright/webkit-2359/pw_run.sh`. The project is
+non-blocking in CI, so nothing is red — but there is no local signal either.
+`npx playwright install webkit` fixes it for whoever wants one.
+
+---
+
+## In flight in W4
+
+Left as they were written (only the W4-T2 heading's namespace count went from 13
+to 16); the owning task's disposition replaces each one at the W4 integration.
+
+### W4-T1 — coverage, security and integration completion
+
+#### Client address behind non-Vercel proxies
 
 `lib/security/ip.ts` reads `x-vercel-forwarded-for`, then `x-real-ip`, then the first
 `x-forwarded-for`. On Vercel the edge sets the first one, so a client cannot choose
@@ -35,59 +349,13 @@ _To pick up_ (W4-T1): honour `x-vercel-forwarded-for` only when `VERCEL` is set,
 `x-real-ip` / `x-forwarded-for` only behind an explicitly configured trusted proxy
 (an env flag the e2e web server also sets, since the fixture uses `x-real-ip`).
 
-### Rate-limit buckets for IPv6
+#### Rate-limit buckets for IPv6
 
 Per-IP buckets key on the full address. An attacker with an IPv6 /64 — routine for a
 single host — rotates addresses and gets a fresh bucket each time; only the soft
 per-e-mail bucket still applies. _To pick up_ (W4-T1): key IPv6 buckets on the /64.
 
-### Account deletion confirmed by a word
-
-`deleteAccountAction` accepts the account's password OR the word `SUPPRIMER` / `DELETE`
-(§4 specifies both). A stolen session cookie can therefore delete an account that has a
-password without knowing it. _To pick up_: require the password when the account has
-one, and a fresh Google sign-in (`lib/auth/reauth.ts`) when it does not.
-
-### Sign-out racing a document load in another tab
-
-Once a JWT session is at least a day old, a full page load in another tab can land
-after a sign-out and write the still-valid token back (`proxy.ts` keeps the daily
-refresh on document navigations). This is inherent to stateless JWT sessions.
-
-_To pick up_: a server-side revocation marker — for example bump `sessionVersion` on
-sign-out, which also signs out every other device — or database sessions.
-
-### Nonce-based Content-Security-Policy
-
-`next.config.ts` ships a **static** CSP with `script-src 'self' 'unsafe-inline'`.
-A nonce-based policy requires generating the nonce in `proxy.ts` and reading it
-per request, which forces every route to be dynamic — that would cost the static
-rendering of `/`, `/guides/[slug]` and `/velo/demo`, which the Lighthouse
-budgets depend on.
-
-_To pick up_: revisit when Next ships a way to inject a per-request nonce into
-otherwise-static routes, and measure the LCP cost before committing.
-
-## Content and search
-
-### Search index
-
-`/guides` filters client-side over titles and `partIds`. A real index (build-time
-JSON + a scoring function, or an external service) adds moving parts and timing
-flakiness for no MVP requirement.
-
-### Glossary
-
-Cross-linking jargon inside MDX needs a term registry and a hover card; the
-guides currently define terms inline on first use.
-
-## Product surface
-
-### Admin role and back-office
-
-Content is edited by pull request. No admin role, no moderation UI.
-
-### `setChosenProductAction` is specified but not built
+#### `setChosenProductAction` is specified but not built
 
 §4.4 lists it beside the build-list actions and `BuildListItem.chosenProduct`
 exists in the schema (the seed writes one), but nothing in §6.5's build list
@@ -100,7 +368,7 @@ _To pick up_: decide the UI first ("j'ai acheté ça" on a done item?), then the
 action, reusing `isRetailerUrl` from `lib/domain/data/retailers.ts` so the two
 entry points enforce the same rule.
 
-### The brand tier never renders on the build list
+#### The brand tier never renders on the build list
 
 `components/build-list/RefinementForm.tsx` calls `shopQuestionsFor(build,
 partId, locale)` without `tierLabels`, and that argument is the only thing that
@@ -112,7 +380,7 @@ whose form is a client component (a guest's list is in `localStorage`).
 _To pick up_: hand the tiers to the form as props from the server page, the way
 `/acheter` already does.
 
-### `?item=` is written and never read
+#### `?item=` is written and never read
 
 `BuildItemCard` links to `/acheter` with `{part, bike, item}`, but
 `components/shop/PartQuestions.tsx` reads only `part` and `bike`, so §5.5's
@@ -120,25 +388,7 @@ _To pick up_: hand the tiers to the form as props from the server page, the way
 right part with an empty form. The fix needs a build-list reader `/acheter` can
 import without pulling in `components/build-list/BuildList.tsx`.
 
-### The refinement disclosure has no illustration
-
-§6.5 asks for "Comment mesurer" disclosures **with** an illustration;
-`RefinementForm` ships the help text alone. A `"use client"` module may not
-import `components/illustrations/index.ts` — all ~70 drawings would land in the
-route's first-load JS — and the form is necessarily client-side. It needs an RSC
-path like `components/mdx/Illustration.tsx`, handed down as a prop.
-
-### CSV export of a build list
-
-Print and copy-as-text cover the "take it to the shop" use case. A CSV export
-needs a column contract nobody has asked for yet.
-
-### Imperial units
-
-Everything is metric. Tyre pressure is displayed in bar with a read-only psi
-equivalent.
-
-### A saved bike's in-progress checkup forgets which symptom was ticked
+#### A saved bike's in-progress checkup forgets which symptom was ticked
 
 `CheckupItem` records the verdict, the note and the part, but there is no column
 for the `reasonKey` the visitor chose on a KO — it materialises as
@@ -162,44 +412,9 @@ String?` on `BuildListItem` set by `closeRecheckedItems`. One migration, about
 twenty lines. Both were left out of W3 because `prisma/schema.prisma` is shared
 with three parallel branches (§8.0) and the wave froze it.
 
-### Guides that need a workshop
+### W4-T2 — performance
 
-Hydraulic bleeding, wheel truing, bottom-bracket and headset bearing
-replacement, and motor/battery service exist only as "see a shop" outcomes.
-Writing them responsibly needs photography and a safety review.
-
-## 3D
-
-### First-class variants not yet modelled
-
-Hub and coaster brakes, folding bikes, front-hub motors, 13-speed drivetrains
-and tubular tyres. Decision-tree options exist only where the parts data can
-back them.
-
-### Full-suspension kinematics
-
-Rear suspension is visual only — no linkage simulation.
-
-## Infrastructure
-
-### Neon preview branches per pull request
-
-Preview deployments share a single `preview` Neon branch. Per-PR branches need a
-create/destroy hook and a quota conversation.
-
-### The rate limiter logs a P2025 on every normal first attempt
-
-`lib/security/rate-limit.ts` decides on the row returned by each request's own
-conditional `UPDATE … WHERE` (that atomicity is the point — see `.debug/003`), and
-swallows the P2025 when no row matched. But `lib/db/prisma.ts` sets
-`log: ["error"]`, so the Prisma client logs it _before_ our code handles it: CI's
-e2e output is full of "An operation failed because it depends on one or more
-records that were required but not found." on a completely normal path. Harmless,
-but it makes a real error indistinguishable from an expected one in production
-logs. Fix by moving to `{ emit: "event", level: "error" }` and dropping P2025
-from the known conditional-update call sites — not by reintroducing a read.
-
-### `/velo` and `/compte` still ship all 13 message namespaces
+#### `/velo` and `/compte` still ship all 16 message namespaces
 
 `lib/i18n/client-namespaces.ts` narrows what reaches the client per route, but
 those two still declare the whole catalogue: `PartInfo`, `PartEditForm`,
@@ -217,20 +432,32 @@ the checkup wizard reads `checkup`, `tools` and `guides`, and `/import` reads
 its part and retailer names are resolved server-side through
 `lib/domain/i18n.ts` with an explicit locale.
 
-### `scripts/ci/e2e-docker.sh` has no way to choose its database
+#### Home first-load JS is 56 KiB above its target
 
-The script takes the Postgres CONTAINER through `E2E_DOCKER_PG_CONTAINER`, but
-the database NAME comes from `.env.test` (`velo_atelier_test`) with no override.
-During a parallel wave that is the one database shared with local dev and with
-every other worktree, and the script migrates, truncates and seeds it — so the
-three W3 agents whose specs perform no touch gesture (the `.debug/005` hazard
-the script exists for) correctly declined to run it, and it was left to the
-single-tenant integration run.
+`/[locale]` measures 186.3 KiB gzip against a 130 kB target (§7.3) — the
+interactive decision tree, the local-bike codec and the `DECISION_TREE` data the
+client needs to navigate. The ceiling is ratcheted, not met; **W4-T2 owns
+closing the gap**, and `perf.budgets.json` carries the pin history.
 
-_To pick up_: honour `POSTGRES_URL` from the environment the way the vitest
-tiers do, so a worktree can point it at its own `*_test` database.
+#### Every nightly `Perf` run had failed since the workflow was written
 
-### `reduced-motion.spec.ts` infers "the camera animated" from a frame count
+`.github/workflows/perf.yml` uploaded its `.next` artifact without
+`include-hidden-files: true`. `.next` is a dotfile, so upload-artifact v4 skipped
+it, **warned, and left the step green**; `perf (nightly)` and
+`lighthouse (nightly)` then failed one stage later with "Artifact not found for
+name: next-build". Fixed at the W3 integration by copying the two options the
+identical step in `ci.yml` has always carried — the second,
+`if-no-files-found: error`, is what makes the empty upload fail where it
+happens.
+
+Nothing was measured by that workflow in the meantime, so **W4-T2 inherits no
+nightly perf history**: the first green run is the first data point.
+
+### W4-T3 — visual regression and the e2e matrix
+
+The first entry below still names W4-T2; the W4 plan reassigned it to W4-T3.
+
+#### `reduced-motion.spec.ts` infers "the camera animated" from a frame count
 
 `tests/e2e/bike3d/reduced-motion.spec.ts` focuses a part twice — once under
 `prefers-reduced-motion: reduce`, once without — and asserts the second renders
@@ -247,21 +474,7 @@ than a proxy — sample `window.__va.bike` camera state across the 1.2 s window
 and require it to be monotonic under motion and to arrive in the first frame
 under reduced motion. Frame counts stay useful as a soft annotation.
 
-### Every nightly `Perf` run had failed since the workflow was written
-
-`.github/workflows/perf.yml` uploaded its `.next` artifact without
-`include-hidden-files: true`. `.next` is a dotfile, so upload-artifact v4 skipped
-it, **warned, and left the step green**; `perf (nightly)` and
-`lighthouse (nightly)` then failed one stage later with "Artifact not found for
-name: next-build". Fixed at the W3 integration by copying the two options the
-identical step in `ci.yml` has always carried — the second,
-`if-no-files-found: error`, is what makes the empty upload fail where it
-happens.
-
-Nothing was measured by that workflow in the meantime, so **W4-T2 inherits no
-nightly perf history**: the first green run is the first data point.
-
-### The sticky verdict bar does not stay put on Linux WebKit
+#### The sticky verdict bar does not stay put on Linux WebKit
 
 `tests/e2e/checkup.mobile.spec.ts:82` ("the verdict bar stays on screen while
 the guide is scrolled") fails on `mobile-webkit` and passes on every Chromium
@@ -274,46 +487,3 @@ it is the `position: sticky` container or the scroll container the sheet
 creates, and either fix the layout or skip the row on WebKit with the reason
 written down. Do not leave it silently failing — a non-blocking project whose
 failures nobody reads is not a signal.
-
-### A killed Playwright run leaves its `next start` behind, at 100 % CPU
-
-`playwright.config.ts` sets `reuseExistingServer: !CI`, so the web server is
-started outside the test process and nothing reaps it when a run is killed or an
-agent ends mid-run. Two of them — from the W3 sub-agents' worktrees, ports 3101
-and 3103 — were found spinning at 97 % CPU each, up to three days old, holding
-no port and producing no output (`.debug/010 §9`). The only symptom is that
-_other_ tests get slower, which reads as flakiness in whatever is under test.
-
-_To pick up_: have `scripts/ci/e2e*.sh` refuse to start when a `next start` on
-the target port is already running and older than the current build, or drop
-`reuseExistingServer` locally and pay the start-up cost. Until then:
-`pgrep -fl "npm run start -p 31"` before trusting any local timing.
-
-### mobile-webkit cannot run on this Mac
-
-`browserType.launch` fails with `Executable doesn't exist at
-~/Library/Caches/ms-playwright/webkit-2359/pw_run.sh`. The project is
-non-blocking in CI, so nothing is red — but there is no local signal either.
-`npx playwright install webkit` fixes it for whoever wants one.
-
-### `docker-compose.yml` pins `container_name`, so `db:up` cannot run from a worktree
-
-`container_name: velo-atelier-postgres` means a worktree's compose project cannot
-adopt the already-running container — `docker compose up --dry-run` says it would
-**recreate** it, taking the database out from under every other session. Parallel
-agents therefore have to reuse the main checkout's container by hand.
-_To pick up_: drop `container_name` and address the container through its compose
-service name, or scope it per project (`scripts/ci/e2e-docker.sh` already takes
-the name through `E2E_DOCKER_PG_CONTAINER`).
-
-### Home first-load JS is 56 KiB above its target
-
-`/[locale]` measures 186.3 KiB gzip against a 130 kB target (§7.3) — the
-interactive decision tree, the local-bike codec and the `DECISION_TREE` data the
-client needs to navigate. The ceiling is ratcheted, not met; **W4-T2 owns
-closing the gap**, and `perf.budgets.json` carries the pin history.
-
-### Analytics
-
-No third-party analytics, no click tracking on retailer links, and therefore no
-cookie banner. Any change here reopens the consent question.
