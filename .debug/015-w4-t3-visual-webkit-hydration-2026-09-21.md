@@ -1,6 +1,6 @@
 # 015 — W4-T3: visual baselines, a WebKit "layout bug" that was an input API, and a field that forgets
 
-**Date** 2026-09-21 · **Status** resolved (tests); one product follow-up open (§2) ·
+**Date** 2026-09-21 · **Status** resolved (tests); product follow-ups open (§2, §9) ·
 **Touches** `tests/e2e/**`, `playwright.config.ts`, `scripts/ci/{e2e,e2e-docker}.sh`,
 `.github/workflows/{ci,perf,visual-baseline-guard}.yml`, `tests/unit/ci/required-checks.test.ts`,
 `lib/testing/e2e-hooks.ts`, `components/bike3d/perf/PerfProbe.tsx`
@@ -232,12 +232,60 @@ container, no retries: 12 of 12.
 WebKit, leaving within the RSC round trip of any `router.push` lands on the push
 target instead. That is Next's fallback, not this app's code.
 
+## 9. Review: the shop box drops text typed before hydration
+
+**Symptom.** The review re-ran CI on the final code (35632747193, PR #2 merged
+into `w4/t3` at `02b8c38`): all 21 jobs green, and `mobile-webkit` 445 passed /
+15 skipped / 0 failed with two new flakes. One was `shop.spec.ts` "what is typed
+becomes the search at the three shops" (FR): after `fill`, no shop link ever
+appeared (10 s), then the retry passed in 1.3 s.
+
+**Mechanism.** `/acheter` is prerendered, and `VendorSearch` is a plain
+controlled input (`value={raw}`, `onChange` → `setRaw`). react-dom 19.2.8's
+`initInput` does not write the DOM value while hydrating, and nothing replays the
+edit, so a value typed before hydration stays in the box and never reaches state.
+This corrects §2's control: a plain controlled input keeps pre-hydration text in
+the DOM only. A throwaway probe in the container held the JS chunks back 3 s:
+
+| engine   | typed                   | value after hydration | shop links |
+| -------- | ----------------------- | --------------------- | ---------- |
+| Chromium | before hydration        | `chaîne 11 vitesses`  | 0          |
+| WebKit   | before hydration        | `chaîne 11 vitesses`  | 0          |
+| both     | once React owns the box | —                     | 3          |
+
+**Fix (test).** Both free-text tests wait until React owns the box
+(`searchBox()`) before typing. Verified: those two tests × FR/EN × 3 repeats on
+`mobile-webkit` in the container, no retries: 12 of 12.
+
+**Open (product).** It is not only `MeasurementForm` (§2): on a prerendered page,
+any controlled input ignores what a visitor typed before hydration. Here the text
+stays visible and no shop link appears: the probe's box still had none 2.5 s
+after React took over.
+
+**Observed, not diagnosed.** The other new flake, `account.spec.ts` "a session
+read still in flight …" (FR), hung in `register()` waiting for `/mes-velos` after
+the sign-up click (45 s), then passed on retry: 1 of the leg's 22 `register()`
+runs. That spec is unchanged since `w4/base`. It does not reproduce locally:
+in this Mac's emulated amd64 container the sign-up itself hangs on
+`mobile-webkit`, for a control test too, at that same line, where
+`mobile-chromium` passes:
+
+| container run (no retries)             | `mobile-chromium` | `mobile-webkit` |
+| -------------------------------------- | ----------------- | --------------- |
+| that test, FR/EN × 3 repeats           | —                 | 0 of 6          |
+| that test + "shows the address", FR/EN | 4 of 4            | 0 of 4          |
+
+So the local container reproduced WebKit's navigation race (§8) and this box's
+race, but it cannot reproduce a sign-up: a WebKit failure in `register()` has to
+be read on CI's native amd64 runner.
+
 ## How to detect a regression
 
 `tests/e2e/checkup.mobile.spec.ts` (pinned bar), `tests/e2e/fit.spec.ts` (settled
 before typing), `tests/e2e/bike3d/reduced-motion.spec.ts` (camera gap),
 `tests/e2e/checkup-partial.spec.ts` and `edge-states.spec.ts` row 9 (the list
 lands before the next `goto`; WebKit flakes again if a test leaves right after a
-`router.push`), `tests/e2e/visual.spec.ts`
+`router.push`), `tests/e2e/shop.spec.ts` (types only once React owns the box),
+`tests/e2e/visual.spec.ts`
 (`npm run e2e:docker -- --grep @snapshot`, never `-u`),
 `tests/unit/ci/required-checks.test.ts` (the guard's triggers).

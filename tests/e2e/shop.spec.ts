@@ -12,6 +12,7 @@
  * page and names both locales' routes itself.
  */
 /* eslint-disable security/detect-object-injection, security/detect-non-literal-regexp -- locale-keyed fixtures indexed by a Locale literal, and one pattern built from href() */
+import type { Locator, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -84,6 +85,23 @@ const TYPED: Record<Locale, { text: string; messy: string; rosebikes: string; de
     },
   };
 
+/**
+ * The free-text box, once React owns it. The page is prerendered, so the box is
+ * on screen before React listens to it — and React 19.2 hydrates a controlled
+ * input by leaving a value typed before hydration in the DOM and never passing
+ * it to state: the box shows the text, and no shop link ever appears. That was
+ * a WebKit flake on CI (`.debug/015` §9).
+ */
+async function searchBox(page: Page): Promise<Locator> {
+  const input = page.getByTestId("vendor-search-input");
+  await expect
+    .poll(() =>
+      input.evaluate((node) => Object.keys(node).some((key) => key.startsWith("__reactProps"))),
+    )
+    .toBe(true);
+  return input;
+}
+
 forEachLocale((locale) => {
   const typed = TYPED[locale];
 
@@ -117,7 +135,7 @@ forEachLocale((locale) => {
     page,
   }) => {
     await page.goto(href(locale, "/acheter"));
-    await page.getByTestId("vendor-search-input").fill(typed.text);
+    await (await searchBox(page)).fill(typed.text);
 
     await expect(page.getByTestId("vendor-search-rosebikes")).toHaveAttribute(
       "href",
@@ -137,7 +155,7 @@ forEachLocale((locale) => {
 
   test(`a pasted mess is cleaned before it becomes a URL (${locale})`, async ({ page }) => {
     await page.goto(href(locale, "/acheter"));
-    await page.getByTestId("vendor-search-input").fill(typed.messy);
+    await (await searchBox(page)).fill(typed.messy);
     await expect(page.getByTestId("vendor-search-rosebikes")).toHaveAttribute(
       "href",
       typed.rosebikes,
