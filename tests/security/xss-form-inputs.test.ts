@@ -437,3 +437,74 @@ describe("stored verbatim, rendered as text — the rest of the site", () => {
     expectInert(html, benign, payload);
   });
 });
+
+// ── the chosenProduct link rule, on the way OUT (§4.4) ──────────────────────
+
+/**
+ * The guest import refuses a product whose link does not go where its vendor
+ * says (`guest-import.test.ts`). The `/liste` loader applies the same rule
+ * (`lib/shop/chosen-product.ts`) to what is ALREADY in the `Json` column —
+ * written by an earlier release, the seed, or anything that is not the import:
+ * a product that fails is dropped, and its line is still shown. The guest
+ * list's parser is held to the same rule in
+ * `components/build-list/BuildList.test.tsx`.
+ */
+describe("the chosenProduct link rule, on the way out", () => {
+  const KEPT = {
+    brand: "KMC",
+    model: "X11",
+    size: "118",
+    vendor: "alltricks",
+    url: "https://www.alltricks.fr/C-40598-toutes-les-chaines",
+  };
+
+  it.each([
+    [
+      "the retailer's name on another host",
+      { ...KEPT, url: "https://www.alltricks.fr.evil.example/x" },
+    ],
+    [
+      "a vendor that is neither a retailer nor 'other'",
+      { ...KEPT, vendor: "velo-shop", url: "https://velo-shop.example/x" },
+    ],
+    ["a script link, even from 'other'", { ...KEPT, vendor: "other", url: "javascript:alert(1)" }],
+    [
+      "credentials in the link",
+      { ...KEPT, vendor: "other", url: "https://user:secret@example.org/x" },
+    ],
+  ])("the /liste loader drops %s, and keeps the line", async (_label, product) => {
+    const user = (await fakeDb.seed("User", {
+      email: "camille@velo-atelier.test",
+      name: "Camille",
+      locale: "fr",
+    })) as { id: string };
+    const bike = (await fakeDb.seed("Bike", {
+      userId: user.id,
+      name: "Gravel",
+      answers: {},
+      spec: {},
+      parts: [],
+    })) as { id: string };
+    const list = (await fakeDb.seed("BuildList", { bikeId: bike.id, name: "" })) as { id: string };
+    const stored = [
+      ["chain", KEPT],
+      ["cassette", product],
+    ] as const;
+    for (const [sortOrder, [partId, chosenProduct]] of stored.entries()) {
+      await fakeDb.seed("BuildListItem", {
+        buildListId: list.id,
+        partId,
+        action: "REPLACE",
+        reasonKey: "worn",
+        sortOrder,
+        chosenProduct,
+      });
+    }
+
+    const { items } = await loadBuildList(bike.id, user.id);
+    expect(items.map((line) => [line.partId, line.chosenProduct])).toEqual([
+      ["chain", KEPT],
+      ["cassette", undefined],
+    ]);
+  });
+});

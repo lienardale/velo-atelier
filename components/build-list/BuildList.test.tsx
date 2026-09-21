@@ -130,6 +130,41 @@ describe("what `va:buildlist:<ref>` is allowed to contain", () => {
     expect(readBuildList("demo")).toBeNull();
     expect(parseBuildList(null)).toBeNull();
   });
+
+  it("drops a stored product whose link breaks §4.4's rule, and keeps its line", () => {
+    // `lib/shop/chosen-product.ts` on the way OUT: the guest import refuses these
+    // on the way in, but storage holds whatever an older release or DevTools put
+    // there — and the line is still worth showing without its product.
+    const kept = {
+      brand: "KMC",
+      model: "X11",
+      size: "118",
+      vendor: "alltricks",
+      url: "https://www.alltricks.fr/C-40598-toutes-les-chaines",
+    };
+    const refused = [
+      { ...kept, url: "https://www.alltricks.fr.evil.example/x" },
+      { ...kept, vendor: "velo-shop", url: "https://velo-shop.example/x" },
+      { ...kept, vendor: "other", url: "javascript:alert(1)" },
+    ];
+    const stored = [kept, ...refused].map((product, sortOrder) =>
+      item({
+        id: `line-${sortOrder}`,
+        sortOrder,
+        chosenProduct: product as BuildListItem["chosenProduct"],
+      }),
+    );
+
+    const parsed = parseBuildList(
+      JSON.stringify({ version: 1, items: stored, updatedAt: "2026-09-21T08:00:00.000Z" }),
+    );
+    expect(parsed?.map((line) => [line.id, line.chosenProduct])).toEqual([
+      ["line-0", kept],
+      ["line-1", undefined],
+      ["line-2", undefined],
+      ["line-3", undefined],
+    ]);
+  });
 });
 
 describe("an empty list", () => {
