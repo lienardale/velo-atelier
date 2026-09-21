@@ -108,13 +108,22 @@ describe("form-parts under the auth routes' own namespaces", () => {
   }
 
   it("reports a key outside auth and errors instead of rendering it from elsewhere", async () => {
-    const { onError } = await scoped(
-      "fr",
-      <FormError
-        result={{ ok: false, code: "VALIDATION", fieldErrors: { form: "bike.errors.fitRange" } }}
-      />,
+    // The WHOLE catalogue this time. Under `auth` + `errors` alone a root
+    // translator finds nothing elsewhere either, so this case could not tell
+    // the two apart; here a root translator would render the `bike` sentence
+    // without a word, and only one scoped to `auth` and `errors` reports it.
+    const all = await loadMessages("fr");
+    const onError = vi.fn();
+    render(
+      <NextIntlClientProvider locale="fr" timeZone="Europe/Paris" messages={all} onError={onError}>
+        <FormError
+          result={{ ok: false, code: "VALIDATION", fieldErrors: { form: "bike.errors.fitRange" } }}
+        />
+      </NextIntlClientProvider>,
     );
     expect(onError).toHaveBeenCalledTimes(1);
     expect(String(onError.mock.calls[0]![0])).toMatch(/MISSING_MESSAGE/);
+    // next-intl's fallback for a missing key, from the first translator (`errors`).
+    expect(screen.getByTestId("form-error").textContent).toBe("errors.bike.errors.fitRange");
   });
 });
