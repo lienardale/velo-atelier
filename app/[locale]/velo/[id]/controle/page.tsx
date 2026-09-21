@@ -3,6 +3,7 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Wizard, type WizardGuideRef } from "@/components/checkup/Wizard";
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { GuideContent } from "@/components/mdx";
 import { Button } from "@/components/ui/button";
 import { firstValue, parsePartIds } from "@/lib/bike3d/query";
@@ -13,6 +14,7 @@ import type { StoredCheckup } from "@/lib/checkup/storage";
 import { GUIDES } from "@/lib/content/collection";
 import { CONTENT_VERSION } from "@/lib/content/generated/version";
 import type { GuideDocument } from "@/lib/content/types";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { Link } from "@/lib/i18n/navigation";
 import { routing, type Locale } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -133,23 +135,32 @@ export default async function CheckupPage({
     if (document !== undefined) guideNodes[slug] = <GuideContent guide={document} />;
   }
 
+  // Its own provider: the wizard reads `checkup`, `tools`, `guides` and `parts`,
+  // which the rest of the segment does not (lib/i18n/client-namespaces.ts). The
+  // two empty states above render no client component that reads a message, so
+  // the layout's provider is all they need.
   return (
-    <Wizard
+    <ClientMessages
       locale={resolvedLocale as Locale}
-      bikeRef={ref}
-      bikeParam={bike.param}
-      scope={scope}
-      scopeDropped={scopeDropped}
-      steps={steps}
-      guideNodes={guideNodes}
-      guideRefs={guideRefsFor(steps, bySlug)}
-      tools={toolsFor(steps)}
-      contentVersion={CONTENT_VERSION}
-      newCheckupId={crypto.randomUUID()}
-      initialStored={await storedFor(ref, bike.bikeId, resolvedLocale)}
-      initialStepKey={firstValue(query.step) ?? null}
-      specCode={specCode ?? null}
-    />
+      namespaces={CLIENT_NAMESPACES["app/[locale]/velo/[id]/controle/page.tsx"]}
+    >
+      <Wizard
+        locale={resolvedLocale as Locale}
+        bikeRef={ref}
+        bikeParam={bike.param}
+        scope={scope}
+        scopeDropped={scopeDropped}
+        steps={steps}
+        guideNodes={guideNodes}
+        guideRefs={guideRefsFor(steps, bySlug)}
+        tools={toolsFor(steps)}
+        contentVersion={CONTENT_VERSION}
+        newCheckupId={crypto.randomUUID()}
+        initialStored={await storedFor(ref, bike.bikeId, resolvedLocale)}
+        initialStepKey={firstValue(query.step) ?? null}
+        specCode={specCode ?? null}
+      />
+    </ClientMessages>
   );
 }
 

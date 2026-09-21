@@ -3,14 +3,16 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { BuildList } from "@/components/build-list/BuildList";
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { Button } from "@/components/ui/button";
 import { firstValue } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
 import type { BuildAction, BuildListItem, ChosenProduct } from "@/lib/checkup/types";
 import { isPartId, type PartId } from "@/lib/domain/data/parts";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { Link } from "@/lib/i18n/navigation";
-import { routing } from "@/lib/i18n/routing";
+import { routing, type Locale } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
 
 interface BuildListPageProps {
@@ -169,40 +171,47 @@ export default async function BuildListPage({
       .filter((item): item is BuildListItem => item !== null);
   }
 
+  // Its own provider: the list reads catalogues (`shop`, `rules`, `guides`) the
+  // rest of the segment never needs (lib/i18n/client-namespaces.ts).
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-display text-ink text-2xl font-semibold">{t("list.title")}</h1>
-        <p className="text-ink-muted">{t("list.intro")}</p>
-        <Link
-          href={{ pathname: "/velo/[id]", params: { id: bike.param } }}
-          className="text-accent mt-2 flex min-h-[var(--tap-min)] items-center self-start underline"
-          data-testid="build-list-back-to-bike"
-          data-print="hide"
-        >
-          {t("list.openBike")}
-        </Link>
-      </header>
+    <ClientMessages
+      locale={resolvedLocale as Locale}
+      namespaces={CLIENT_NAMESPACES["app/[locale]/velo/[id]/liste/page.tsx"]}
+    >
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-1">
+          <h1 className="font-display text-ink text-2xl font-semibold">{t("list.title")}</h1>
+          <p className="text-ink-muted">{t("list.intro")}</p>
+          <Link
+            href={{ pathname: "/velo/[id]", params: { id: bike.param } }}
+            className="text-accent mt-2 flex min-h-[var(--tap-min)] items-center self-start underline"
+            data-testid="build-list-back-to-bike"
+            data-print="hide"
+          >
+            {t("list.openBike")}
+          </Link>
+        </header>
 
-      {bike.build === null ? (
-        <section className="flex flex-col items-start gap-4" data-testid="build-list-needs-bike">
-          <p className="text-ink-muted">{t("list.needsBike")}</p>
-          <Button asChild className="min-h-[var(--tap-min)]">
-            <Link href={{ pathname: "/velo/[id]", params: { id: bike.param } }}>
-              {t("list.openBike")}
-            </Link>
-          </Button>
-        </section>
-      ) : (
-        <BuildList
-          bikeRef={ref}
-          bikeParam={bike.param}
-          build={bike.build}
-          locale={resolvedLocale}
-          initialItems={initialItems}
-          buildListId={buildListId}
-        />
-      )}
-    </div>
+        {bike.build === null ? (
+          <section className="flex flex-col items-start gap-4" data-testid="build-list-needs-bike">
+            <p className="text-ink-muted">{t("list.needsBike")}</p>
+            <Button asChild className="min-h-[var(--tap-min)]">
+              <Link href={{ pathname: "/velo/[id]", params: { id: bike.param } }}>
+                {t("list.openBike")}
+              </Link>
+            </Button>
+          </section>
+        ) : (
+          <BuildList
+            bikeRef={ref}
+            bikeParam={bike.param}
+            build={bike.build}
+            locale={resolvedLocale}
+            initialItems={initialItems}
+            buildListId={buildListId}
+          />
+        )}
+      </div>
+    </ClientMessages>
   );
 }
