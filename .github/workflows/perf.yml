@@ -3,8 +3,9 @@ name: Perf
 # Nightly performance and Lighthouse run, plus the two "regenerate a recorded
 # artefact" operations that must never happen on a laptop:
 #
-#   update_baseline=true   rewrite tests/perf/baselines/* from THIS run
+#   update_baseline=true   record tests/perf/baselines/* from THIS run
 #                          (scripts/perf/compare.ts refuses outside Actions)
+#                          and open a bot PR with them (`perf baseline PR`)
 #   update_snapshots=true  regenerate the Playwright screenshot baselines and
 #                          open a PR labelled `visual-baseline` for review
 #
@@ -103,6 +104,10 @@ jobs:
     env:
       PERF_REPEAT: "5"
       UPDATE_PERF_BASELINE: ${{ inputs.update_baseline == true && '1' || '0' }}
+      # Written into every run file and baseline; compare.ts warns when a run
+      # is compared against a baseline recorded on another runner. The same
+      # label as ci.yml's `perf` job: that job is compared against these.
+      PERF_RUNNER: ubuntu-latest (playwright v1.63.0-noble)
       POSTGRES_URL: postgresql://velo:velo@postgres:5432/velo_atelier_test
       POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
       ENABLE_TEST_PAGES: "1"
@@ -195,6 +200,51 @@ jobs:
           # A dotfile again: without this the artifact was empty.
           include-hidden-files: true
           retention-days: 90
+
+  # `update_baseline=true` only: the baselines the perf job just recorded, as a
+  # PR for a human to read — "recorded by CI", and nothing is downloaded to a
+  # laptop. The only job of this workflow allowed to write, and it runs no
+  # project code: it reads the perf job's artifact, validates it and hands it
+  # to create-pull-request. The perf job itself keeps the read-only token.
+  perf-baseline:
+    name: perf baseline PR
+    runs-on: ubuntu-latest
+    needs: perf
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_baseline }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download the recorded baselines
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: perf-nightly
+          path: ${{ runner.temp }}/perf-nightly
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - env:
+          PERF_BASELINE_SOURCE: ${{ runner.temp }}/perf-nightly
+        run: bash scripts/ci/perf-baseline.sh
+      - name: Open a PR with the new baselines
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          branch: perf-baselines/${{ github.run_id }}
+          title: "test(perf): record the soft-tier baselines"
+          commit-message: "test(perf): record the soft-tier baselines (run ${{ github.run_id }})"
+          body: |
+            Recorded by the `perf.yml` workflow (`update_baseline=true`), run
+            ${{ github.run_id }}: the medians of five repetitions (`PERF_REPEAT=5`) of
+            `tests/perf/bike3d.perf.spec.ts`'s `@soft` test, per project and preset,
+            on `ubuntu-latest` in `mcr.microsoft.com/playwright:v1.63.0-noble`.
+
+            These are what `scripts/perf/compare.ts` holds every later run to
+            (warn > 150 %, fail > 300 %). Read them before merging: a baseline
+            recorded on a slow run makes every regression look like noise.
+          add-paths: tests/perf/baselines
 
   update-snapshots:
     name: update-snapshots

@@ -444,6 +444,9 @@ jobs:
       POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
       ENABLE_TEST_PAGES: "1"
       NEXT_PUBLIC_TEST_HOOKS: "1"
+      # The label the nightly baselines are recorded under (perf.yml): the soft
+      # tier of this run is compared against them.
+      PERF_RUNNER: ubuntu-latest (playwright v1.63.0-noble)
     services:
       postgres:
         image: postgres:16-alpine
