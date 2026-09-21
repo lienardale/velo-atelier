@@ -9,7 +9,7 @@ name: Perf
 #   update_snapshots=true  regenerate the Playwright screenshot baselines and
 #                          open a PR labelled `visual-baseline` for review
 #
-# None of this is on the PR path: it costs ~20 minutes and its timing numbers
+# None of this is on the PR path: it costs ~35 minutes and its timing numbers
 # are advisory (CI renders through SwiftShader). The PR-blocking part of perf
 # lives in ci.yml's `perf` job — the hard WebGL counters.
 
@@ -46,7 +46,10 @@ env:
 
 jobs:
   build:
-    name: build
+    # Not `build`: that is a REQUIRED context (ci.yml), and a dispatch on a PR
+    # branch reports its checks on the PR's head commit — whichever `build`
+    # finished last would decide the required check.
+    name: build (nightly)
     runs-on: ubuntu-latest
     env:
       ENABLE_TEST_PAGES: "1"
@@ -107,7 +110,9 @@ jobs:
       # Written into every run file and baseline; compare.ts warns when a run
       # is compared against a baseline recorded on another runner. The same
       # label as ci.yml's `perf` job: that job is compared against these.
-      PERF_RUNNER: ubuntu-latest (playwright v1.63.0-noble)
+      # Spelled as the image reference so Renovate's Playwright customManager
+      # (renovate.json) bumps it with the container: a new image then warns.
+      PERF_RUNNER: ubuntu-latest (mcr.microsoft.com/playwright:v1.63.0-noble)
       POSTGRES_URL: postgresql://velo:velo@postgres:5432/velo_atelier_test
       POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
       ENABLE_TEST_PAGES: "1"

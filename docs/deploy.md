@@ -225,12 +225,12 @@ carry the `dependencies` label.
 
 ### 5.1 Before tagging
 
-| Gate                                        | Command or place                                                                                                | Expected                                                                                            |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| No decision-tree drawing left a placeholder | `npx vitest run tests/unit/domain/schema.test.ts`                                                               | green                                                                                               |
-| Every ★ guide is `status: full`             | `npx vitest run --project integration tests/integration/content/coverage.test.ts` (Docker up, `_test` database) | green (`FULL_SLUGS`, `tests/fixtures/content-manifest.ts`)                                          |
-| A `verifiedAt` for every FR retailer entry  | `lib/domain/data/retailers.ts`, checklist in [`retailers.md`](./retailers.md)                                   | Rose Bikes has one (2026-09-07); **Alltricks and Decathlon are `null` until the maintainer's pass** |
-| The W5 items of the backlog                 | [`backlog.md`](./backlog.md), "W5 — launch"                                                                     | each one done, or re-scoped with a written reason                                                   |
+| Gate                                             | Command or place                                                                                                | Expected                                                                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| No decision-tree drawing left a placeholder      | `npx vitest run tests/unit/domain/schema.test.ts`                                                               | green                                                                                                                               |
+| Every ★ guide is `status: full`                  | `npx vitest run --project integration tests/integration/content/coverage.test.ts` (Docker up, `_test` database) | green (`FULL_SLUGS`, `tests/fixtures/content-manifest.ts`)                                                                          |
+| A `verifiedAt` for every retailer (both locales) | `lib/domain/data/retailers.ts`, checklist in [`retailers.md`](./retailers.md)                                   | all three `2026-09-21` (the verification log in `retailers.md`); re-run the checklist before launch if `retailers.ts` changed since |
+| The W5 items of the backlog                      | [`backlog.md`](./backlog.md), "W5 — launch"                                                                     | each one done, or re-scoped with a written reason                                                                                   |
 
 ### 5.2 The §9 verification
 
@@ -241,7 +241,7 @@ carry the `dependencies` label.
    tab), enter an inseam on `/velo/<id>/reglages`; then the same as a guest, from
    `/` with "Je ne sais pas" everywhere, through sign-up and `/import`.
 2. **All gates** — `bash scripts/ci.sh` prints its PASS table;
-   `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build && npm run e2e:docker`;
+   `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh && npm run e2e:docker`;
    `npx lhci autorun`; `npx playwright test --project=perf --project=perf-mobile`.
 3. **Mobile** —
    `npx playwright test --project=mobile-chromium --project=mobile-landscape --project=mobile-narrow --project=no-webgl`,

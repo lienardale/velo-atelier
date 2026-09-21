@@ -218,7 +218,9 @@ docs/                contributor and operator docs — every one is linked from 
   `docs/illustrations.md`). Only server files may import
   it: guides go through `components/mdx/Illustration.tsx`, the decision tree
   through `components/decision-tree/tree-illustrations.tsx`, which hands the
-  client tree already-rendered nodes. A `"use client"` file that imports the
+  client tree already-rendered nodes, and the build list's "Comment mesurer"
+  through `components/build-list/measure-drawings.tsx` (ids registered in
+  `lib/shop/measure-drawings.ts`). A `"use client"` file that imports the
   barrel puts all 68 drawings in the route's first-load JS. A drawing with numbered
   `data-callout`s always ships with its legend (`illustrations.<id>.callouts.<n>`),
   in the guide renderer and in the tree's `HelpFigure` alike.
@@ -385,9 +387,12 @@ docs/                contributor and operator docs — every one is linked from 
   trusted-proxy switch is post-MVP.
 - **`loadClientMessages` narrows its import specifier at run time**: an unknown
   locale becomes the default, an unknown namespace throws.
-- **Every `withUser` action needs a row in `tests/security/csrf-and-actions.test.ts`**,
-  which reads the exports back from `app/**/actions.ts` and fails on an action
-  without one.
+- **Every server action needs a row in `tests/security/csrf-and-actions.test.ts`.**
+  The test reads the exports of every `"use server"` module under `app/`,
+  whatever the file is called: a `withUser` export needs a row in
+  `EVERY_WITH_USER_ACTION`, every other export (sign-in, sign-up, sign-out,
+  Google) one in `ANONYMOUS_ACTIONS`, and an export it cannot name or an inline
+  `"use server"` fails the run.
 - **A `use server` file cannot hold a function that takes a `userId`.** Every
   export becomes a callable server reference, so
   `app/[locale]/velo/[id]/controle/load.ts` sits NEXT TO `actions.ts` rather
@@ -483,8 +488,10 @@ PR-only `visual-baseline-guard`.
   `$queryRawUnsafe`.
 - Playwright on desktop, Pixel 7, landscape, 320 px, WebKit (non-blocking) and
   a no-WebGL profile; axe sweep with zero serious/critical violations. e2e runs a
-  production build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build`
-  first) and reuses a running server locally — stop stale servers on :3100. Each
+  production build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh`
+  first — not a bare `npm run build`, which bakes `.env.local`'s `:3000` origin
+  into the canonicals `seo.spec.ts` and Lighthouse check on `:3100`) and reuses a
+  running server locally — stop stale servers on :3100. Each
   test gets its own `x-real-ip` so rate limits never collide between tests. Use
   `--project=<name>` (equals form): `--project` is variadic and eats a spec path.
   `PLAYWRIGHT_PORT` moves the whole run (one per worktree): `AUTH_URL` and

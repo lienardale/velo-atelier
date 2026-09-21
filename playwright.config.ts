@@ -4,8 +4,10 @@
  * Runs against a PRODUCTION build (`next start`), never `next dev`: build
  * first with
  *
- *   ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build
+ *   ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh
  *
+ * — not a bare `npm run build`, which bakes `.env.local`'s `:3000` origin into
+ * the canonicals that `seo.spec.ts` checks against the `:3100` served here.
  * `NEXT_PUBLIC_TEST_HOOKS` compiles the `window.__va` hooks into the bundle
  * (build-time gate); `ENABLE_TEST_PAGES` is read per request by the
  * `force-dynamic` dev pages, so the web server below sets it again. In CI the
@@ -70,7 +72,8 @@ const NARROW_SPECS =
 
 /**
  * `@snapshot` (tests/e2e/visual.spec.ts) has baselines for desktop-chromium and
- * mobile-chromium ONLY — `perf.yml`'s `update-snapshots` job records those two.
+ * mobile-chromium ONLY — `perf.yml`'s read-only `record-snapshots` job records
+ * those two, and `update-snapshots` opens them as a PR.
  * Every other project inverts the tag: a missing baseline is written and failed,
  * so a third project running it would be red on every run.
  */

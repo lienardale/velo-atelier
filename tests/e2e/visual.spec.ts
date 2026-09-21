@@ -19,9 +19,10 @@
  * Mac would fail everyone else. So this file skips unless it runs on Linux:
  * the macOS host matrix stays green, while CI's Linux legs and
  * `npm run e2e:docker -- --grep @snapshot` compare against the committed
- * images. They are (re)generated only by `perf.yml`'s `update-snapshots` job
- * (`workflow_dispatch`, `update_snapshots=true`), which opens a PR labelled
- * `visual-baseline`; the `visual-baseline-guard` workflow refuses a change to
+ * images. They are (re)generated only by `perf.yml`'s read-only
+ * `record-snapshots` job (`workflow_dispatch`, `update_snapshots=true`), and
+ * `update-snapshots` opens them as a PR labelled `visual-baseline`; the
+ * `visual-baseline-guard` workflow refuses a change to
  * `tests/e2e/__screenshots__/**` that is not labelled so.
  *
  * Every OTHER project inverts `@snapshot` (playwright.config.ts): only these

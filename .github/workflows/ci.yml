@@ -90,6 +90,10 @@ jobs:
               - '.gitleaks.toml'
               - 'docker/**'
               - 'docker-compose.yml'
+              # A workflow edit can break any job, and the CI and guard
+              # contract tests (tests/unit/ci/) live in the unit tier: a PR
+              # touching only a workflow must run everything, not just lint.
+              - '.github/workflows/**'
             content:
               - 'content/**'
               - 'messages/**'
@@ -452,8 +456,9 @@ jobs:
       ENABLE_TEST_PAGES: "1"
       NEXT_PUBLIC_TEST_HOOKS: "1"
       # The label the nightly baselines are recorded under (perf.yml): the soft
-      # tier of this run is compared against them.
-      PERF_RUNNER: ubuntu-latest (playwright v1.63.0-noble)
+      # tier of this run is compared against them. Spelled as the image
+      # reference so Renovate bumps it with the container (perf.yml says why).
+      PERF_RUNNER: ubuntu-latest (mcr.microsoft.com/playwright:v1.63.0-noble)
     services:
       postgres:
         image: postgres:16-alpine

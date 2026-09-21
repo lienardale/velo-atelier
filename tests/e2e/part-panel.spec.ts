@@ -42,6 +42,24 @@ async function expandSheetIfPresent(page: Page): Promise<void> {
 
 const build = buildOf(deriveBike(BIKE_PRESETS["gravel-1x11"]));
 
+/**
+ * Click a part's row once React owns it. The demo and saved bikes' rows are
+ * server-rendered, so they are on screen before they listen: a click in that
+ * window is dropped, and the panel it should open never appears — a 45 s
+ * timeout on CI's desktop leg, passing on retry (W4 integration). A guest bike's
+ * rows exist only once `va:bike:local` is read, after hydration, but every row
+ * click goes through here so the safe form is the only one to copy.
+ */
+async function clickRow(page: Page, partId: string): Promise<void> {
+  const row = page.locator(`[data-part-row="${partId}"]`);
+  await expect
+    .poll(() =>
+      row.evaluate((node) => Object.keys(node).some((key) => key.startsWith("__reactProps"))),
+    )
+    .toBe(true);
+  await row.click();
+}
+
 /** The gravel bike of the seeded French demo account. */
 async function demoBikeId(): Promise<string> {
   const client = new Client({ connectionString: resolveTestEnv().POSTGRES_URL });
@@ -67,7 +85,7 @@ forEachLocale((locale) => {
     await page.goto(href(locale, "/velo/[id]", { id: "local" }));
 
     // Inspecting a row opens the Infos tab on the part it names.
-    await page.locator('[data-part-row="cassette"]').click();
+    await clickRow(page, "cassette");
     await expect(page.getByTestId("part-panel-title")).toHaveText(
       locale === "fr" ? "Cassette" : "Cassette",
     );
@@ -80,7 +98,7 @@ forEachLocale((locale) => {
     );
 
     await page.reload();
-    await page.locator('[data-part-row="cassette"]').click();
+    await clickRow(page, "cassette");
     await expect(page.locator('[data-attr="range"]')).toHaveValue("11-36");
 
     // …and it is in storage, not just in the DOM.
@@ -100,7 +118,7 @@ forEachLocale((locale) => {
     const id = await demoBikeId();
     await page.goto(href(locale, "/velo/[id]", { id }));
 
-    await page.locator('[data-part-row="cassette"]').click();
+    await clickRow(page, "cassette");
     await page.locator('[data-attr="range"]').selectOption("11-36");
     await expect(page.getByTestId("attr-status-range")).toHaveText(
       locale === "fr" ? "Enregistré" : "Saved",
@@ -108,7 +126,7 @@ forEachLocale((locale) => {
 
     // A reload re-reads the row: if the action had not written, this fails.
     await page.reload();
-    await page.locator('[data-part-row="cassette"]').click();
+    await clickRow(page, "cassette");
     await expect(page.locator('[data-attr="range"]')).toHaveValue("11-36");
 
     // Nothing was written to the browser — a saved bike never touches localStorage.
@@ -117,7 +135,7 @@ forEachLocale((locale) => {
 
   test(`the demo bike offers a local copy instead of a form (${locale})`, async ({ page }) => {
     await page.goto(href(locale, "/velo/[id]", { id: "demo" }));
-    await page.locator('[data-part-row="cassette"]').click();
+    await clickRow(page, "cassette");
 
     await expect(page.getByTestId("part-panel-fork")).toBeVisible();
     await expect(page.getByTestId("part-edit-form")).toHaveCount(0);
@@ -131,7 +149,7 @@ forEachLocale((locale) => {
     await expandSheetIfPresent(page);
     await page.getByTestId("part-panel-fork").getByRole("button").click();
     await page.waitForURL((url) => url.pathname === href(locale, "/velo/[id]", { id: "local" }));
-    await page.locator('[data-part-row="cassette"]').click();
+    await clickRow(page, "cassette");
     await expect(page.getByTestId("part-edit-form")).toBeVisible();
   });
 });
@@ -147,7 +165,7 @@ forEachLocale((locale) => {
 
     await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
     await page.goto(href(locale, "/velo/[id]", { id: "local" }));
-    await page.locator('[data-part-row="tire-front"]').click();
+    await clickRow(page, "tire-front");
 
     // The gravel preset is tubeless: the tubeless guide, never the inner-tube one.
     const expected = guidesFor(summaries, build, "tire-front", "replace")[0];

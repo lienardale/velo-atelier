@@ -138,9 +138,13 @@ and the attribute must not be able to reference anything outside the drawing.
   the same id as the step's own illustration (the content check refuses it).
 - In the tree: the question's `help.illustrationId` and each option's
   `illustrationId`.
+- In the build list's "Comment mesurer": an attribute key mapped to a drawing id
+  in `lib/shop/measure-drawings.ts`, rendered by the server module
+  `components/build-list/measure-drawings.tsx` and handed to the list as nodes.
 - **Only server files import the barrel**: guides through
   `components/mdx/Illustration.tsx`, the tree through
-  `components/decision-tree/tree-illustrations.tsx`. A `"use client"` file that
+  `components/decision-tree/tree-illustrations.tsx`, the build list through
+  `components/build-list/measure-drawings.tsx`. A `"use client"` file that
   imports `components/illustrations/index.ts` puts every drawing in the route's
   first-load JavaScript.
 

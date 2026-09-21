@@ -19,7 +19,7 @@
  *   - `detect changes`       — plumbing for the other jobs' `if:`.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 
@@ -87,7 +87,7 @@ interface Context {
 }
 
 function loadWorkflow(file: string): Workflow {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- every caller passes one of the module constants above.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- every caller passes one of the module constants above, or a file listed from WORKFLOW_DIR.
   return parse(readFileSync(file, "utf8")) as Workflow;
 }
 
@@ -193,6 +193,26 @@ describe("required status checks", () => {
     }
     const shared = [...seen].filter(([, jobs]) => jobs.length > 1);
     expect(shared, "a status context produced by more than one job").toEqual([]);
+  });
+
+  it("no other workflow reports a required context", () => {
+    // A workflow_dispatch run on a PR's branch reports its checks on the PR's
+    // head commit, so a job named like a required context races the real one
+    // and whichever finishes last decides it. perf.yml's `build` did, until the
+    // W4 integration renamed it `build (nightly)`.
+    const others = readdirSync(WORKFLOW_DIR)
+      .filter((file) => /\.ya?ml$/.test(file))
+      .map((file) => path.join(WORKFLOW_DIR, file))
+      .filter((file) => !PR_WORKFLOWS.includes(file));
+    expect(others.map((file) => path.basename(file))).toContain("perf.yml");
+    const required = new Set<string>(REQUIRED_CHECKS);
+    const clashes = others.flatMap((file) =>
+      Object.entries(loadWorkflow(file).jobs)
+        .flatMap(([jobId, job]) => contextsOf(jobId, job))
+        .filter(({ context }) => required.has(context))
+        .map(({ context }) => `${path.basename(file)}: ${context}`),
+    );
+    expect(clashes, "a job outside the PR workflows named like a required check").toEqual([]);
   });
 });
 

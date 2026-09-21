@@ -58,7 +58,9 @@ Browser suites are deliberately not in `ci:local`: they need a production build
 and several minutes. Run them explicitly.
 
 ```bash
-ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build
+# build.sh, not `npm run build`: it serves the origin the tests expect (:3100)
+# instead of .env.local's :3000, which seo.spec.ts and Lighthouse's SEO check.
+ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh
 npm run e2e -- --project=desktop-chromium   # one project; --project is variadic, use the = form
 npm run e2e:docker                          # the suite in CI's amd64 Linux image
 ```

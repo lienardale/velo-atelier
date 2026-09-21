@@ -234,8 +234,9 @@ target instead. That is Next's fallback, not this app's code.
 
 ## 9. Review: the shop box drops text typed before hydration
 
-**Symptom.** The review re-ran CI on the final code (35632747193, PR #2 merged
-into `w4/t3` at `02b8c38`): all 21 jobs green, and `mobile-webkit` 445 passed /
+**Symptom.** The review re-ran CI on the final code (35632747193, on PR #2's
+CI merge ref into `w4/t3` at `02b8c38`; the PR itself was never merged): all 21
+jobs green, and `mobile-webkit` 445 passed /
 15 skipped / 0 failed with two new flakes. One was `shop.spec.ts` "what is typed
 becomes the search at the three shops" (FR): after `fill`, no shop link ever
 appeared (10 s), then the retry passed in 1.3 s.
