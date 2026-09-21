@@ -4,7 +4,7 @@
  *   window.__va = {
  *     bike: { ready, selectedPartId, pickedPartIds, partIds, screenPositionOf(id),
  *             focus(id), hittable(pose), materialOf(id), loseContext(),
- *             restoreContext(), mountCount, quality, setQuality },
+ *             restoreContext(), mountCount, quality, setQuality, camera() },
  *     perf: { snapshot(), runOrbit(ms), renderFrames(n), frameCost(n), renderer, buildMs,
  *             contextCreations },
  *   }
@@ -39,6 +39,22 @@ export interface PerfSnapshot {
   materials: number;
 }
 
+/** A point in world space, `[x, y, z]`. */
+export type WorldPoint = [number, number, number];
+
+/**
+ * The camera, READ — never moved. `position` is where the last rendered frame
+ * was drawn from; the `end*` pair is where the controls are heading. At rest
+ * the two agree; during a transition the gap between them is what is left.
+ */
+export interface CameraState {
+  position: WorldPoint;
+  /** The orbit centre the controls hold now (moves with a transition). */
+  target: WorldPoint;
+  endPosition: WorldPoint;
+  endTarget: WorldPoint;
+}
+
 export interface VaBikeHooks {
   readonly ready: boolean;
   readonly selectedPartId: string | null;
@@ -60,6 +76,11 @@ export interface VaBikeHooks {
   readonly mountCount: number;
   readonly quality: "low" | "med" | "high";
   setQuality(tier: "low" | "med" | "high"): void;
+  /**
+   * The camera as drawn and as heading, or null before the canvas exists. A
+   * pure read: unlike `screenPositionOf`, it does not advance the controls.
+   */
+  camera(): CameraState | null;
 }
 
 export interface VaPerfHooks {

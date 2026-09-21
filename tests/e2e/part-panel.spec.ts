@@ -136,100 +136,105 @@ forEachLocale((locale) => {
   });
 });
 
-test("the action links point at the guides guidesFor() resolves, and they all answer 200", async ({
-  page,
-  request,
-}) => {
-  const summaries = diskGuides()
-    .filter((guide) => guide.locale === "fr")
-    .map(toSummary);
+forEachLocale((locale) => {
+  test(`the action links point at the guides guidesFor() resolves, and they all answer 200 (${locale})`, async ({
+    page,
+    request,
+  }) => {
+    const summaries = diskGuides()
+      .filter((guide) => guide.locale === locale)
+      .map(toSummary);
 
-  await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
-  await page.goto(href("fr", "/velo/[id]", { id: "local" }));
-  await page.locator('[data-part-row="tire-front"]').click();
+    await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+    await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+    await page.locator('[data-part-row="tire-front"]').click();
 
-  // The gravel preset is tubeless: the tubeless guide, never the inner-tube one.
-  const expected = guidesFor(summaries, build, "tire-front", "replace")[0];
-  expect(expected.slug).toBe("replace-tire-tubeless");
+    // The gravel preset is tubeless: the tubeless guide, never the inner-tube one.
+    const expected = guidesFor(summaries, build, "tire-front", "replace")[0];
+    expect(expected.slug).toBe("replace-tire-tubeless");
 
-  const link = page.locator('[data-guide-action="replace"]');
-  await expect(link).toHaveAttribute("href", href("fr", "/guides/[slug]", { slug: expected.slug }));
-
-  // Every action the panel offers resolves, in both locales.
-  const slugs = await page
-    .locator("[data-guide-action]")
-    .evaluateAll((nodes) =>
-      nodes.map((node) => (node as HTMLAnchorElement).getAttribute("href") ?? ""),
+    const link = page.locator('[data-guide-action="replace"]');
+    await expect(link).toHaveAttribute(
+      "href",
+      href(locale, "/guides/[slug]", { slug: expected.slug }),
     );
-  expect(slugs.length).toBeGreaterThan(0);
 
-  for (const path of slugs) {
-    for (const locale of ["fr", "en"] as Locale[]) {
-      const slug = path.split("/").pop()!;
-      const response = await request.get(href(locale, "/guides/[slug]", { slug }));
-      expect(response.status(), `${locale} ${slug}`).toBe(200);
+    // Every action the panel offers resolves, in both locales.
+    const slugs = await page
+      .locator("[data-guide-action]")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => (node as HTMLAnchorElement).getAttribute("href") ?? ""),
+      );
+    expect(slugs.length).toBeGreaterThan(0);
+
+    for (const path of slugs) {
+      for (const target of ["fr", "en"] as Locale[]) {
+        const slug = path.split("/").pop()!;
+        const response = await request.get(href(target, "/guides/[slug]", { slug }));
+        expect(response.status(), `${target} ${slug}`).toBe(200);
+      }
     }
-  }
-});
+  });
 
-test("a part that is not on the bike is a 404, and one that is opens the workspace", async ({
-  page,
-  request,
-}) => {
-  const present = await request.get(
-    href("fr", "/velo/[id]/piece/[partId]", { id: "demo", partId: "saddle" }),
-  );
-  expect(present.status()).toBe(200);
+  test(`a part that is not on the bike is a 404, and one that is opens the workspace (${locale})`, async ({
+    page,
+    request,
+  }) => {
+    const present = await request.get(
+      href(locale, "/velo/[id]/piece/[partId]", { id: "demo", partId: "saddle" }),
+    );
+    expect(present.status()).toBe(200);
 
-  // The gravel demo bike has no motor.
-  const absent = await request.get(
-    href("fr", "/velo/[id]/piece/[partId]", { id: "demo", partId: "e-motor" }),
-  );
-  expect(absent.status()).toBe(404);
+    // The gravel demo bike has no motor.
+    const absent = await request.get(
+      href(locale, "/velo/[id]/piece/[partId]", { id: "demo", partId: "e-motor" }),
+    );
+    expect(absent.status()).toBe(404);
 
-  await page.goto(href("fr", "/velo/[id]/piece/[partId]", { id: "demo", partId: "saddle" }));
-  // Scoped to the panel: between the server render (a phone layout, with the
-  // sheet) and the hydrated one (docked, with the aside) both can be in the DOM
-  // for a frame, and an unscoped selector is a strict-mode violation rather
-  // than a failed assertion.
-  await expect(
-    page.locator('[data-testid=parts-panel] [data-part-row="saddle"]').first(),
-  ).toHaveAttribute("aria-current", "true");
-});
+    await page.goto(href(locale, "/velo/[id]/piece/[partId]", { id: "demo", partId: "saddle" }));
+    // Scoped to the panel: between the server render (a phone layout, with the
+    // sheet) and the hydrated one (docked, with the aside) both can be in the DOM
+    // for a frame, and an unscoped selector is a strict-mode violation rather
+    // than a failed assertion.
+    await expect(
+      page.locator('[data-testid=parts-panel] [data-part-row="saddle"]').first(),
+    ).toHaveAttribute("aria-current", "true");
+  });
 
-/**
- * The claim of §8.3: one workspace, three bikes — and a fourth id that is
- * somebody else's, which must look exactly like an id that does not exist.
- */
-test("demo, local and a saved bike all render inside one BikeWorkspace", async ({
-  page,
-  signedInContext,
-  request,
-}) => {
-  await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
-  await signedInContext();
-  const id = await demoBikeId();
+  /**
+   * The claim of §8.3: one workspace, three bikes — and a fourth id that is
+   * somebody else's, which must look exactly like an id that does not exist.
+   */
+  test(`demo, local and a saved bike all render inside one BikeWorkspace (${locale})`, async ({
+    page,
+    signedInContext,
+    request,
+  }) => {
+    await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+    await signedInContext();
+    const id = await demoBikeId();
 
-  for (const [param, kind] of [
-    ["demo", "demo"],
-    ["local", "local"],
-    [id, "db"],
-  ] as const) {
-    await page.goto(href("fr", "/velo/[id]", { id: param }));
-    const workspace = page.getByTestId("bike-workspace");
-    await expect(workspace, `/velo/${param}`).toHaveCount(1);
-    await expect(workspace).toHaveAttribute("data-ref", kind);
-    await expect(page.getByTestId("parts-list")).toBeVisible();
-  }
+    for (const [param, kind] of [
+      ["demo", "demo"],
+      ["local", "local"],
+      [id, "db"],
+    ] as const) {
+      await page.goto(href(locale, "/velo/[id]", { id: param }));
+      const workspace = page.getByTestId("bike-workspace");
+      await expect(workspace, `/velo/${param}`).toHaveCount(1);
+      await expect(workspace).toHaveAttribute("data-ref", kind);
+      await expect(page.getByTestId("parts-list")).toBeVisible();
+    }
 
-  // A well-formed UUID that belongs to nobody in this session: 404, never 403,
-  // and indistinguishable from an id that was never issued (§4.7).
-  const foreign = await request.get(
-    href("fr", "/velo/[id]", { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" }),
-  );
-  expect(foreign.status()).toBe(404);
-  const nonsense = await request.get(href("fr", "/velo/[id]", { id: "not-a-uuid" }));
-  expect(nonsense.status()).toBe(404);
+    // A well-formed UUID that belongs to nobody in this session: 404, never 403,
+    // and indistinguishable from an id that was never issued (§4.7).
+    const foreign = await request.get(
+      href(locale, "/velo/[id]", { id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" }),
+    );
+    expect(foreign.status()).toBe(404);
+    const nonsense = await request.get(href(locale, "/velo/[id]", { id: "not-a-uuid" }));
+    expect(nonsense.status()).toBe(404);
+  });
 });
 
 /**

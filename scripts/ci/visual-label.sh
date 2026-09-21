@@ -36,8 +36,8 @@ printf "  labels: %s\n" "$(echo "$labels" | tr '\n' ' ')"
 
 if ! printf "%s\n" "$labels" | grep -qx "$LABEL"; then
   log_err "this PR changes tests/e2e/__screenshots__/** but is not labelled '$LABEL'"
-  log_err "review the new baselines, then add the label (they are regenerated only on CI"
-  log_err "or in the amd64 container: npm run e2e:update-snapshots)"
+  log_err "review every image, then add the label. Committed baselines are recorded only by"
+  log_err "CI: gh workflow run perf.yml --ref <branch> -f update_snapshots=true (it opens the PR)"
   exit 1
 fi
 

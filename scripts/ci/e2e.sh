@@ -31,21 +31,30 @@ fi
 
 extra=""
 if [[ "${UPDATE_SNAPSHOTS:-0}" == "1" ]]; then
-  # Baselines are byte-comparisons: they are only ever regenerated on an amd64
-  # Linux runner (perf.yml workflow_dispatch) or in the amd64 container
-  # (`npm run e2e:update-snapshots`). A laptop's fonts and GPU produce images
-  # that would then fail for everyone else.
+  # Baselines are byte-comparisons of Linux renders, and the COMMITTED ones come
+  # from one place only: this script under perf.yml's `update-snapshots` job
+  # (workflow_dispatch, update_snapshots=true), whose PR carries the
+  # `visual-baseline` label. The amd64 container (`npm run e2e:update-snapshots`)
+  # records for a local look, never for a commit. A laptop's fonts and GPU
+  # produce images that would fail for everyone else.
   if [[ "${GITHUB_ACTIONS:-}" != "true" && ! -d /ms-playwright ]]; then
     log_err "UPDATE_SNAPSHOTS=1 outside CI and outside the amd64 container would"
-    log_err "record host-specific baselines. Use 'npm run e2e:update-snapshots'."
+    log_err "record host-specific baselines. Committed baselines are recorded by CI:"
+    log_err "  gh workflow run perf.yml --ref <branch> -f update_snapshots=true"
     exit 1
   fi
-  extra="--update-snapshots"
-  log_warn "recording new screenshot baselines"
+  # The @snapshot tests ONLY. This run exists to record images: the whole suite
+  # would let an unrelated failure fail the step, and the step after it — the
+  # PR that carries the baselines — would never run. `changed` (the flag's own
+  # default in @playwright/test 1.63, spelled out) writes a missing baseline and
+  # rewrites only the ones that no longer match, so a refresh PR shows exactly
+  # the images that moved.
+  extra="--grep @snapshot --update-snapshots=changed"
+  log_warn "recording screenshot baselines (@snapshot only)"
 fi
 
 log_step "playwright test --project $PLAYWRIGHT_PROJECT $extra"
-# shellcheck disable=SC2086 -- $extra is a single controlled flag, not user input.
+# shellcheck disable=SC2086 -- $extra is set above to fixed flags, never user input; it splits on purpose.
 npx --no-install playwright test --project "$PLAYWRIGHT_PROJECT" $extra
 
 log_ok "e2e ($PLAYWRIGHT_PROJECT) passed"

@@ -18,10 +18,13 @@
  * does after every build; here it runs against the same `.next` the browser
  * above was served from.
  *
- * Both routes are named by §5.2: `/fr` is statically prerendered and `/fr/velo/demo`
- * is server-rendered per request (`.debug/006`), and a header served by one
- * path and not the other is exactly the kind of gap a single-route check
- * misses.
+ * Both routes are named by §5.2: the home page is statically prerendered and
+ * the demo bike is server-rendered per request (`.debug/006`), and a header
+ * served by one path and not the other is exactly the kind of gap a
+ * single-route check misses. Both are checked in FR and EN — `/en/bike/demo` is
+ * a rewrite of the same route, and a rewrite is a second path to get wrong.
+ * The bundle scan at the end runs once: it reads `.next/static` from disk and
+ * visits no page, so it has no locale.
  *
  * The policy is IMPORTED, never retyped. A copy here would pass forever while
  * the real one drifted.
@@ -31,7 +34,7 @@ import { join } from "node:path";
 
 import { contentSecurityPolicy } from "../../lib/security/csp";
 
-import { expect, href, test } from "./_fixtures";
+import { expect, forEachLocale, href, test } from "./_fixtures";
 
 /**
  * Playwright runs `next start`, i.e. `NODE_ENV=production`, so this is the
@@ -39,34 +42,39 @@ import { expect, href, test } from "./_fixtures";
  */
 const PRODUCTION_POLICY = contentSecurityPolicy("production");
 
-const ROUTES = [
-  { label: "/fr (static)", path: href("fr", "/") },
-  { label: "/fr/velo/demo (dynamic)", path: href("fr", "/velo/[id]", { id: "demo" }) },
-] as const;
+forEachLocale((locale) => {
+  const routes = [
+    { label: `${href(locale, "/")} (static)`, path: href(locale, "/") },
+    {
+      label: `${href(locale, "/velo/[id]", { id: "demo" })} (dynamic)`,
+      path: href(locale, "/velo/[id]", { id: "demo" }),
+    },
+  ] as const;
 
-for (const route of ROUTES) {
-  test(`serves the exact production CSP on ${route.label}`, async ({ request }) => {
-    const response = await request.get(route.path);
+  for (const route of routes) {
+    test(`serves the exact production CSP on ${route.label}`, async ({ request }) => {
+      const response = await request.get(route.path);
 
-    expect(response.status()).toBe(200);
-    expect(response.headers()["content-security-policy"]).toBe(PRODUCTION_POLICY);
-  });
-}
-
-test("the served policy has no eval and no nonce", async ({ request }) => {
-  // Spelled out rather than implied by the equality above, because these two
-  // are the reasons the policy is shaped the way it is: `'unsafe-eval'` would
-  // undo the build-time MDX compilation (§5.2), and a nonce would force every
-  // route dynamic (§1.3).
-  for (const route of ROUTES) {
-    const csp = (await request.get(route.path)).headers()["content-security-policy"] ?? "";
-
-    expect(csp, route.label).toContain("script-src 'self' 'unsafe-inline'");
-    expect(csp, route.label).not.toContain("unsafe-eval");
-    expect(csp, route.label).not.toContain("nonce-");
-    expect(csp, route.label).toContain("frame-ancestors 'none'");
-    expect(csp, route.label).toContain("object-src 'none'");
+      expect(response.status()).toBe(200);
+      expect(response.headers()["content-security-policy"]).toBe(PRODUCTION_POLICY);
+    });
   }
+
+  test(`the served policy has no eval and no nonce (${locale})`, async ({ request }) => {
+    // Spelled out rather than implied by the equality above, because these two
+    // are the reasons the policy is shaped the way it is: `'unsafe-eval'` would
+    // undo the build-time MDX compilation (§5.2), and a nonce would force every
+    // route dynamic (§1.3).
+    for (const route of routes) {
+      const csp = (await request.get(route.path)).headers()["content-security-policy"] ?? "";
+
+      expect(csp, route.label).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp, route.label).not.toContain("unsafe-eval");
+      expect(csp, route.label).not.toContain("nonce-");
+      expect(csp, route.label).toContain("frame-ancestors 'none'");
+      expect(csp, route.label).toContain("object-src 'none'");
+    }
+  });
 });
 
 /* eslint-disable security/detect-non-literal-fs-filename -- fixed paths under .next/static */

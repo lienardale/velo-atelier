@@ -69,6 +69,14 @@ const NARROW_SPECS =
   /(^|\/)(smoke|mobile-sheet|checkup\.mobile|auth\.mobile|build-list)\.spec\.ts$/;
 
 /**
+ * `@snapshot` (tests/e2e/visual.spec.ts) has baselines for desktop-chromium and
+ * mobile-chromium ONLY — `perf.yml`'s `update-snapshots` job records those two.
+ * Every other project inverts the tag: a missing baseline is written and failed,
+ * so a third project running it would be red on every run.
+ */
+const SNAPSHOT = /@snapshot/;
+
+/**
  * Added on top of the runner's own environment — Playwright 1.63 launches the
  * web server with `{ ...process.env, ...webServer.env }`, and `process.env`
  * already holds `.env.test` (database URLs, AUTH_SECRET, …) from the line above.
@@ -96,6 +104,7 @@ const e2eProjects: Project[] = [
   },
   {
     name: "mobile-landscape",
+    grepInvert: SNAPSHOT,
     use: {
       ...devices["Pixel 7 landscape"],
       viewport: { width: 844, height: 390 },
@@ -106,6 +115,7 @@ const e2eProjects: Project[] = [
   {
     name: "mobile-narrow",
     testMatch: NARROW_SPECS,
+    grepInvert: SNAPSHOT,
     use: {
       ...devices["Pixel 7"],
       viewport: { width: 320, height: 568 },
@@ -117,7 +127,7 @@ const e2eProjects: Project[] = [
   {
     name: "no-webgl",
     // Specs tagged @webgl assert on the 3D canvas; here the SVG fallback is the product.
-    grepInvert: /@webgl/,
+    grepInvert: [/@webgl/, SNAPSHOT],
     use: {
       ...devices["Desktop Chrome"],
       webgl: false,
@@ -129,7 +139,7 @@ const e2eProjects: Project[] = [
     // Non-blocking (continue-on-error in CI): validates layout, touch and the
     // fallback. Never a screenshot baseline, never a perf number.
     retries: 2,
-    grepInvert: [/@snapshot/, /@perf/],
+    grepInvert: [SNAPSHOT, /@perf/],
     use: { ...devices["iPhone 14"] },
   },
 ];

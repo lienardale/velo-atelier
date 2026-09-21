@@ -78,79 +78,85 @@ forEachLocale((locale) => {
   });
 });
 
-test("one step of one guide is on screen, and it is the planned one", async ({ page }) => {
-  await page.goto(
-    `${href("fr", "/velo/[id]/controle", { id: "demo" })}?step=${encodeURIComponent(CHAIN_STEP)}`,
-  );
+forEachLocale((locale) => {
+  test(`one step of one guide is on screen, and it is the planned one (${locale})`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `${href(locale, "/velo/[id]/controle", { id: "demo" })}?step=${encodeURIComponent(CHAIN_STEP)}`,
+    );
 
-  const body = page.getByTestId("step-body");
-  await expect(body.locator("[data-step-id]")).toHaveCount(1);
-  await expect(body.locator("[data-step-id]")).toHaveAttribute("data-step-id", "chain-wear");
-  // The guide's table of contents belongs to the guide page, not to a wizard
-  // showing one of its steps (§5.2).
-  await expect(body.locator("[data-testid=guide-toc]")).toHaveCount(0);
-});
+    const body = page.getByTestId("step-body");
+    await expect(body.locator("[data-step-id]")).toHaveCount(1);
+    await expect(body.locator("[data-step-id]")).toHaveAttribute("data-step-id", "chain-wear");
+    // The guide's table of contents belongs to the guide page, not to a wizard
+    // showing one of its steps (§5.2).
+    await expect(body.locator("[data-testid=guide-toc]")).toHaveCount(0);
+  });
 
-test("an answer moves the wizard on and survives a reload", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }));
-  await page.getByTestId("checkup-start").click();
+  test(`an answer moves the wizard on and survives a reload (${locale})`, async ({ page }) => {
+    await page.goto(href(locale, "/velo/[id]/controle", { id: "demo" }));
+    await page.getByTestId("checkup-start").click();
 
-  const card = page.getByTestId("step-card");
-  const first = await card.getAttribute("data-step-key");
-  expect(first).not.toBeNull();
+    const card = page.getByTestId("step-card");
+    const first = await card.getAttribute("data-step-key");
+    expect(first).not.toBeNull();
 
-  await page.getByTestId("verdict-ok").click();
-  await expect(card).not.toHaveAttribute("data-step-key", first!);
-  const second = await card.getAttribute("data-step-key");
+    await page.getByTestId("verdict-ok").click();
+    await expect(card).not.toHaveAttribute("data-step-key", first!);
+    const second = await card.getAttribute("data-step-key");
 
-  await expect.poll(() => verdictFor(page, first!)).toBe("ok");
+    await expect.poll(() => verdictFor(page, first!)).toBe("ok");
 
-  await page.reload();
-  // Back on the SAME question, with the first one still answered: the plan is
-  // recomputed and the answers are reconciled onto it (§5.4).
-  await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", second!);
-  expect(await verdictFor(page, first!)).toBe("ok");
-});
+    await page.reload();
+    // Back on the SAME question, with the first one still answered: the plan is
+    // recomputed and the answers are reconciled onto it (§5.4).
+    await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", second!);
+    expect(await verdictFor(page, first!)).toBe("ok");
+  });
 
-test("the keyboard answers the question, and a note never does", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }));
-  await page.getByTestId("checkup-start").click();
+  test(`the keyboard answers the question, and a note never does (${locale})`, async ({ page }) => {
+    await page.goto(href(locale, "/velo/[id]/controle", { id: "demo" }));
+    await page.getByTestId("checkup-start").click();
 
-  const card = page.getByTestId("step-card");
-  const first = await card.getAttribute("data-step-key");
+    const card = page.getByTestId("step-card");
+    const first = await card.getAttribute("data-step-key");
 
-  // "1" is "ça marche".
-  await page.keyboard.press("1");
-  await expect(card).not.toHaveAttribute("data-step-key", first!);
+    // "1" is "ça marche".
+    await page.keyboard.press("1");
+    await expect(card).not.toHaveAttribute("data-step-key", first!);
 
-  // "2" is "ça ne marche pas" — and the step stays put, because the symptom is
-  // what turns a KO into one line of the list.
-  const second = await card.getAttribute("data-step-key");
-  await page.keyboard.press("2");
-  await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ko");
-  await expect(card).toHaveAttribute("data-step-key", second!);
+    // "2" is "ça ne marche pas" — and the step stays put, because the symptom is
+    // what turns a KO into one line of the list.
+    const second = await card.getAttribute("data-step-key");
+    await page.keyboard.press("2");
+    await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ko");
+    await expect(card).toHaveAttribute("data-step-key", second!);
 
-  // …and inside the note, "2" is a character.
-  const note = page.getByTestId("symptom-note");
-  await note.fill("bruit à 2 km/h");
-  await note.press("2");
-  await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", second!);
-  await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ko");
-  await expect(note).toHaveValue("bruit à 2 km/h2");
+    // …and inside the note, "2" is a character.
+    const note = page.getByTestId("symptom-note");
+    await note.fill("bruit à 2 km/h");
+    await note.press("2");
+    await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", second!);
+    await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ko");
+    await expect(note).toHaveValue("bruit à 2 km/h2");
 
-  await expect.poll(() => noteFor(page, second!)).toBe("bruit à 2 km/h2");
-});
+    await expect.poll(() => noteFor(page, second!)).toBe("bruit à 2 km/h2");
+  });
 
-test("going back returns to the previous question with its verdict", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]/controle", { id: "demo" }));
-  await page.getByTestId("checkup-start").click();
+  test(`going back returns to the previous question with its verdict (${locale})`, async ({
+    page,
+  }) => {
+    await page.goto(href(locale, "/velo/[id]/controle", { id: "demo" }));
+    await page.getByTestId("checkup-start").click();
 
-  const card = page.getByTestId("step-card");
-  const first = await card.getAttribute("data-step-key");
-  await page.getByTestId("verdict-ok").click();
-  await expect(card).not.toHaveAttribute("data-step-key", first!);
+    const card = page.getByTestId("step-card");
+    const first = await card.getAttribute("data-step-key");
+    await page.getByTestId("verdict-ok").click();
+    await expect(card).not.toHaveAttribute("data-step-key", first!);
 
-  await page.getByTestId("checkup-back").click();
-  await expect(card).toHaveAttribute("data-step-key", first!);
-  await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    await page.getByTestId("checkup-back").click();
+    await expect(card).toHaveAttribute("data-step-key", first!);
+    await expect(page.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+  });
 });

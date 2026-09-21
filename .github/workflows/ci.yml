@@ -51,7 +51,6 @@ jobs:
       code: ${{ steps.filter.outputs.code }}
       content: ${{ steps.filter.outputs.content }}
       workflows: ${{ steps.filter.outputs.workflows }}
-      screenshots: ${{ steps.filter.outputs.screenshots }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
@@ -98,8 +97,8 @@ jobs:
               - 'content-collections.ts'
             workflows:
               - '.github/workflows/**'
-            screenshots:
-              - 'tests/e2e/__screenshots__/**'
+          # No `screenshots` filter: a baseline change is label-checked by the
+          # path-filtered visual-baseline-guard.yml workflow, not by a job here.
 
   nvmrc:
     name: nvmrc-check
@@ -338,10 +337,18 @@ jobs:
           - no-webgl
           - mobile-webkit
         include:
-          # Linux WebKit is not iOS Safari — it validates layout, touch and the
-          # no-WebGL fallback, and it is allowed to fail without blocking.
+          # The one leg allowed to fail without blocking: see continue-on-error.
           - project: mobile-webkit
             optional: true
+    # mobile-webkit only (`optional` above). It runs every spec but @snapshot and
+    # @perf: layout, taps, and the 3D viewer, whose WebGL renders here without a
+    # GPU (its @webgl specs run and pass). The no-WebGL fallback is the no-webgl
+    # leg's, and the CDP touch gestures are Chromium-only. Why it stays
+    # non-blocking even green: Linux WebKit is not the iOS Safari the plan's
+    # phones run (another WebGL, compositor and input stack), so a WebKit-only
+    # failure is a finding to read, not a merge veto (§7.2). Its one deterministic
+    # failure was the test's own `mouse.wheel`, which mobile WebKit refuses
+    # (.debug/015); a failure here is still read, never shrugged off.
     continue-on-error: ${{ matrix.optional == true }}
     env:
       PLAYWRIGHT_PROJECT: ${{ matrix.project }}
@@ -546,18 +553,3 @@ jobs:
           restore-keys: |
             trivy-${{ runner.os }}-
       - run: bash scripts/ci/trivy.sh
-
-  visual-baseline-guard:
-    name: visual-baseline-guard
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.screenshots == 'true' && github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - run: bash scripts/ci/visual-label.sh
