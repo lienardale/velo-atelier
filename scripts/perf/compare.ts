@@ -257,7 +257,8 @@ function main(): void {
     }
   }
 
-  for (const row of rows) say(row);
+  // Header only means no run had a baseline: the warnings above already say so.
+  if (rows.length > 2) for (const row of rows) say(row);
   if (warnings.length > 0) {
     say("");
     say(`**Warnings (> ${warnPct} % of baseline, or not comparable)**`);
