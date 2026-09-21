@@ -19,6 +19,7 @@ import { isPartId } from "@/lib/domain/data/parts";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
+import { chosenProductOf } from "@/lib/shop/chosen-product";
 import { cn } from "@/lib/utils";
 
 import { BuildItemCard } from "./BuildItemCard";
@@ -82,15 +83,9 @@ const StoredItemSchema = z.object({
   refinement: z.optional(
     z.record(z.string().check(z.maxLength(64)), z.string().check(z.maxLength(64))),
   ),
-  chosenProduct: z.optional(
-    z.object({
-      brand: z.string().check(z.maxLength(80)),
-      model: z.string().check(z.maxLength(80)),
-      size: z.string().check(z.maxLength(40)),
-      vendor: z.string().check(z.maxLength(40)),
-      url: z.string().check(z.maxLength(2048)),
-    }),
-  ),
+  // Checked by `chosenProductOf` below rather than here: a product whose link
+  // does not go where its vendor says (§4.4) loses the PRODUCT, not the list.
+  chosenProduct: z.optional(z.unknown()),
   sortOrder: z.number().check(z.refine(Number.isFinite)),
 });
 
@@ -120,7 +115,11 @@ export function parseBuildList(raw: string | null): BuildListItem[] | null {
   const items = Array.isArray(parsed.data) ? parsed.data : parsed.data.items;
   return items
     .filter((item) => isPartId(item.partId))
-    .slice(0, MAX_BUILD_LIST_ITEMS) as BuildListItem[];
+    .slice(0, MAX_BUILD_LIST_ITEMS)
+    .map(({ chosenProduct, ...item }) => {
+      const product = chosenProduct === undefined ? undefined : chosenProductOf(chosenProduct);
+      return (product === undefined ? item : { ...item, chosenProduct: product }) as BuildListItem;
+    });
 }
 
 export type KeyValueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;

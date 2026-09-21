@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { firstValue } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
-import type { BuildAction, BuildListItem, ChosenProduct } from "@/lib/checkup/types";
-import { isPartId, type PartId } from "@/lib/domain/data/parts";
+import type { BuildListItem } from "@/lib/checkup/types";
 import { Link } from "@/lib/i18n/navigation";
 import { routing } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -31,66 +30,6 @@ export async function generateMetadata({ params }: BuildListPageProps): Promise<
   });
 }
 
-/** The Prisma enum, as the checkup contract spells it (`KoAction`, §1.2). */
-const ACTION_OF: Readonly<Record<string, BuildAction>> = {
-  REPLACE: "replace",
-  FIX: "fix",
-  CLEAN: "clean",
-  ADJUST: "adjust",
-  INSPECT_SHOP: "inspect-shop",
-};
-
-interface BuildListRow {
-  id: string;
-  partId: string;
-  action: string;
-  reasonKey: string;
-  guideSlug: string | null;
-  refinement: unknown;
-  chosenProduct: unknown;
-  done: boolean;
-  sortOrder: number;
-  checkupItem: { stepKey: string } | null;
-}
-
-/** A `Json` column is a shape we WROTE, not a shape we can assume on read. */
-function asRefinement(value: unknown): Readonly<Record<string, string>> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const entries = Object.entries(value).filter(
-    ([key, entry]) => typeof entry === "string" && key.length <= 64 && entry.length <= 64,
-  );
-  return entries.length === 0 ? undefined : (Object.fromEntries(entries) as Record<string, string>);
-}
-
-function asChosenProduct(value: unknown): ChosenProduct | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const record = value as Record<string, unknown>;
-  const fields = ["brand", "model", "size", "vendor", "url"] as const;
-  /* eslint-disable security/detect-object-injection -- `field` iterates the literal tuple above */
-  if (!fields.every((field) => typeof record[field] === "string")) return undefined;
-  return Object.fromEntries(fields.map((f) => [f, record[f]])) as unknown as ChosenProduct;
-  /* eslint-enable security/detect-object-injection */
-}
-
-function toItem(row: BuildListRow): BuildListItem | null {
-  const action = Object.hasOwn(ACTION_OF, row.action) ? ACTION_OF[row.action] : undefined;
-  if (action === undefined || !isPartId(row.partId)) return null;
-  const stepKey = row.checkupItem?.stepKey ?? row.id;
-  return {
-    id: row.id,
-    stepKey,
-    sourceKeys: [stepKey],
-    partId: row.partId as PartId,
-    action,
-    reasonKey: row.reasonKey,
-    ...(row.guideSlug === null ? {} : { guideSlug: row.guideSlug }),
-    done: row.done,
-    ...(row.refinement === null ? {} : { refinement: asRefinement(row.refinement) }),
-    ...(row.chosenProduct === null ? {} : { chosenProduct: asChosenProduct(row.chosenProduct) }),
-    sortOrder: row.sortOrder,
-  };
-}
-
 /**
  * `/velo/[id]/liste` · `/bike/[id]/build-list` — the to-fix list (§5.5, §6.5).
  *
@@ -103,8 +42,9 @@ function toItem(row: BuildListRow): BuildListItem | null {
  *   demo / local  `localStorage` (`va:buildlist:<ref>`). The server cannot read
  *                 it, so it hands `<BuildList>` `initialItems: null` and the
  *                 component reads storage after hydration.
- *   db            two queries — the bike (`loadBikeForRequest`, which is also
- *                 the ownership check) and its open list.
+ *   db            three queries — the bike and its in-progress checkup
+ *                 (`loadBikeForRequest`, which is also the ownership check),
+ *                 then its open list (`./load`).
  *
  * ## `?spec=`
  *
@@ -131,42 +71,20 @@ export default async function BuildListPage({
   let initialItems: BuildListItem[] | null = null;
   let buildListId: string | null = null;
   if (ref.kind === "db" && bike.bikeId !== null) {
-    const [{ prisma }, { currentUser }] = await Promise.all([
-      import("@/lib/db/prisma"),
+    // Dynamic, like the checkup page's: `server-only` and the Prisma client
+    // stay out of the module graph of the `demo` and `local` branches.
+    const [{ loadBuildList }, { currentUser }] = await Promise.all([
+      import("./load"),
       import("@/lib/actions/with-user"),
     ]);
     const user = await currentUser();
-    const list =
-      user === null
-        ? null
-        : await prisma.buildList.findFirst({
-            // The owner is in the `where` as well as in `loadBikeForRequest`:
-            // one predicate per query, never "the previous one covered it".
-            where: { bikeId: bike.bikeId, bike: { userId: user.id }, status: "OPEN" },
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              items: {
-                orderBy: { sortOrder: "asc" },
-                select: {
-                  id: true,
-                  partId: true,
-                  action: true,
-                  reasonKey: true,
-                  guideSlug: true,
-                  refinement: true,
-                  chosenProduct: true,
-                  done: true,
-                  sortOrder: true,
-                  checkupItem: { select: { stepKey: true } },
-                },
-              },
-            },
-          });
-    buildListId = list?.id ?? null;
-    initialItems = (list?.items ?? [])
-      .map((row) => toItem(row as BuildListRow))
-      .filter((item): item is BuildListItem => item !== null);
+    if (user !== null) {
+      const loaded = await loadBuildList(bike.bikeId, user.id);
+      buildListId = loaded.buildListId;
+      initialItems = loaded.items;
+    } else {
+      initialItems = [];
+    }
   }
 
   return (
