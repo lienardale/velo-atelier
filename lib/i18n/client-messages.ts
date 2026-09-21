@@ -12,9 +12,18 @@
  * (`lib/i18n/client-namespaces.ts`) and this module cuts the catalogue down to
  * it. Nothing here decides anything: the declarations are the contract and
  * `tests/unit/i18n/client-namespaces.test.ts` is what holds them to the code.
+ *
+ * ## Both halves of the import specifier are narrowed at run time
+ *
+ * `locale` and each namespace are interpolated into an `import()` specifier,
+ * so a value that is only TYPED `Locale` would be one bad cast away from a file
+ * path. The locale is narrowed the way `lib/i18n/request.ts` narrows it — an
+ * unknown one is the default locale — and a namespace outside `NAMESPACES` is
+ * a programming error that throws before anything is imported
+ * (`tests/security/path-traversal.test.ts`).
  */
-import type { Namespace, NamespaceMessages } from "./namespaces";
-import type { Locale } from "./routing";
+import { NAMESPACES, type Namespace, type NamespaceMessages } from "./namespaces";
+import { isLocale, routing, type Locale } from "./routing";
 
 /** The messages a provider is given: the declared namespaces, nothing else. */
 export type ClientMessages = Partial<NamespaceMessages>;
@@ -30,9 +39,14 @@ export async function loadClientMessages(
   locale: Locale,
   namespaces: readonly Namespace[],
 ): Promise<ClientMessages> {
+  const safeLocale: Locale = isLocale(locale) ? locale : routing.defaultLocale;
+  const unknown = namespaces.filter((ns) => !(NAMESPACES as readonly string[]).includes(ns));
+  if (unknown.length > 0) {
+    throw new Error(`loadClientMessages: not a message namespace: ${JSON.stringify(unknown)}`);
+  }
   const entries = await Promise.all(
     namespaces.map(
-      async (ns) => [ns, (await import(`@/messages/${locale}/${ns}.json`)).default] as const,
+      async (ns) => [ns, (await import(`@/messages/${safeLocale}/${ns}.json`)).default] as const,
     ),
   );
   return Object.fromEntries(entries) as ClientMessages;
