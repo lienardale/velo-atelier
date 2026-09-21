@@ -50,9 +50,16 @@ if [[ -n "${PERF_REPEAT:-}" ]]; then
   repeat="--repeat-each=${PERF_REPEAT}"
 fi
 
-log_step "playwright test --project perf --project perf-mobile $repeat (run $PERF_RUN_ID)"
+# `--workers=1`: one browser at a time. Each perf project already runs one
+# worker, but the config's CI default (2) let `perf` and `perf-mobile` run side
+# by side on the runner's 4 vCPUs, so every soft timing measured the other
+# project too. Tap latency crossed the 300 % FAIL line on one sample in 70 in
+# three nightlies (.debug/012) — noise the ladder would have reported as a
+# regression. Serial costs job time, not accuracy, and the baselines are
+# recorded under the same condition; the thresholds did not move.
+log_step "playwright test --workers=1 --project perf --project perf-mobile $repeat (run $PERF_RUN_ID)"
 # shellcheck disable=SC2086 -- $repeat is a single controlled flag, not user input.
-npx --no-install playwright test --project perf --project perf-mobile $repeat
+npx --no-install playwright test --workers=1 --project perf --project perf-mobile $repeat
 
 if [[ -f scripts/perf/compare.ts ]]; then
   log_step "compare against baselines"
