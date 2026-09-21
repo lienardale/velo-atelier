@@ -244,10 +244,10 @@ export default defineConfig(async (): Promise<ViteUserConfig> => {
           // are logic, and a `components/**/*.tsx` include left ten of them outside the gate.
           "components/**/*.{ts,tsx}",
           "app/**/actions.ts",
-          // A page's data load lives next to its actions (`controle/load.ts`: a
-          // `"use server"` file cannot hold a function that takes a `userId`,
-          // CLAUDE.md), and is the half of the route that decides whose rows
-          // are read.
+          // A page's data load lives next to its actions (`controle/load.ts`,
+          // `liste/load.ts`: a `"use server"` file cannot hold a function that
+          // takes a `userId`, CLAUDE.md), and is the half of the route that
+          // decides whose rows are read.
           "app/**/load.ts",
           // The two metadata routes are logic, not wiring: which URLs are crawled
           // and which languages are paired (§6.6).
