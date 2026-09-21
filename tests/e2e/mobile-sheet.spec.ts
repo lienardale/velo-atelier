@@ -64,8 +64,19 @@ forEachLocale((locale) => {
 
     // Down 300 px from wherever the handle is now: it shrinks again. The sheet
     // animates for `--sheet-duration`, so its box has to settle before it is read
-    // — a drag from a mid-animation position lands somewhere else entirely.
-    await page.waitForTimeout(400);
+    // — a drag from a mid-animation position lands somewhere else entirely. Wait
+    // for the transition itself to finish, not for a fixed time: a fixed 400 ms
+    // failed about one run in twelve on a loaded machine (W4 integration).
+    await expect
+      .poll(() =>
+        page
+          .locator(sheet)
+          .evaluate(
+            (node) =>
+              node.getAnimations().filter((animation) => animation.playState === "running").length,
+          ),
+      )
+      .toBe(0);
     const after = (await page.locator(handle).boundingBox())!;
     await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
     await page.mouse.down();
