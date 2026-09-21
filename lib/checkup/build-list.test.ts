@@ -387,6 +387,22 @@ describe("mergeGuestBuildList", () => {
     );
     expect(rechecked[0].done).toBe(false);
   });
+
+  it("keeps a tick that carries no reason ticked across a re-run, and invents no reason", () => {
+    // A guest list written before lines carried a `doneReason`: `done` alone
+    // is the visitor's tick (only a checkup writes `recheck-ok`, and it always
+    // says so). It survives a re-run of the same checkup like a `manual` one —
+    // and, like the untouched line above, the merge does not put a
+    // `doneReason: undefined` key into a list that is stored as JSON.
+    const state = spongyButDry();
+    const legacy = brakeLine({ done: true });
+    expect(Object.hasOwn(legacy, "doneReason")).toBe(false);
+
+    const [line] = mergeGuestBuildList([legacy], deriveBuildList(state), state, true);
+
+    expect(line.done).toBe(true);
+    expect(Object.hasOwn(line, "doneReason")).toBe(false);
+  });
 });
 
 describe("recheckedLines", () => {
