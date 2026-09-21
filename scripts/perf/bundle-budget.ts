@@ -32,6 +32,19 @@
  *
  * A budgeted route that has not been built yet is reported as `not built` and
  * does not fail the run — the budget exists before the page does.
+ *
+ * Units: every size printed is KiB (1024 bytes) and says so; the budgets in
+ * `perf.budgets.json` are bytes. (The table used to print KiB labelled "kB",
+ * which is how the W0 pin ended up with 8 % headroom instead of 10 %.)
+ *
+ * Flags:
+ *   --json                      raw gzip bytes and the ratchet's `nextPin` per
+ *                               route; always exits 0 (it is for re-pinning)
+ *   --budget <route>=<bytes>    replace one route's ceiling for this run only,
+ *                               e.g. `--budget '/[locale]=1000'` — §7.6 AC8's
+ *                               "set a budget to 1000 and it must exit 1", the
+ *                               way to prove the gate is live without editing
+ *                               the committed file. Repeatable.
  */
 import { gzipSync } from "node:zlib";
 import { existsSync, readFileSync, appendFileSync } from "node:fs";
@@ -209,8 +222,33 @@ function measure(route: string, budget: RouteBudget, webglMarker: string): Measu
 
 /* eslint-enable security/detect-non-literal-fs-filename */
 
-function kb(bytes: number): string {
-  return `${(bytes / 1024).toFixed(1)} kB`;
+function kib(bytes: number): string {
+  return `${(bytes / 1024).toFixed(1)} KiB`;
+}
+
+/** `--budget <route>=<bytes>` pairs from argv, validated against the budgeted routes. */
+function overridesFrom(argv: readonly string[], routes: ReadonlySet<string>): Map<string, number> {
+  const overrides = new Map<string, number>();
+  argv.forEach((arg, index) => {
+    const value =
+      arg === "--budget" ? argv[index + 1] : arg.startsWith("--budget=") ? arg.slice(9) : null;
+    if (value === null || value === undefined) return;
+    const at = value.lastIndexOf("=");
+    const route = value.slice(0, at);
+    const bytes = Number(value.slice(at + 1));
+    if (at <= 0 || !Number.isInteger(bytes) || bytes <= 0) {
+      console.error(`--budget ${value}: expected <route>=<positive whole bytes>`);
+      process.exit(2);
+    }
+    if (!routes.has(route)) {
+      console.error(
+        `--budget ${value}: ${route} is not a budgeted route (${[...routes].join(", ")})`,
+      );
+      process.exit(2);
+    }
+    overrides.set(route, bytes);
+  });
+  return overrides;
 }
 
 function main(): void {
@@ -224,8 +262,16 @@ function main(): void {
   }
 
   const budgets = readJson<Budgets>(BUDGETS_FILE);
+  const overrides = overridesFrom(process.argv, new Set(Object.keys(budgets.routes)));
+  for (const [route, bytes] of overrides) {
+    console.warn(`OVERRIDE: ${route} budget set to ${bytes} B for this run (--budget)`);
+  }
   const measurements = Object.entries(budgets.routes).map(([route, budget]) =>
-    measure(route, budget, budgets.webglMarker),
+    measure(
+      route,
+      overrides.has(route) ? { ...budget, firstLoadJsGzipBytes: overrides.get(route)! } : budget,
+      budgets.webglMarker,
+    ),
   );
 
   // `--json` prints raw bytes and the ratchet's next ceiling (measured + 10 %,
@@ -249,7 +295,7 @@ function main(): void {
   }
 
   const rows = measurements.map((m) => {
-    const size = m.verdict === "missing" ? "not built" : kb(m.gzipBytes);
+    const size = m.verdict === "missing" ? "not built" : kib(m.gzipBytes);
     const headroom =
       m.verdict === "missing"
         ? "—"
@@ -258,9 +304,9 @@ function main(): void {
     return {
       Route: m.route,
       "First-load JS (gzip)": size,
-      Budget: kb(m.budget),
+      Budget: kib(m.budget),
       Headroom: headroom,
-      Target: m.target ? kb(m.target) : "—",
+      Target: m.target ? kib(m.target) : "—",
       Status: status,
     };
   });
@@ -272,7 +318,7 @@ function main(): void {
   for (const m of measurements) {
     if (m.verdict === "over") {
       failures.push(
-        `${m.route}: ${kb(m.gzipBytes)} exceeds the ${kb(m.budget)} budget by ${kb(m.gzipBytes - m.budget)}`,
+        `${m.route}: ${kib(m.gzipBytes)} exceeds the ${kib(m.budget)} budget by ${kib(m.gzipBytes - m.budget)}`,
       );
     }
     if (m.webglChunks.length > 0) {
