@@ -49,7 +49,7 @@ npm run ci:local
 
 <!-- Fill in only if this PR could move them. The `build` job prints the table. -->
 
-- First-load JS (home): … kB gzip — budget in `perf.budgets.json`
+- First-load JS (home): … KiB gzip (the table prints KiB) — budget in `perf.budgets.json`
 - Draw calls / triangles, if the 3D scene changed: …
 
 ## Anything a reviewer should push back on

@@ -59,7 +59,9 @@ job summary. §7.3's ladder, identical on PRs and at night:
 
 `longFrames` is a count, laddered on `(run + 1) / (baseline + 1)`: with a zero
 baseline a plain ratio is infinite at the first long frame, and one SwiftShader
-hitch would fail the job. Smoothed, a zero baseline warns at 1 and fails at 3.
+hitch would fail the job. Smoothed, a zero baseline warns at 1 and fails at 3;
+at any other baseline the fail line is exactly two long frames later than a
+plain ratio's (baseline 10: fail from 33, not 31), the warn line at most one.
 A baseline recorded on another runner label or another three release is still
 compared, with a warning in the summary: that comparison is two machines, not
 two commits.
@@ -67,7 +69,9 @@ two commits.
 The nightly (`perf.yml`, 03:00 UTC) runs the specs five times
 (`PERF_REPEAT=5`); every repetition merges into the same run file by run id, and
 the file records the median. Its `perf-nightly` artifact (90 days) holds the run
-files and the Playwright annotations.
+files (`.perf/<project>.json`, every number above) and, on an `update_baseline`
+run, the baselines recorded from them; the test's `timing (advisory)`
+annotation reaches neither the artifact nor the job log.
 
 ## Refreshing the baseline
 
@@ -82,10 +86,12 @@ every CI run look like a 10× regression.
 2. The `perf (nightly)` job runs the specs five times and `compare.ts` writes
    `tests/perf/baselines/<project>.json` from that run (medians only, no raw
    samples, so the JSON is exactly what Prettier writes).
-3. The `perf baseline PR` job — the only job of the workflow with a write
-   token, and one that runs no project code — validates the files
-   (`scripts/ci/perf-baseline.sh`: presets present, a CI runner, a three
-   version) and opens a PR titled `test(perf): record the soft-tier baselines`.
+3. The `perf baseline PR` job validates the files
+   (`scripts/ci/perf-baseline.sh`: presets present, no raw samples, a CI
+   runner, a three version) and opens a PR titled
+   `test(perf): record the soft-tier baselines`. It holds a write token (as
+   `update-snapshots` does), so it builds and tests nothing: no dependency
+   script or git hook runs in it.
 4. Read it before merging: the `repetitions`, the `runner`, the `three`
    version, and whether any preset looks slower than the last baseline for no
    reason. A baseline recorded on a bad night hides every regression after it.
@@ -105,7 +111,9 @@ With `RUN_LOCAL_PERF=1` the perf projects drop the SwiftShader flags for
 them — verified on an Apple M2, "ANGLE Metal Renderer: Apple M2"; set
 `PERF_HEADED=1` on a machine whose headless mode has none). The soft test then:
 
-- fails if the renderer is SwiftShader — a wrong setup never passes quietly;
+- fails unless the WebGL renderer string names a GPU: SwiftShader or another
+  software rasteriser fails, and so does a masked or missing string — a wrong
+  setup never passes quietly;
 - requires **p95 frame cost ≤ 16.7 ms on all seven presets**;
 - writes `.perf/local-<YYYY-MM-DD>.json`, the one run file that is committed
   (`.gitignore` excepts `local-*.json`; `compare.ts` never compares it and never

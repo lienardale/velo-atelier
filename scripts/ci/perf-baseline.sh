@@ -4,9 +4,10 @@
 # The `perf (nightly)` job ran the specs with `UPDATE_PERF_BASELINE=1`, so
 # `scripts/perf/compare.ts` wrote `tests/perf/baselines/<project>.json` from
 # THIS run and the job uploaded them in its `perf-nightly` artifact. The
-# `perf baseline PR` job — the only job of the workflow allowed to write, and
-# one that runs no project code — downloads that artifact to
-# `$PERF_BASELINE_SOURCE` and calls this script, then opens the PR.
+# `perf baseline PR` job downloads that artifact to `$PERF_BASELINE_SOURCE`,
+# calls this script, then opens the PR. It holds a write token (as
+# `update-snapshots` does), so it builds and tests nothing: no dependency
+# script or git hook runs there, only this script (node + Prettier).
 #
 # Refuses anything a reviewer should not have to catch: no file, a file that is
 # not JSON, a baseline without presets, one that still carries its raw

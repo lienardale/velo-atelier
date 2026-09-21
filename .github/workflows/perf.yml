@@ -203,9 +203,11 @@ jobs:
 
   # `update_baseline=true` only: the baselines the perf job just recorded, as a
   # PR for a human to read — "recorded by CI", and nothing is downloaded to a
-  # laptop. The only job of this workflow allowed to write, and it runs no
-  # project code: it reads the perf job's artifact, validates it and hands it
-  # to create-pull-request. The perf job itself keeps the read-only token.
+  # laptop. It holds a write token, as `update-snapshots` below does, so unlike
+  # that job it builds and tests nothing: no dependency script or git hook runs
+  # here, only scripts/ci/perf-baseline.sh (node + Prettier) over the perf
+  # job's artifact, then create-pull-request. The perf job keeps the read-only
+  # token.
   perf-baseline:
     name: perf baseline PR
     runs-on: ubuntu-latest
@@ -215,10 +217,11 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      # "Runs no project code" includes the repository's own git hooks. With
-      # them installed, create-pull-request's `git commit` ran .husky/pre-commit
-      # (lint-staged, `tsc --noEmit`, `vitest related`) in the one job holding a
-      # write token — and failed, because this fresh checkout has none of the
+      # "Builds and tests nothing" includes the repository's own git hooks.
+      # With them installed, create-pull-request's `git commit` ran
+      # .husky/pre-commit (lint-staged, `tsc --noEmit`, `vitest related`) in a
+      # job holding a write token — and failed, because this fresh checkout
+      # has none of the
       # generated trees tsc needs (dispatch 35600024232). The staged JSON is
       # already validated and Prettier-checked by scripts/ci/perf-baseline.sh,
       # and the PR itself goes through ci.yml like any other.

@@ -18,8 +18,9 @@
  * baseline of zero long frames a plain ratio is infinite for the first one, so
  * a single SwiftShader hitch would fail the job — the flake §7.3 keeps timings
  * advisory to avoid. Smoothed, a zero baseline warns at one long frame and
- * fails at three; for any baseline of 10 or more the two ratios differ by less
- * than a frame. The durations are plain ratios.
+ * fails at three; at any other baseline the fail line sits exactly two long
+ * frames later than a plain ratio's (baseline 10: fail from 33, not 31) and
+ * the warn line at most one later. The durations are plain ratios.
  *
  * Baselines are refreshed only from a workflow run: `UPDATE_PERF_BASELINE=1`
  * outside GitHub Actions exits 1 — whatever `.perf/` holds, including nothing —
