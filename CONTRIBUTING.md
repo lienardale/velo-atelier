@@ -140,10 +140,11 @@ npm run content:check                # frontmatter, partIds, reasons, tools, cal
 
 `<kind>` is one of `check | replace | clean | adjust | measure`, and the slug is
 kebab-case English. The script writes `content/guides/<slug>/{fr,en}.mdx` with
-identical frontmatter, `status: stub` and one `<Step>` placeholder, and refuses
-to overwrite an existing guide. To pre-fill `partIds`, put the flags after a
-`--` — without it npm keeps `--part` for itself and the guide is scaffolded with
-`partIds: [frame]`:
+the same frontmatter in both (only the placeholder title, summary and step title
+are in each file's language), `status: stub` and one `<Step>` placeholder, and
+refuses to overwrite an existing guide. To pre-fill `partIds`, put the flags
+after a `--` — without it npm keeps `--part` for itself and the guide is
+scaffolded with `partIds: [frame]`:
 
 ```bash
 npm run content:new -- replace-chainring --part chainring

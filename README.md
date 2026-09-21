@@ -8,8 +8,9 @@
 qui apprend à contrôler, réparer, nettoyer et régler son propre vélo.
 
 1. **L'accueil est un arbre de décision visuel** (transmission, pratique, taille
-   de roue, freins, pédales…). Chaque question a une réponse par défaut
-   « Je ne sais pas » et une aide visuelle pour vérifier sur son propre vélo.
+   de roue, freins, pédales…). Chaque question propose « Je ne sais pas », qui
+   retient la réponse la plus courante, et une aide visuelle pour vérifier sur
+   son propre vélo.
 2. **Le résultat est un vélo 3D paramétrique** dont chaque pièce est cliquable :
    consulter ou modifier ses informations, ou lancer un **contrôle** (complet ou
    sur une sélection de pièces) qui déroule les gestes, les outils et leurs
@@ -61,9 +62,9 @@ aussi les données locales de `velo_atelier`.
 
 ### Comptes de démonstration
 
-Créés par le seed (`prisma/seed-data.ts`). Le seed refuse `VERCEL_ENV=production`
-et tout hôte de base non local, sauf `ALLOW_REMOTE_SEED=1` explicite
-(`lib/db/guard.ts`).
+Créés par le seed (`prisma/seed-data.ts`). Le seed refuse toujours
+`VERCEL_ENV=production` (`prisma/seed.ts`), et tout hôte de base non local sauf
+`ALLOW_REMOTE_SEED=1` explicite (`lib/db/guard.ts`).
 
 |              | `DEMO_USER` (fr)                                                                                                                    | `DEMO_USER_EN` (en)         |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
@@ -171,8 +172,9 @@ Code sous [licence MIT](./LICENSE). Contenu éditorial (`content/**`) sous
 that teaches you to inspect, repair, clean and adjust your own bike.
 
 1. **The home page is a visual decision tree** (drivetrain, discipline, wheel
-   size, brakes, pedals…). Every question has an "I don't know" default and a
-   visual aid so you can check the answer on your own bike.
+   size, brakes, pedals…). Every question offers "I don't know", which picks the
+   most common answer, and a visual aid so you can check the answer on your own
+   bike.
 2. **The result is a parametric 3D bike** with every part clickable: read or
    edit its details, or start a **checkup** (full, or on selected parts) that
    walks you through the how-tos — tools and their alternatives included — and
@@ -223,9 +225,9 @@ volume, so the local `velo_atelier` data goes too.
 
 ### Demo accounts
 
-Created by the seed (`prisma/seed-data.ts`). The seed refuses
-`VERCEL_ENV=production` and any non-local database host, unless
-`ALLOW_REMOTE_SEED=1` is set explicitly (`lib/db/guard.ts`).
+Created by the seed (`prisma/seed-data.ts`). The seed always refuses
+`VERCEL_ENV=production` (`prisma/seed.ts`), and any non-local database host
+unless `ALLOW_REMOTE_SEED=1` is set explicitly (`lib/db/guard.ts`).
 
 |          | `DEMO_USER` (fr)                                                                                                              | `DEMO_USER_EN` (en)         |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------- |

@@ -10,8 +10,10 @@ Report it privately through GitHub:
 between you and the maintainer where a fix can be prepared before anything is
 public.
 
-If GitHub private advisories are unavailable to you, open a public issue that
-says only _"security report, please open a private channel"_ — with no details.
+If GitHub private advisories are unavailable to you, open a public **Bug
+report** (blank issues are disabled) whose "What happened?" says only
+_"security report, please open a private channel"_ — with no details in any
+field.
 
 ### What to include
 
@@ -62,11 +64,12 @@ origin checks, open redirects, the password policy, rate limiting, OAuth account
 linking, guest-import caps, XSS, SQL injection, path traversal and quotas.
 CodeQL (`security-and-quality`) runs on every pull request to `main`, every push
 to `main`, and weekly. Locally, the pre-commit hook scans the staged changes
-with gitleaks.
+with gitleaks when it is installed.
 
 Passwords are hashed with bcrypt (cost 12). A password must be at least 12
 characters and at most 72 bytes (bcrypt's own limit), use 3 of the 4 character
 classes, not be built from the account's e-mail address, carry no leading or
-trailing whitespace, not appear in — or be built on a word of — a bundled
-10 000-entry common-password list, and score at least 3 on zxcvbn. The server
+trailing whitespace, not appear in — or be built on a word of — the bundled
+list of the 10 001 most common passwords (SecLists), and score at least 3 on
+zxcvbn. The server
 applies every rule whatever the browser did.
