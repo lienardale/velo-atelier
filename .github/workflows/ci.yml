@@ -341,6 +341,12 @@ jobs:
           # no-WebGL fallback, and it is allowed to fail without blocking.
           - project: mobile-webkit
             optional: true
+    # mobile-webkit only (`optional` above). Why it stays non-blocking even
+    # green: Linux WebKit is not the iOS Safari the plan's phones run — no real
+    # WebGL, a different compositor and input stack — so a WebKit-only failure
+    # is a finding to read, not a merge veto (§7.2). Its one deterministic
+    # failure was the test's own `mouse.wheel`, which mobile WebKit refuses
+    # (.debug/015); a failure here is still read, never shrugged off.
     continue-on-error: ${{ matrix.optional == true }}
     env:
       PLAYWRIGHT_PROJECT: ${{ matrix.project }}
