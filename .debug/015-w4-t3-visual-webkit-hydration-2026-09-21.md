@@ -279,13 +279,38 @@ So the local container reproduced WebKit's navigation race (§8) and this box's
 race, but it cannot reproduce a sign-up: a WebKit failure in `register()` has to
 be read on CI's native amd64 runner.
 
+## 10. Review: the motion trail graded the machine again
+
+**Symptom.** On the final code's CI (35639300551), `reduced-motion.spec.ts` "with
+motion, a focus travels" (FR) failed its first attempt on `desktop-chromium`, a
+blocking leg, and passed on retry: travel 2.774, first-frame gap 3.084, 7/7
+samples still travelling, last 2.070, 9 frames rendered. `last < first / 2`
+wanted less than 1.542.
+
+**Mechanism.** R3F 9.7.0 hands every `useFrame` `clock.getDelta()`: the wall time
+since the previous rendered frame, uncapped. camera-controls moves the camera only
+inside that `update(delta)`. So the camera catches up only when a frame is drawn,
+by all the time since the last one. The trail sampled `requestAnimationFrame` for
+1.2 s of wall time: under SwiftShader, a long frame (§3: the highlight shader
+compiling after a selection) can land at the end of the window, after the last
+sample, and the gap looks stuck. `last < first / 2` was a frame-rate floor in
+disguise, which §3 set out to remove.
+
+**Fix (test).** The trail is sampled after a fixed number of rendered frames
+(`renderFrames(1)`: 24 with motion, 8 under reduce), never over a stretch of wall
+time. Every threshold is unchanged. Verified with no retries: 40 of 40 on the host
+(desktop and mobile Chromium, FR/EN × 5), 24 of 24 on Linux SwiftShader in the
+container (× 3). Mutations again, on this version: `reducedMotion={false}` into
+`CameraRig` turns the 4 reduced-motion tests red (first-frame gap 0.82 to 2.73,
+where < 1e-4 is required); `={true}` turns the 4 motion tests red (gap 0, "0/24
+samples still travelling").
+
 ## How to detect a regression
 
 `tests/e2e/checkup.mobile.spec.ts` (pinned bar), `tests/e2e/fit.spec.ts` (settled
-before typing), `tests/e2e/bike3d/reduced-motion.spec.ts` (camera gap),
-`tests/e2e/checkup-partial.spec.ts` and `edge-states.spec.ts` row 9 (the list
-lands before the next `goto`; WebKit flakes again if a test leaves right after a
-`router.push`), `tests/e2e/shop.spec.ts` (types only once React owns the box),
-`tests/e2e/visual.spec.ts`
-(`npm run e2e:docker -- --grep @snapshot`, never `-u`),
-`tests/unit/ci/required-checks.test.ts` (the guard's triggers).
+before typing), `tests/e2e/bike3d/reduced-motion.spec.ts` (camera gap, sampled
+per rendered frame), `tests/e2e/checkup-partial.spec.ts` and `edge-states.spec.ts`
+row 9 (the list lands before the next `goto`; WebKit flakes again if a test leaves
+right after a `router.push`), `tests/e2e/shop.spec.ts` (types only once React owns
+the box), `tests/e2e/visual.spec.ts` (`npm run e2e:docker -- --grep @snapshot`,
+never `-u`), `tests/unit/ci/required-checks.test.ts` (the guard's triggers).

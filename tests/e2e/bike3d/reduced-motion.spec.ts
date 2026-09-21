@@ -28,9 +28,9 @@ interface FocusTrace {
   travel: number;
   /** What is left of the way one rendered frame after the rig applied the focus. */
   first: number;
-  /** What is left on every animation frame after that, for the sampling window. */
+  /** What is left after each of the next `draws` rendered frames. */
   trail: number[];
-  /** Frames the canvas rendered in the window — the old proxy, kept as a note. */
+  /** Frames the canvas rendered from the focus on — the old proxy, kept as a note. */
   frames: number;
 }
 
@@ -43,9 +43,18 @@ function distance(a: WorldPoint, b: WorldPoint): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
-async function focusTrace(page: Page, partId: string, windowMs: number): Promise<FocusTrace> {
+/**
+ * The trail is sampled after a fixed number of RENDERED frames, never over a
+ * stretch of wall time. The camera advances only when a frame is drawn, by the
+ * time since the previous one, so a window in milliseconds grades the machine:
+ * under SwiftShader on CI a 1.2 s window once held 9 frames and a gap that went
+ * only from 3.08 to 2.07 (run 35639300551, `.debug/015` §10). A forced frame
+ * hands the camera all the time since the previous one, so however slow a frame
+ * is, the samples that follow it see the camera catch up.
+ */
+async function focusTrace(page: Page, partId: string, draws: number): Promise<FocusTrace> {
   const raw = await page.evaluate(
-    async ({ partId, windowMs }) => {
+    async ({ partId, draws }) => {
       const va = window.__va!;
       const nextFrame = () =>
         new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -71,9 +80,8 @@ async function focusTrace(page: Page, partId: string, windowMs: number): Promise
       const first = va.bike.camera()!;
 
       const trail: (typeof first)[] = [];
-      const started = performance.now();
-      while (performance.now() - started < windowMs) {
-        await nextFrame();
+      for (let drawn = 0; drawn < draws; drawn++) {
+        await va.perf.renderFrames(1);
         trail.push(va.bike.camera()!);
       }
       return {
@@ -83,7 +91,7 @@ async function focusTrace(page: Page, partId: string, windowMs: number): Promise
         frames: va.perf.snapshot()!.frameMs.length - framesBefore,
       };
     },
-    { partId, windowMs },
+    { partId, draws },
   );
   return {
     travel: distance(raw.before.position, raw.first.endPosition),
@@ -118,7 +126,7 @@ forEachLocale((locale) => {
     );
     expect(duration).toBeLessThan(0.001);
 
-    const trace = await focusTrace(page, "saddle", 600);
+    const trace = await focusTrace(page, "saddle", 8);
     test.info().annotations.push({ type: "reduced-motion focus", description: note(trace) });
     expect(await page.evaluate(() => window.__va!.bike.selectedPartId)).toBe("saddle");
     // The focus really moves the camera, or "it is already there" proves nothing.
@@ -140,7 +148,7 @@ forEachLocale((locale) => {
     await openViewer(page, locale);
     await waitReady(page);
 
-    const trace = await focusTrace(page, "saddle", 1200);
+    const trace = await focusTrace(page, "saddle", 24);
     test.info().annotations.push({ type: "animated focus", description: note(trace) });
     expect(await page.evaluate(() => window.__va!.bike.selectedPartId)).toBe("saddle");
     expect(trace.travel, note(trace)).toBeGreaterThan(0.1);
