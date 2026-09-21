@@ -254,8 +254,9 @@ test.describe("bike3d runtime budgets", () => {
  *   longFrames    rAF intervals > 50 ms over three 1 s orbits (3 s, §7.3): the
  *                 hitches a visitor would see, whatever each frame cost
  *   buildMs       store creation → first drawn frame (`__va.perf.buildMs`)
- *   tapLatencyMs  pointerdown on a part → the selection in the DOM → the next
- *                 frame presented (two rAFs), measured inside the page
+ *   tapLatencyMs  median of five taps alternating between two parts, each
+ *                 pointerdown → the selection in the DOM → the next frame
+ *                 presented (two rAFs), measured inside the page
  *   drawCalls / triangles / programs   the counters at that tier, for the
  *                 record (their hard budgets are the tests above)
  */
@@ -291,15 +292,54 @@ async function measurePreset(page: Page, isMobile: boolean): Promise<PresetSampl
 }
 
 /**
- * Tap (touch) or click (mouse) the first part clickable from the drive-side
- * pose and time, inside the page, from the `pointerdown` to the frame after
- * the selection reached the DOM (`data-selected` on the viewer).
+ * Taps per preset; `tapLatencyMs` is their median. A single tap is one sample,
+ * and in both five-repetition CI nightlies of W4 (perf.yml 35600024232 and
+ * 35606491888) one desktop tap in 35 landed above 300 % of its own preset's
+ * median — 134 ms vs 41.8, 186.1 ms vs 58 — the ladder's FAIL line, which a
+ * PR's single repetition (seven desktop taps) would then cross in about one
+ * run in five. §3.4 takes the median of three orbits for the same reason.
+ */
+const TAPS = 5;
+
+/**
+ * Tap (touch) or click (mouse) {@link TAPS} times from the drive-side pose,
+ * alternating between the two clickable parts farthest apart on screen, and
+ * return the median time, measured inside the page, from the `pointerdown` to
+ * the frame after the selection reached the DOM (`data-selected` on the
+ * viewer). Alternating makes every tap select a new part, and the distance
+ * keeps the selected part's outline (high tier, about 2 px wide) away from
+ * the next point — a tap caught by it would re-select the same part and
+ * change nothing.
  */
 async function tapLatency(page: Page, isMobile: boolean): Promise<number> {
-  const points = await page.evaluate(() => window.__va!.bike.hittable("drive-side"));
-  const [id, point] = Object.entries(points)[0] ?? [];
-  if (id === undefined || point === undefined) throw new Error("no part hittable from drive-side");
+  const points = Object.entries(
+    await page.evaluate(() => window.__va!.bike.hittable("drive-side")),
+  );
+  if (points.length === 0) throw new Error("no part hittable from drive-side");
+  let pair: [(typeof points)[number], (typeof points)[number]] = [points[0]!, points[0]!];
+  let farthest = -1;
+  for (const a of points) {
+    for (const b of points) {
+      const distance = (a[1].x - b[1].x) ** 2 + (a[1].y - b[1].y) ** 2;
+      if (distance > farthest) [farthest, pair] = [distance, [a, b]];
+    }
+  }
+  // One clickable part only: a second tap on it would select nothing new.
+  const taps = pair[0][0] === pair[1][0] ? 1 : TAPS;
+  const latencies: number[] = [];
+  for (let tap = 0; tap < taps; tap++) {
+    const [id, point] = pair[tap % 2]!;
+    latencies.push(await tapOnce(page, isMobile, id, point));
+  }
+  return median(latencies);
+}
 
+async function tapOnce(
+  page: Page,
+  isMobile: boolean,
+  id: string,
+  point: { x: number; y: number },
+): Promise<number> {
   await page.evaluate((target) => {
     const viewer = document.querySelector('[data-testid="bike3d-viewer"]')!;
     const probe = { down: 0, done: 0 };

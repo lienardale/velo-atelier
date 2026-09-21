@@ -38,7 +38,7 @@ file (`tests/perf/_record.ts`):
 | `p95FrameMs`                         | 95th percentile of every frame's cost over the three orbits (90 frames)                                                                |
 | `longFrames`                         | rAF intervals > 50 ms over three 1 s orbits — the hitches a visitor would see                                                          |
 | `buildMs`                            | store creation → first drawn frame (`__va.perf.buildMs`), on a fresh page per preset                                                   |
-| `tapLatencyMs`                       | `pointerdown` on a part → the selection in the DOM → the next frame presented                                                          |
+| `tapLatencyMs`                       | median of five taps alternating between two parts: `pointerdown` → selection in the DOM → next frame                                   |
 | `drawCalls`, `triangles`, `programs` | the counters at that tier, for the record (the hard budgets are above)                                                                 |
 
 **Frame cost, not frame interval.** On a real GPU `requestAnimationFrame`
