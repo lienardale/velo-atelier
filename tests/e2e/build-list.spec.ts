@@ -16,8 +16,10 @@
  *
  * This spec is one of the four that also run at 320 px (`mobile-narrow`,
  * playwright.config.ts): the list is the page a visitor reads standing in a
- * bike shop, on the narrowest phone they own.
+ * bike shop, on the narrowest phone they own. Every test runs in FR and EN,
+ * against each locale's own shops and strings.
  */
+/* eslint-disable security/detect-object-injection -- locale-keyed fixtures indexed by a Locale literal */
 import { Client } from "pg";
 
 import { DEMO_BIKE_GUEST_IDS, DEMO_USER } from "../../prisma/seed-data";
@@ -26,7 +28,19 @@ import { buildListKey } from "../../lib/bike/storage-keys";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
 import { resolveTestEnv } from "../_fakes/db";
 
+import enShop from "../../messages/en/shop.json";
+import frShop from "../../messages/fr/shop.json";
+
 import { expect, forEachLocale, href, test, type Locale } from "./_fixtures";
+
+const SHOP_T: Record<Locale, typeof frShop> = { fr: frShop, en: enShop };
+
+/** "{done} sur {total} fait" / "{done} of {total} done", filled in. */
+function doneState(locale: Locale, done: number, total: number): string {
+  return SHOP_T[locale].list.done.state
+    .replace("{done}", String(done))
+    .replace("{total}", String(total));
+}
 
 /** The exact URLs the chain of the demo (gravel) bike produces, per locale. */
 const CHAIN_LINKS: Record<Locale, Record<string, string>> = {
@@ -132,8 +146,11 @@ async function gravelBikeId(): Promise<string> {
  * project is between its check and its uncheck. A test that WRITES gets its own
  * rows instead.
  */
-async function ownBikeWithList(label: string): Promise<{
-  user: { id: string; email: string };
+async function ownBikeWithList(
+  label: string,
+  locale: Locale,
+): Promise<{
+  user: { id: string; email: string; locale: Locale };
   bikeId: string;
 }> {
   const client = new Client({ connectionString: resolveTestEnv().POSTGRES_URL });
@@ -146,9 +163,9 @@ async function ownBikeWithList(label: string): Promise<{
     const { rows: users } = await client.query<{ id: string }>(
       // `updatedAt` is Prisma's `@updatedAt`, filled in by the client rather
       // than by a column default: raw SQL has to set it itself.
-      `INSERT INTO "User" (name, email, locale, "updatedAt") VALUES ($1, $2, 'fr', now())
+      `INSERT INTO "User" (name, email, locale, "updatedAt") VALUES ($1, $2, $3::"UserLocale", now())
        ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
-      ["Camille", email],
+      ["Camille", email, locale],
     );
     const userId = users[0].id;
     await client.query(`DELETE FROM "Bike" WHERE "userId" = $1`, [userId]);
@@ -179,7 +196,7 @@ async function ownBikeWithList(label: string): Promise<{
               ($1, 'brake-pads-rear', 'REPLACE', 'pad-worn', 'replace-brake-pads-disc', 1, now())`,
       [lists[0].id],
     );
-    return { user: { id: userId, email }, bikeId };
+    return { user: { id: userId, email, locale }, bikeId };
   } finally {
     await client.end();
   }
@@ -225,271 +242,288 @@ forEachLocale((locale) => {
   });
 });
 
-test("every outbound link on the page announces its new window", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
-  // The list is written by the browser after hydration: count nothing before it.
-  await expect(page.locator('[data-testid="build-item"]').first()).toBeVisible();
+forEachLocale((locale) => {
+  test(`every outbound link on the page announces its new window (${locale})`, async ({ page }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
+    // The list is written by the browser after hydration: count nothing before it.
+    await expect(page.locator('[data-testid="build-item"]').first()).toBeVisible();
 
-  const links = page.locator("a[data-outbound]");
-  const count = await links.count();
-  expect(count).toBeGreaterThanOrEqual(6);
-  for (let index = 0; index < count; index += 1) {
-    await expect(links.nth(index)).toContainText("(nouvelle fenêtre)");
-  }
-});
-
-test("clicking a vendor link leaves the page alone and calls nothing", async ({
-  page,
-  context,
-}) => {
-  // Nothing in this suite may reach a real shop, so every request that is not
-  // this server's is refused — and the refusals are recorded, because "zero
-  // network calls on click" has to mean the page made none of its own either.
-  const external: string[] = [];
-  await context.route("**/*", (route) => {
-    const url = route.request().url();
-    if (url.startsWith("http://localhost") || url.startsWith("data:")) return route.continue();
-    external.push(url);
-    return route.abort();
+    const links = page.locator("a[data-outbound]");
+    const count = await links.count();
+    expect(count).toBeGreaterThanOrEqual(6);
+    for (let index = 0; index < count; index += 1) {
+      await expect(links.nth(index)).toContainText(SHOP_T[locale].outbound.newWindow);
+    }
   });
 
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
-  const before = page.url();
+  test(`clicking a vendor link leaves the page alone and calls nothing (${locale})`, async ({
+    page,
+    context,
+  }) => {
+    // Nothing in this suite may reach a real shop, so every request that is not
+    // this server's is refused — and the refusals are recorded, because "zero
+    // network calls on click" has to mean the page made none of its own either.
+    const external: string[] = [];
+    await context.route("**/*", (route) => {
+      const url = route.request().url();
+      if (url.startsWith("http://localhost") || url.startsWith("data:")) return route.continue();
+      external.push(url);
+      return route.abort();
+    });
 
-  const chain = page.locator('[data-testid="build-item"][data-part-id="chain"]');
-  await chain.locator('a[data-retailer="rosebikes"]').click();
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
+    const before = page.url();
 
-  await expect(page).toHaveURL(before);
-  // The only external URL a click may produce is the shop the visitor chose.
-  expect(external.filter((url) => !url.startsWith("https://www.rosebikes.fr/"))).toEqual([]);
-});
+    const chain = page.locator('[data-testid="build-item"][data-part-id="chain"]');
+    await chain.locator('a[data-retailer="rosebikes"]').click();
 
-// ── §6.8 AC7 — the compatibility callout ─────────────────────────────────────
+    await expect(page).toHaveURL(before);
+    // The only external URL a click may produce is the shop the visitor chose.
+    const chosenShop = `${new URL(CHAIN_LINKS[locale].rosebikes).origin}/`;
+    expect(external.filter((url) => !url.startsWith(chosenShop))).toEqual([]);
+  });
 
-test("an incompatible refinement interrupts with a role=alert callout", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+  // ── §6.8 AC7 — the compatibility callout ─────────────────────────────────────
 
-  const cassette = page.locator('[data-testid="build-item"][data-part-id="cassette"]');
-  await expect(cassette.locator('[data-testid="build-item-compat"]')).toHaveCount(0);
+  test(`an incompatible refinement interrupts with a role=alert callout (${locale})`, async ({
+    page,
+  }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
 
-  // The gravel bike's rear derailleur takes 42 teeth at most.
-  await cassette.locator('[data-question="largest-cog"]').fill("50");
+    const cassette = page.locator('[data-testid="build-item"][data-part-id="cassette"]');
+    await expect(cassette.locator('[data-testid="build-item-compat"]')).toHaveCount(0);
 
-  const callout = cassette.locator('[data-testid="build-item-compat"]');
-  await expect(callout).toBeVisible();
-  await expect(callout).toHaveAttribute("role", "alert");
-  // Translated, not a raw message key.
-  expect(await callout.textContent()).not.toContain("rules.");
-});
+    // The gravel bike's rear derailleur takes 42 teeth at most.
+    await cassette.locator('[data-question="largest-cog"]').fill("50");
 
-test("a refinement that fits the bike says nothing", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+    const callout = cassette.locator('[data-testid="build-item-compat"]');
+    await expect(callout).toBeVisible();
+    await expect(callout).toHaveAttribute("role", "alert");
+    // Translated, not a raw message key.
+    expect(await callout.textContent()).not.toContain("rules.");
+  });
 
-  const cassette = page.locator('[data-testid="build-item"][data-part-id="cassette"]');
-  await cassette.locator('[data-question="largest-cog"]').fill("40");
-  await expect(cassette.locator('[data-testid="build-item-compat"]')).toHaveCount(0);
-});
+  test(`a refinement that fits the bike says nothing (${locale})`, async ({ page }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
 
-test("a refinement follows into the vendor query and survives a reload", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+    const cassette = page.locator('[data-testid="build-item"][data-part-id="cassette"]');
+    await cassette.locator('[data-question="largest-cog"]').fill("40");
+    await expect(cassette.locator('[data-testid="build-item-compat"]')).toHaveCount(0);
+  });
 
-  const cassette = page.locator('[data-testid="build-item"][data-part-id="cassette"]');
-  await cassette.locator('[data-question="range"]').selectOption("11-34");
-  await expect(cassette.locator('a[data-retailer="rosebikes"]')).toHaveAttribute("href", /11-34/);
+  test(`a refinement follows into the vendor query and survives a reload (${locale})`, async ({
+    page,
+  }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
 
-  await page.reload();
-  await expect(
-    page
-      .locator('[data-testid="build-item"][data-part-id="cassette"]')
-      .locator('[data-question="range"]'),
-  ).toHaveValue("11-34");
-});
+    const cassette = page.locator('[data-testid="build-item"][data-part-id="cassette"]');
+    await cassette.locator('[data-question="range"]').selectOption("11-34");
+    await expect(cassette.locator('a[data-retailer="rosebikes"]')).toHaveAttribute("href", /11-34/);
 
-// ── The list a visitor works ─────────────────────────────────────────────────
+    await page.reload();
+    await expect(
+      page
+        .locator('[data-testid="build-item"][data-part-id="cassette"]')
+        .locator('[data-question="range"]'),
+    ).toHaveValue("11-34");
+  });
 
-test("an empty list offers a checkup rather than an empty page", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
-  await expect(page.getByTestId("build-list-empty")).toBeVisible();
-  await expect(page.getByTestId("build-list-start-checkup")).toHaveAttribute(
-    "href",
-    href("fr", "/velo/[id]/controle", { id: "demo" }),
-  );
-});
+  // ── The list a visitor works ─────────────────────────────────────────────────
 
-test("ticking a line off is remembered, hidden, and then cleared", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+  test(`an empty list offers a checkup rather than an empty page (${locale})`, async ({ page }) => {
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
+    await expect(page.getByTestId("build-list-empty")).toBeVisible();
+    await expect(page.getByTestId("build-list-start-checkup")).toHaveAttribute(
+      "href",
+      href(locale, "/velo/[id]/controle", { id: "demo" }),
+    );
+  });
 
-  const chain = page.locator('[data-testid="build-item"][data-part-id="chain"]');
-  await chain.getByTestId("build-item-done").check();
-  await expect(page.getByTestId("build-list-state")).toHaveText("1 sur 2 fait");
+  test(`ticking a line off is remembered, hidden, and then cleared (${locale})`, async ({
+    page,
+  }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
 
-  await page.reload();
-  expect((await storedGuestList(page)).find((item) => item.partId === "chain")?.done).toBe(true);
-  await expect(page.getByTestId("build-list-state")).toHaveText("1 sur 2 fait");
+    const chain = page.locator('[data-testid="build-item"][data-part-id="chain"]');
+    await chain.getByTestId("build-item-done").check();
+    await expect(page.getByTestId("build-list-state")).toHaveText(doneState(locale, 1, 2));
 
-  await page.getByTestId("build-list-hide-done").check();
-  await expect(page.locator('[data-testid="build-item"]')).toHaveCount(1);
+    await page.reload();
+    expect((await storedGuestList(page)).find((item) => item.partId === "chain")?.done).toBe(true);
+    await expect(page.getByTestId("build-list-state")).toHaveText(doneState(locale, 1, 2));
 
-  await page.getByTestId("build-list-hide-done").uncheck();
-  await page.getByTestId("build-list-clear-done").click();
-  await expect(page.locator('[data-testid="build-item"]')).toHaveCount(1);
-  expect((await storedGuestList(page)).map((item) => item.partId)).toEqual(["cassette"]);
-});
+    await page.getByTestId("build-list-hide-done").check();
+    await expect(page.locator('[data-testid="build-item"]')).toHaveCount(1);
 
-test("each line links to its guide and to the buying help", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
+    await page.getByTestId("build-list-hide-done").uncheck();
+    await page.getByTestId("build-list-clear-done").click();
+    await expect(page.locator('[data-testid="build-item"]')).toHaveCount(1);
+    expect((await storedGuestList(page)).map((item) => item.partId)).toEqual(["cassette"]);
+  });
 
-  const chain = page.locator('[data-testid="build-item"][data-part-id="chain"]');
-  await expect(chain.getByTestId("build-item-guide")).toHaveAttribute(
-    "href",
-    href("fr", "/guides/[slug]", { slug: "replace-chain" }),
-  );
-  await expect(chain.getByTestId("build-item-buying-guide")).toHaveAttribute(
-    "href",
-    `${href("fr", "/acheter")}?part=chain&bike=demo&item=${encodeURIComponent(GUEST_ITEMS[0].id)}`,
-  );
-});
+  test(`each line links to its guide and to the buying help (${locale})`, async ({ page }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
 
-// ── The saved bike's list ────────────────────────────────────────────────────
+    const chain = page.locator('[data-testid="build-item"][data-part-id="chain"]');
+    await expect(chain.getByTestId("build-item-guide")).toHaveAttribute(
+      "href",
+      href(locale, "/guides/[slug]", { slug: "replace-chain" }),
+    );
+    await expect(chain.getByTestId("build-item-buying-guide")).toHaveAttribute(
+      "href",
+      `${href(locale, "/acheter")}?part=chain&bike=demo&item=${encodeURIComponent(GUEST_ITEMS[0].id)}`,
+    );
+  });
 
-test("the seeded list opens on the account's gravel bike", async ({ page, signedInContext }) => {
-  await signedInContext();
-  const id = await gravelBikeId();
-  await page.goto(href("fr", "/velo/[id]/liste", { id }));
+  // ── The saved bike's list ────────────────────────────────────────────────────
 
-  const items = page.locator('[data-testid="build-item"]');
-  await expect(items).toHaveCount(2);
-  await expect(items.nth(0)).toHaveAttribute("data-part-id", "chain");
-  await expect(items.nth(1)).toHaveAttribute("data-part-id", "brake-pads-rear");
-  await expect(items.nth(0).getByTestId("build-item-chosen")).toContainText("CN-HG601");
-});
+  test(`the seeded list opens on the account's gravel bike (${locale})`, async ({
+    page,
+    signedInContext,
+  }) => {
+    await signedInContext();
+    const id = await gravelBikeId();
+    await page.goto(href(locale, "/velo/[id]/liste", { id }));
 
-test("ticking a saved line off reaches the database", async ({
-  page,
-  signedInContext,
-}, testInfo) => {
-  const { user, bikeId } = await ownBikeWithList(testInfo.project.name);
-  await signedInContext(user);
-  const written = countServerActions(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: bikeId }));
+    const items = page.locator('[data-testid="build-item"]');
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toHaveAttribute("data-part-id", "chain");
+    await expect(items.nth(1)).toHaveAttribute("data-part-id", "brake-pads-rear");
+    await expect(items.nth(0).getByTestId("build-item-chosen")).toContainText("CN-HG601");
+  });
 
-  const pads = page.locator('[data-testid="build-item"][data-part-id="brake-pads-rear"]');
-  await pads.getByTestId("build-item-done").check();
-  await expect(page.getByTestId("build-list-state")).toHaveText("1 sur 2 fait");
+  test(`ticking a saved line off reaches the database (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownBikeWithList(`${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    const written = countServerActions(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: bikeId }));
 
-  await expect.poll(written).toBeGreaterThanOrEqual(1);
-  await page.reload();
-  await expect(
-    page
-      .locator('[data-testid="build-item"][data-part-id="brake-pads-rear"]')
-      .getByTestId("build-item-done"),
-  ).toBeChecked();
-});
+    const pads = page.locator('[data-testid="build-item"][data-part-id="brake-pads-rear"]');
+    await pads.getByTestId("build-item-done").check();
+    await expect(page.getByTestId("build-list-state")).toHaveText(doneState(locale, 1, 2));
 
-test("clearing the done lines of a saved list removes the rows", async ({
-  page,
-  signedInContext,
-}, testInfo) => {
-  const { user, bikeId } = await ownBikeWithList(`clear-${testInfo.project.name}`);
-  await signedInContext(user);
-  const written = countServerActions(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: bikeId }));
+    await expect.poll(written).toBeGreaterThanOrEqual(1);
+    await page.reload();
+    await expect(
+      page
+        .locator('[data-testid="build-item"][data-part-id="brake-pads-rear"]')
+        .getByTestId("build-item-done"),
+    ).toBeChecked();
+  });
 
-  await page
-    .locator('[data-testid="build-item"][data-part-id="chain"]')
-    .getByTestId("build-item-done")
-    .check();
-  await page.getByTestId("build-list-clear-done").click();
-  await expect(page.locator('[data-testid="build-item"]')).toHaveCount(1);
+  test(`clearing the done lines of a saved list removes the rows (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownBikeWithList(
+      `clear-${locale}-${testInfo.project.name}`,
+      locale,
+    );
+    await signedInContext(user);
+    const written = countServerActions(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: bikeId }));
 
-  // The tick AND the clear: the clear deletes by LIST, so it has to reach the
-  // server after the update that made a line done (`BuildList` queues them).
-  await expect.poll(written).toBeGreaterThanOrEqual(2);
-  await page.reload();
-  const left = page.locator('[data-testid="build-item"]');
-  await expect(left).toHaveCount(1);
-  await expect(left).toHaveAttribute("data-part-id", "brake-pads-rear");
-});
+    await page
+      .locator('[data-testid="build-item"][data-part-id="chain"]')
+      .getByTestId("build-item-done")
+      .check();
+    await page.getByTestId("build-list-clear-done").click();
+    await expect(page.locator('[data-testid="build-item"]')).toHaveCount(1);
 
-// ── §6.8 AC7 — print ─────────────────────────────────────────────────────────
+    // The tick AND the clear: the clear deletes by LIST, so it has to reach the
+    // server after the update that made a line done (`BuildList` queues them).
+    await expect.poll(written).toBeGreaterThanOrEqual(2);
+    await page.reload();
+    const left = page.locator('[data-testid="build-item"]');
+    await expect(left).toHaveCount(1);
+    await expect(left).toHaveAttribute("data-part-id", "brake-pads-rear");
+  });
 
-test("print emulation drops the site chrome and keeps the list", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
-  await expect(page.locator("[data-site-header]")).toBeVisible();
+  // ── §6.8 AC7 — print ─────────────────────────────────────────────────────────
 
-  await page.emulateMedia({ media: "print" });
+  test(`print emulation drops the site chrome and keeps the list (${locale})`, async ({ page }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
+    await expect(page.locator("[data-site-header]")).toBeVisible();
 
-  await expect(page.locator("[data-site-header]")).toBeHidden();
-  await expect(page.locator("[data-site-footer]")).toBeHidden();
-  await expect(page.locator("nav").first()).toBeHidden();
-  await expect(page.getByTestId("build-list-print")).toBeHidden();
-  await expect(page.getByTestId("build-list-hide-done")).toBeHidden();
-  // What is printed is the content.
-  await expect(page.locator('[data-testid="build-item"]').first()).toBeVisible();
-});
+    await page.emulateMedia({ media: "print" });
 
-test("print emulation drops the 3D canvas @webgl", async ({ page, webgl }) => {
-  test.skip(!webgl, "no canvas without WebGL");
-  await page.goto(href("fr", "/velo/[id]", { id: "demo" }));
-  const canvas = page.locator("canvas").first();
-  await expect(canvas).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-site-header]")).toBeHidden();
+    await expect(page.locator("[data-site-footer]")).toBeHidden();
+    await expect(page.locator("nav").first()).toBeHidden();
+    await expect(page.getByTestId("build-list-print")).toBeHidden();
+    await expect(page.getByTestId("build-list-hide-done")).toBeHidden();
+    // What is printed is the content.
+    await expect(page.locator('[data-testid="build-item"]').first()).toBeVisible();
+  });
 
-  await page.emulateMedia({ media: "print" });
-  await expect(canvas).toBeHidden();
-});
+  test(`print emulation drops the 3D canvas (${locale}) @webgl`, async ({ page, webgl }) => {
+    test.skip(!webgl, "no canvas without WebGL");
+    await page.goto(href(locale, "/velo/[id]", { id: "demo" }));
+    const canvas = page.locator("canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
 
-// ── §6.8 AC5 — tap targets ───────────────────────────────────────────────────
+    await page.emulateMedia({ media: "print" });
+    await expect(canvas).toBeHidden();
+  });
 
-test("every control on the list is at least 44x44 CSS px", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
-  await expect(page.locator('[data-testid="build-item"]').first()).toBeVisible();
+  // ── §6.8 AC5 — tap targets ───────────────────────────────────────────────────
 
-  const selector = [
-    '[data-testid="build-list"] a[data-outbound]',
-    '[data-testid="build-list"] button',
-    '[data-testid="build-list"] select',
-    '[data-testid="build-list"] input[type="number"]',
-    '[data-testid="build-list"] label:has(input[type="checkbox"])',
-    '[data-testid="build-item-guide"]',
-    '[data-testid="build-item-buying-guide"]',
-  ].join(", ");
+  test(`every control on the list is at least 44x44 CSS px (${locale})`, async ({ page }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
+    await expect(page.locator('[data-testid="build-item"]').first()).toBeVisible();
 
-  const small = await page.evaluate((query) => {
-    const tooSmall: string[] = [];
-    for (const node of document.querySelectorAll<HTMLElement>(query)) {
-      const box = node.getBoundingClientRect();
-      if (box.width === 0 && box.height === 0) continue; // not rendered (print-only, collapsed)
-      if (box.width < 44 || box.height < 44) {
-        tooSmall.push(
-          `${node.tagName.toLowerCase()} ${Math.round(box.width)}x${Math.round(box.height)}: ${node.textContent?.trim().slice(0, 40) ?? ""}`,
-        );
+    const selector = [
+      '[data-testid="build-list"] a[data-outbound]',
+      '[data-testid="build-list"] button',
+      '[data-testid="build-list"] select',
+      '[data-testid="build-list"] input[type="number"]',
+      '[data-testid="build-list"] label:has(input[type="checkbox"])',
+      '[data-testid="build-item-guide"]',
+      '[data-testid="build-item-buying-guide"]',
+    ].join(", ");
+
+    const small = await page.evaluate((query) => {
+      const tooSmall: string[] = [];
+      for (const node of document.querySelectorAll<HTMLElement>(query)) {
+        const box = node.getBoundingClientRect();
+        if (box.width === 0 && box.height === 0) continue; // not rendered (print-only, collapsed)
+        if (box.width < 44 || box.height < 44) {
+          tooSmall.push(
+            `${node.tagName.toLowerCase()} ${Math.round(box.width)}x${Math.round(box.height)}: ${node.textContent?.trim().slice(0, 40) ?? ""}`,
+          );
+        }
       }
-    }
-    return tooSmall;
-  }, selector);
+      return tooSmall;
+    }, selector);
 
-  expect(small, "every tap target on /velo/demo/liste must be ≥ 44x44 (§6.8 AC5)").toEqual([]);
-});
+    expect(small, "every tap target on /velo/demo/liste must be ≥ 44x44 (§6.8 AC5)").toEqual([]);
+  });
 
-test("a number field is at least 16 px, so iOS does not zoom the page", async ({ page }) => {
-  await seedGuestList(page);
-  await page.goto(href("fr", "/velo/[id]/liste", { id: "demo" }));
-  await expect(page.locator('[data-question="largest-cog"]')).toBeVisible();
+  test(`a number field is at least 16 px, so iOS does not zoom the page (${locale})`, async ({
+    page,
+  }) => {
+    await seedGuestList(page);
+    await page.goto(href(locale, "/velo/[id]/liste", { id: "demo" }));
+    await expect(page.locator('[data-question="largest-cog"]')).toBeVisible();
 
-  const sizes = await page.evaluate(() =>
-    [...document.querySelectorAll<HTMLInputElement>('input[inputmode="decimal"]')].map((node) =>
-      Number.parseFloat(getComputedStyle(node).fontSize),
-    ),
-  );
-  expect(sizes.length).toBeGreaterThan(0);
-  for (const size of sizes) expect(size).toBeGreaterThanOrEqual(16);
+    const sizes = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLInputElement>('input[inputmode="decimal"]')].map((node) =>
+        Number.parseFloat(getComputedStyle(node).fontSize),
+      ),
+    );
+    expect(sizes.length).toBeGreaterThan(0);
+    for (const size of sizes) expect(size).toBeGreaterThanOrEqual(16);
+  });
 });
