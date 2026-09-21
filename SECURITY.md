@@ -55,12 +55,18 @@ spirit will never be met with a legal complaint from this project.
 
 ## How this project tries to stay safe
 
-Every pull request runs: `gitleaks` (full history), `audit-ci`, `semgrep`
-(OWASP Top 10 + TS/JS/Next/React), `trivy fs`, CodeQL (`security-and-quality`),
-and a `tests/security/**` suite covering IDOR, mass assignment, CSRF and origin
-checks, open redirects, the password policy, rate limiting, OAuth account
+Every pull request that changes code, and every push to `main`, runs
+`gitleaks` (full history), `audit-ci`, `semgrep` (OWASP Top 10 + TS/JS/Next/React),
+`trivy fs` and the `tests/security/**` suite — IDOR, mass assignment, CSRF and
+origin checks, open redirects, the password policy, rate limiting, OAuth account
 linking, guest-import caps, XSS, SQL injection, path traversal and quotas.
+CodeQL (`security-and-quality`) runs on every pull request to `main`, every push
+to `main`, and weekly. Locally, the pre-commit hook scans the staged changes
+with gitleaks.
 
-Passwords are hashed with bcrypt (cost 12) and must be at least 12 characters,
-use 3 of 4 character classes, not appear in a bundled top-10 000 list, and score
-at least 3 on zxcvbn.
+Passwords are hashed with bcrypt (cost 12). A password must be at least 12
+characters and at most 72 bytes (bcrypt's own limit), use 3 of the 4 character
+classes, not be built from the account's e-mail address, carry no leading or
+trailing whitespace, not appear in — or be built on a word of — a bundled
+10 000-entry common-password list, and score at least 3 on zxcvbn. The server
+applies every rule whatever the browser did.
