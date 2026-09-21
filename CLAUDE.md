@@ -508,8 +508,10 @@ PR-only `visual-baseline-guard`.
   `process.platform === "linux"`; only those two projects hold baselines, every
   other one inverts `@snapshot`. To record: `gh workflow run perf.yml --ref
 <branch> -f update_snapshots=true` — `e2e.sh` with `UPDATE_SNAPSHOTS=1` runs
-  `--grep @snapshot --update-snapshots=changed` only, and `update-snapshots`
-  opens a bot PR labelled `visual-baseline`. A PR opened with `GITHUB_TOKEN`
+  `--grep @snapshot --update-snapshots=changed` only, in the read-only
+  `record-snapshots` job, and `update-snapshots` — the write-token job, which
+  runs no project code and commits nothing but PNGs — opens a bot PR labelled
+  `visual-baseline`. A PR opened with `GITHUB_TOKEN`
   starts no workflow: close and reopen it to run CI. Compare locally with
   `npm run e2e:docker -- --grep @snapshot`; never `-u` on the host, never a PNG
   made on macOS. `.github/workflows/visual-baseline-guard.yml` is its own
@@ -575,10 +577,13 @@ ceil50(median × 1.15)))`; the content bar is frozen. Pins come from a
   at every non-zero baseline). `scripts/ci/perf.sh` runs the two projects
   serially (`--workers=1`), so no soft timing measures the other project.
   Baselines are recorded ONLY by `perf.yml` `workflow_dispatch update_baseline=true`,
-  whose `perf baseline PR` job holds a write token and therefore builds and
-  tests nothing and runs no dependency script or git hook (`HUSKY=0`,
-  `npm ci --ignore-scripts`; `update-snapshots` holds one too); it opens a bot
-  PR. `UPDATE_PERF_BASELINE=1` outside Actions exits 1.
+  whose `perf baseline PR` job opens a bot PR. **A job holding a write token
+  builds and tests nothing**: `perf.yml`'s two (`perf baseline PR`,
+  `update-snapshots`) take what a read-only job recorded (`perf`,
+  `record-snapshots`), validate it — `perf-baseline.sh` under node and a
+  Prettier installed `--ignore-scripts`, or a PNG-only check — and open a PR,
+  with `HUSKY=0` and a checkout that does not persist the token.
+  `UPDATE_PERF_BASELINE=1` outside Actions exits 1.
 - **`RUN_LOCAL_PERF=1 npm run perf:local`** swaps the SwiftShader flags for
   `--ignore-gpu-blocklist --enable-gpu` (headless reaches the GPU on Apple
   Silicon; `PERF_HEADED=1` otherwise), refuses any software or masked renderer

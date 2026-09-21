@@ -31,9 +31,10 @@ fi
 
 extra=""
 if [[ "${UPDATE_SNAPSHOTS:-0}" == "1" ]]; then
-  # Baselines are byte-comparisons of Linux renders, and the COMMITTED ones come
-  # from one place only: this script under perf.yml's `update-snapshots` job
-  # (workflow_dispatch, update_snapshots=true), whose PR carries the
+  # Baselines are pixel comparisons of Linux renders, and the COMMITTED ones come
+  # from one place only: this script under perf.yml's read-only
+  # `record-snapshots` job (workflow_dispatch, update_snapshots=true), whose
+  # images `update-snapshots` then opens as a PR carrying the
   # `visual-baseline` label. The amd64 container (`npm run e2e:update-snapshots`)
   # records for a local look, never for a commit. A laptop's fonts and GPU
   # produce images that would fail for everyone else.

@@ -7,7 +7,8 @@
 # `perf baseline PR` job downloads that artifact to `$PERF_BASELINE_SOURCE`,
 # calls this script, then opens the PR. It holds a write token (as
 # `update-snapshots` does), so it builds and tests nothing: no dependency
-# script or git hook runs there, only this script (node + Prettier).
+# script or git hook runs there, only this script (node + Prettier), and its
+# checkout does not persist the token.
 #
 # Refuses anything a reviewer should not have to catch: no file, a file that is
 # not JSON, a baseline without presets, one that still carries its raw

@@ -199,6 +199,35 @@ _To pick up_: a deployment that is not Vercel. Honour `x-vercel-forwarded-for`
 only when `VERCEL` is set and `x-real-ip` / `x-forwarded-for` only behind an
 explicitly configured trusted proxy (an env flag the e2e web server also sets).
 
+#### Quotas are counted, then written, with nothing held in between
+
+Every quota is a `count()` followed by a `create()` in separate statements. That
+covers:
+
+- 20 bikes per account: `createBikeAction` and the guest import;
+- 50 checkups and 10 lists per bike: `saveCheckupAction` and
+  `finishCheckupAction`.
+
+Requests sent in parallel all read the same count and all write, so a limit can
+be overshot by as many requests as are in flight at once. Only the owner can do
+this: every count and every write is owner-scoped, and anyone else gets a 404.
+The overshoot lands in the owner's own account and never touches another user's
+data. The W4 integration security review found it (`.debug/012`).
+
+_Why deferred_: the quotas cap storage per account (§4.2 c); they are not an
+access boundary. An owner overshooting by the number of requests they can keep
+in flight does not defeat that cap before launch. The fix would touch every
+quota-checked write path at the end of the hardening wave.
+
+_To pick up_: serialise each count and its write behind a per-owner lock. Run
+them in one interactive `$transaction` whose first statement is
+`pg_advisory_xact_lock` on the bike id (on the user id for bikes). A second
+request for the same bike then waits, and its count includes the first one's
+row. Optionally add `@@unique([bikeId, startedAt])` on `Checkup` (today
+`guestKey` is the only unique column besides the id): two requests carrying the
+same run could then no longer create two rows (see "Two in-progress runs" under
+Product surface).
+
 ### Content and search
 
 #### Search index

@@ -98,7 +98,8 @@ every CI run look like a 10× regression.
    runner, a three version) and opens a PR titled
    `test(perf): record the soft-tier baselines`. It holds a write token (as
    `update-snapshots` does), so it builds and tests nothing: no dependency
-   script or git hook runs in it.
+   script or git hook runs in it, and its checkout does not persist the
+   token.
 4. Read it before merging: the `repetitions`, the `runner`, the `three`
    version, and whether any preset looks slower than the last baseline for no
    reason. A baseline recorded on a bad night hides every regression after it.

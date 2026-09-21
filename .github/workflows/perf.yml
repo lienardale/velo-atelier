@@ -203,11 +203,11 @@ jobs:
 
   # `update_baseline=true` only: the baselines the perf job just recorded, as a
   # PR for a human to read — "recorded by CI", and nothing is downloaded to a
-  # laptop. It holds a write token, as `update-snapshots` below does, so unlike
-  # that job it builds and tests nothing: no dependency script or git hook runs
-  # here, only scripts/ci/perf-baseline.sh (node + Prettier) over the perf
-  # job's artifact, then create-pull-request. The perf job keeps the read-only
-  # token.
+  # laptop. It holds a write token, so — like `update-snapshots` below — it
+  # builds and tests nothing: no dependency script or git hook runs here, only
+  # scripts/ci/perf-baseline.sh (node + Prettier) over the perf job's artifact,
+  # then create-pull-request, and the checkout does not persist the token into
+  # .git/config. The perf job, which runs the branch, keeps the read-only token.
   perf-baseline:
     name: perf baseline PR
     runs-on: ubuntu-latest
@@ -228,6 +228,10 @@ jobs:
       HUSKY: "0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # create-pull-request authenticates with its own `token` input; nothing
+          # else in this job needs the credential on disk.
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
@@ -261,14 +265,21 @@ jobs:
             recorded on a slow run makes every regression look like noise.
           add-paths: tests/perf/baselines
 
-  update-snapshots:
-    name: update-snapshots
+  # `update_snapshots=true` only, in two jobs so that the code that RECORDS the
+  # baselines never runs next to a write token. `record-snapshots` builds and
+  # tests the dispatched branch — `npm ci` with its install scripts, `next
+  # start`, the Playwright global setup, the @snapshot specs — with the
+  # workflow's read-only token, and uploads the PNGs. `update-snapshots` holds
+  # the write token and runs none of that: a checkout that does not persist the
+  # token, the artifact, a check that it holds nothing but PNGs, and
+  # create-pull-request (W4 integration review).
+  record-snapshots:
+    name: record-snapshots
     runs-on: ubuntu-latest
     needs: build
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
@@ -292,6 +303,8 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
@@ -311,6 +324,43 @@ jobs:
       - env:
           PLAYWRIGHT_PROJECT: mobile-chromium
         run: bash scripts/ci/e2e.sh
+      - name: Upload the recorded baselines
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__
+          if-no-files-found: error
+          retention-days: 3
+
+  update-snapshots:
+    name: update-snapshots
+    runs-on: ubuntu-latest
+    needs: record-snapshots
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # No git hook may run next to the write token (create-pull-request commits).
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Download the recorded baselines
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__
+      # The artifact came from a job that ran the branch: only images may reach
+      # the commit this token makes.
+      - name: Refuse anything but PNG files
+        run: |
+          stray="$(find tests/e2e/__screenshots__ -type f ! -name '*.png' -print)"
+          if [ -n "$stray" ]; then
+            printf 'not a PNG, refusing to commit:\n%s\n' "$stray"
+            exit 1
+          fi
       # Never pushed straight to a branch: a regenerated baseline is a human
       # saying "these pixels are correct", which is what the `visual-baseline`
       # label and the visual-baseline-guard workflow enforce. The PR targets the
