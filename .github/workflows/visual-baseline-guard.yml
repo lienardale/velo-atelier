@@ -1,0 +1,50 @@
+name: Visual baselines
+
+# A pull request that changes `tests/e2e/__screenshots__/**` must carry the
+# `visual-baseline` label: a human saying "I looked at these images and they
+# are correct" (scripts/ci/visual-label.sh says why a changed baseline is
+# otherwise invisible in review).
+#
+# Its own workflow rather than a job of ci.yml, for two reasons:
+#
+#   - The label is the input, so a label change must re-run the check. ci.yml's
+#     `pull_request` has the default types (opened, synchronize, reopened) and
+#     never fires on `labeled` / `unlabeled` — adding the label after a red guard
+#     used to change nothing until the next push. Listening for them there would
+#     re-run the whole pipeline on every label.
+#   - `paths:` keeps it off every PR that touches no baseline: it does not run,
+#     rather than running as a skipped job whose green-by-absence is easy to
+#     misread.
+#
+# The job's `name:` is the status context, `visual-baseline-guard`. It is NOT a
+# required check — a path-filtered context never reports on most PRs and would
+# block them forever (tests/unit/ci/required-checks.test.ts).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - "tests/e2e/__screenshots__/**"
+
+# The newest event about a PR decides: labelling right after unlabelling
+# cancels the run that would report the label missing.
+concurrency:
+  group: visual-baseline-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  visual-baseline-guard:
+    name: visual-baseline-guard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: bash scripts/ci/visual-label.sh

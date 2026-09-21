@@ -40,12 +40,18 @@ if [[ "${UPDATE_SNAPSHOTS:-0}" == "1" ]]; then
     log_err "record host-specific baselines. Use 'npm run e2e:update-snapshots'."
     exit 1
   fi
-  extra="--update-snapshots"
-  log_warn "recording new screenshot baselines"
+  # The @snapshot tests ONLY. This run exists to record images: the whole suite
+  # would let an unrelated failure fail the step, and the step after it — the
+  # PR that carries the baselines — would never run. `changed` (the flag's own
+  # default in @playwright/test 1.63, spelled out) writes a missing baseline and
+  # rewrites only the ones that no longer match, so a refresh PR shows exactly
+  # the images that moved.
+  extra="--grep @snapshot --update-snapshots=changed"
+  log_warn "recording screenshot baselines (@snapshot only)"
 fi
 
 log_step "playwright test --project $PLAYWRIGHT_PROJECT $extra"
-# shellcheck disable=SC2086 -- $extra is a single controlled flag, not user input.
+# shellcheck disable=SC2086 -- $extra is set above to fixed flags, never user input; it splits on purpose.
 npx --no-install playwright test --project "$PLAYWRIGHT_PROJECT" $extra
 
 log_ok "e2e ($PLAYWRIGHT_PROJECT) passed"
