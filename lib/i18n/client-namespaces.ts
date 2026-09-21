@@ -1,4 +1,4 @@
-import { NAMESPACES, type Namespace } from "./namespaces";
+import type { Namespace } from "./namespaces";
 
 /**
  * What each route sends to the BROWSER, keyed by the file that mounts the
@@ -89,13 +89,13 @@ export const CLIENT_NAMESPACES = {
   "app/[locale]/velo/[id]/controle/page.tsx": ["checkup", "guides", "parts", "tools"],
 
   /**
-   * The build list mounts its own provider, and it is still the whole
-   * catalogue: `components/build-list/{BuildList,BuildItemCard}.tsx` translate
-   * `guides.reasons.*` and `rules.*` keys with a root translator. Once they read
-   * them through scoped translators the way the panel does, the test names the
-   * exact set to write here.
+   * The build list mounts its own provider: its chrome, refinement form and
+   * vendor links (`shop`), and the two kinds of key a line carries at runtime —
+   * the finding's reason (`guides.reasons.*`) and a compatibility issue
+   * (`rules.<group>.*`) — read through `useListText()`
+   * (`components/build-list/list-text.ts`), not a root translator.
    */
-  "app/[locale]/velo/[id]/liste/page.tsx": NAMESPACES,
+  "app/[locale]/velo/[id]/liste/page.tsx": ["guides", "rules", "shop"],
 
   /** The dev harness: the viewer (`bike3d`) and the part names it lists (`parts`). */
   "app/[locale]/dev/bike3d/page.tsx": ["bike3d", "parts"],

@@ -18,7 +18,6 @@ import {
 } from "@/app/[locale]/velo/[id]/liste/actions";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui-ext/Callout";
-import { translateMessageKey } from "@/lib/actions/result";
 import { buildListKey, type GuestBikeRef } from "@/lib/bike/storage-keys";
 import type { BikeRef } from "@/lib/bike/resolve-bike-ref";
 import type { BuildAction, BuildListItem } from "@/lib/checkup/types";
@@ -32,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 import { BuildItemCard } from "./BuildItemCard";
 import { CopyButton } from "./CopyButton";
+import { useListText } from "./list-text";
 import { PrintButton } from "./PrintButton";
 
 /**
@@ -279,7 +279,7 @@ export function BuildList({
   className,
 }: BuildListProps): React.JSX.Element {
   const t = useTranslations("shop");
-  const tRoot = useTranslations();
+  const listText = useListText();
   const guestRef: GuestBikeRef | null = bikeRef.kind === "db" ? null : bikeRef.kind;
 
   const stored = useBuildListSnapshot(guestRef ?? "demo");
@@ -430,7 +430,7 @@ export function BuildList({
           label={t("list.copy")}
           doneLabel={t("list.copied")}
           failedLabel={t("list.copyFailed")}
-          reasonText={(key) => translateMessageKey(tRoot, `guides.reasons.${key}`)}
+          reasonText={(key) => listText(`guides.reasons.${key}`)}
         />
       </div>
 

@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Callout } from "@/components/ui-ext/Callout";
-import { translateMessageKey } from "@/lib/actions/result";
 import type { BuildListItem } from "@/lib/checkup/types";
 import { partLabel } from "@/lib/domain/i18n";
 import type { BikeBuild } from "@/lib/domain/schema/part";
@@ -20,6 +19,7 @@ import {
 } from "@/lib/shop/questions";
 import { cn } from "@/lib/utils";
 
+import { useListText } from "./list-text";
 import { RefinementForm } from "./RefinementForm";
 import { VendorButtons } from "./VendorButtons";
 
@@ -71,7 +71,7 @@ export function BuildItemCard({
   className,
 }: BuildItemCardProps): React.JSX.Element {
   const t = useTranslations("shop");
-  const tRoot = useTranslations();
+  const listText = useListText();
 
   // Memoised because it feeds two `useMemo` dependency lists: `?? {}` would be
   // a new object on every render, and both would recompute for nothing.
@@ -102,7 +102,7 @@ export function BuildItemCard({
       <CardHeader className="gap-1">
         <CardTitle className="text-lg">{partLabel(locale, item.partId)}</CardTitle>
         <p className="text-ink-muted text-sm" data-testid="build-item-reason">
-          {translateMessageKey(tRoot, `guides.reasons.${item.reasonKey}`)}
+          {listText(`guides.reasons.${item.reasonKey}`)}
         </p>
         <label className="tap-target text-ink flex w-fit cursor-pointer items-center gap-2 text-sm">
           <input
@@ -170,11 +170,9 @@ export function BuildItemCard({
             <ul className="list-disc pl-4">
               {issues.map((issue) => (
                 <li key={issue.ruleId}>
-                  {translateMessageKey(tRoot, issue.messageKey)}{" "}
+                  {listText(issue.messageKey)}{" "}
                   {issue.fixHintKey === undefined ? null : (
-                    <span className="text-ink-muted">
-                      {translateMessageKey(tRoot, issue.fixHintKey)}
-                    </span>
+                    <span className="text-ink-muted">{listText(issue.fixHintKey)}</span>
                   )}
                 </li>
               ))}

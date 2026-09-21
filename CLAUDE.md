@@ -157,15 +157,21 @@ docs/                contributor and operator docs — every one is linked from 
   walks each route's client module graph and fails with the exact set to
   declare. It resolves every uncertainty against the payload — an import it
   cannot resolve fails the run, and a `useTranslations()` with **no literal
-  namespace** requires all 16. That is why the sign-in, sign-up, `(protected)`
-  and `velo/[id]` entries still declare the whole catalogue: `form-parts.tsx`
-  resolves a key a server action returned, `BikeCard` and four `/velo`
-  components (`PartInfo`, `PartEditForm`, `MeasureCard`, `MeasurementForm`)
-  translate `parts.*` keys the part catalogue carries, and the list's
-  `BuildList` and `BuildItemCard` resolve `guides.reasons.*` and rule keys the
-  same way. Making a route
-  lighter means making what it reads visible: `useDecisionText()`
-  (`components/decision-tree/decision-text.ts`) is how the tree does it.
+  namespace** requires all 16 — so client code never uses a root translator.
+  A message key chosen at RUNTIME (an action's `fieldErrors`, a part's
+  `labelKey`, a build-list line's reason or compatibility rule) is resolved with
+  `translateScopedKey` (`lib/i18n/scoped-key.ts`) inside translators bound by
+  literal `useTranslations("…")` calls: `usePartsText()` (`parts`),
+  `useBikeActionText()` (`bike`, `errors`), `form-parts.tsx`'s
+  `useActionMessage()` (`errors`, `auth`) and `useListText()`
+  (`components/build-list/list-text.ts`: `guides`, `rules`); a key outside those
+  namespaces is reported missing, never resolved elsewhere. No route declares
+  the whole catalogue any more (W4). `velo/[id]/controle` and
+  `velo/[id]/liste` mount their own `ClientMessages` inside the `velo/[id]`
+  layout's, and a nested provider replaces messages, so each declares
+  everything its subtree reads. `useDecisionText()`
+  (`components/decision-tree/decision-text.ts`) is the one-namespace version of
+  the same idea.
 - **Navigation** — always import `Link`, `redirect`, `usePathname`, `useRouter`
   and `getPathname` from `@/lib/i18n/navigation`, never from `next/link` or
   `next/navigation`.
