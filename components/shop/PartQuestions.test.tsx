@@ -19,7 +19,7 @@ import { setNavigationState } from "@/tests/_fakes/session";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 
 import { PartQuestions, prefillFor, typedValue } from "./PartQuestions";
-import { resetItemPrefillCache, type ReadBuildListItem } from "./item-prefill";
+import type { ReadBuildListItem } from "./item-prefill";
 
 /** Stands in for `loadBuildListItemAction`, which the page hands down. */
 const readItem = vi.fn<ReadBuildListItem>(async () => ({ ok: false, code: "NOT_FOUND" }));
@@ -42,8 +42,20 @@ async function renderPanel(search: string, locale: "fr" | "en" = "fr") {
 beforeEach(() => {
   setNavigationState({ pathname: "/fr/acheter", search: "" });
   window.localStorage.clear();
-  resetItemPrefillCache();
 });
+
+/**
+ * The `?item=` line is read after the first render — a guest's reader is
+ * loaded on demand, a saved bike's is a server action — and the panel is
+ * `aria-busy` until that read has answered. Every assertion about what was
+ * (or was not) pre-filled waits for that first: asserted before it, "nothing
+ * was pre-filled" would pass however the defence behaved.
+ */
+async function settled(): Promise<HTMLElement> {
+  const panel = screen.getByTestId("part-questions");
+  await waitFor(() => expect(panel).not.toHaveAttribute("aria-busy"));
+  return panel;
+}
 
 describe("what the URL is allowed to ask for", () => {
   it("renders nothing without a part", async () => {
@@ -182,6 +194,7 @@ describe("?item= pre-fills from the build-list line", () => {
   it("opens a guest's line with the answers it already has, in the query too", async () => {
     guestList([line()]);
     await renderPanel(search());
+    await settled();
 
     expect(screen.getByLabelText("Vitesses")).toHaveValue("11");
     expect(screen.getByLabelText("Gamme")).toHaveValue("mid");
@@ -192,6 +205,7 @@ describe("?item= pre-fills from the build-list line", () => {
   it("lets the visitor change a pre-filled answer", async () => {
     guestList([line()]);
     const { user } = await renderPanel(search());
+    await settled();
     await user.selectOptions(screen.getByLabelText("Vitesses"), "12");
     expect(screen.getByLabelText("Vitesses")).toHaveValue("12");
     expect(screen.getByTestId("part-query")).toHaveTextContent("chaîne 12 vitesses Shimano HG601");
@@ -200,11 +214,29 @@ describe("?item= pre-fills from the build-list line", () => {
   it("prefills nothing from a line about another part, or a line that is not there", async () => {
     guestList([line({ partId: "cassette" as PartId })]);
     await renderPanel(search());
+    await settled();
     expect(screen.getByLabelText("Vitesses")).toHaveValue("");
 
     cleanup();
     await renderPanel(search("not-a-line"));
+    await settled();
     expect(screen.queryByTestId("part-questions-prefilled")).not.toBeInTheDocument();
+
+    // The same rule for a saved bike: the owner's line, but about a cassette.
+    readItem.mockResolvedValueOnce({
+      ok: true,
+      data: { partId: "cassette", refinement: { speeds: "11" } },
+    });
+    cleanup();
+    await renderPanel(
+      search(
+        "6f9619ff-8b86-4d11-b42d-00c04fc964ff",
+        "chain",
+        "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+      ),
+    );
+    await settled();
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("");
   });
 
   it("drops an answer this panel cannot show, and survives a corrupted list", async () => {
@@ -212,6 +244,7 @@ describe("?item= pre-fills from the build-list line", () => {
       line({ refinement: { speeds: "99", "not-a-question": "x", [BRAND_TIER_KEY]: "luxe" } }),
     ]);
     await renderPanel(search());
+    await settled();
     expect(screen.getByLabelText("Vitesses")).toHaveValue("");
     expect(screen.getByLabelText("Gamme")).toHaveValue("");
 
@@ -219,10 +252,9 @@ describe("?item= pre-fills from the build-list line", () => {
       buildListKey("local"),
       JSON.stringify({ version: 1, updatedAt: "2026-09-21T08:00:00.000Z", items: [null, 3] }),
     );
-    resetItemPrefillCache();
     cleanup();
     await renderPanel(search());
-    expect(screen.getByTestId("part-questions")).toBeInTheDocument();
+    await settled();
     expect(screen.getByLabelText("Vitesses")).toHaveValue("");
   });
 
@@ -235,16 +267,47 @@ describe("?item= pre-fills from the build-list line", () => {
     });
 
     await renderPanel(search(item, "chain", bike));
+    await settled();
 
-    await waitFor(() => expect(screen.getByLabelText("Vitesses")).toHaveValue("10"));
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("10");
     expect(readItem).toHaveBeenCalledWith({ bikeId: bike, itemId: item });
   });
 
   it("opens empty when the server says the line is not the caller's", async () => {
     const bike = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
     await renderPanel(search("6f9619ff-8b86-4d11-b42d-00c04fc964ff", "chain", bike));
-    await waitFor(() => expect(readItem).toHaveBeenCalled());
+    await settled();
+    expect(readItem).toHaveBeenCalled();
     expect(screen.getByLabelText("Vitesses")).toHaveValue("");
+  });
+
+  it("is busy while the line is read, and only while", async () => {
+    let answer: (result: Awaited<ReturnType<ReadBuildListItem>>) => void = () => undefined;
+    readItem.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await renderPanel(
+      search(
+        "6f9619ff-8b86-4d11-b42d-00c04fc964ff",
+        "chain",
+        "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+      ),
+    );
+    const panel = screen.getByTestId("part-questions");
+    await waitFor(() => expect(readItem).toHaveBeenCalled());
+    expect(panel).toHaveAttribute("aria-busy", "true");
+
+    answer({ ok: true, data: { partId: "chain", refinement: { speeds: "9" } } });
+    await settled();
+    expect(screen.getByLabelText("Vitesses")).toHaveValue("9");
+
+    // No `?item=`: nothing to read, so never busy.
+    cleanup();
+    await renderPanel("part=chain&bike=local");
+    expect(screen.getByTestId("part-questions")).not.toHaveAttribute("aria-busy");
   });
 });
 

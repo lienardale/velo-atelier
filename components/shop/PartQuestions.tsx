@@ -76,6 +76,9 @@ import { useItemRefinement, type ItemRefinement, type ReadBuildListItem } from "
  * Only answers that are valid for THIS panel's questions are taken — a value
  * the catalogue no longer offers, or a key of another part's question, is
  * dropped — and what the visitor then changes wins over what was pre-filled.
+ * The line is read after hydration (a guest's reader is loaded on demand, a
+ * saved bike's is a server action), so the panel is `aria-busy` until the read
+ * has answered.
  */
 export interface PartQuestionsProps {
   locale: Locale;
@@ -146,7 +149,7 @@ export function PartQuestions({
   if (partId === null) return null;
 
   const questions = partQuestions(partId);
-  const prefilled = prefillFor(questions, stored);
+  const prefilled = prefillFor(questions, stored.refinement);
   const answers: Record<string, string> = { ...prefilled, ...edits };
   const brands = Object.hasOwn(brandsByPart, partId) ? brandsByPart[partId] : null;
 
@@ -167,6 +170,8 @@ export function PartQuestions({
     <section
       className={cn("flex flex-col gap-4", className)}
       aria-labelledby="part-questions-title"
+      // Still reading the `?item=` line: the answers below are about to change.
+      aria-busy={stored.pending ? true : undefined}
       data-testid="part-questions"
       data-part-id={partId}
     >

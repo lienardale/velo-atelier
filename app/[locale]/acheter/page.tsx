@@ -82,9 +82,10 @@ function brandsFor(
  * whole route out of static rendering — the W2 lesson).
  *
  * The brand tables are therefore serialised into the payload rather than
- * fetched: ~25 parts × 3 tiers, in one language. It is the page whose entire
- * job is "which one do I buy", and it is not one of the routes the bundle
- * ratchet guards.
+ * fetched: ~25 parts × 3 tiers, in one language — the page whose entire job is
+ * "which one do I buy". The route IS in the bundle ratchet
+ * (`perf.budgets.json`), which is why the `?item=` prefill loads its guest
+ * reader on demand (`components/shop/item-prefill.ts`).
  */
 export default async function ShopPage({ params }: ShopPageProps): Promise<React.JSX.Element> {
   const { locale } = await params;

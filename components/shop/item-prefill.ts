@@ -7,9 +7,10 @@
  * Two bikes, two readers, and neither pulls the build list into `/acheter`:
  *
  *   demo / local  the guest list in `localStorage`, read through
- *                 `readGuestBuildList` (`lib/checkup/storage.ts`, zod/mini and
- *                 no React) — never through `components/build-list/BuildList`,
- *                 which would bring the whole list page into this route;
+ *                 `readGuestBuildList` (`lib/checkup/storage.ts`, the
+ *                 `zod/mini`-guarded envelope reader §1.2 asks for) — never
+ *                 through `components/build-list/BuildList`, which would
+ *                 bring the whole list page into this route;
  *   db            `loadBuildListItemAction`, owner-scoped on the server
  *                 (another person's line, or another bike's, is NOT_FOUND and
  *                 simply prefills nothing). The PAGE hands it down as a prop
@@ -18,18 +19,29 @@
  *                 `"use server"` file — whose own imports (`server-only`,
  *                 Auth.js) have no business in a client module graph.
  *
+ * ## The guest reader is loaded when a guest line is asked for, not before
+ *
+ * `lib/checkup/storage` brings `zod/mini` and the checkup's own modules with
+ * it. Imported statically here it put 25 KB gzip into `/acheter`'s first load
+ * (240 187 B against the route's 236 544 B pin, W4-T1 build) — paid by every
+ * visit, for a panel only a build-list link opens. It is therefore a dynamic
+ * `import()` inside the effect, the way the 3D viewer is kept out of the
+ * workspace's first load. Both reads are asynchronous as a result, and the
+ * hook says so: `pending` is true from the first render until the lookup for
+ * THIS url has answered, and `PartQuestions` exposes it as `aria-busy`.
+ *
  * Every input is untrusted: the item id is only ever compared, never parsed
  * into anything, and a line whose part is not the `?part=` of the page
  * prefills nothing — a cassette's answers do not belong in a chain's form.
  * Which of the returned answers are valid for this part's questions is the
  * caller's to decide (`PartQuestions` drops the rest).
  */
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import type { ActionResult } from "@/lib/actions/result";
 import type { BikeRef } from "@/lib/bike/resolve-bike-ref";
-import { buildListKey, type GuestBikeRef } from "@/lib/bike/storage-keys";
-import { readGuestBuildList } from "@/lib/checkup/storage";
+import { buildListKey } from "@/lib/bike/storage-keys";
+import type { StoredBuildList } from "@/lib/checkup/storage";
 
 export type ItemRefinement = Readonly<Record<string, string>>;
 
@@ -39,25 +51,17 @@ export type ReadBuildListItem = (input: {
   itemId: string;
 }) => Promise<ActionResult<{ partId: string; refinement: Record<string, string> }>>;
 
+/** What the panel knows about `?item=`: the stored answers, and whether it is still looking. */
+export interface ItemPrefill {
+  refinement: ItemRefinement | null;
+  pending: boolean;
+}
+
 /** Item ids are `stepKey|partId|action` for a guest and a UUID for an account. */
 const MAX_ITEM_ID = 200;
 
-// ── guest ────────────────────────────────────────────────────────────────────
-
-function subscribe(listener: () => void): () => void {
-  window.addEventListener("storage", listener);
-  return () => window.removeEventListener("storage", listener);
-}
-
-let memo: { key: string; raw: string | null; value: ItemRefinement | null } | null = null;
-
-function rawList(ref: GuestBikeRef): string | null {
-  try {
-    return window.localStorage.getItem(buildListKey(ref));
-  } catch {
-    return null;
-  }
-}
+const NOTHING: ItemPrefill = { refinement: null, pending: false };
+const LOOKING: ItemPrefill = { refinement: null, pending: true };
 
 /**
  * `readGuestBuildList` checks the ENVELOPE, not the items (the list page
@@ -72,34 +76,26 @@ function asRefinement(value: unknown): ItemRefinement | null {
   return entries.length === 0 ? null : (Object.fromEntries(entries) as ItemRefinement);
 }
 
-/** Memoised on the raw string: `useSyncExternalStore` must see a stable value. */
-function guestSnapshot(ref: GuestBikeRef, partId: string, itemId: string): ItemRefinement | null {
-  const key = `${ref}\0${partId}\0${itemId}`;
-  const raw = rawList(ref);
-  if (memo !== null && memo.key === key && memo.raw === raw) return memo.value;
-  const item = (readGuestBuildList(ref)?.items as readonly unknown[] | undefined)?.find(
+/** The refinement of line `itemId` of a guest list, when that line is about `partId`. */
+export function lineRefinement(
+  list: StoredBuildList | null,
+  partId: string,
+  itemId: string,
+): ItemRefinement | null {
+  const item = (list?.items as readonly unknown[] | undefined)?.find(
     (candidate): candidate is { refinement?: unknown } =>
       typeof candidate === "object" &&
       candidate !== null &&
       (candidate as { id?: unknown }).id === itemId &&
       (candidate as { partId?: unknown }).partId === partId,
   );
-  memo = { key, raw, value: asRefinement(item?.refinement) };
-  return memo.value;
+  return asRefinement(item?.refinement);
 }
-
-/** Test seam: forget the memo between cases that rewrite storage. */
-export function resetItemPrefillCache(): void {
-  memo = null;
-}
-
-const noSnapshot = (): null => null;
-
-// ── the hook ─────────────────────────────────────────────────────────────────
 
 /**
  * The refinement of line `itemId` of `bikeRef`'s list, when it is about
- * `partId`; `null` until known, and whenever there is nothing to prefill.
+ * `partId`: `pending` until the lookup for these three values has answered,
+ * `refinement: null` whenever there is nothing to prefill.
  */
 export function useItemRefinement(
   partId: string | null,
@@ -107,34 +103,63 @@ export function useItemRefinement(
   itemId: string | null,
   /** The owner-scoped read for a saved bike; without it a saved bike prefills nothing. */
   readItem: ReadBuildListItem | undefined,
-): ItemRefinement | null {
-  const usable = partId !== null && itemId !== null && itemId.length <= MAX_ITEM_ID;
-  const guest = usable && bikeRef !== null && bikeRef.kind !== "db" ? bikeRef.kind : null;
-  const bikeId = usable && readItem !== undefined && bikeRef?.kind === "db" ? bikeRef.id : null;
+): ItemPrefill {
+  const usable =
+    partId !== null && itemId !== null && itemId.length <= MAX_ITEM_ID && bikeRef !== null;
+  const guest = usable && bikeRef.kind !== "db" ? bikeRef.kind : null;
+  const bikeId = usable && bikeRef.kind === "db" && readItem !== undefined ? bikeRef.id : null;
+  // One key per lookup, so an answer that arrives for a previous URL is never
+  // shown for this one.
+  const lookup =
+    guest !== null
+      ? `${guest}\0${partId}\0${itemId}`
+      : bikeId !== null
+        ? `${bikeId}\0${partId}\0${itemId}`
+        : null;
 
-  const fromGuest = useSyncExternalStore(
-    subscribe,
-    () => (guest === null ? null : guestSnapshot(guest, partId as string, itemId as string)),
-    noSnapshot,
-  );
+  const [found, setFound] = useState<{ lookup: string; value: ItemRefinement | null } | null>(null);
 
-  const [fromServer, setFromServer] = useState<{ key: string; value: ItemRefinement } | null>(null);
-  const serverKey = bikeId === null ? null : `${bikeId}\0${partId}\0${itemId}`;
   useEffect(() => {
-    if (bikeId === null || serverKey === null || readItem === undefined) return;
+    if (lookup === null || partId === null || itemId === null) return;
     let cancelled = false;
-    void readItem({ bikeId, itemId: itemId as string })
-      .then((result) => {
-        if (cancelled || !result.ok || result.data.partId !== partId) return;
-        setFromServer({ key: serverKey, value: result.data.refinement });
-      })
+    const settle = (value: ItemRefinement | null): void => {
+      if (!cancelled) setFound({ lookup, value });
+    };
+
+    if (guest !== null) {
+      const read = (): void => {
+        void import("@/lib/checkup/storage")
+          .then(({ readGuestBuildList }) =>
+            settle(lineRefinement(readGuestBuildList(guest), partId, itemId)),
+          )
+          // A chunk that failed to load: the guide simply opens empty.
+          .catch(() => settle(null));
+      };
+      read();
+      // Another tab that rewrites the list is read again.
+      const onStorage = (event: StorageEvent): void => {
+        if (event.key === null || event.key === buildListKey(guest)) read();
+      };
+      window.addEventListener("storage", onStorage);
+      return () => {
+        cancelled = true;
+        window.removeEventListener("storage", onStorage);
+      };
+    }
+
+    if (bikeId === null || readItem === undefined) return;
+    void readItem({ bikeId, itemId })
+      .then((result) =>
+        settle(result.ok && result.data.partId === partId ? result.data.refinement : null),
+      )
       // Signed out, a network error, a foreign id: the guide simply opens empty.
-      .catch(() => undefined);
+      .catch(() => settle(null));
     return () => {
       cancelled = true;
     };
-  }, [bikeId, itemId, partId, serverKey, readItem]);
+  }, [lookup, guest, bikeId, partId, itemId, readItem]);
 
-  if (guest !== null) return fromGuest;
-  return fromServer !== null && fromServer.key === serverKey ? fromServer.value : null;
+  if (lookup === null) return NOTHING;
+  if (found === null || found.lookup !== lookup) return LOOKING;
+  return { refinement: found.value, pending: false };
 }
