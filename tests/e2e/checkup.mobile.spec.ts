@@ -22,8 +22,9 @@
  * this file used to fail on `mobile-webkit` (never the layout — see
  * `.debug/015`).
  *
- * Runs on `mobile-chromium` and, via `NARROW_SPECS`, on `mobile-narrow` (320 px),
- * in FR and EN.
+ * Runs on every e2e project — the phones (`mobile-chromium`, `mobile-landscape`,
+ * `mobile-webkit`, and `mobile-narrow` at 320 px via `NARROW_SPECS`) and the two
+ * desktop ones — in FR and EN.
  */
 import type { Locator, Page } from "@playwright/test";
 

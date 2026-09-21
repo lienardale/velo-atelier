@@ -93,6 +93,8 @@ forEachLocale((locale) => {
   }
 });
 
+// Once, not per locale: it visits no page, it compares routing.pathnames with
+// the lists this file walks above (which do run in FR and EN).
 test("every key of routing.pathnames is covered by this file", () => {
   // The walk above is only a guarantee if nothing silently drops out of it:
   // a key that is neither public, protected nor a dev page would be visited by

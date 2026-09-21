@@ -6,7 +6,8 @@
 # red on CI. It reproduces; it does not gate (CI's matrix is the gate).
 #
 #   bash scripts/ci/e2e-docker.sh --project=mobile-chromium tests/e2e/bike3d/touch-scroll.spec.ts
-#   bash scripts/ci/e2e-docker.sh --grep @snapshot --update-snapshots
+#   bash scripts/ci/e2e-docker.sh --grep @snapshot                      # compare with the baselines
+#   bash scripts/ci/e2e-docker.sh --grep @snapshot --update-snapshots   # a local look: never commit these
 #
 # Build first on the HOST (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run
 # build`); the container reuses `.next` as is.

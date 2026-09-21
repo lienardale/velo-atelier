@@ -31,13 +31,16 @@ fi
 
 extra=""
 if [[ "${UPDATE_SNAPSHOTS:-0}" == "1" ]]; then
-  # Baselines are byte-comparisons: they are only ever regenerated on an amd64
-  # Linux runner (perf.yml workflow_dispatch) or in the amd64 container
-  # (`npm run e2e:update-snapshots`). A laptop's fonts and GPU produce images
-  # that would then fail for everyone else.
+  # Baselines are byte-comparisons of Linux renders, and the COMMITTED ones come
+  # from one place only: this script under perf.yml's `update-snapshots` job
+  # (workflow_dispatch, update_snapshots=true), whose PR carries the
+  # `visual-baseline` label. The amd64 container (`npm run e2e:update-snapshots`)
+  # records for a local look, never for a commit. A laptop's fonts and GPU
+  # produce images that would fail for everyone else.
   if [[ "${GITHUB_ACTIONS:-}" != "true" && ! -d /ms-playwright ]]; then
     log_err "UPDATE_SNAPSHOTS=1 outside CI and outside the amd64 container would"
-    log_err "record host-specific baselines. Use 'npm run e2e:update-snapshots'."
+    log_err "record host-specific baselines. Committed baselines are recorded by CI:"
+    log_err "  gh workflow run perf.yml --ref <branch> -f update_snapshots=true"
     exit 1
   fi
   # The @snapshot tests ONLY. This run exists to record images: the whole suite
