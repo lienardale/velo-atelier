@@ -13,6 +13,7 @@ import { Link } from "@/lib/i18n/navigation";
 import { cn } from "@/lib/utils";
 
 import { PartEditForm } from "./PartEditForm";
+import { usePartsText } from "./parts-text";
 
 /**
  * The "Infos" tab (§6.4): what this part is, what state it is in, what it is
@@ -58,7 +59,7 @@ export function PartInfo({
 }: PartInfoProps): React.JSX.Element {
   const t = useTranslations("bike");
   const tParts = useTranslations("parts");
-  const tRoot = useTranslations();
+  const partsText = usePartsText();
 
   if (partId === null) {
     return (
@@ -109,7 +110,7 @@ export function PartInfo({
         >
           {shown.map((attribute) => (
             <div key={attribute.key} className="contents" data-attr-row={attribute.key}>
-              <dt className="text-ink-muted">{tRoot(attribute.labelKey as never)}</dt>
+              <dt className="text-ink-muted">{partsText(attribute.labelKey)}</dt>
               <dd className="text-ink">
                 <AttributeValueText
                   attributeKey={attribute.key}

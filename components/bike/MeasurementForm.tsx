@@ -6,7 +6,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { translateMessageKey } from "@/lib/actions/result";
 import { updateBikeFitAction } from "@/app/[locale]/velo/[id]/reglages/actions";
 import { updateBikePartAction } from "@/app/[locale]/velo/[id]/actions";
 import { bikeRepoFor, LOCAL_BIKE_PENDING, useLocalBikeSnapshot } from "@/lib/bike/repo";
@@ -32,6 +31,8 @@ import {
 } from "@/lib/geometry/formulas";
 import { tirePressure } from "@/lib/geometry/pressure";
 import { cn } from "@/lib/utils";
+
+import { useBikeActionText } from "./action-text";
 
 /**
  * One measurement, its inputs and what they imply (§5.6, §6.8 AC12).
@@ -71,7 +72,7 @@ export function MeasurementForm({
   className,
 }: MeasurementFormProps): React.JSX.Element | null {
   const t = useTranslations("bike");
-  const tRoot = useTranslations();
+  const actionText = useBikeActionText();
   // Built here rather than passed in: a repo holds functions, and the fit page
   // is a Server Component, which can only hand a client one serialisable props.
   const repo = useMemo(
@@ -196,7 +197,7 @@ export function MeasurementForm({
               : state === "saving"
                 ? t("fit.saving")
                 : state === "error"
-                  ? translateMessageKey(tRoot, errorKey)
+                  ? actionText(errorKey)
                   : ""}
           </p>
         </div>
