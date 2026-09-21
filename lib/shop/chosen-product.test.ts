@@ -32,6 +32,12 @@ describe("chosenProductOf", () => {
     ["a script URL", { vendor: "other", url: "javascript:alert(1)" }],
     ["credentials in the URL", { vendor: "other", url: "https://user:pw@example.org/" }],
     ["not a URL", { vendor: "other", url: "nope" }],
+    // §4.2: `vendor: RetailerId | 'other'` — a third kind is not "other".
+    [
+      "a vendor that is neither a retailer nor 'other'",
+      { vendor: "velo-shop", url: "https://velo-shop.example/x" },
+    ],
+    ["a retailer's name, spelled another way", { vendor: "Alltricks" }],
   ])("drops %s", (_label, overrides) => {
     expect(chosenProductOf({ ...PRODUCT, ...overrides })).toBeUndefined();
   });

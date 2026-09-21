@@ -363,6 +363,8 @@ describe("hostile strings", () => {
       { ...base, vendor: "rosebikes", url: "https://www.rosebikes.fr.evil.example/x" },
       // A subdomain nobody declared.
       { ...base, vendor: "decathlon", url: "https://promo.decathlon.fr/x" },
+      // A vendor §4.2 does not know (`RetailerId | 'other'`): not an `other`.
+      { ...base, vendor: "velo-shop", url: "https://velo-shop.example/x" },
     ]) {
       const payload = tampered({
         lists: [{ ...LIST, items: [{ ...LIST.items[0], chosenProduct: product }] }],

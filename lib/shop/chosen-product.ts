@@ -1,13 +1,17 @@
 /**
- * `BuildListItem.chosenProduct` on the way OUT of storage (§4.4).
+ * `BuildListItem.chosenProduct`'s link rule (§4.4), in ONE place: the guest
+ * import applies it on the way in (`lib/guest/schema.ts`, the only writer
+ * besides the seed) and every reader applies it on the way out — the `/liste`
+ * loader and the guest list's parser. The `Json` column and
+ * `va:buildlist:<ref>` hold what some earlier version of the app (or a
+ * visitor's own DevTools) put there, and "the writer checked" is not a
+ * property a reader can see. A product that fails is dropped, not repaired.
  *
- * The rule — https, no credentials, and on the named retailer's own hosts
- * unless the vendor is not one of ours — is enforced where the value is written
- * (`lib/guest/schema.ts`, the only writer besides the seed). This is the same
- * rule where it is READ: the `Json` column and `va:buildlist:<ref>` hold what
- * some earlier version of the app (or a visitor's own DevTools) put there, and
- * "the writer checked" is not a property a reader can see. A product that
- * fails is dropped, not repaired.
+ * The rule: https, no credentials, and on the named retailer's own hosts —
+ * or `vendor: 'other'`, a link the visitor pasted, where plain https is the
+ * only bar. §4.2 types the vendor `RetailerId | 'other'`, so a vendor that is
+ * neither is refused rather than treated as `other`: before W4 both sides let
+ * any unknown vendor through with any https link.
  *
  * Plain TS, no zod: `components/build-list/BuildList.tsx` is a client module,
  * and so is everything it imports.
@@ -15,10 +19,14 @@
 import { isRetailerId, isRetailerUrl } from "@/lib/domain/data/retailers";
 import type { ChosenProduct } from "@/lib/checkup/types";
 
+/** The vendor of a link the visitor pasted themselves (§4.4). */
+export const OTHER_VENDOR = "other";
+
 /** The field caps of the guest import's `ChosenProductSchema`. */
 const LIMITS = { brand: 80, model: 120, size: 40, vendor: 40, url: 1000 } as const;
 
-function isPlainHttpsUrl(value: string): boolean {
+/** `https://…` and nothing else: never `javascript:`, never a credentialed URL. */
+export function isPlainHttpsUrl(value: string): boolean {
   let url: URL;
   try {
     url = new URL(value);
@@ -28,10 +36,15 @@ function isPlainHttpsUrl(value: string): boolean {
   return url.protocol === "https:" && url.username === "" && url.password === "";
 }
 
-/** Does `product` link where its vendor says it does? */
+/**
+ * Does `product` link where its vendor says it does? Checked as a pair: a
+ * product claiming `vendor: "rosebikes"` and pointing somewhere that is not
+ * Rose is exactly the case worth refusing.
+ */
 export function isAllowedProductUrl(product: { vendor: string; url: string }): boolean {
   if (!isPlainHttpsUrl(product.url)) return false;
-  return isRetailerId(product.vendor) ? isRetailerUrl(product.vendor, product.url) : true;
+  if (isRetailerId(product.vendor)) return isRetailerUrl(product.vendor, product.url);
+  return product.vendor === OTHER_VENDOR;
 }
 
 /** A stored value, as a `ChosenProduct` — or `undefined` when it is not one we would have written. */
