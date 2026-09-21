@@ -3,15 +3,18 @@
 Deliberately deferred work. Each entry says **what**, **why it was deferred**
 and **what would have to be true** to pick it up. Nothing here blocks the MVP.
 
-Three sections:
+Two sections:
 
 - **W5 — launch**: what the launch wave has to settle before `v0.1.0`
   ([`deploy.md`](./deploy.md) is its step-by-step).
 - **Post-MVP**: everything after launch. W5-T2 turns the entries marked
   _(W5-T2 opens an issue)_ into the first GitHub issues (§8.6).
-- **In flight in W4**: entries a W4 task is working on right now. Each task
-  returns a disposition (done, or re-scoped with a reason), applied when W4 is
-  integrated; after that this section is empty.
+
+W4 closed ten entries — the forgotten symptom and `doneReason`, `?item=`, the
+brand tier, IPv6 buckets, the `/velo`/`/compte` namespaces, the nightly Perf
+artifact, the WebKit verdict bar, the reduced-motion frame count, e2e-docker's
+database and the missing local WebKit — and re-scoped the others it owned,
+each with its reason below; `.debug/012` has the table.
 
 ---
 
@@ -62,22 +65,31 @@ from the known conditional-update call sites — not by reintroducing a read.
 _Why W5_: production logs are read for the first time at launch (§9.5). Fix it
 before, or expect this line on every first attempt of a rate-limit window.
 
-### Retailer links: the human pass
+### An account's build list shows only its newest checkup's lines
 
-`verifiedAt` is `null` for Alltricks and Decathlon in
-`lib/domain/data/retailers.ts`; Rose Bikes carries the 2026-09-07 date of its
-FR check, and its EN template has only been confirmed by an automated fetch.
-W5-T2's launch gate requires a `verifiedAt` for every FR entry.
+Every finished checkup creates its own `BuildList`, `/liste` shows the bike's
+newest OPEN list, and nothing ever writes `BuildList` `DONE` or `ARCHIVED`.
+Three consequences for an account, all live since W4 made each checkup a run of
+its own (`.debug/013`):
 
-_Why W5_: a link counts as verified only when a human has opened it in a real
-browser — never CI, never an agent (the plan's retailer decision, restated as a
-W4 ruling). The plan also expects Alltricks and Decathlon to block bots, and
-Decathlon did answer an automated fetch with HTTP 403 (the verification log in
-[`retailers.md`](./retailers.md)).
+- a line a LATER checkup closed (`doneReason: 'recheck-ok'`, written on the
+  OLDER list) is never on screen, so "Marqué fait par un contrôle" is never
+  shown to an account in the natural flow;
+- the open lines of an older list drop out of view as soon as a newer checkup
+  finishes — after an all-OK recheck the list page is empty;
+- the quotas are enforced literally (W4 ruling: 10 lists/bike), so a bike that
+  has finished 10 checkups can finish no other one (`TOO_MANY`).
 
-_To pick up_: the maintainer runs the checklist in [`retailers.md`](./retailers.md)
-and records the dates; the ones given at the end of W4 are applied at the W4
-integration.
+A guest keeps one list per bike (`va:buildlist:<ref>`) and has none of this.
+
+_Why W5_: a product decision, not a bug fix — and one a regular user reaches
+after ten checkups. The W4 ruling took §4.2 (c) literally on purpose.
+
+_To pick up_: choose the lifecycle, then implement it once on the server:
+one list per bike like the guest (carry open lines forward), or archive the
+previous list when a newer one is created and cap non-archived lists, or show
+the newest non-empty list. Each changes what `tests/e2e/checkup-quota.spec.ts`
+asserts.
 
 ---
 
@@ -170,6 +182,23 @@ takes one as a dependency (wired in `auth.ts`), and the sign-up, account and
 import actions each build theirs with `createPrismaRateLimiter(prisma)` — so a
 second implementation slots in behind it with one call site per file.
 
+#### Client address behind non-Vercel proxies
+
+`lib/security/ip.ts` reads `x-vercel-forwarded-for`, then `x-real-ip`, then the
+first `x-forwarded-for` (§4.3). On Vercel the edge sets the first one, so a
+client cannot choose its rate-limit bucket. Self-hosted behind nothing (or a
+proxy that does not rewrite these headers), a client can send a fresh value per
+request and get a fresh bucket. IPv4 addresses are bucketed as sent (no
+leading-zero canonicalisation), which matters only in the same setting.
+
+_Why deferred_ (W4 decision): trusting those headers only behind a configured
+proxy changes §4.3's header chain, a final plan decision, and production runs on
+Vercel. The e2e fixture's per-test `x-real-ip` also depends on today's chain.
+
+_To pick up_: a deployment that is not Vercel. Honour `x-vercel-forwarded-for`
+only when `VERCEL` is set and `x-real-ip` / `x-forwarded-for` only behind an
+explicitly configured trusted proxy (an env flag the e2e web server also sets).
+
 ### Content and search
 
 #### Search index
@@ -194,13 +223,68 @@ guides currently define terms inline on first use.
 
 Content is edited by pull request. No admin role, no moderation UI.
 
-#### The refinement disclosure has no illustration
+#### Refinement drawings for the attributes no drawing covers yet
 
-§6.5 asks for "Comment mesurer" disclosures **with** an illustration;
-`RefinementForm` ships the help text alone. A `"use client"` module may not
-import `components/illustrations/index.ts` — all ~70 drawings would land in the
-route's first-load JS — and the form is necessarily client-side. It needs an RSC
-path like `components/mdx/Illustration.tsx`, handed down as a prop.
+Since W4 the build list's "Comment mesurer" disclosures carry a drawing where an
+existing one fits (axle, valve, speeds, wheel diameter, mounts, pedal type,
+tubeless) — rendered on the server by `components/build-list/measure-drawings.tsx`
+and passed down as props. Cassette range, largest cog, stem length and the other
+attributes have no drawing, so their disclosure is text only.
+
+_Why deferred_: new drawings are content work (the W2-T4 kind, `docs/illustrations.md`),
+and W4 allowed none. _To pick up_: draw them, register them in
+`lib/shop/measure-drawings.ts`.
+
+#### The §4.4 actions no UI calls
+
+§4.4's catalogue lists `setChosenProductAction`, `abandonCheckupAction`,
+`createBuildListAction`, `addBuildListItemAction` and
+`removeBuildListItemAction`; none exists. (`startCheckupAction` and
+`saveCheckupItemAction` are folded into `saveCheckupAction`; the others ship
+under W3 names: `finishCheckupAction`, `setBuildListItemRefinementAction`,
+`setBuildListItemDoneAction`, `clearDoneBuildListItemsAction`.)
+
+_Why deferred_ (W4): §6.5 has no UI that records a purchase, abandons a
+checkup, creates a list or adds or removes a line by hand, and an exported
+`"use server"` function nothing calls is attack surface without a user. The
+`chosenProduct` link rule is enforced at every writer and reader that does
+exist (`lib/shop/chosen-product.ts`); nothing writes `ABANDONED`, because the
+wizard always resumes the run in progress.
+
+_To pick up_: design the UI first ("j'ai acheté ça" on a done line, "abandon
+this checkup"), then the action behind it, with its row in
+`tests/security/csrf-and-actions.test.ts`.
+
+#### A controlled input on a prerendered page drops text typed before hydration
+
+react-dom 19.2.8 keeps text typed before hydration in the DOM but never passes
+it to state: on `/acheter`'s free-text box the words stay visible and no vendor
+link appears. A guest bike's `MeasurementForm` is worse — it re-seeds its draft
+when `va:bike:local` resolves, in the render after hydration, wiping what was
+typed (`.debug/015` §2, §9). The e2e specs wait until React owns the field.
+
+_To pick up_: read the field's DOM value into state on mount; re-seed only the
+fields the visitor has not touched.
+
+#### The checkup's tool-list rows are centred with ragged offsets
+
+`tap-target` sets `justify-content: center` on a full-width label, so the
+checkbox rows start at different x. The committed `checkup-{fr,en}.png`
+baselines record it as it is, so a fix regenerates those two through
+`perf.yml` `update_snapshots=true`.
+
+#### Two in-progress runs, and a quota refusal that says "not saved"
+
+Since W4 each new checkup mints its own `startedAt`, so two tabs opened on
+`/controle` after a finished checkup — or a `pagehide` flush landing after a
+reload's server read — can create a second `IN_PROGRESS` row, which counts toward
+the 50-checkup quota. And on a bike already at 50, a new run's first autosave is
+refused `TOO_MANY` while the wizard shows only the generic "could not be saved"
+chip, until "Créer ma liste" names the limit.
+
+_To pick up_: with the list lifecycle (W5 above) — abandon the older
+`IN_PROGRESS` run on the first save of a new one (§4.2 b), and surface
+`TOO_MANY` on the first refused save.
 
 #### CSV export of a build list
 
@@ -239,6 +323,17 @@ programme and its link format; the disclosure rewritten in both locales; every
 link re-verified by hand, since each changes; and the consent question below
 answered if the programme tracks clicks.
 
+#### Unverified retailers get no note on `/acheter`'s cards
+
+The "lien non vérifié récemment" note is rendered only by `VendorButtons` (every
+build-list line, and under `/acheter`'s part questions). `/acheter`'s category
+cards and free-text search show none, although §5.5 says the shop page does.
+Moot while every retailer carries a `verifiedAt` (2026-09-21), but it returns
+the day one is cleared.
+
+_To pick up_: render the same note from `SHOP_RETAILERS` next to the cards'
+links.
+
 #### Analytics
 
 No third-party analytics, no click tracking on retailer links, and therefore no
@@ -255,6 +350,57 @@ back them.
 #### Full-suspension kinematics
 
 Rear suspension is visual only — no linkage simulation.
+
+### Performance
+
+#### Home first-load JS is ~61 KiB above its 130 KiB target
+
+`/[locale]` ships 195 768 B gzip (191.2 KiB) against §7.3's 130 KiB target; the
+ceiling is ratcheted, the target is not met. The first measured breakdown
+(`scripts/perf/bundle-breakdown.ts`, W4): next + React 131.7 KiB — an empty
+Next 16 + React 19 + next-intl route is 130.7 kB on its own (`.debug/001`), so
+the target sits below the framework floor — then Radix 11.7, the ICU message
+parser 9.6, tailwind-merge 8.3, next-intl + use-intl 4.6, the Turbopack runtime
+4.2, next-auth 2.2, lucide 1.8 and ~16 KiB of app code.
+
+_Why deferred_ (W4 decision 6): what is above the floor is plan decisions
+(Radix §6.5, `SessionProvider` §4.3), the design system (tailwind-merge) or
+framework configuration. The target stays; nothing was re-pinned upward.
+
+_To pick up_, measured on the merged tree first: next-intl's
+`experimental.messages.precompile` (the ICU parser, ~9.6 KiB on every route);
+`tree-frame-attrs.ts` taking its aspect from the server (~2.1 KiB); then the
+plan-level options (Radix, `SessionProvider`), which need a plan change.
+
+#### Bike-page TBT is 713–971 ms on CI against a 600 ms target
+
+The Lighthouse ceiling stays 1 100 ms (derived from the worst of three
+nightlies; same-day runs differ 20–40 %). Most of it is the 3D mount: with
+WebGL disabled, local TBT is 60–83 ms (`.debug/014` §3). LCP is fixed (4 520 →
+2 179 ms on `/en/bike/demo`).
+
+_To pick up_: `renderer.compileAsync` in `BikeScene` (three 0.185.1 polls
+`KHR_parallel_shader_compile`), building the scene across frames, hydrating
+`PartsPanel` lazily on mobile — then tighten the pin with the rule in
+`lighthouse-report.ts`.
+
+#### Lighthouse rasterises the page through SwiftShader
+
+`--ignore-gpu-blocklist` (the CI GL flags) makes Chrome GPU-rasterise the page
+through SwiftShader: a trace shows first paint waiting 1.75 s in
+`RasterDecoderImpl::DoEndRasterCHROMIUM`. `--disable-gpu-rasterization` would
+keep WebGL on SwiftShader and raster the page on the CPU (locally, cold FCP
+4.4–9.7 s → 1.6–2.1 s) — but it changes what every Lighthouse number means.
+
+_To pick up_: a maintainer decision on the methodology, then re-pin every URL
+from new nightlies.
+
+#### Soft-timing noise on the `perf` job
+
+Tap latency crossed compare.ts's 300 % FAIL line on one sample in 70 in three
+nightlies. W4 took the median of five taps and serialised the two perf projects
+(`--workers=1`). If the required `perf` job still fails on a timing alone,
+investigate the runner variance and report it — the ladder does not move.
 
 ### Infrastructure and tooling
 
@@ -285,28 +431,18 @@ the seed guard already accepts (`lib/db/guard.ts`). Acceptance from §10:
 `npx tsx scripts/db/count.ts` prints `users=2 bikes=4`. Like `db:up`, it would
 run from the main checkout only (next entry).
 
-#### `docker-compose.yml` pins `container_name`, so `db:up` cannot run from a worktree
+#### `docker-compose.yml` pins `container_name`
 
 `container_name: velo-atelier-postgres` means a worktree's compose project cannot
-adopt the already-running container — `docker compose up --dry-run` says it would
-**recreate** it, taking the database out from under every other session. Parallel
-agents therefore have to reuse the main checkout's container by hand.
-_To pick up_: drop `container_name` and address the container through its compose
-service name, or scope it per project (`scripts/ci/e2e-docker.sh` already takes
-the name through `E2E_DOCKER_PG_CONTAINER`).
+adopt the running container: `docker compose up --dry-run` from a worktree would
+create a second one with the same name, or — with the project name forced —
+recreate the shared one. Since W4 no worktree needs compose: `scripts/ci.sh`
+(and the pre-push hook) skips `db:up` when the database answers and refuses it
+from a worktree, and `scripts/ci/e2e-docker.sh` finds the container by name and
+takes each worktree's own `*_test` database.
 
-#### `scripts/ci/e2e-docker.sh` has no way to choose its database
-
-The script takes the Postgres CONTAINER through `E2E_DOCKER_PG_CONTAINER`, but
-the database NAME comes from `.env.test` (`velo_atelier_test`) with no override.
-During a parallel wave that is the one database shared with local dev and with
-every other worktree, and the script migrates, truncates and seeds it — so the
-three W3 agents whose specs perform no touch gesture (the `.debug/005` hazard
-the script exists for) correctly declined to run it, and it was left to the
-single-tenant integration run.
-
-_To pick up_: honour `POSTGRES_URL` from the environment the way the vitest
-tiers do, so a worktree can point it at its own `*_test` database.
+_To pick up_ (a cleanup now, not a hazard): drop `container_name` and address
+the container through its compose service name, from the main checkout.
 
 #### A killed Playwright run leaves its `next start` behind, at 100 % CPU
 
@@ -322,168 +458,35 @@ the target port is already running and older than the current build, or drop
 `reuseExistingServer` locally and pay the start-up cost. Until then:
 `pgrep -fl "npm run start -p 31"` before trusting any local timing.
 
-#### mobile-webkit cannot run on this Mac
+#### WebKit sign-ups hang in the emulated container, and twice on CI
 
-`browserType.launch` fails with `Executable doesn't exist at
-~/Library/Caches/ms-playwright/webkit-2359/pw_run.sh`. The project is
-non-blocking in CI, so nothing is red — but there is no local signal either.
-`npx playwright install webkit` fixes it for whoever wants one.
+The local WebKit is the CI container (`npm run e2e:docker -- --project=mobile-webkit`),
+but on this Mac's emulated amd64 container every WebKit sign-up hangs after the
+click — a control test too, while mobile-chromium passes. On CI,
+`account.spec.ts`'s `register()` hung twice in W4 (runs 35632747193 and
+35639300551, FR), passing on retry. The leg is non-blocking; the hang is
+undiagnosed (`.debug/015` §9).
 
----
+_To pick up_: reproduce on a native amd64 host, then decide whether it is the
+test (a navigation raced, like the two W4 fixed) or WebKit.
 
-## In flight in W4
+#### `/liste` depends on Turbopack tracing `content/`
 
-Left as they were written (only the W4-T2 heading's namespace count went from 13
-to 16); the owning task's disposition replaces each one at the W4 integration.
+`/velo/[id]/liste` reads `content/brands.yaml` per request through
+`lib/shop/retailers.ts`. That works because Next 16.3.4's Turbopack traces
+`content/` into the route's `page.js.nft.json`; no gate re-checks it, and e2e
+runs from the checkout, so it cannot see a missing trace. After a Next upgrade
+that drops it, `/liste` would fail at module load in production with every gate
+green.
 
-### W4-T1 — coverage, security and integration completion
+_To pick up_: assert the trace in `scripts/bundle-guard.ts`, or generate the
+brand tiers into a module at build time.
 
-#### Client address behind non-Vercel proxies
+#### `mobile-sheet`'s canvas tap skips at 320 px when the caliper is not hittable
 
-`lib/security/ip.ts` reads `x-vercel-forwarded-for`, then `x-real-ip`, then the first
-`x-forwarded-for`. On Vercel the edge sets the first one, so a client cannot choose
-its rate-limit bucket. Self-hosted behind nothing (or a proxy that does not rewrite
-these headers), a client can send a fresh value per request and get a fresh bucket.
+The test skips at run time when the front caliper is not hittable from any
+pose. It happened in both locales on the macOS host and in EN on CI, so §6.8
+AC5's tap is not reliably verified on `mobile-narrow`.
 
-_To pick up_ (W4-T1): honour `x-vercel-forwarded-for` only when `VERCEL` is set, and
-`x-real-ip` / `x-forwarded-for` only behind an explicitly configured trusted proxy
-(an env flag the e2e web server also sets, since the fixture uses `x-real-ip`).
-
-#### Rate-limit buckets for IPv6
-
-Per-IP buckets key on the full address. An attacker with an IPv6 /64 — routine for a
-single host — rotates addresses and gets a fresh bucket each time; only the soft
-per-e-mail bucket still applies. _To pick up_ (W4-T1): key IPv6 buckets on the /64.
-
-#### `setChosenProductAction` is specified but not built
-
-§4.4 lists it beside the build-list actions and `BuildListItem.chosenProduct`
-exists in the schema (the seed writes one), but nothing in §6.5's build list
-asks the visitor to record what they bought — the card offers vendor links, a
-refinement form and a done checkbox. W3-T2 built what §6.5 describes. Today the
-only writer of `chosenProduct` is the guest importer, which is why the retailer
-host allow-list (§4.4) lives in `lib/guest/schema.ts`.
-
-_To pick up_: decide the UI first ("j'ai acheté ça" on a done item?), then the
-action, reusing `isRetailerUrl` from `lib/domain/data/retailers.ts` so the two
-entry points enforce the same rule.
-
-#### The brand tier never renders on the build list
-
-`components/build-list/RefinementForm.tsx` calls `shopQuestionsFor(build,
-partId, locale)` without `tierLabels`, and that argument is the only thing that
-appends the entry/mid/high question — so §6.5's "brand tier" control exists on
-`/acheter` and nowhere else. The obstacle is real: `content/brands.yaml` is read
-with `readFileSync` at module scope, and `/velo/[id]/liste` is a dynamic route
-whose form is a client component (a guest's list is in `localStorage`).
-
-_To pick up_: hand the tiers to the form as props from the server page, the way
-`/acheter` already does.
-
-#### `?item=` is written and never read
-
-`BuildItemCard` links to `/acheter` with `{part, bike, item}`, but
-`components/shop/PartQuestions.tsx` reads only `part` and `bike`, so §5.5's
-"pre-fills from the build-list item" is half-done: the visitor lands on the
-right part with an empty form. The fix needs a build-list reader `/acheter` can
-import without pulling in `components/build-list/BuildList.tsx`.
-
-#### A saved bike's in-progress checkup forgets which symptom was ticked
-
-`CheckupItem` records the verdict, the note and the part, but there is no column
-for the `reasonKey` the visitor chose on a KO — it materialises as
-`BuildListItem.reasonKey` when the checkup is FINISHED. So a signed-in visitor
-who answers "ça ne marche pas → garniture trop fine" and then reloads
-mid-checkup gets the KO back but not the symptom, and a KO with no symptom falls
-back to every consequence of the step (§5.4) — too much on the list rather than
-the wrong thing. A guest's checkup keeps the whole state in `va:checkup:<ref>`
-and is unaffected, and so is any checkup finished in one sitting, because the
-browser sends its symptoms with `finishCheckupAction`.
-
-A second column belongs in the same migration. `finishCheckupAction` closes an
-open build-list line that a later checkup answered OK (§5.4, §6.7), but
-`BuildListItem` has no `doneReason`, so an account cannot say whether a line was
-ticked by the visitor or closed by the bike — the distinction a guest keeps in
-`va:buildlist:<ref>`, and the one `markRechecked` exists to record.
-
-_To pick up_: `reasonKeys String[]` (or a small `Json`) on `CheckupItem`, written
-by `saveCheckupAction` and read by `loadStoredCheckup`, plus `doneReason
-String?` on `BuildListItem` set by `closeRecheckedItems`. One migration, about
-twenty lines. Both were left out of W3 because `prisma/schema.prisma` is shared
-with three parallel branches (§8.0) and the wave froze it.
-
-### W4-T2 — performance
-
-#### `/velo` and `/compte` still ship all 16 message namespaces
-
-`lib/i18n/client-namespaces.ts` narrows what reaches the client per route, but
-those two still declare the whole catalogue: `PartInfo`, `PartEditForm`,
-`MeasureCard` and `MeasurementForm` translate `parts.*` keys carried by the part
-definitions, and `form-parts.tsx` resolves a message key a server action
-returned. Pinning those the way `useDecisionText()` pins the tree's keys is the
-largest remaining payload win — `/velo/demo`'s document is 43.8 kB and it owns
-the worst TBT on the site (910 ms on CI).
-
-W3 widened the blast radius rather than the problem: `/velo/[id]/controle` and
-`/velo/[id]/liste` inherit the `velo/[id]` layout's declaration, and `/import`
-inherits `(protected)`'s, so five more routes now ship the whole catalogue —
-the checkup wizard reads `checkup`, `tools` and `guides`, and `/import` reads
-`account` and `errors`. Only `/acheter` declares its own (`["shop"]`), because
-its part and retailer names are resolved server-side through
-`lib/domain/i18n.ts` with an explicit locale.
-
-#### Home first-load JS is 56 KiB above its target
-
-`/[locale]` measures 186.3 KiB gzip against a 130 kB target (§7.3) — the
-interactive decision tree, the local-bike codec and the `DECISION_TREE` data the
-client needs to navigate. The ceiling is ratcheted, not met; **W4-T2 owns
-closing the gap**, and `perf.budgets.json` carries the pin history.
-
-#### Every nightly `Perf` run had failed since the workflow was written
-
-`.github/workflows/perf.yml` uploaded its `.next` artifact without
-`include-hidden-files: true`. `.next` is a dotfile, so upload-artifact v4 skipped
-it, **warned, and left the step green**; `perf (nightly)` and
-`lighthouse (nightly)` then failed one stage later with "Artifact not found for
-name: next-build". Fixed at the W3 integration by copying the two options the
-identical step in `ci.yml` has always carried — the second,
-`if-no-files-found: error`, is what makes the empty upload fail where it
-happens.
-
-Nothing was measured by that workflow in the meantime, so **W4-T2 inherits no
-nightly perf history**: the first green run is the first data point.
-
-### W4-T3 — visual regression and the e2e matrix
-
-The first entry below still names W4-T2; the W4 plan reassigned it to W4-T3.
-
-#### `reduced-motion.spec.ts` infers "the camera animated" from a frame count
-
-`tests/e2e/bike3d/reduced-motion.spec.ts` focuses a part twice — once under
-`prefers-reduced-motion: reduce`, once without — and asserts the second renders
-at least five more frames in the same 1.2 s window. The inference only holds
-while the render loop is fast enough for the difference to show. With two cores
-lost to runaway processes (`.debug/010 §9`) both halves collapsed to **3
-frames** and the comparison said nothing, deterministically, in a way that read
-as a code regression for an hour. It passes on an idle machine and has passed on
-CI at every wave — but the test still cannot distinguish "the camera did not
-animate" from "this machine could not draw".
-
-_To pick up_ (W4-T2, which owns the perf tier): assert the thing itself rather
-than a proxy — sample `window.__va.bike` camera state across the 1.2 s window
-and require it to be monotonic under motion and to arrive in the first frame
-under reduced motion. Frame counts stay useful as a soft annotation.
-
-#### The sticky verdict bar does not stay put on Linux WebKit
-
-`tests/e2e/checkup.mobile.spec.ts:82` ("the verdict bar stays on screen while
-the guide is scrolled") fails on `mobile-webkit` and passes on every Chromium
-project — deterministically, three runs out of three including both retries.
-That project is non-blocking by design (Linux WebKit is not iOS Safari), so CI
-is not red for it, and the rest of the leg is 356 passed / 3 flaky.
-
-_To pick up_ (W4-T3, which owns the WebKit and no-WebGL matrix): find out whether
-it is the `position: sticky` container or the scroll container the sheet
-creates, and either fix the layout or skip the row on WebKit with the reason
-written down. Do not leave it silently failing — a non-blocking project whose
-failures nobody reads is not a signal.
+_To pick up_: pick a pose the solver guarantees is hittable at 320 px, and make
+the skip a failure.
