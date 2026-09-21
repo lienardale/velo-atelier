@@ -45,6 +45,17 @@
     "    controle 221 886 B -> 244 736, liste 243 941 B -> 269 312 and acheter 214 674 B -> 236 544 enter the ratchet here.",
     "    /velo/[id] +11 kB: §6.4's pick mode and status tint. All three new routes pass `forbidWebgl`. (This entry was",
     "    recorded only in the debug note at the time; copied here in W4 so the history is complete in one place.)",
+    "  W4 integration 2026-09-21 (.debug/012; measured + 10 % applied only where it LOWERS a ceiling):",
+    "    home 195 750 B (kept 216 064); guide 166 011 B (kept 183 296); velo/[id] 249 773 B -> 275 456;",
+    "    piece 249 773 B -> 275 456; controle 222 190 B (kept 244 736); liste 244 560 B (kept 269 312);",
+    "    reglages 217 908 B, mes-velos 192 012 B and acheter 215 732 B KEPT at their W3 pins (239 616 /",
+    "    209 920 / 236 544): measured + 10 % would have raised them 1-2 KiB (W4-T2's scoped translators, W4-T1's",
+    "    prefill and link rule), and a ceiling only moves down without a reason worth a raise; headroom 8.5-9.1 %.",
+    "    /velo/[id] fell 2.1 kB: W4-T2 scoped the part panel's messages (the RSC flight, not this table, took most",
+    "    of that win: /fr/velo/demo 93 052 -> 36 366 B). lazy3dChunkGzipBytes 409 600 -> 396 208: the first pin from",
+    "    a real run since W0, min(409 600, ceil(344 528 x 1.15)), measured FR = EN by bundle-budget.spec.ts on the",
+    "    e2e build. Home is still 61 KiB over its 130 KiB target, below which the framework floor already sits",
+    "    (docs/backlog.md has the per-package breakdown).",
     "",
     "Getting the numbers: `npx tsx scripts/perf/bundle-budget.ts --json` prints raw gzip bytes and the",
     "ratchet's `nextPin` (measured + 10 %, rounded up to a whole KiB) for each route."
@@ -64,13 +75,13 @@
     },
     "/[locale]/velo/[id]": {
       "label": "bike workspace",
-      "firstLoadJsGzipBytes": 277504,
+      "firstLoadJsGzipBytes": 275456,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
     "/[locale]/velo/[id]/piece/[partId]": {
       "label": "part panel (deep link)",
-      "firstLoadJsGzipBytes": 277504,
+      "firstLoadJsGzipBytes": 275456,
       "targetGzipBytes": 143360,
       "forbidWebgl": true
     },
@@ -106,7 +117,7 @@
     }
   },
   "webglMarker": "THREE.WebGLRenderer",
-  "lazy3dChunkGzipBytes": 409600,
+  "lazy3dChunkGzipBytes": 396208,
   "timingLadder": {
     "warnPct": 150,
     "failPct": 300
