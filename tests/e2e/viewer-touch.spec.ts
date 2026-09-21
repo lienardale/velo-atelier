@@ -22,7 +22,7 @@
  */
 import type { CDPSession, Page } from "@playwright/test";
 
-import { expect, href, test } from "./_fixtures";
+import { expect, forEachLocale, href, test } from "./_fixtures";
 
 type Projection = Record<string, { x: number; y: number }>;
 
@@ -104,82 +104,91 @@ async function uncoveredCanvasPoint(page: Page, fx: number): Promise<{ x: number
   return point;
 }
 
-test.beforeEach(async ({ page, isMobile, browserName }) => {
-  test.skip(!isMobile || browserName !== "chromium", "touch policy on Chromium phones (CDP input)");
-  // The sheet these gestures are aimed around only exists on a tall phone (§6.4).
-  test.skip(
-    (page.viewportSize()?.height ?? 0) <= 500,
-    "landscape phones use the docked grid, not the sheet (§6.4)",
-  );
-  await page.goto(href("fr", "/velo/[id]", { id: "demo" }));
-  await page.waitForFunction(() => window.__va?.bike.ready === true, undefined, {
-    timeout: 30_000,
+forEachLocale((locale) => {
+  test.describe(`on the ${locale} demo bike`, () => {
+    test.beforeEach(async ({ page, isMobile, browserName }) => {
+      test.skip(
+        !isMobile || browserName !== "chromium",
+        "touch policy on Chromium phones (CDP input)",
+      );
+      // The sheet these gestures are aimed around only exists on a tall phone (§6.4).
+      test.skip(
+        (page.viewportSize()?.height ?? 0) <= 500,
+        "landscape phones use the docked grid, not the sheet (§6.4)",
+      );
+      await page.goto(href(locale, "/velo/[id]", { id: "demo" }));
+      await page.waitForFunction(() => window.__va?.bike.ready === true, undefined, {
+        timeout: 30_000,
+      });
+    });
+
+    test(`one finger on the canvas never rotates the bike (${locale}) @webgl`, async ({ page }) => {
+      await expect(page.getByTestId("bike3d-canvas")).toHaveCSS("touch-action", "pan-y");
+
+      const cdp = await page.context().newCDPSession(page);
+      const from = await uncoveredCanvasPoint(page, 0.3);
+
+      const before = await projection(page);
+      expect(Object.keys(before).length).toBeGreaterThan(3);
+      await dragTouch(page, cdp, from, 160, 0);
+
+      expect(differs(before, await projection(page))).toBe(false);
+    });
+
+    test(`the rotate toggle hands the canvas the finger back (${locale}) @webgl`, async ({
+      page,
+    }) => {
+      const toggle = page.getByTestId("bike3d-rotate");
+      await expect(toggle).toBeVisible();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByTestId("bike3d-canvas")).toHaveCSS("touch-action", "none");
+
+      const cdp = await page.context().newCDPSession(page);
+      const from = await uncoveredCanvasPoint(page, 0.3);
+
+      const before = await projection(page);
+      await dragTouch(page, cdp, from, 160, 0);
+
+      expect(differs(before, await projection(page))).toBe(true);
+    });
+
+    test(`a vertical swipe on the sheet scrolls the sheet, and only the sheet (${locale}) @webgl`, async ({
+      page,
+    }) => {
+      const sheet = page.locator("[data-testid=parts-sheet]");
+      await page.locator("[data-testid=parts-sheet] [data-slot=mobile-sheet-handle]").focus();
+      await page.keyboard.press("End");
+      await expect(sheet).toHaveAttribute("data-snap", "2");
+      await page.waitForTimeout(400);
+
+      const scroller = sheet.locator("[data-slot=mobile-sheet-content]");
+      const box = (await scroller.boundingBox())!;
+      const viewport = page.viewportSize()!;
+      // The sheet is taller than what is on screen: the gesture has to start inside
+      // the viewport or CDP refuses it ("Position out of bounds").
+      const point = {
+        x: Math.round(box.x + box.width / 2),
+        y: Math.round(Math.min(box.y + box.height / 2, viewport.height - 40)),
+      };
+
+      const cdp = await page.context().newCDPSession(page);
+      // The same one-finger drag the rest of this file uses. NOT
+      // `Input.synthesizeScrollGesture`: it scrolls on macOS and is inert in the
+      // Linux Chromium CI runs, where its synthetic touch stream arrives as
+      // pointer events with no `touchmove`, so no scroll gesture is recognised and
+      // `scrollTop` stays 0 (`.debug/005`; it failed exactly that way on CI).
+      await dragTouch(page, cdp, point, 0, -200);
+
+      // §6.4: the sheet is the ONLY scroll container on the page.
+      expect(await scroller.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+      // Deliberately not asserted here: that the projection is byte-identical
+      // afterwards. Whether a finger can turn the bike is settled by the first test
+      // in this file, on the canvas itself; over the sheet the viewer is free to
+      // refit when the layout around it changes, and pinning the projection made
+      // this test fail two runs in three for a reason that is not a regression.
+    });
   });
-});
-
-test("one finger on the canvas never rotates the bike @webgl", async ({ page }) => {
-  await expect(page.getByTestId("bike3d-canvas")).toHaveCSS("touch-action", "pan-y");
-
-  const cdp = await page.context().newCDPSession(page);
-  const from = await uncoveredCanvasPoint(page, 0.3);
-
-  const before = await projection(page);
-  expect(Object.keys(before).length).toBeGreaterThan(3);
-  await dragTouch(page, cdp, from, 160, 0);
-
-  expect(differs(before, await projection(page))).toBe(false);
-});
-
-test("the Pivoter toggle hands the canvas the finger back @webgl", async ({ page }) => {
-  const toggle = page.getByTestId("bike3d-rotate");
-  await expect(toggle).toBeVisible();
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("bike3d-canvas")).toHaveCSS("touch-action", "none");
-
-  const cdp = await page.context().newCDPSession(page);
-  const from = await uncoveredCanvasPoint(page, 0.3);
-
-  const before = await projection(page);
-  await dragTouch(page, cdp, from, 160, 0);
-
-  expect(differs(before, await projection(page))).toBe(true);
-});
-
-test("a vertical swipe on the sheet scrolls the sheet, and only the sheet @webgl", async ({
-  page,
-}) => {
-  const sheet = page.locator("[data-testid=parts-sheet]");
-  await page.locator("[data-testid=parts-sheet] [data-slot=mobile-sheet-handle]").focus();
-  await page.keyboard.press("End");
-  await expect(sheet).toHaveAttribute("data-snap", "2");
-  await page.waitForTimeout(400);
-
-  const scroller = sheet.locator("[data-slot=mobile-sheet-content]");
-  const box = (await scroller.boundingBox())!;
-  const viewport = page.viewportSize()!;
-  // The sheet is taller than what is on screen: the gesture has to start inside
-  // the viewport or CDP refuses it ("Position out of bounds").
-  const point = {
-    x: Math.round(box.x + box.width / 2),
-    y: Math.round(Math.min(box.y + box.height / 2, viewport.height - 40)),
-  };
-
-  const cdp = await page.context().newCDPSession(page);
-  // The same one-finger drag the rest of this file uses. NOT
-  // `Input.synthesizeScrollGesture`: it scrolls on macOS and is inert in the
-  // Linux Chromium CI runs, where its synthetic touch stream arrives as
-  // pointer events with no `touchmove`, so no scroll gesture is recognised and
-  // `scrollTop` stays 0 (`.debug/005`; it failed exactly that way on CI).
-  await dragTouch(page, cdp, point, 0, -200);
-
-  // §6.4: the sheet is the ONLY scroll container on the page.
-  expect(await scroller.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
-
-  // Deliberately not asserted here: that the projection is byte-identical
-  // afterwards. Whether a finger can turn the bike is settled by the first test
-  // in this file, on the canvas itself; over the sheet the viewer is free to
-  // refit when the layout around it changes, and pinning the projection made
-  // this test fail two runs in three for a reason that is not a regression.
 });
