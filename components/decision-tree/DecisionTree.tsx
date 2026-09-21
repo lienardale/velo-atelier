@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -13,8 +12,10 @@ import { Link } from "@/lib/i18n/navigation";
 import { DefaultCallout } from "./DefaultCallout";
 import { HelpDisclosure } from "./HelpDisclosure";
 import { OptionGrid } from "./OptionGrid";
+import { RouterSearch } from "./RouterSearch";
 import type { LoadLocalBike } from "./Summary";
 import { useDecisionText } from "./decision-text";
+import { notifyLocationSearchChanged, useLocationSearch } from "./location-search";
 import type { TreeIllustrations } from "./tree-illustrations";
 import {
   applyAnswer,
@@ -23,7 +24,6 @@ import {
   previousQuestion,
   resolveScreen,
   serializeTreeSearch,
-  treeQuery,
   type TreeState,
 } from "./tree-state";
 
@@ -71,24 +71,37 @@ export interface DecisionTreeProps {
  * The home page's decision tree (§6.3): one question per screen, the URL as
  * the state.
  *
- * **URL.** Read through `useSearchParams` (this component therefore sits in a
- * `<Suspense>` boundary, which keeps `/[locale]` static) and parsed by
- * `tree-state.ts`. Answering writes with `history.pushState` (moving forward)
- * or `history.replaceState` (editing an earlier answer) — the App Router has no
- * shallow routing, and native history calls cost zero RSC requests. Next keeps
- * `useSearchParams` in sync with those calls; the `popstate` listener covers the
- * browser's back and forward buttons, and a router navigation to the home page
- * with another query (the header logo) is picked up during render.
+ * **URL.** Read from `window.location.search` through `useLocationSearch()`,
+ * never with `useSearchParams()` during render, and parsed by `tree-state.ts`.
+ * That is what lets this whole tree be prerendered into the home document and
+ * hydrated once: a `useSearchParams()` read during render puts the tree under a
+ * `<Suspense>` boundary on a static route, and React throws the prerendered
+ * fallback's DOM away and BUILDS the subtree on the client instead of hydrating
+ * it — a second long task, and the 7 % the home page was over its TBT budget by
+ * (`.debug/011`).
+ *
+ * The server has no query string, so the prerendered HTML and the first client
+ * render are both the landing screen; React re-reads the URL once hydration is
+ * done, which changes nothing on `/fr` itself and costs one render on a deep
+ * link. Answering writes with `history.pushState` (moving forward) or
+ * `history.replaceState` (editing an earlier answer) — the App Router has no
+ * shallow routing, and native history calls cost zero RSC requests — and says
+ * so with `notifyLocationSearchChanged()`, because neither call fires an event.
+ * `popstate` covers the browser's back and forward buttons, and `RouterSearch`
+ * — the one remaining `useSearchParams` consumer, which renders nothing —
+ * covers a router navigation that changes the query without leaving the route
+ * (the header logo).
  *
  * **Focus.** Every screen change moves focus to the screen's heading and
  * updates `document.title`, so a screen-reader user hears the new question and
  * a keyboard user continues from the top of it.
  *
  * **Headings.** Before any answer, the page's `<h1>` is the site's promise
- * (`DecisionTreeHero`, rendered by `DecisionTreeFrame` ABOVE this boundary so
- * the LCP element is never re-created — `.debug/007`) and the first question is
- * an `<h2>` under it; from the first answer on, the question itself is the
- * `<h1>` and the frame drops the heading on `onIntroChange(false)`.
+ * (`DecisionTreeHero`, rendered by the SERVER and handed to
+ * `DecisionTreeFrame` as a node, so the LCP element is never re-created by
+ * anything this component does — `.debug/007`) and the first question is an
+ * `<h2>` under it; from the first answer on, the question itself is the `<h1>`
+ * and the frame drops the heading on `onIntroChange(false)`.
  */
 export function DecisionTree({
   illustrations,
@@ -99,22 +112,40 @@ export function DecisionTree({
   const tree = useTranslations("decision-tree");
   const t = useDecisionText();
 
-  const routerSearch = useSearchParams().toString();
-  const [search, setSearch] = useState(routerSearch);
-  const [seenRouterSearch, setSeenRouterSearch] = useState(routerSearch);
-  if (routerSearch !== seenRouterSearch) {
-    // A router navigation changed the query under us (not our own history
-    // write, which already set `search`): adopt it. Adjusting state during
-    // render, as React recommends, instead of an effect that would paint the
-    // stale screen first.
-    setSeenRouterSearch(routerSearch);
-    if (treeQuery(routerSearch) !== treeQuery(search)) setSearch(routerSearch);
-  }
+  // `""` on the server and through hydration, the real query once React has
+  // re-read it: this component is prerendered into the document, so the first
+  // client render has to be the landing screen. See `location-search.ts`.
+  const search = useLocationSearch();
 
+  /**
+   * Set when the VISITOR asked for another screen — answering, the back
+   * button, a router navigation — and read by the focus effect below.
+   *
+   * It exists because the URL is adopted after hydration rather than during
+   * render, so "the screen key changed" can no longer tell a deep link's
+   * arrival apart from a move the visitor made. Without this, a deep-linked
+   * page would steal the focus as it loaded, which is the one thing that effect
+   * has always promised not to do.
+   */
+  const askedForScreen = useRef(false);
+
+  /**
+   * Back and forward. The re-read itself is `useLocationSearch`'s own
+   * subscription; this listener only records that the visitor asked for it, and
+   * so never calls `setState` from an effect.
+   */
   useEffect(() => {
-    const onPopState = () => setSearch(window.location.search);
+    const onPopState = () => {
+      askedForScreen.current = true;
+    };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  /** A router navigation changed the query without leaving the route. */
+  const onRouterNavigation = useCallback(() => {
+    askedForScreen.current = true;
+    notifyLocationSearchChanged();
   }, []);
 
   const state = useMemo(() => parseTreeSearch(search), [search]);
@@ -161,11 +192,12 @@ export function DecisionTree({
     wantedTitle.current = title;
     if (document.title !== title) document.title = title;
 
-    const firstScreen = shownScreen.current === null;
     const changed = shownScreen.current !== screenKey;
     shownScreen.current = screenKey;
-    // Never steal focus on page load: only a screen change moves it.
-    if (!firstScreen && changed) {
+    // Never steal focus on page load — not on the first screen, and not when a
+    // deep link corrects it one render later: only a move the visitor made.
+    if (changed && askedForScreen.current) {
+      askedForScreen.current = false;
       if (headingElement.current === null) focusPending.current = true;
       else headingElement.current.focus();
     }
@@ -177,7 +209,9 @@ export function DecisionTree({
     const depth = historyDepth();
     if (mode === "push") window.history.pushState({ [HISTORY_DEPTH_KEY]: depth + 1 }, "", url);
     else window.history.replaceState({ [HISTORY_DEPTH_KEY]: depth }, "", url);
-    setSearch(query);
+    askedForScreen.current = true;
+    // A history write fires no event: say so, or nothing re-reads the URL.
+    notifyLocationSearchChanged();
   }, []);
 
   const answer = (node: DecisionNode, option: string, guessed: boolean, editing: boolean) => {
@@ -195,6 +229,24 @@ export function DecisionTree({
 
   const edit = (question: QuestionId) => writeUrl({ ...state, step: question }, "push");
 
+  /**
+   * `data-hydrated` on the section, once React has taken this subtree over.
+   *
+   * The tree is in the prerendered document now, so it is on screen — readable,
+   * and with its buttons drawn — before any JavaScript has run, and a click in
+   * that window does nothing. Nothing in the markup said so, and
+   * `tests/e2e/decision-tree.spec.ts`'s `waitForTree()` used to get that
+   * guarantee for free, because the tree did not exist until it was hydrated.
+   * This is that guarantee, said out loud.
+   *
+   * A ref callback rather than an effect, for the reason `Disclosure` gives:
+   * it runs on the commit that mounted the node, and it does not schedule a
+   * second render just to move one attribute.
+   */
+  const markHydrated = useCallback((node: HTMLElement | null) => {
+    node?.setAttribute("data-hydrated", "true");
+  }, []);
+
   // The landing heading lives above this boundary (see `DecisionTreeFrame`);
   // report which screen we are on so it can step aside for the question's `<h1>`.
   useEffect(() => {
@@ -203,11 +255,21 @@ export function DecisionTree({
 
   return (
     <section
+      ref={markHydrated}
       aria-labelledby={headingId}
       data-testid="decision-tree"
       data-screen={screenKey}
       className="flex w-full flex-col gap-6"
     >
+      {/*
+       * Renders nothing, and is the only `useSearchParams` consumer left here.
+       * Its boundary's fallback is empty, so the client render React does
+       * instead of hydrating it builds no DOM — see `RouterSearch`.
+       */}
+      <Suspense fallback={null}>
+        <RouterSearch onNavigate={onRouterNavigation} />
+      </Suspense>
+
       {screen.kind === "summary" ? (
         <Suspense fallback={<p className="text-ink-muted">{common("loading")}</p>}>
           <Summary

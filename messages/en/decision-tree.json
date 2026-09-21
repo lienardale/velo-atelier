@@ -26,8 +26,7 @@
     }
   },
   "tree": {
-    "label": "Questions about your bike",
-    "loading": "Loading the questions…"
+    "label": "Questions about your bike"
   },
   "progress": {
     "label": "Question {step} of {total}"

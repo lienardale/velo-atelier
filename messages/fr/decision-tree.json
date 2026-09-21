@@ -26,8 +26,7 @@
     }
   },
   "tree": {
-    "label": "Questions sur votre vélo",
-    "loading": "Chargement des questions…"
+    "label": "Questions sur votre vélo"
   },
   "progress": {
     "label": "Question {step} sur {total}"

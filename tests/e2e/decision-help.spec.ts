@@ -46,6 +46,10 @@ forEachLocale((locale) => {
   }) => {
     await page.goto(href(locale, "/"));
     await expect(page.getByTestId("question-step")).toBeVisible();
+    // The tree is in the prerendered document since `.debug/011`, so being
+    // visible no longer means it is listening: wait for the ref callback that
+    // says React has taken it over, or the first Continue goes nowhere.
+    await expect(page.getByTestId("decision-tree")).toHaveAttribute("data-hydrated", "true");
 
     // Open the help on the first question with the keyboard.
     const firstHelp = page.getByTestId("decision-help");

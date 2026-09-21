@@ -199,22 +199,6 @@ but it makes a real error indistinguishable from an expected one in production
 logs. Fix by moving to `{ emit: "event", level: "error" }` and dropping P2025
 from the known conditional-update call sites — not by reintroducing a read.
 
-### Home's extra long task: the tree's client render after the Suspense fallback
-
-`/[locale]` measures ~320 ms TBT on CI against a 300 ms gate. It is NOT payload:
-controls showed trimming message flight moved 14 ms of 760, and removing all 54
-drawings a further 2 ms, while the guide page has a near-identical document and
-433 ms of react-dom against home's 796 ms (`.debug/008`). Under throttling home
-has two long tasks where the guide has one, and a control that renders the page
-without `DecisionTreeFrame` drops to the guide's level: the extra task is the
-decision tree rendering on the client after React discards the `<Suspense>`
-fallback it prerendered.
-
-_To pick up_ (W4-T2): let the tree read the query in an effect so it is
-server-rendered and hydrated once. It sits on `.debug/007`'s LCP fix, on
-`DecisionTreeSkeleton.test.tsx` and on the repo-wide `useSearchParams`-in-Suspense
-rule, so it needs its own e2e pass and a `.debug/007` amendment.
-
 ### `/velo` and `/compte` still ship all 13 message namespaces
 
 `lib/i18n/client-namespaces.ts` narrows what reaches the client per route, but
