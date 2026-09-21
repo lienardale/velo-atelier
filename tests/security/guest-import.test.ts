@@ -19,7 +19,8 @@
  *      `userId`; a payload naming a guest id another user already imported
  *      creates this caller's own row and leaves the other one untouched
  *      (`expectScopedToUser`).
- *   4. **The caps hold** (§4.4): 10 bikes, 80 parts, 20 checkups, 10 lists and
+ *   4. **The caps hold** (§4.4): 10 bikes, 80 parts, 20 checkups, 10 lists,
+ *      250 items per checkup, 50 lines per list (`QUOTAS.itemsPerList`) and
  *      256 KB, each refused with nothing written.
  *   5. **Idempotent.** The same guest bike twice is one row; the second answer
  *      is `skipped: 'already-imported'` and not a single write (§6.8 AC8).
@@ -266,6 +267,45 @@ describe("the caps §4.4 names", () => {
     expectNoWrites();
   });
 
+  it("refuses a checkup with more items than the corpus has steps, and a list over 50 lines", async () => {
+    const item = CHECKUP.items[0];
+    const line = LIST.items[0];
+    const payloads = [
+      tampered({
+        checkups: [
+          {
+            ...CHECKUP,
+            items: Array.from({ length: GUEST_CAPS.itemsPerCheckup + 1 }, (_, index) => ({
+              ...item,
+              stepKey: `check-drivetrain#step-${index}`,
+            })),
+          },
+        ],
+      }),
+      tampered({
+        lists: [
+          {
+            ...LIST,
+            items: Array.from({ length: GUEST_CAPS.itemsPerList + 1 }, (_, index) => ({
+              ...line,
+              sortOrder: index,
+            })),
+          },
+        ],
+      }),
+    ];
+    for (const payload of payloads) {
+      expect(await importGuestStateAction(payload)).toEqual({ ok: false, code: "VALIDATION" });
+    }
+    expectNoWrites();
+  });
+
+  it("keeps the list cap at the account's own quota, so an import cannot bring more", async () => {
+    const { QUOTAS } = await import("@/lib/bike/rules");
+    expect(GUEST_CAPS.itemsPerList).toBe(QUOTAS.itemsPerList);
+    expect(GUEST_CAPS.itemsPerCheckup).toBe(250);
+  });
+
   it("refuses a payload over 256 KB before it parses a field of it", async () => {
     const huge = tampered({ name: "x".repeat(MAX_GUEST_PAYLOAD_BYTES) });
     expect(await importGuestStateAction(huge)).toEqual({ ok: false, code: "TOO_MANY" });
@@ -423,14 +463,18 @@ describe("the rate limit", () => {
 });
 
 describe("the visitor's clock", () => {
-  it("cannot store a checkup that happens in 2087", async () => {
+  it("cannot store a checkup — or a bike — that happens in 2087", async () => {
     const future = {
       ...CHECKUP,
       startedAt: "2087-01-01T00:00:00.000Z",
       completedAt: "2087-01-02T00:00:00.000Z",
     };
     const before = Date.now();
-    const result = await importGuestStateAction(state(bike({ checkups: [future] })));
+    // The bike's own `updatedAt` is in the future too: with the fixture's
+    // 2026-09-14 the assertion on it below could not fail, clamp or no clamp.
+    const result = await importGuestStateAction(
+      state(bike({ checkups: [future], updatedAt: "2087-01-03T00:00:00.000Z" })),
+    );
     expect(result.ok).toBe(true);
 
     const [checkup] = fakeDb.rows("Checkup") as { startedAt: Date; completedAt: Date }[];
@@ -439,6 +483,7 @@ describe("the visitor's clock", () => {
     expect(checkup.completedAt.getTime()).toBeLessThanOrEqual(Date.now());
 
     const [row] = fakeDb.rows("Bike") as { updatedAt: Date }[];
+    expect(row.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
     expect(row.updatedAt.getTime()).toBeLessThanOrEqual(Date.now());
   });
 });

@@ -52,7 +52,8 @@ import {
 vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModule());
 
 const { signUpAction } = await import("@/app/[locale]/(auth)/inscription/actions");
-const { changePasswordAction } = await import("@/app/[locale]/(protected)/compte/actions");
+const { changePasswordAction, setPasswordAction } =
+  await import("@/app/[locale]/(protected)/compte/actions");
 const { IDLE } = await import("@/lib/actions/result");
 
 const EMAIL = "camille.demo@velo-atelier.test";
@@ -165,6 +166,51 @@ describe("changePasswordAction — the same policy on the way in", () => {
       code: "VALIDATION",
       fieldErrors: { next: "errors.samePassword" },
     });
+  });
+});
+
+/**
+ * A Google-only account adding its FIRST password (`setPasswordAction`) goes
+ * through the same policy: the re-auth gate (`set-password-reauth.test.ts`) says
+ * WHO may set one, this says WHICH one. Until W4 no test posted a weak password
+ * through this action, so dropping its `checkPasswordPolicy` call would have
+ * shipped green.
+ */
+describe("setPasswordAction — a first password is held to the same policy", () => {
+  beforeEach(async () => {
+    const user = await fakeDb.seed("User", {
+      email: EMAIL,
+      locale: "fr",
+      passwordHash: null,
+      sessionVersion: 0,
+    });
+    // A Google sign-in inside the re-auth window: the gate itself would let it through.
+    setSession(
+      sessionFor({
+        id: String(user.id),
+        email: EMAIL,
+        locale: "fr",
+        authProvider: "google",
+        authAt: Date.now() - 30_000,
+      }),
+    );
+    fakeDb.resetCalls();
+  });
+
+  it.each(REFUSALS)(
+    "refuses a first password that is %s and writes nothing",
+    async (_label, password) => {
+      const result = await setPasswordAction(IDLE, form({ next: password }));
+
+      expect(result).toMatchObject({ ok: false, code: "VALIDATION" });
+      expect(result.ok === false && result.fieldErrors?.next).toMatch(/^auth\.password\./);
+      expect(fakeDb.rows("User")[0]).toMatchObject({ passwordHash: null, sessionVersion: 0 });
+    },
+  );
+
+  it("accepts one that breaks no rule", async () => {
+    expect(await setPasswordAction(IDLE, form({ next: STRONG }))).toEqual({ ok: true, data: true });
+    expect(fakeDb.rows("User")[0]?.passwordHash).toEqual(expect.stringMatching(/^\$2b\$/));
   });
 });
 
