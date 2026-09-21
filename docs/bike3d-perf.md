@@ -54,8 +54,15 @@ job summary. §7.3's ladder, identical on PRs and at night:
 
 - **≤ 150 %** of the baseline: ok;
 - **> 150 %**: warning in the summary — look, but nothing is red;
-- **> 300 %**: the job fails. SwiftShader is noisy; three times slower is not
-  noise.
+- **> 300 %**: the job fails. SwiftShader is noisy, but for the frame cost,
+  long frames and build time three times slower is not noise: over the first
+  three five-repetition nightlies their worst sample was 154 % of its preset's
+  median. **Tap latency is the exception**: one sample in 70 crossed 300 % in
+  each of those nightlies (134, 186 and — as a median of five taps — 114 ms
+  against medians of 36–58 ms), two of the three on the first preset measured.
+  Until more nightlies say otherwise (serialising the `perf` and `perf-mobile`
+  workers is the open lever), re-run a PR whose only FAIL is `tapLatencyMs`
+  before reading it as a regression: a real one fails every run.
 
 `longFrames` is a count, laddered on `(run + 1) / (baseline + 1)`: with a zero
 baseline a plain ratio is infinite at the first long frame, and one SwiftShader

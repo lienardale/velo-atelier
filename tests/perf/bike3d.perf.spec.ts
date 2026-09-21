@@ -293,11 +293,15 @@ async function measurePreset(page: Page, isMobile: boolean): Promise<PresetSampl
 
 /**
  * Taps per preset; `tapLatencyMs` is their median. A single tap is one sample,
- * and in both five-repetition CI nightlies of W4 (perf.yml 35600024232 and
- * 35606491888) one desktop tap in 35 landed above 300 % of its own preset's
- * median — 134 ms vs 41.8, 186.1 ms vs 58 — the ladder's FAIL line, which a
- * PR's single repetition (seven desktop taps) would then cross in about one
- * run in five. §3.4 takes the median of three orbits for the same reason.
+ * and in both one-tap CI nightlies of W4 (perf.yml 35600024232, 35606491888)
+ * one desktop tap in 35 landed above 300 % of its own preset's median — 134 ms
+ * vs 41.8, 186.1 ms vs 58 — the ladder's FAIL line. A median drops a lone slow
+ * tap, the way §3.4 takes the median of three orbits; it does NOT drop a stall
+ * that spans several taps. The first five-tap nightly (35631845330) brought
+ * desktop's worst sample down to 232 %, yet one mobile sample still reached
+ * 317 % (road-rim-2x11, the first preset measured, three of its five taps
+ * slow). Tap latency is the one soft metric that crosses 300 % on noise; see
+ * docs/bike3d-perf.md before reading a tap-latency FAIL as a regression.
  */
 const TAPS = 5;
 
