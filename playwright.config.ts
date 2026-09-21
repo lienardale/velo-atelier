@@ -134,20 +134,43 @@ const e2eProjects: Project[] = [
   },
 ];
 
+/**
+ * `RUN_LOCAL_PERF=1` (`npm run perf:local`, docs/bike3d-perf.md): the perf
+ * projects render on the machine's GPU instead of SwiftShader, and the soft
+ * tier becomes the 16.7 ms gate. Verified on an M2 with Playwright 1.63.0
+ * (2026-09-21): headless Chromium reports "ANGLE Metal Renderer: Apple M2" with
+ * `--ignore-gpu-blocklist --enable-gpu`, and falls back to SwiftShader without
+ * them — so no headed window is needed. `PERF_HEADED=1` opens one anyway, for
+ * a machine whose headless mode has no GPU; the spec refuses to pass on
+ * SwiftShader, so a wrong setup fails loudly instead of measuring the CPU.
+ */
+const LOCAL_GPU = process.env.RUN_LOCAL_PERF === "1";
+const perfGL = LOCAL_GPU ? ["--ignore-gpu-blocklist", "--enable-gpu"] : chromiumGL;
+const perfHeadless = !(LOCAL_GPU && process.env.PERF_HEADED === "1");
+
 const perfProjects: Project[] = [
   {
     name: "perf",
     testDir: "tests/perf",
     workers: 1,
     retries: 0,
-    use: { ...devices["Desktop Chrome"], launchOptions: { args: chromiumGL } },
+    use: {
+      ...devices["Desktop Chrome"],
+      headless: perfHeadless,
+      launchOptions: { args: perfGL },
+    },
   },
   {
     name: "perf-mobile",
     testDir: "tests/perf",
     workers: 1,
     retries: 0,
-    use: { ...devices["Pixel 7"], hasTouch: true, launchOptions: { args: chromiumGL } },
+    use: {
+      ...devices["Pixel 7"],
+      hasTouch: true,
+      headless: perfHeadless,
+      launchOptions: { args: perfGL },
+    },
   },
 ];
 
