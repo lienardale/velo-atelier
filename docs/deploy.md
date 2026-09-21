@@ -27,7 +27,7 @@ not contradict.
 | `package.json`            | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                              |
 | `next.config.ts`          | security headers and a static Content-Security-Policy on every route                                                                                                                |
 | `GET /api/health`         | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                      |
-| `prisma/seed.ts`          | refuses `VERCEL_ENV=production` and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`): **Neon is never seeded**                                                   |
+| `prisma/seed.ts`          | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**        |
 | `.vercelignore`           | keeps `.debug/`, `.claude/`, `docs/` and `tests/` out of the upload                                                                                                                 |
 
 **The three test flags have no runtime guard.** `lib/env.ts` declares that
@@ -48,7 +48,8 @@ button out of production ([`backlog.md`](./backlog.md), W5 section).
 | 1.3  | Branches → New branch, from `main`               | `preview`, **shared** by every Vercel preview deployment (one branch per PR is post-MVP, [`backlog.md`](./backlog.md))                                         |
 | 1.4  | Connection details, for each of the two branches | two strings: the **pooled** one (its host carries `-pooler`) becomes `POSTGRES_URL`, the **direct** one becomes `POSTGRES_URL_NON_POOLING`; copy them as shown |
 
-Nothing to enable by hand: migration `0001` runs
+Nothing to enable by hand: the init migration
+(`prisma/migrations/20260911071112_init`) runs
 `CREATE EXTENSION IF NOT EXISTS citext` itself (`User.email` is `citext`).
 
 **Check.**
@@ -57,8 +58,8 @@ Nothing to enable by hand: migration `0001` runs
   `POSTGRES_URL=postgresql://u:p@ep-x-pooler.eu-central-1.aws.neon.tech/db POSTGRES_URL_NON_POOLING=postgresql://u:p@ep-x.eu-central-1.aws.neon.tech/db npm run db:seed`
   exits 1 before opening a connection, and so does setting only one of the two
   (`tests/security/seed-guard.test.ts` holds the same cases).
-- After the first production deploy (step 2.1): its build log shows migration
-  `0001` and every later one applied.
+- After the first production deploy (step 2.1): its build log shows
+  `20260911071112_init` and every later migration applied.
 
 ## 2. Vercel — who: the maintainer (Vercel account)
 

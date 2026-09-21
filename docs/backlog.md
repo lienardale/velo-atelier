@@ -69,9 +69,11 @@ before, or expect this line on every first attempt of a rate-limit window.
 FR check, and its EN template has only been confirmed by an automated fetch.
 W5-T2's launch gate requires a `verifiedAt` for every FR entry.
 
-_Why W5_: the shops refuse automated requests, and a link counts as verified
-only when a human has opened it in a real browser — never CI, never an agent
-(plan §2.5).
+_Why W5_: a link counts as verified only when a human has opened it in a real
+browser — never CI, never an agent (the plan's retailer decision, restated as a
+W4 ruling). The plan also expects Alltricks and Decathlon to block bots, and
+Decathlon did answer an automated fetch with HTTP 403 (the verification log in
+[`retailers.md`](./retailers.md)).
 
 _To pick up_: the maintainer runs the checklist in [`retailers.md`](./retailers.md)
 and records the dates; the ones given at the end of W4 are applied at the W4
@@ -102,8 +104,8 @@ belongs in the same change.
 The sign-up form answers "this address is already registered", which tells
 anyone whether an address has an account. Accepted for the MVP and written down
 in the header of `app/[locale]/(auth)/inscription/actions.ts` and in
-`SECURITY.md`; the mitigation is the per-address bucket
-(`RATE_LIMITS.signupPerIp`, 5 attempts an hour in `lib/security/rate-limit.ts`).
+`SECURITY.md`; the mitigation is the per-IP bucket (`signup:<ip>`,
+`RATE_LIMITS.signupPerIp`: 5 attempts an hour, `lib/security/rate-limit.ts`).
 The login form has no such leak.
 
 _Why deferred_: the alternative — always answer success, and e-mail the owner
@@ -142,8 +144,9 @@ _(W5-T2 opens an issue)_
 `next.config.ts` ships a **static** CSP with `script-src 'self' 'unsafe-inline'`.
 A nonce-based policy requires generating the nonce in `proxy.ts` and reading it
 per request, which forces every route to be dynamic — that would cost the static
-rendering of `/`, `/guides/[slug]` and `/velo/demo`, which the Lighthouse
-budgets depend on.
+rendering of `/fr`, `/en` and every `/[locale]/guides/[slug]` page, which the
+Lighthouse budgets depend on (`/velo/[id]`, `/velo/demo` included, is dynamic by
+design already).
 
 _To pick up_: revisit when Next ships a way to inject a per-request nonce into
 otherwise-static routes, and measure the LCP cost before committing.
@@ -162,9 +165,10 @@ store, and a row in the database the app already has works everywhere,
 
 _To pick up_: a reason the table no longer fits — attempt volume that makes one
 write per attempt a cost, or a limit needed on a path where a database round
-trip is too slow. `RateLimiter` is already an interface that `lib/auth/authorize.ts`
-and the server actions take as a dependency, so a second implementation slots in
-behind it.
+trip is too slow. `RateLimiter` is already the interface: `lib/auth/authorize.ts`
+takes one as a dependency (wired in `auth.ts`), and the sign-up, account and
+import actions each build theirs with `createPrismaRateLimiter(prisma)` — so a
+second implementation slots in behind it with one call site per file.
 
 ### Content and search
 
@@ -172,7 +176,8 @@ behind it.
 
 _(W5-T2 opens an issue)_
 
-`/guides` filters client-side over titles and `partIds`. A real index (build-time
+`/guides` filters client-side by kind, system and the visitor's bike
+(`lib/content/filter.ts`); there is no text search. A real index (build-time
 JSON + a scoring function, or an external service) adds moving parts and timing
 flakiness for no MVP requirement.
 
@@ -328,8 +333,8 @@ non-blocking in CI, so nothing is red — but there is no local signal either.
 
 ## In flight in W4
 
-Left exactly as they were written; the owning task's disposition replaces each
-one at the W4 integration.
+Left as they were written (only the W4-T2 heading's namespace count went from 13
+to 16); the owning task's disposition replaces each one at the W4 integration.
 
 ### W4-T1 — coverage, security and integration completion
 

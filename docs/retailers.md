@@ -7,10 +7,11 @@ every link is checked **by a human in a real browser**, and the date of that
 check is recorded as `verifiedAt` in `lib/domain/data/retailers.ts`. No CI job
 and no agent ever opens these URLs: an automated check never sets `verifiedAt`.
 
-While a retailer's `verifiedAt` is `null`, the vendor buttons on the build list
-and on `/acheter` carry a small note naming it: "lien non vérifié récemment" /
-"link not checked recently" (`components/build-list/VendorButtons.tsx`,
-`shop.outbound.unverified`).
+While a retailer's `verifiedAt` is `null`, the vendor buttons
+(`components/build-list/VendorButtons.tsx`: on every build-list item, and under
+the part questions on `/acheter`) carry a small note naming it: "lien non
+vérifié récemment" / "link not checked recently" (`shop.outbound.unverified`).
+The category cards and the free-text search on `/acheter` show no such note.
 
 ## Where things live
 
