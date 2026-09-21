@@ -5,7 +5,8 @@
  *     bike: { ready, selectedPartId, pickedPartIds, partIds, screenPositionOf(id),
  *             focus(id), hittable(pose), materialOf(id), loseContext(),
  *             restoreContext(), mountCount, quality, setQuality },
- *     perf: { snapshot(), runOrbit(ms), renderFrames(n), buildMs, contextCreations },
+ *     perf: { snapshot(), runOrbit(ms), renderFrames(n), frameCost(n), renderer, buildMs,
+ *             contextCreations },
  *   }
  *
  * BUILD-TIME GATED. Only `components/bike3d/perf/PerfProbe.tsx` imports this
@@ -67,6 +68,17 @@ export interface VaPerfHooks {
   runOrbit(ms: number): Promise<number[]>;
   /** Render `n` frames (demand frameloop) and resolve after the last one. */
   renderFrames(n: number): Promise<void>;
+  /**
+   * Orbit `n` steps and return what each frame COST, in ms: `gl.render` plus a
+   * one-pixel `readPixels`, which returns only once the GPU has finished the
+   * frame. `runOrbit`'s rAF intervals cannot answer "does a frame fit in
+   * 16.7 ms": on a real GPU they are pinned to the display's refresh (measured
+   * on an M2: p95 16.8–18.8 ms on an EMPTY page), so the local GPU gate reads
+   * this instead (docs/bike3d-perf.md).
+   */
+  frameCost(n: number): Promise<number[]>;
+  /** The WebGL renderer string (unmasked when exposed): tells a GPU from SwiftShader. */
+  readonly renderer: string | null;
   readonly buildMs: number | null;
   readonly contextCreations: number;
 }

@@ -54,32 +54,52 @@ export const CLIENT_NAMESPACES = {
   "app/[locale]/guides/[slug]/page.tsx": ["common", "guides", "illustrations", "parts"],
 
   /**
-   * Everything, and the test says why: `components/auth/form-parts.tsx` reads
-   * the catalogue with no namespace — a server action returns a message KEY
-   * (§4.3) and `translateMessageKey` resolves it, so the key that arrives
-   * decides which namespace is read, at runtime. Until those keys are pinned to
-   * a namespace the way `useDecisionText` pins the tree's, the honest
-   * declaration for these routes is the whole catalogue.
+   * Sign-in and sign-up: the forms' own strings (`auth`) and the message KEYS
+   * their server actions return (`errors.*`, `auth.password.*`), which
+   * `components/auth/form-parts.tsx` resolves inside exactly those two
+   * namespaces (`translateScopedKey`) instead of with a root translator.
    */
-  "app/[locale]/(auth)/connexion/page.tsx": NAMESPACES,
-  "app/[locale]/(auth)/inscription/page.tsx": NAMESPACES,
+  "app/[locale]/(auth)/connexion/page.tsx": ["auth", "errors"],
+  "app/[locale]/(auth)/inscription/page.tsx": ["auth", "errors"],
 
   /**
-   * `/compte` and `/mes-velos`. Same reason, through `form-parts.tsx` and
-   * `components/account/BikeCard.tsx` (`tRoot(…)` over `parts.*` keys the part
-   * catalogue carries).
+   * `/compte`, `/mes-velos` and `/import`, which share this layout's provider:
+   * the account forms (`account`, `auth`, `common`, `errors` — through
+   * `form-parts.tsx`), the garage's `BikeCard` (`bike`, with its rename and
+   * delete errors resolved by `useBikeActionText`) and the guest import
+   * (`account`, `errors`).
    */
-  "app/[locale]/(protected)/layout.tsx": NAMESPACES,
+  "app/[locale]/(protected)/layout.tsx": ["account", "auth", "bike", "common", "errors"],
 
   /**
-   * The workspace and its sub-routes, including their shared `error.tsx`. Same
-   * reason again: `PartInfo`, `PartEditForm`, `MeasureCard` and
-   * `MeasurementForm` translate `parts.*` keys that the part definitions carry.
+   * The workspace family — `/velo/[id]`, its part deep link and `/reglages` —
+   * plus the segment's `error.tsx`, all under the layout's provider. The panel
+   * resolves the part catalogue's keys through `usePartsText` (`parts.attr.*`)
+   * and a write's answer through `useBikeActionText` (`bike.errors.*`,
+   * `errors.*`); nothing here reads the checkup's, the list's or the shop's
+   * namespaces, so those stay off the page the site's Lighthouse gate measures.
    */
-  "app/[locale]/velo/[id]/layout.tsx": NAMESPACES,
+  "app/[locale]/velo/[id]/layout.tsx": ["bike", "bike3d", "common", "errors", "parts"],
 
-  "app/[locale]/dev/bike3d/page.tsx": NAMESPACES,
-  "app/[locale]/dev/bike3d-perf/page.tsx": NAMESPACES,
+  /**
+   * The checkup mounts its own provider: the wizard reads its chrome
+   * (`checkup`), the tools checklist (`tools`), the reasons (`guides`) and part
+   * names (`parts`) — none of which the rest of the segment needs.
+   */
+  "app/[locale]/velo/[id]/controle/page.tsx": ["checkup", "guides", "parts", "tools"],
+
+  /**
+   * The build list mounts its own provider, and it is still the whole
+   * catalogue: `components/build-list/{BuildList,BuildItemCard}.tsx` translate
+   * `guides.reasons.*` and `rules.*` keys with a root translator. Once they read
+   * them through scoped translators the way the panel does, the test names the
+   * exact set to write here.
+   */
+  "app/[locale]/velo/[id]/liste/page.tsx": NAMESPACES,
+
+  /** The dev harness: the viewer (`bike3d`) and the part names it lists (`parts`). */
+  "app/[locale]/dev/bike3d/page.tsx": ["bike3d", "parts"],
+  "app/[locale]/dev/bike3d-perf/page.tsx": ["bike3d", "parts"],
 } as const satisfies Record<string, readonly Namespace[]>;
 
 /** A route key of {@link CLIENT_NAMESPACES}. */

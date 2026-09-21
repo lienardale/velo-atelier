@@ -30,6 +30,11 @@ const GL_FLAGS = [
 ];
 
 const BASE_URL = process.env.LHCI_BASE_URL || "http://localhost:3100";
+// The server lhci starts listens where the audited URLs point: `LHCI_BASE_URL`
+// moves both (a worktree audits its own build on its own port). The build must
+// have been made with the same origin in NEXT_PUBLIC_SITE_URL, or the SEO
+// category fails on canonical/hreflang (.debug/004 §10).
+const PORT = new URL(BASE_URL).port || "80";
 
 /**
  * Every URL the plan audits, each with the route file that must exist first.
@@ -171,7 +176,7 @@ module.exports = {
       url: URLS,
       // The production server, not `next dev`: dev builds are unminified and
       // their numbers mean nothing.
-      startServerCommand: "npm run start -- -p 3100",
+      startServerCommand: `npm run start -- -p ${PORT}`,
       startServerReadyPattern: "Ready in|started server on|Local:",
       startServerReadyTimeout: 60000,
       numberOfRuns: Number(process.env.LHCI_NUMBER_OF_RUNS || 3),

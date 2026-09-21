@@ -227,11 +227,25 @@ function ViewerShell({
   const canvasReady = mount3d && ready;
 
   let notice = "";
+  // The loading notice is ANNOUNCED, never painted. It appears seconds after
+  // the first paint — when the 3D chunk starts mounting — so a visible line
+  // becomes the page's LCP element whenever its text outgrows the `<h1>`, and
+  // the LCP moves to whenever the 3D happened to start. "Loading the 3D view…"
+  // and "Demo bike" measure 2489 and 2589 px² on macOS — 4 % apart — and on
+  // CI (perf.yml run 35600024232, five runs each) /en/bike/demo's LCP was
+  // 4520 ms against 2302 ms for /fr/velo/demo, the same page with a
+  // 5675 px² `<h1>`. A bike named "VTT" would do the same in any locale. While
+  // it loads, the silhouette above is the whole, working viewer; the fallback
+  // notices stay visible because they explain a state that lasts.
+  let transient = false;
   if (caps && !webgl) notice = t("noWebgl");
   else if (contextLost)
     notice = contextLossCount >= MAX_CONTEXT_LOSSES ? t("contextLostFinal") : t("contextLost");
   else if (sceneError) notice = t("error");
-  else if (mount3d && !ready) notice = t("loading");
+  else if (mount3d && !ready) {
+    notice = t("loading");
+    transient = true;
+  }
 
   const state3d = !caps
     ? "pending"
@@ -335,7 +349,7 @@ function ViewerShell({
           <p
             role="status"
             aria-live="polite"
-            className="text-ink-muted text-sm"
+            className={cn("text-ink-muted text-sm", transient && "sr-only")}
             data-testid="bike3d-notice"
           >
             {notice}

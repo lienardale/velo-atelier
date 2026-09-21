@@ -262,6 +262,36 @@ export default function PerfProbe({ plan }: { plan: ScenePlan }): null {
           });
           return intervals;
         },
+        async frameCost(n) {
+          const costs: number[] = [];
+          const pixel = new Uint8Array(4);
+          for (let i = 0; i < n; i++) {
+            const b = scene3d();
+            if (!b) break;
+            void (b.controls as Controls | null)?.rotate(0.03, 0, false);
+            syncWorld(b);
+            const context = b.gl.getContext();
+            const started = performance.now();
+            b.gl.render(b.scene, b.camera);
+            // Blocks until the GPU has executed the frame: the cost is the
+            // frame's, not the time it took to queue it.
+            context.readPixels(0, 0, 1, 1, context.RGBA, context.UNSIGNED_BYTE, pixel);
+            costs.push(performance.now() - started);
+            // One real frame between samples, so each starts from a composited canvas.
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          }
+          getBridge()?.invalidate();
+          return costs;
+        },
+        get renderer() {
+          const b = scene3d();
+          if (!b) return null;
+          const context = b.gl.getContext();
+          const debug = context.getExtension("WEBGL_debug_renderer_info");
+          return String(
+            context.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : context.RENDERER),
+          );
+        },
         get buildMs() {
           return api.getState().buildMs;
         },

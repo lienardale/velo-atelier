@@ -34,7 +34,12 @@ next-env.d.ts
 /test-results/
 /blob-report/
 /.lighthouseci/
-/.perf/
+# Perf run files are CI output — except the local GPU run (RUN_LOCAL_PERF=1),
+# which is committed and linked from the PR template (docs/bike3d-perf.md).
+# The directory's CONTENTS are ignored, not the directory, or the exception
+# could never apply.
+/.perf/*
+!/.perf/local-*.json
 
 # env — .env.example and .env.test ARE committed
 .env
