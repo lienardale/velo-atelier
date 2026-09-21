@@ -126,6 +126,9 @@ function parseDefault(args: string, enumValues: ReadonlySet<string>): ScalarDefa
   if (/^-?\d+(\.\d+)?$/.test(value)) return { kind: "value", value: Number(value) };
   if (/^".*"$/.test(value)) return { kind: "value", value: value.slice(1, -1) };
   if (enumValues.has(value)) return { kind: "value", value };
+  // A scalar list's `@default([])` (`CheckupItem.reasonKeys`). Postgres fills
+  // the column with an empty array; `insert` clones it per row.
+  if (value === "[]") return { kind: "value", value: [] };
   throw new FakePrismaUnsupportedError(`@default(${value}) in prisma/schema.prisma`);
 }
 
@@ -546,6 +549,9 @@ export function createFakeDb(schemaSource = readFileSync(SCHEMA_PATH, "utf8")): 
     if (value === undefined) return undefined;
     if (field.type === "DateTime" && typeof value === "string") return new Date(value);
     if (field.type === "Json") return value === null ? null : clone(value);
+    // A scalar list is a copy in Postgres too: the caller's array must not
+    // alias the stored row.
+    if (field.list && Array.isArray(value)) return clone(value);
     return value;
   }
 
@@ -634,7 +640,7 @@ export function createFakeDb(schemaSource = readFileSync(SCHEMA_PATH, "utf8")): 
       else if (field.default?.kind === "uuid") row[field.name] = randomUUID();
       else if (field.default?.kind === "now") row[field.name] = now;
       else if (field.default?.kind === "autoincrement") row[field.name] = ++sequence;
-      else if (field.default?.kind === "value") row[field.name] = field.default.value;
+      else if (field.default?.kind === "value") row[field.name] = clone(field.default.value);
       else if (field.optional || field.list) row[field.name] = field.list ? [] : null;
       else {
         throw new Error(

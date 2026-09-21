@@ -253,8 +253,14 @@ model CheckupItem {
   partId    String @db.VarChar(64)
   guideSlug String @db.VarChar(160)
 
-  result CheckupResult @default(SKIPPED)
-  notes  String?       @db.VarChar(2000)
+  result     CheckupResult @default(SKIPPED)
+  notes      String?       @db.VarChar(2000)
+  /// The symptoms ticked on a KO: `reasonKey`s of the step's own `ko[]`,
+  /// validated against the generated reason enum and re-checked against the
+  /// re-planned step on the way in. Without them a reloaded in-progress
+  /// checkup gets its KO back but not WHICH problem, and falls back to every
+  /// consequence of the step (§5.4).
+  reasonKeys String[]      @default([]) @db.VarChar(80)
 
   updatedAt DateTime @updatedAt
 
@@ -303,8 +309,11 @@ model BuildListItem {
   /// `{ brand, model, size, vendor: RetailerId | 'other', url: https }`
   chosenProduct Json?
 
-  done      Boolean @default(false)
-  sortOrder Int     @default(0)
+  done       Boolean @default(false)
+  /// Why `done` is true: `manual` (the visitor ticked it) or `recheck-ok` (a
+  /// later checkup answered OK on the line, §5.4 / §6.7). `null` while open.
+  doneReason String? @db.VarChar(16)
+  sortOrder  Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
