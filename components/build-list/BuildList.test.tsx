@@ -251,3 +251,66 @@ describe("a saved bike's list", () => {
     expect(await screen.findByTestId("build-list-save-failed")).toHaveAttribute("role", "alert");
   });
 });
+
+/**
+ * The brand tier reaches the list (§6.5): the page hands each part's tiers
+ * down, the card asks the tier, and the chosen tier's first brand goes into the
+ * vendors' search — the same rule `/acheter` applies.
+ */
+describe("the brand tier on the list", () => {
+  const CHAIN_TIERS = {
+    entry: ["KMC Z", "Shimano HG40"],
+    mid: ["Shimano HG601"],
+    high: ["YBN"],
+  };
+
+  function renderWithTiers(items: readonly BuildListItem[]) {
+    seed(items);
+    return renderWithIntl(
+      <BuildList
+        bikeRef={{ kind: "demo" }}
+        bikeParam="demo"
+        build={gravel}
+        locale="fr"
+        initialItems={null}
+        buildListId={null}
+        brandsByPart={{ chain: CHAIN_TIERS }}
+      />,
+    );
+  }
+
+  it("asks the tier on the part the page has brands for, and only there", async () => {
+    await renderWithTiers([item(), pads]);
+    const chain = screen
+      .getAllByTestId("build-item")
+      .find((card) => card.getAttribute("data-part-id") === "chain")!;
+    const brakePads = screen
+      .getAllByTestId("build-item")
+      .find((card) => card.getAttribute("data-part-id") === "brake-pads-rear")!;
+    expect(chain.querySelector('[data-question="brand-tier"]')).not.toBeNull();
+    expect(brakePads.querySelector('[data-question="brand-tier"]')).toBeNull();
+  });
+
+  it("puts the chosen tier's first brand in the search, and keeps it on the line", async () => {
+    const { user } = await renderWithTiers([item({ refinement: { "brand-tier": "entry" } })]);
+    const card = screen.getByTestId("build-item");
+    const tier = card.querySelector('[data-question="brand-tier"]') as HTMLSelectElement;
+    expect(tier).toHaveValue("entry");
+    const rose = within(card).getByRole("link", { name: /Rose Bikes/ });
+    expect(decodeURIComponent(rose.getAttribute("href") ?? "")).toContain("KMC Z");
+
+    await user.selectOptions(tier, "high");
+    expect(
+      decodeURIComponent(
+        within(screen.getByTestId("build-item"))
+          .getByRole("link", { name: /Rose Bikes/ })
+          .getAttribute("href") ?? "",
+      ),
+    ).toContain("YBN");
+    expect(
+      JSON.parse(window.localStorage.getItem(buildListKey("demo")) ?? "{}").items[0].refinement,
+    ).toEqual({
+      "brand-tier": "high",
+    });
+  });
+});

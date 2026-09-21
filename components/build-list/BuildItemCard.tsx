@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,12 @@ import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
 import { buildQuery } from "@/lib/shop/query";
-import { refinementAnswers, refinementIssues } from "@/lib/shop/questions";
+import {
+  brandFromRefinement,
+  refinementAnswers,
+  refinementIssues,
+  type BrandTier,
+} from "@/lib/shop/questions";
 import { cn } from "@/lib/utils";
 
 import { RefinementForm } from "./RefinementForm";
@@ -47,6 +52,10 @@ export interface BuildItemCardProps {
   build: BikeBuild | null;
   locale: Locale;
   bikeParam: string;
+  /** This part's brands per tier (`content/brands.yaml`, read by the page); `null` when none. */
+  brandTiers?: Readonly<Record<BrandTier, readonly string[]>> | null;
+  /** Server-rendered "Comment mesurer" drawings, keyed by attribute. */
+  drawings?: Readonly<Record<string, ReactNode>>;
   onChange: (item: BuildListItem) => void;
   className?: string;
 }
@@ -56,6 +65,8 @@ export function BuildItemCard({
   build,
   locale,
   bikeParam,
+  brandTiers = null,
+  drawings,
   onChange,
   className,
 }: BuildItemCardProps): React.JSX.Element {
@@ -73,7 +84,10 @@ export function BuildItemCard({
     () => (build === null ? [] : refinementIssues(build, item.partId, refinement)),
     [build, item.partId, refinement],
   );
-  const query = buildQuery(item.partId, answers, locale);
+  // The chosen tier's first brand goes into the search, exactly as on `/acheter`.
+  const query = buildQuery(item.partId, answers, locale, {
+    brand: brandFromRefinement(refinement, brandTiers),
+  });
 
   return (
     <Card
@@ -140,6 +154,8 @@ export function BuildItemCard({
             refinement={refinement}
             locale={locale}
             itemId={item.id}
+            brandTiers={brandTiers}
+            drawings={drawings}
             onChange={(next) => onChange({ ...item, refinement: next })}
           />
         )}

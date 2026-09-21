@@ -3,14 +3,19 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { BuildList } from "@/components/build-list/BuildList";
+import { renderMeasureDrawings } from "@/components/build-list/measure-drawings";
 import { Button } from "@/components/ui/button";
 import { firstValue } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
 import type { BuildListItem } from "@/lib/checkup/types";
+import { partDefinition } from "@/lib/domain/data/parts";
+import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
 import { routing } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
+import type { BrandTier } from "@/lib/shop/questions";
+import { brandsFor } from "@/lib/shop/retailers";
 
 interface BuildListPageProps {
   params: Promise<{ locale: string; id: string }>;
@@ -45,6 +50,20 @@ export async function generateMetadata({ params }: BuildListPageProps): Promise<
  *   db            three queries — the bike and its in-progress checkup
  *                 (`loadBikeForRequest`, which is also the ownership check),
  *                 then its open list (`./load`).
+ *
+ * ## The brand tiers come from here
+ *
+ * `content/brands.yaml` is read by `lib/shop/retailers.ts` on the server; the
+ * form is a client component (a guest's list lives in `localStorage`), so the
+ * tiers of THIS bike's parts are handed down as props — the ~25-part file
+ * never reaches the browser, and the build list's bundle never carries it.
+ * This route is dynamic, so the read happens per request: the file is in the
+ * route's traced output (`page.js.nft.json`), which is what makes that safe on
+ * a deployment (W4-T1 report).
+ *
+ * The "Comment mesurer" drawings travel the same way, rendered here
+ * (`renderMeasureDrawings`), for the attributes this bike's parts can be asked
+ * about: the illustration barrel is server-only (CLAUDE.md).
  *
  * ## `?spec=`
  *
@@ -119,8 +138,32 @@ export default async function BuildListPage({
           locale={resolvedLocale}
           initialItems={initialItems}
           buildListId={buildListId}
+          brandsByPart={brandTiersOf(bike.build)}
+          drawings={renderMeasureDrawings(askedAttributes(bike.build))}
         />
       )}
     </div>
+  );
+}
+
+/** Brands per tier for the parts of this build that `content/brands.yaml` covers. */
+function brandTiersOf(
+  build: BikeBuild,
+): Record<string, Readonly<Record<BrandTier, readonly string[]>>> {
+  const tiers: Record<string, Readonly<Record<BrandTier, readonly string[]>>> = {};
+  for (const part of build.parts) {
+    const brands = brandsFor(part.partId);
+    if (brands !== null) tiers[part.partId] = brands.tiers;
+  }
+  return tiers;
+}
+
+/** Every attribute a refinement form on this bike could ask about. */
+function askedAttributes(build: BikeBuild): string[] {
+  return build.parts.flatMap(
+    (part) =>
+      partDefinition(part.partId)
+        ?.attributes.filter((attribute) => attribute.editable)
+        .map((attribute) => attribute.key) ?? [],
   );
 }

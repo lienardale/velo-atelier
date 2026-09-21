@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "next-intl";
 import * as z from "zod/mini";
 
@@ -15,6 +22,7 @@ import { translateMessageKey } from "@/lib/actions/result";
 import { buildListKey, type GuestBikeRef } from "@/lib/bike/storage-keys";
 import type { BikeRef } from "@/lib/bike/resolve-bike-ref";
 import type { BuildAction, BuildListItem } from "@/lib/checkup/types";
+import type { BrandTier } from "@/lib/shop/questions";
 import { isPartId } from "@/lib/domain/data/parts";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
@@ -249,6 +257,13 @@ export interface BuildListProps {
   initialItems: readonly BuildListItem[] | null;
   /** The `BuildList` row, for "Retirer ce qui est fait". `null` for a guest list. */
   buildListId: string | null;
+  /**
+   * Brands per tier for the parts of this bike that `content/brands.yaml`
+   * covers — read on the server, since the file never reaches the browser.
+   */
+  brandsByPart?: Readonly<Record<string, Readonly<Record<BrandTier, readonly string[]>>>>;
+  /** Server-rendered "Comment mesurer" drawings, keyed by attribute (`renderMeasureDrawings`). */
+  drawings?: Readonly<Record<string, ReactNode>>;
   className?: string;
 }
 
@@ -259,6 +274,8 @@ export function BuildList({
   locale,
   initialItems,
   buildListId,
+  brandsByPart = {},
+  drawings,
   className,
 }: BuildListProps): React.JSX.Element {
   const t = useTranslations("shop");
@@ -447,6 +464,10 @@ export function BuildList({
                     build={build}
                     locale={locale}
                     bikeParam={bikeParam}
+                    brandTiers={
+                      Object.hasOwn(brandsByPart, item.partId) ? brandsByPart[item.partId] : null
+                    }
+                    drawings={drawings}
                     onChange={(next) => void save(next)}
                   />
                 </li>
