@@ -15,9 +15,9 @@ content/
 ## Commands
 
 ```bash
-npm run content:new -- replace-bar-tape    # scaffold both locales as a stub
-npm run content:check                      # structural rules (default mode)
-npx tsx scripts/content-check.ts --strict  # + corpus rules (CI from W2)
+npm run content:new -- replace-chainring   # scaffold both locales as a stub (a slug that does not exist yet)
+npx tsx scripts/content-check.ts           # structural rules only (default mode)
+npm run content:check                      # --strict: + the corpus rules, as CI runs it
 npm run content:build                      # compile MDX + regenerate lib/content/generated/*
 ```
 

@@ -176,11 +176,12 @@ npm run content:new -- replace-chainring --part chainring
 
 ## Visual baselines and performance
 
-- Screenshot baselines are pixel comparisons made in CI's amd64 Linux image.
-  They are regenerated on CI — the `perf.yml` workflow run with
-  `update_snapshots=true` opens a PR labelled `visual-baseline` — or in that
-  same image locally (`npm run e2e:update-snapshots`), never from a laptop's own
-  browser.
+- Screenshot baselines are pixel comparisons made in CI's amd64 Linux image,
+  and committed baselines are recorded only by CI: the `perf.yml` workflow run
+  with `update_snapshots=true` opens a PR labelled `visual-baseline`. Locally,
+  `npm run e2e:docker -- --grep @snapshot` compares against them in the same
+  image; `npm run e2e:update-snapshots` records into your working tree for a look
+  only — never commit those, and never a PNG made by a laptop's own browser.
 - A PR touching `tests/e2e/__screenshots__/**` must carry the
   **`visual-baseline`** label — a human saying they looked at every image. The
   `visual-baseline-guard` check fails without it.

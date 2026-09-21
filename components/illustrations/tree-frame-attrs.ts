@@ -13,7 +13,7 @@ import { ILLUSTRATIONS, type IllustrationId } from "@/lib/domain";
  *     elements, so the home page's RSC payload carries no shapes at all
  *     (`.debug/007`).
  *
- * The two must agree exactly — `tree-frame-attrs.test.tsx` renders
+ * The two must agree exactly — `tree-geometry.test.tsx` renders
  * `TreeIllustrationFrame` and compares its `<svg>` against this object, so a
  * change to one that is not made to the other fails the suite.
  *

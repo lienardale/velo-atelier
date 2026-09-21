@@ -31,8 +31,8 @@ npm run ci:local
 ## Labels this PR may need
 
 - [ ] **`visual-baseline`** — this PR touches `tests/e2e/__screenshots__/**`.
-      I regenerated the baselines on CI or in the amd64 container
-      (`npm run e2e:update-snapshots`), and I looked at every image.
+      The baselines come from CI's `update-snapshots` job (`perf.yml`,
+      `update_snapshots=true`), never from a local run, and I looked at every image.
       _The `visual-baseline-guard` check fails without this label._
 - [ ] **`perf-verified`** — **required** when this PR touches `lib/bike3d/**` or
       `components/bike3d/**`: the label goes on only after this box is true.

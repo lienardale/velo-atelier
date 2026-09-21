@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Guard on Playwright screenshot baselines.
 #
-# Baselines are byte-comparisons produced on amd64 Linux. A baseline updated
+# Baselines are pixel comparisons (Playwright's toHaveScreenshot, threshold
+# 0.3) recorded on amd64 Linux by CI. A baseline updated
 # from a laptop, or updated to make a real regression go away, is invisible in a
 # diff — it just looks like "a screenshot changed". So a PR that touches
 # `tests/e2e/__screenshots__/**` must carry the `visual-baseline` label, which

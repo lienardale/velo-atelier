@@ -36,6 +36,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -415,7 +416,11 @@ describe("the analysis itself", () => {
       '"use client";\nimport { useTranslations } from "next-intl";\n' +
         'export function Scoped() {\n  const t = useTranslations("parts");\n  return t("x");\n}\n',
     );
-    expect([...requirementsOf(scoped)]).toEqual(["parts"]);
+    try {
+      expect([...requirementsOf(scoped)]).toEqual(["parts"]);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   it("refuses to guess at an import it cannot resolve", () => {
@@ -428,6 +433,10 @@ describe("the analysis itself", () => {
     const scratch = mkdtempSync(join(tmpdir(), "va-namespaces-"));
     const entry = join(scratch, "entry.tsx");
     writeFileSync(entry, 'import { gone } from "./nowhere";\nexport default gone;\n');
-    expect(() => clientModulesFrom(entry)).toThrow(/resolves to nothing/);
+    try {
+      expect(() => clientModulesFrom(entry)).toThrow(/resolves to nothing/);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 });

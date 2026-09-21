@@ -1,4 +1,4 @@
-# 005 — the home page's Lighthouse regression: a re-created LCP element and 139 kB of shapes
+# 007 — the home page's Lighthouse regression: a re-created LCP element and 139 kB of shapes
 
 **Date** 2026-09-17 · **Status** resolved · **Branch** `fix/w2-home-perf`
 
