@@ -337,14 +337,16 @@ jobs:
           - no-webgl
           - mobile-webkit
         include:
-          # Linux WebKit is not iOS Safari — it validates layout, touch and the
-          # no-WebGL fallback, and it is allowed to fail without blocking.
+          # The one leg allowed to fail without blocking: see continue-on-error.
           - project: mobile-webkit
             optional: true
-    # mobile-webkit only (`optional` above). Why it stays non-blocking even
-    # green: Linux WebKit is not the iOS Safari the plan's phones run — no real
-    # WebGL, a different compositor and input stack — so a WebKit-only failure
-    # is a finding to read, not a merge veto (§7.2). Its one deterministic
+    # mobile-webkit only (`optional` above). It runs every spec but @snapshot and
+    # @perf: layout, taps, and the 3D viewer, whose WebGL renders here without a
+    # GPU (its @webgl specs run and pass). The no-WebGL fallback is the no-webgl
+    # leg's, and the CDP touch gestures are Chromium-only. Why it stays
+    # non-blocking even green: Linux WebKit is not the iOS Safari the plan's
+    # phones run (another WebGL, compositor and input stack), so a WebKit-only
+    # failure is a finding to read, not a merge veto (§7.2). Its one deterministic
     # failure was the test's own `mouse.wheel`, which mobile WebKit refuses
     # (.debug/015); a failure here is still read, never shrugged off.
     continue-on-error: ${{ matrix.optional == true }}
