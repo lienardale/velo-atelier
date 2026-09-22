@@ -3,15 +3,21 @@ import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { BuildList } from "@/components/build-list/BuildList";
+import { renderMeasureDrawings } from "@/components/build-list/measure-drawings";
+import { ClientMessages } from "@/components/i18n/ClientMessages";
 import { Button } from "@/components/ui/button";
 import { firstValue } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
-import type { BuildAction, BuildListItem, ChosenProduct } from "@/lib/checkup/types";
-import { isPartId, type PartId } from "@/lib/domain/data/parts";
+import type { BuildListItem } from "@/lib/checkup/types";
+import { partDefinition } from "@/lib/domain/data/parts";
+import type { BikeBuild } from "@/lib/domain/schema/part";
+import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { Link } from "@/lib/i18n/navigation";
-import { routing } from "@/lib/i18n/routing";
+import { routing, type Locale } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
+import type { BrandTier } from "@/lib/shop/questions";
+import { brandsFor } from "@/lib/shop/retailers";
 
 interface BuildListPageProps {
   params: Promise<{ locale: string; id: string }>;
@@ -31,66 +37,6 @@ export async function generateMetadata({ params }: BuildListPageProps): Promise<
   });
 }
 
-/** The Prisma enum, as the checkup contract spells it (`KoAction`, §1.2). */
-const ACTION_OF: Readonly<Record<string, BuildAction>> = {
-  REPLACE: "replace",
-  FIX: "fix",
-  CLEAN: "clean",
-  ADJUST: "adjust",
-  INSPECT_SHOP: "inspect-shop",
-};
-
-interface BuildListRow {
-  id: string;
-  partId: string;
-  action: string;
-  reasonKey: string;
-  guideSlug: string | null;
-  refinement: unknown;
-  chosenProduct: unknown;
-  done: boolean;
-  sortOrder: number;
-  checkupItem: { stepKey: string } | null;
-}
-
-/** A `Json` column is a shape we WROTE, not a shape we can assume on read. */
-function asRefinement(value: unknown): Readonly<Record<string, string>> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const entries = Object.entries(value).filter(
-    ([key, entry]) => typeof entry === "string" && key.length <= 64 && entry.length <= 64,
-  );
-  return entries.length === 0 ? undefined : (Object.fromEntries(entries) as Record<string, string>);
-}
-
-function asChosenProduct(value: unknown): ChosenProduct | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const record = value as Record<string, unknown>;
-  const fields = ["brand", "model", "size", "vendor", "url"] as const;
-  /* eslint-disable security/detect-object-injection -- `field` iterates the literal tuple above */
-  if (!fields.every((field) => typeof record[field] === "string")) return undefined;
-  return Object.fromEntries(fields.map((f) => [f, record[f]])) as unknown as ChosenProduct;
-  /* eslint-enable security/detect-object-injection */
-}
-
-function toItem(row: BuildListRow): BuildListItem | null {
-  const action = Object.hasOwn(ACTION_OF, row.action) ? ACTION_OF[row.action] : undefined;
-  if (action === undefined || !isPartId(row.partId)) return null;
-  const stepKey = row.checkupItem?.stepKey ?? row.id;
-  return {
-    id: row.id,
-    stepKey,
-    sourceKeys: [stepKey],
-    partId: row.partId as PartId,
-    action,
-    reasonKey: row.reasonKey,
-    ...(row.guideSlug === null ? {} : { guideSlug: row.guideSlug }),
-    done: row.done,
-    ...(row.refinement === null ? {} : { refinement: asRefinement(row.refinement) }),
-    ...(row.chosenProduct === null ? {} : { chosenProduct: asChosenProduct(row.chosenProduct) }),
-    sortOrder: row.sortOrder,
-  };
-}
-
 /**
  * `/velo/[id]/liste` · `/bike/[id]/build-list` — the to-fix list (§5.5, §6.5).
  *
@@ -103,8 +49,23 @@ function toItem(row: BuildListRow): BuildListItem | null {
  *   demo / local  `localStorage` (`va:buildlist:<ref>`). The server cannot read
  *                 it, so it hands `<BuildList>` `initialItems: null` and the
  *                 component reads storage after hydration.
- *   db            two queries — the bike (`loadBikeForRequest`, which is also
- *                 the ownership check) and its open list.
+ *   db            three queries — the bike and its in-progress checkup
+ *                 (`loadBikeForRequest`, which is also the ownership check),
+ *                 then its open list (`./load`).
+ *
+ * ## The brand tiers come from here
+ *
+ * `content/brands.yaml` is read by `lib/shop/retailers.ts` on the server; the
+ * form is a client component (a guest's list lives in `localStorage`), so the
+ * tiers of THIS bike's parts are handed down as props — the ~25-part file
+ * never reaches the browser, and the build list's bundle never carries it.
+ * This route is dynamic, so the read happens per request: the file is in the
+ * route's traced output (`page.js.nft.json`), which is what makes that safe on
+ * a deployment (`.debug/013` §5).
+ *
+ * The "Comment mesurer" drawings travel the same way, rendered here
+ * (`renderMeasureDrawings`), for the attributes this bike's parts can be asked
+ * about: the illustration barrel is server-only (CLAUDE.md).
  *
  * ## `?spec=`
  *
@@ -131,78 +92,87 @@ export default async function BuildListPage({
   let initialItems: BuildListItem[] | null = null;
   let buildListId: string | null = null;
   if (ref.kind === "db" && bike.bikeId !== null) {
-    const [{ prisma }, { currentUser }] = await Promise.all([
-      import("@/lib/db/prisma"),
+    // Dynamic, like the checkup page's: `server-only` and the Prisma client
+    // stay out of the module graph of the `demo` and `local` branches.
+    const [{ loadBuildList }, { currentUser }] = await Promise.all([
+      import("./load"),
       import("@/lib/actions/with-user"),
     ]);
     const user = await currentUser();
-    const list =
-      user === null
-        ? null
-        : await prisma.buildList.findFirst({
-            // The owner is in the `where` as well as in `loadBikeForRequest`:
-            // one predicate per query, never "the previous one covered it".
-            where: { bikeId: bike.bikeId, bike: { userId: user.id }, status: "OPEN" },
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              items: {
-                orderBy: { sortOrder: "asc" },
-                select: {
-                  id: true,
-                  partId: true,
-                  action: true,
-                  reasonKey: true,
-                  guideSlug: true,
-                  refinement: true,
-                  chosenProduct: true,
-                  done: true,
-                  sortOrder: true,
-                  checkupItem: { select: { stepKey: true } },
-                },
-              },
-            },
-          });
-    buildListId = list?.id ?? null;
-    initialItems = (list?.items ?? [])
-      .map((row) => toItem(row as BuildListRow))
-      .filter((item): item is BuildListItem => item !== null);
+    if (user !== null) {
+      const loaded = await loadBuildList(bike.bikeId, user.id);
+      buildListId = loaded.buildListId;
+      initialItems = loaded.items;
+    } else {
+      initialItems = [];
+    }
   }
 
+  // Its own provider: the list reads catalogues (`shop`, `rules`, `guides`) the
+  // rest of the segment never needs (lib/i18n/client-namespaces.ts).
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-display text-ink text-2xl font-semibold">{t("list.title")}</h1>
-        <p className="text-ink-muted">{t("list.intro")}</p>
-        <Link
-          href={{ pathname: "/velo/[id]", params: { id: bike.param } }}
-          className="text-accent mt-2 flex min-h-[var(--tap-min)] items-center self-start underline"
-          data-testid="build-list-back-to-bike"
-          data-print="hide"
-        >
-          {t("list.openBike")}
-        </Link>
-      </header>
+    <ClientMessages
+      locale={resolvedLocale as Locale}
+      namespaces={CLIENT_NAMESPACES["app/[locale]/velo/[id]/liste/page.tsx"]}
+    >
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-1">
+          <h1 className="font-display text-ink text-2xl font-semibold">{t("list.title")}</h1>
+          <p className="text-ink-muted">{t("list.intro")}</p>
+          <Link
+            href={{ pathname: "/velo/[id]", params: { id: bike.param } }}
+            className="text-accent mt-2 flex min-h-[var(--tap-min)] items-center self-start underline"
+            data-testid="build-list-back-to-bike"
+            data-print="hide"
+          >
+            {t("list.openBike")}
+          </Link>
+        </header>
 
-      {bike.build === null ? (
-        <section className="flex flex-col items-start gap-4" data-testid="build-list-needs-bike">
-          <p className="text-ink-muted">{t("list.needsBike")}</p>
-          <Button asChild className="min-h-[var(--tap-min)]">
-            <Link href={{ pathname: "/velo/[id]", params: { id: bike.param } }}>
-              {t("list.openBike")}
-            </Link>
-          </Button>
-        </section>
-      ) : (
-        <BuildList
-          bikeRef={ref}
-          bikeParam={bike.param}
-          build={bike.build}
-          locale={resolvedLocale}
-          initialItems={initialItems}
-          buildListId={buildListId}
-        />
-      )}
-    </div>
+        {bike.build === null ? (
+          <section className="flex flex-col items-start gap-4" data-testid="build-list-needs-bike">
+            <p className="text-ink-muted">{t("list.needsBike")}</p>
+            <Button asChild className="min-h-[var(--tap-min)]">
+              <Link href={{ pathname: "/velo/[id]", params: { id: bike.param } }}>
+                {t("list.openBike")}
+              </Link>
+            </Button>
+          </section>
+        ) : (
+          <BuildList
+            bikeRef={ref}
+            bikeParam={bike.param}
+            build={bike.build}
+            locale={resolvedLocale}
+            initialItems={initialItems}
+            buildListId={buildListId}
+            brandsByPart={brandTiersOf(bike.build)}
+            drawings={renderMeasureDrawings(askedAttributes(bike.build))}
+          />
+        )}
+      </div>
+    </ClientMessages>
+  );
+}
+
+/** Brands per tier for the parts of this build that `content/brands.yaml` covers. */
+function brandTiersOf(
+  build: BikeBuild,
+): Record<string, Readonly<Record<BrandTier, readonly string[]>>> {
+  const tiers: Record<string, Readonly<Record<BrandTier, readonly string[]>>> = {};
+  for (const part of build.parts) {
+    const brands = brandsFor(part.partId);
+    if (brands !== null) tiers[part.partId] = brands.tiers;
+  }
+  return tiers;
+}
+
+/** Every attribute a refinement form on this bike could ask about. */
+function askedAttributes(build: BikeBuild): string[] {
+  return build.parts.flatMap(
+    (part) =>
+      partDefinition(part.partId)
+        ?.attributes.filter((attribute) => attribute.editable)
+        .map((attribute) => attribute.key) ?? [],
   );
 }

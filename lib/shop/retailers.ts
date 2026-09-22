@@ -13,12 +13,15 @@
  * `readFileSync` at module scope means the value is computed when the module is
  * first evaluated. On a **prerendered** route that is the build, and the data
  * ends up inside the static HTML — which is why `/acheter` is a static page and
- * hands what a client component needs down as props. Next's file tracing does
- * not follow a computed `readFileSync` path, so a `content/*.yaml` read from a
- * route that runs per request would work locally and be a missing file in
- * production. Import this from a server component of a static route, or from a
- * script or a test; never from a `"use client"` module and never from a route
- * that reads a request API.
+ * hands what a client component needs down as props. On a route that runs per
+ * request — `/velo/[id]/liste` reads the brand tiers of the bike's parts since
+ * W4 — it is the first request of a fresh server, so the YAML has to be DEPLOYED
+ * with that route. It is, but only because the bundler says so: Next 16.3.4's
+ * Turbopack traces the computed `join(process.cwd(), "content", …)` as the whole
+ * `content/` directory into the route's `page.js.nft.json` (checked on the W4-T1
+ * build, `.debug/013`). That is a fact about the bundler, not about this code:
+ * re-check the route's `.nft.json` after a Next upgrade. Never import this from
+ * a `"use client"` module.
  *
  * The retailer TABLE (ids, templates, `verifiedAt`) is not here: it is TS data
  * in `lib/domain/data/retailers.ts`, and the client-safe accessors around it

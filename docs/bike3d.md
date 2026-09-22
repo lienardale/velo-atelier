@@ -142,7 +142,7 @@ close-ups exist so thin parts are provably clickable.
 
 ```bash
 npx vitest run --project unit --project bike3d
-ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build
+ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh
 npx playwright test --project=mobile-chromium tests/e2e/bike3d/select-by-click.spec.ts
 npx playwright test --project=perf --project=perf-mobile
 ```
@@ -174,4 +174,3 @@ never in a bike-route manifest.)
   the front wheel on the LEFT of the default drive-side view — the render is a
   mirror image of a real bike. Kept as specified; flipping it means negating Z in
   the solver and the silhouette together (follow-up).
-- Visual regression baselines (`@snapshot`) are W4-T3.

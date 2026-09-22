@@ -32,96 +32,118 @@ test.beforeEach(async ({ page, isMobile }) => {
 const sheet = "[data-testid=parts-sheet]";
 const handle = `${sheet} [data-slot=mobile-sheet-handle]`;
 
-test("the viewer leaves at least 40 svh to the sheet", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]", { id: "demo" }));
-  // The silhouette fills the reserved box, so its height IS the viewer's height
-  // whether or not the 3D canvas has mounted yet.
-  const box = await page.getByTestId("bike3d-svg").boundingBox();
-  const viewport = page.viewportSize()!;
+forEachLocale((locale) => {
+  const demo = href(locale, "/velo/[id]", { id: "demo" });
 
-  expect(box).not.toBeNull();
-  expect(box!.height).toBeLessThanOrEqual(viewport.height * 0.6 + 1);
-});
+  test(`the viewer leaves at least 40 svh to the sheet (${locale})`, async ({ page }) => {
+    await page.goto(demo);
+    // The silhouette fills the reserved box, so its height IS the viewer's height
+    // whether or not the 3D canvas has mounted yet.
+    const box = await page.getByTestId("bike3d-svg").boundingBox();
+    const viewport = page.viewportSize()!;
 
-test("the sheet reports where it is and moves when the handle is dragged", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]", { id: "demo" }));
-  await expect(page.locator(sheet)).toHaveAttribute("data-snap", "1");
-
-  const box = (await page.locator(handle).boundingBox())!;
-  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-
-  // Up 300 px: the sheet grows.
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(from.x, from.y - 300, { steps: 12 });
-  await page.mouse.up();
-  await expect(page.locator(sheet)).toHaveAttribute("data-snap", "2");
-
-  // Down 300 px from wherever the handle is now: it shrinks again. The sheet
-  // animates for `--sheet-duration`, so its box has to settle before it is read
-  // — a drag from a mid-animation position lands somewhere else entirely.
-  await page.waitForTimeout(400);
-  const after = (await page.locator(handle).boundingBox())!;
-  await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2 + 300, { steps: 12 });
-  await page.mouse.up();
-  await expect(page.locator(sheet)).not.toHaveAttribute("data-snap", "2");
-});
-
-test("the sheet is fully operable from the keyboard", async ({ page }) => {
-  await page.goto(href("fr", "/velo/[id]", { id: "demo" }));
-  const button = page.locator(handle);
-
-  await button.focus();
-  await expect(button).toHaveAttribute("aria-controls", "parts-sheet");
-
-  await page.keyboard.press("ArrowUp");
-  await expect(page.locator(sheet)).toHaveAttribute("data-snap", "2");
-  await expect(button).toHaveAttribute("aria-expanded", "true");
-
-  await page.keyboard.press("Home");
-  await expect(page.locator(sheet)).toHaveAttribute("data-snap", "0");
-  await expect(button).toHaveAttribute("aria-expanded", "false");
-});
-
-test("tapping a part on the canvas opens the sheet and marks its row @webgl", async ({
-  page,
-  browserName,
-}) => {
-  test.skip(browserName !== "chromium", "needs the SwiftShader canvas and window.__va");
-  await page.goto(href("fr", "/velo/[id]", { id: "demo" }));
-  await page.waitForFunction(() => window.__va?.bike.ready === true, undefined, {
-    timeout: 30_000,
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThanOrEqual(viewport.height * 0.6 + 1);
   });
 
-  // Collapse it first, so "opens the sheet" is something the tap has to do.
-  await page.locator(handle).focus();
-  await page.keyboard.press("Home");
-  await expect(page.locator(sheet)).toHaveAttribute("data-snap", "0");
+  test(`the sheet reports where it is and moves when the handle is dragged (${locale})`, async ({
+    page,
+  }) => {
+    await page.goto(demo);
+    await expect(page.locator(sheet)).toHaveAttribute("data-snap", "1");
 
-  const point = await page.evaluate(() => {
-    const bike = window.__va!.bike;
-    const here = bike.screenPositionOf("brake-caliper-front");
-    if (here) return here;
-    for (const pose of ["drive-side", "non-drive-side", "front", "rear"]) {
-      const found = bike.hittable(pose);
-      if (Object.hasOwn(found, "brake-caliper-front")) return bike.screenPositionOf(pose);
-    }
-    return null;
+    const box = (await page.locator(handle).boundingBox())!;
+    const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+    // Up 300 px: the sheet grows.
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x, from.y - 300, { steps: 12 });
+    await page.mouse.up();
+    await expect(page.locator(sheet)).toHaveAttribute("data-snap", "2");
+
+    // Down 300 px from wherever the handle is now: it shrinks again. The sheet
+    // animates for `--sheet-duration`, so its box has to settle before it is read
+    // — a drag from a mid-animation position lands somewhere else entirely. Wait
+    // for the transition itself to finish, not for a fixed time: a fixed 400 ms
+    // failed about one run in twelve on a loaded machine (W4 integration).
+    await expect
+      .poll(() =>
+        page
+          .locator(sheet)
+          .evaluate(
+            (node) =>
+              node.getAnimations().filter((animation) => animation.playState === "running").length,
+          ),
+      )
+      .toBe(0);
+    const after = (await page.locator(handle).boundingBox())!;
+    await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2 + 300, {
+      steps: 12,
+    });
+    await page.mouse.up();
+    await expect(page.locator(sheet)).not.toHaveAttribute("data-snap", "2");
   });
-  test.skip(point === null, "the front caliper is not reachable from any pose in this viewport");
-  await page.touchscreen.tap(point!.x, point!.y);
 
-  // `> div > button` is the caliper's OWN row: hosted parts (the pads) are
-  // nested inside its `<li>`, so an unscoped descendant selector matches both.
-  await expect(page.locator("[data-part-id=brake-caliper-front] > div > button")).toHaveAttribute(
-    "aria-current",
-    "true",
-  );
-  await expect(page.locator(sheet)).toHaveAttribute("data-snap", "1");
-  // The canvas never steals the tab: the row must still be on screen to scroll to.
-  await expect(page.getByTestId("parts-list")).toBeVisible();
+  test(`the sheet is fully operable from the keyboard (${locale})`, async ({ page }) => {
+    await page.goto(demo);
+    const button = page.locator(handle);
+
+    await button.focus();
+    await expect(button).toHaveAttribute("aria-controls", "parts-sheet");
+
+    await page.keyboard.press("ArrowUp");
+    await expect(page.locator(sheet)).toHaveAttribute("data-snap", "2");
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("Home");
+    await expect(page.locator(sheet)).toHaveAttribute("data-snap", "0");
+    await expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test(`tapping a part on the canvas opens the sheet and marks its row (${locale}) @webgl`, async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== "chromium", "needs the SwiftShader canvas and window.__va");
+    await page.goto(demo);
+    await page.waitForFunction(() => window.__va?.bike.ready === true, undefined, {
+      timeout: 30_000,
+    });
+
+    // Collapse it first, so "opens the sheet" is something the tap has to do.
+    await page.locator(handle).focus();
+    await page.keyboard.press("Home");
+    await expect(page.locator(sheet)).toHaveAttribute("data-snap", "0");
+
+    const point = await page.evaluate(() => {
+      const bike = window.__va!.bike;
+      const here = bike.screenPositionOf("brake-caliper-front");
+      if (here) return here;
+      for (const pose of ["drive-side", "non-drive-side", "front", "rear"]) {
+        // The point `hittable` found from that pose — not `screenPositionOf(pose)`,
+        // which takes a PART id and answered null for every pose name, so this
+        // fallback used to skip the test whenever the first pose hid the caliper.
+        const found = bike.hittable(pose);
+        if (Object.hasOwn(found, "brake-caliper-front")) return found["brake-caliper-front"]!;
+      }
+      return null;
+    });
+    test.skip(point === null, "the front caliper is not reachable from any pose in this viewport");
+    await page.touchscreen.tap(point!.x, point!.y);
+
+    // `> div > button` is the caliper's OWN row: hosted parts (the pads) are
+    // nested inside its `<li>`, so an unscoped descendant selector matches both.
+    await expect(page.locator("[data-part-id=brake-caliper-front] > div > button")).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(page.locator(sheet)).toHaveAttribute("data-snap", "1");
+    // The canvas never steals the tab: the row must still be on screen to scroll to.
+    await expect(page.getByTestId("parts-list")).toBeVisible();
+  });
 });
 
 forEachLocale((locale) => {

@@ -1,20 +1,25 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Callout } from "@/components/ui-ext/Callout";
-import { translateMessageKey } from "@/lib/actions/result";
 import type { BuildListItem } from "@/lib/checkup/types";
 import { partLabel } from "@/lib/domain/i18n";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
 import { buildQuery } from "@/lib/shop/query";
-import { refinementAnswers, refinementIssues } from "@/lib/shop/questions";
+import {
+  brandFromRefinement,
+  refinementAnswers,
+  refinementIssues,
+  type BrandTier,
+} from "@/lib/shop/questions";
 import { cn } from "@/lib/utils";
 
+import { useListText } from "./list-text";
 import { RefinementForm } from "./RefinementForm";
 import { VendorButtons } from "./VendorButtons";
 
@@ -47,6 +52,10 @@ export interface BuildItemCardProps {
   build: BikeBuild | null;
   locale: Locale;
   bikeParam: string;
+  /** This part's brands per tier (`content/brands.yaml`, read by the page); `null` when none. */
+  brandTiers?: Readonly<Record<BrandTier, readonly string[]>> | null;
+  /** Server-rendered "Comment mesurer" drawings, keyed by attribute. */
+  drawings?: Readonly<Record<string, ReactNode>>;
   onChange: (item: BuildListItem) => void;
   className?: string;
 }
@@ -56,11 +65,13 @@ export function BuildItemCard({
   build,
   locale,
   bikeParam,
+  brandTiers = null,
+  drawings,
   onChange,
   className,
 }: BuildItemCardProps): React.JSX.Element {
   const t = useTranslations("shop");
-  const tRoot = useTranslations();
+  const listText = useListText();
 
   // Memoised because it feeds two `useMemo` dependency lists: `?? {}` would be
   // a new object on every render, and both would recompute for nothing.
@@ -73,7 +84,10 @@ export function BuildItemCard({
     () => (build === null ? [] : refinementIssues(build, item.partId, refinement)),
     [build, item.partId, refinement],
   );
-  const query = buildQuery(item.partId, answers, locale);
+  // The chosen tier's first brand goes into the search, exactly as on `/acheter`.
+  const query = buildQuery(item.partId, answers, locale, {
+    brand: brandFromRefinement(refinement, brandTiers),
+  });
 
   return (
     <Card
@@ -88,7 +102,7 @@ export function BuildItemCard({
       <CardHeader className="gap-1">
         <CardTitle className="text-lg">{partLabel(locale, item.partId)}</CardTitle>
         <p className="text-ink-muted text-sm" data-testid="build-item-reason">
-          {translateMessageKey(tRoot, `guides.reasons.${item.reasonKey}`)}
+          {listText(`guides.reasons.${item.reasonKey}`)}
         </p>
         <label className="tap-target text-ink flex w-fit cursor-pointer items-center gap-2 text-sm">
           <input
@@ -140,6 +154,8 @@ export function BuildItemCard({
             refinement={refinement}
             locale={locale}
             itemId={item.id}
+            brandTiers={brandTiers}
+            drawings={drawings}
             onChange={(next) => onChange({ ...item, refinement: next })}
           />
         )}
@@ -154,11 +170,9 @@ export function BuildItemCard({
             <ul className="list-disc pl-4">
               {issues.map((issue) => (
                 <li key={issue.ruleId}>
-                  {translateMessageKey(tRoot, issue.messageKey)}{" "}
+                  {listText(issue.messageKey)}{" "}
                   {issue.fixHintKey === undefined ? null : (
-                    <span className="text-ink-muted">
-                      {translateMessageKey(tRoot, issue.fixHintKey)}
-                    </span>
+                    <span className="text-ink-muted">{listText(issue.fixHintKey)}</span>
                   )}
                 </li>
               ))}

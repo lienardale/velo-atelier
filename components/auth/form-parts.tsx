@@ -5,7 +5,8 @@ import { useId, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useTranslations } from "next-intl";
 
-import { translateMessageKey, type FormResult } from "@/lib/actions/result";
+import type { FormResult } from "@/lib/actions/result";
+import { translateScopedKey, type ScopedTranslator } from "@/lib/i18n/scoped-key";
 
 /**
  * The pieces every auth and account form is built from.
@@ -17,9 +18,13 @@ import { translateMessageKey, type FormResult } from "@/lib/actions/result";
  * - **message keys, never sentences.** `fieldMessage()` takes the
  *   `ActionResult.fieldErrors` value — a fully qualified key such as
  *   `errors.invalidCredentials` or `auth.password.tooShort` — and renders it
- *   with a root translator, so the same action drives the French and the
+ *   in the visitor's locale, so the same action drives the French and the
  *   English page. (bd-platform hard-codes French in its actions; that is the one
- *   convention from it this project does not copy.)
+ *   convention from it this project does not copy.) Every key an auth or account
+ *   action returns is `errors.*` or `auth.*`, so they are resolved inside those
+ *   two namespaces (`useActionMessage` below) rather than by a root translator,
+ *   which would make every route with a form ship the whole catalogue
+ *   (`.debug/008`).
  * - **44 px targets and 16 px text** on every control, so iOS does not zoom on
  *   focus and §6.8 AC5 holds at 320 px.
  * - **`aria-invalid` + `aria-describedby`** wired from the same result, and an
@@ -35,14 +40,26 @@ const inputClass =
   "placeholder:text-ink-muted focus-visible:border-accent min-h-[var(--tap-min)] " +
   "aria-[invalid=true]:border-danger";
 
+/**
+ * A message KEY an auth or account action returned, translated: `errors.*` (the
+ * headline codes and the field refusals) or `auth.*` (the password policy's
+ * `auth.password.<issue>`). Anything else is reported missing by next-intl
+ * instead of being resolved in some other namespace (`translateScopedKey`).
+ */
+function useActionMessage(): (key: string) => string {
+  const errors = useTranslations("errors") as unknown as ScopedTranslator;
+  const auth = useTranslations("auth") as unknown as ScopedTranslator;
+  return (key) => translateScopedKey(key, { errors, auth });
+}
+
 /** The message for one field of a failed result, already translated. */
 export function useFieldMessage(result: FormResult) {
-  const t = useTranslations();
+  const message = useActionMessage();
   return (field: string): string | undefined => {
     if (result.ok) return undefined;
     // eslint-disable-next-line security/detect-object-injection -- reading a plain record the action built; `field` is a form input name
     const key = result.fieldErrors?.[field];
-    return key === undefined ? undefined : translateMessageKey(t, key);
+    return key === undefined ? undefined : message(key);
   };
 }
 
@@ -70,14 +87,14 @@ export function FormError({
   /** Unique within the page when more than one form is rendered. */
   testId?: string;
 }): React.JSX.Element {
-  const t = useTranslations();
+  const actionMessage = useActionMessage();
   const tErrors = useTranslations("errors");
   const message =
     result.ok || result.fieldErrors?.form === undefined
       ? result.ok
         ? undefined
         : tErrors(result.code)
-      : translateMessageKey(t, result.fieldErrors.form);
+      : actionMessage(result.fieldErrors.form);
 
   const retry =
     !result.ok && result.retryAfterSec !== undefined && result.retryAfterSec > 0

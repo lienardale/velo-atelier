@@ -49,6 +49,12 @@
     "saved": "Saved",
     "failed": "This checkup could not be saved on this device."
   },
+  "finish": {
+    "tooManyLists": "This bike already has 10 lists, the most one bike can have: this list cannot be created.",
+    "tooManyCheckups": "This bike already has 50 checkups, the most one bike can have: this checkup cannot be saved.",
+    "tooManyLines": "This checkup would make more than 50 lines, the most one list can hold. Redo it part by part, or take the bike to a workshop.",
+    "failed": "The list could not be created. Try again in a moment."
+  },
   "summary": {
     "title": "Summary",
     "intro": "Here is what you answered. You can still change a verdict before creating the list.",

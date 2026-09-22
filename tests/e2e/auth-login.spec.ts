@@ -263,6 +263,9 @@ forEachLocale((locale) => {
   });
 });
 
+// English only, on purpose: French is the default locale, so a French cookie
+// would land on /fr/connexion whether the cookie was read or ignored. Only the
+// non-default locale proves the cookie decides.
 test("the unprefixed Auth.js page gets a locale from the cookie", async ({ page, context }) => {
   await context.addCookies([{ name: "NEXT_LOCALE", value: "en", domain: "localhost", path: "/" }]);
 

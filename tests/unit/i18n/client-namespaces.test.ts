@@ -36,6 +36,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -397,8 +398,29 @@ describe("the analysis itself", () => {
   });
 
   it("treats an unscoped useTranslations() as a claim on the whole catalogue", () => {
-    const file = join(ROOT, "components", "bike", "PartInfo.tsx");
-    expect(requirementsOf(file).has("*")).toBe(true);
+    // A synthetic module, not a product one: this used to point at PartInfo,
+    // which reads its runtime keys through `usePartsText()` since W4-T2 — the
+    // property must not depend on some component staying unscoped.
+    const scratch = mkdtempSync(join(tmpdir(), "va-namespaces-"));
+    const unscoped = join(scratch, "Unscoped.tsx");
+    writeFileSync(
+      unscoped,
+      '"use client";\nimport { useTranslations } from "next-intl";\n' +
+        'export function Unscoped() {\n  const t = useTranslations();\n  return t("x");\n}\n',
+    );
+    expect(requirementsOf(unscoped).has("*")).toBe(true);
+
+    const scoped = join(scratch, "Scoped.tsx");
+    writeFileSync(
+      scoped,
+      '"use client";\nimport { useTranslations } from "next-intl";\n' +
+        'export function Scoped() {\n  const t = useTranslations("parts");\n  return t("x");\n}\n',
+    );
+    try {
+      expect([...requirementsOf(scoped)]).toEqual(["parts"]);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   it("refuses to guess at an import it cannot resolve", () => {
@@ -411,6 +433,10 @@ describe("the analysis itself", () => {
     const scratch = mkdtempSync(join(tmpdir(), "va-namespaces-"));
     const entry = join(scratch, "entry.tsx");
     writeFileSync(entry, 'import { gone } from "./nowhere";\nexport default gone;\n');
-    expect(() => clientModulesFrom(entry)).toThrow(/resolves to nothing/);
+    try {
+      expect(() => clientModulesFrom(entry)).toThrow(/resolves to nothing/);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 });

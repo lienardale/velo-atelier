@@ -4,12 +4,12 @@ import { useState, useTransition } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { deleteBikeAction, renameBikeAction } from "@/app/[locale]/(protected)/mes-velos/actions";
+import { useBikeActionText } from "@/components/bike/action-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Disclosure } from "@/components/ui-ext/Disclosure";
-import { translateMessageKey } from "@/lib/actions/result";
 import { BIKE_NAME_MAX } from "@/lib/bike/rules";
 import { Link, useRouter } from "@/lib/i18n/navigation";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,7 @@ export function BikeCard({
   className,
 }: BikeCardProps): React.JSX.Element {
   const t = useTranslations("bike");
-  const tRoot = useTranslations();
+  const actionText = useBikeActionText();
   const format = useFormatter();
   const router = useRouter();
 
@@ -156,7 +156,7 @@ export function BikeCard({
             </div>
             {errorKey ? (
               <p role="alert" className="text-danger-fg text-sm" data-testid="bike-card-error">
-                {translateMessageKey(tRoot, errorKey)}
+                {actionText(errorKey)}
               </p>
             ) : null}
           </div>

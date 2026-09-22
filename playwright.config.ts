@@ -4,8 +4,10 @@
  * Runs against a PRODUCTION build (`next start`), never `next dev`: build
  * first with
  *
- *   ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build
+ *   ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh
  *
+ * — not a bare `npm run build`, which bakes `.env.local`'s `:3000` origin into
+ * the canonicals that `seo.spec.ts` checks against the `:3100` served here.
  * `NEXT_PUBLIC_TEST_HOOKS` compiles the `window.__va` hooks into the bundle
  * (build-time gate); `ENABLE_TEST_PAGES` is read per request by the
  * `force-dynamic` dev pages, so the web server below sets it again. In CI the
@@ -69,6 +71,15 @@ const NARROW_SPECS =
   /(^|\/)(smoke|mobile-sheet|checkup\.mobile|auth\.mobile|build-list)\.spec\.ts$/;
 
 /**
+ * `@snapshot` (tests/e2e/visual.spec.ts) has baselines for desktop-chromium and
+ * mobile-chromium ONLY — `perf.yml`'s read-only `record-snapshots` job records
+ * those two, and `update-snapshots` opens them as a PR.
+ * Every other project inverts the tag: a missing baseline is written and failed,
+ * so a third project running it would be red on every run.
+ */
+const SNAPSHOT = /@snapshot/;
+
+/**
  * Added on top of the runner's own environment — Playwright 1.63 launches the
  * web server with `{ ...process.env, ...webServer.env }`, and `process.env`
  * already holds `.env.test` (database URLs, AUTH_SECRET, …) from the line above.
@@ -96,6 +107,7 @@ const e2eProjects: Project[] = [
   },
   {
     name: "mobile-landscape",
+    grepInvert: SNAPSHOT,
     use: {
       ...devices["Pixel 7 landscape"],
       viewport: { width: 844, height: 390 },
@@ -106,6 +118,7 @@ const e2eProjects: Project[] = [
   {
     name: "mobile-narrow",
     testMatch: NARROW_SPECS,
+    grepInvert: SNAPSHOT,
     use: {
       ...devices["Pixel 7"],
       viewport: { width: 320, height: 568 },
@@ -117,7 +130,7 @@ const e2eProjects: Project[] = [
   {
     name: "no-webgl",
     // Specs tagged @webgl assert on the 3D canvas; here the SVG fallback is the product.
-    grepInvert: /@webgl/,
+    grepInvert: [/@webgl/, SNAPSHOT],
     use: {
       ...devices["Desktop Chrome"],
       webgl: false,
@@ -129,10 +142,24 @@ const e2eProjects: Project[] = [
     // Non-blocking (continue-on-error in CI): validates layout, touch and the
     // fallback. Never a screenshot baseline, never a perf number.
     retries: 2,
-    grepInvert: [/@snapshot/, /@perf/],
+    grepInvert: [SNAPSHOT, /@perf/],
     use: { ...devices["iPhone 14"] },
   },
 ];
+
+/**
+ * `RUN_LOCAL_PERF=1` (`npm run perf:local`, docs/bike3d-perf.md): the perf
+ * projects render on the machine's GPU instead of SwiftShader, and the soft
+ * tier becomes the 16.7 ms gate. Verified on an M2 with Playwright 1.63.0
+ * (2026-09-21): headless Chromium reports "ANGLE Metal Renderer: Apple M2" with
+ * `--ignore-gpu-blocklist --enable-gpu`, and falls back to SwiftShader without
+ * them — so no headed window is needed. `PERF_HEADED=1` opens one anyway, for
+ * a machine whose headless mode has no GPU; the spec refuses to pass on
+ * SwiftShader, so a wrong setup fails loudly instead of measuring the CPU.
+ */
+const LOCAL_GPU = process.env.RUN_LOCAL_PERF === "1";
+const perfGL = LOCAL_GPU ? ["--ignore-gpu-blocklist", "--enable-gpu"] : chromiumGL;
+const perfHeadless = !(LOCAL_GPU && process.env.PERF_HEADED === "1");
 
 const perfProjects: Project[] = [
   {
@@ -140,14 +167,23 @@ const perfProjects: Project[] = [
     testDir: "tests/perf",
     workers: 1,
     retries: 0,
-    use: { ...devices["Desktop Chrome"], launchOptions: { args: chromiumGL } },
+    use: {
+      ...devices["Desktop Chrome"],
+      headless: perfHeadless,
+      launchOptions: { args: perfGL },
+    },
   },
   {
     name: "perf-mobile",
     testDir: "tests/perf",
     workers: 1,
     retries: 0,
-    use: { ...devices["Pixel 7"], hasTouch: true, launchOptions: { args: chromiumGL } },
+    use: {
+      ...devices["Pixel 7"],
+      hasTouch: true,
+      headless: perfHeadless,
+      launchOptions: { args: perfGL },
+    },
   },
 ];
 

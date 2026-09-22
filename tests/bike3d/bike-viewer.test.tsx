@@ -67,6 +67,8 @@ describe("without WebGL", () => {
     expect(screen.getByTestId("bike3d-notice")).toHaveTextContent(
       "La 3D n'est pas disponible sur cet appareil",
     );
+    // A state that lasts is shown, not only announced.
+    expect(screen.getByTestId("bike3d-notice")).not.toHaveClass("sr-only");
     // One button per rendered part, with its translated name.
     const buttons = svg().querySelectorAll("[data-part-id]");
     expect(buttons).toHaveLength(24);
@@ -128,11 +130,17 @@ describe("with WebGL 2", () => {
     expect(screen.getByTestId("scene-stub")).toHaveAttribute("data-tier", "high");
   });
 
-  it("shows a loading notice until the scene is ready", async () => {
+  it("announces the loading notice without painting it, until the scene is ready", async () => {
     stubControl.autoReady = false;
     await renderViewer();
     await becomeVisibleAndIdle();
-    expect(screen.getByTestId("bike3d-notice")).toHaveTextContent("Chargement de la vue 3D");
+    const notice = screen.getByTestId("bike3d-notice");
+    expect(notice).toHaveTextContent("Chargement de la vue 3D");
+    expect(notice).toHaveAttribute("role", "status");
+    // Visually hidden: a line painted seconds after the first paint becomes the
+    // page's LCP element as soon as it outgrows the `<h1>` (§6.8 AC9; CI run
+    // 35600024232 measured /en/bike/demo at 4520 ms against /fr's 2302 ms).
+    expect(notice).toHaveClass("sr-only");
     expect(svg()).toHaveAttribute("data-concealed", "false");
   });
 
@@ -146,6 +154,7 @@ describe("with WebGL 2", () => {
     expect(screen.queryByTestId("scene-stub")).toBeNull();
     expect(svg()).toHaveAttribute("data-concealed", "false");
     expect(screen.getByTestId("bike3d-notice")).toHaveTextContent("The 3D view stopped.");
+    expect(screen.getByTestId("bike3d-notice")).not.toHaveClass("sr-only");
 
     await user.click(screen.getByTestId("bike3d-reload"));
     await waitFor(() => expect(viewer()).toHaveAttribute("data-state", "ready"));

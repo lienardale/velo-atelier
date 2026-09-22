@@ -10,15 +10,26 @@
  *   - 20 spec toggles return `gl.info.memory.geometries` to baseline ± 2 on ONE
  *     WebGL context;
  *   - the quality tier is unchanged after click – 3 s – click.
- * Timings are `@soft`: recorded as annotations, never a failure here
- * (SwiftShader frame times are noise; baselines and the 150 %/300 % ladder are
- * W4-T2's `scripts/perf/compare.ts`).
+ * SOFT timings (`@soft`, one test, every preset) are written to the run file
+ * `.perf/<project>.json` (tests/perf/_record.ts) and never fail here: CI
+ * renders through SwiftShader, so a millisecond there only means something
+ * next to a baseline recorded on the same runner — `scripts/perf/compare.ts`
+ * applies §7.3's ladder (warn > 150 %, fail > 300 %) after the run.
+ *
+ * LOCAL GPU mode (`RUN_LOCAL_PERF=1 npm run perf:local`, docs/bike3d-perf.md):
+ * playwright.config drops the SwiftShader flags, the run file becomes
+ * `.perf/local-<date>.json`, and the soft test turns into a gate — p95 frame
+ * cost ≤ 16.7 ms on every preset, on a renderer that is not SwiftShader.
  */
+import path from "node:path";
+
 import type { Page } from "@playwright/test";
 
 import { PRESET_IDS } from "../../lib/domain";
 import type { PerfSnapshot } from "../../lib/testing/e2e-hooks";
+import { SOFTWARE_RENDERER } from "../../scripts/perf/ladder";
 import { expect, test } from "../e2e/_fixtures";
+import { median, percentile, recordRun, type PresetSample } from "./_record";
 
 type Tier = "low" | "med" | "high";
 
@@ -27,6 +38,32 @@ const BUDGETS: Record<Tier, { calls: number; triangles: number; programs: number
   med: { calls: 60, triangles: 110_000, programs: 12 },
   high: { calls: 65, triangles: 150_000, programs: 12 },
 };
+
+/** `RUN_LOCAL_PERF=1`: a real GPU, and the 60 fps budget becomes a gate (§7.3). */
+const LOCAL_GPU = process.env.RUN_LOCAL_PERF === "1";
+/** One frame at 60 Hz. */
+const FRAME_BUDGET_MS = 16.7;
+/** A frame the visitor sees as a hitch (§7.3 `longFrames(>50 ms)`). */
+const LONG_FRAME_MS = 50;
+/** §3.4: the median of three orbits. */
+const ORBITS = 3;
+const FRAMES_PER_ORBIT = 30;
+const ORBIT_MS = 1000;
+
+/**
+ * The presets the soft tier measures: all seven, unless `PERF_PRESETS` names a
+ * subset for a quick local smoke run. Never on CI — a baseline recorded from a
+ * subset would silently stop comparing the rest.
+ */
+function softPresets(): readonly string[] {
+  const only = process.env.PERF_PRESETS?.split(",").filter(Boolean);
+  if (!only || only.length === 0) return PRESET_IDS;
+  if (process.env.CI)
+    throw new Error("PERF_PRESETS is a local smoke-run knob; CI measures every preset");
+  const unknown = only.filter((id) => !(PRESET_IDS as readonly string[]).includes(id));
+  if (unknown.length > 0) throw new Error(`PERF_PRESETS: unknown preset(s) ${unknown.join(", ")}`);
+  return only;
+}
 
 async function open(page: Page, preset: string = PRESET_IDS[0]) {
   await page.goto(`/fr/dev/bike3d-perf?preset=${preset}`);
@@ -147,19 +184,201 @@ test.describe("bike3d runtime budgets", () => {
     expect(await page.evaluate(() => window.__va!.bike.quality)).toBe(quality);
   });
 
-  test("orbit timings @soft", async ({ page }) => {
-    await open(page);
-    const medians: number[] = [];
-    for (let run = 0; run < 3; run++) {
-      const intervals = await page.evaluate(() => window.__va!.perf.runOrbit(1000));
-      const sorted = [...intervals].sort((a, b) => a - b);
-      medians.push(sorted[Math.floor(sorted.length / 2)] ?? 0);
+  test("frame cost, long frames, build and tap latency on every preset @soft", async ({
+    page,
+    isMobile,
+  }, testInfo) => {
+    test.setTimeout(480_000);
+    const presets: Record<string, PresetSample> = {};
+    let renderer = "unknown";
+
+    for (const preset of softPresets()) {
+      // A fresh navigation per preset: `buildMs` is store creation → first
+      // drawn frame, and it is only measured once per page.
+      await open(page, preset);
+      renderer = (await page.evaluate(() => window.__va!.perf.renderer)) ?? renderer;
+      // eslint-disable-next-line security/detect-object-injection -- `preset` is a PRESET_IDS literal
+      presets[preset] = await measurePreset(page, isMobile);
     }
-    const buildMs = await page.evaluate(() => window.__va!.perf.buildMs);
-    test.info().annotations.push({
-      type: "timing (advisory)",
-      description: `orbit median frame ms per run: ${medians.map((m) => m.toFixed(1)).join(", ")}; buildMs ${buildMs?.toFixed(0)}`,
+
+    const { file, run } = recordRun({
+      // The repository root: `.perf/` sits next to playwright.config.ts.
+      root: testInfo.config.configFile ? path.dirname(testInfo.config.configFile) : process.cwd(),
+      project: testInfo.project.name,
+      local: LOCAL_GPU,
+      renderer,
+      presets,
     });
-    expect(medians).toHaveLength(3);
+    testInfo.annotations.push({
+      type: "timing (advisory)",
+      description: [
+        `${file} — ${run.runner}, ${run.machine}, ${run.renderer}, three ${run.three}, repetition ${run.repetitions}`,
+        ...Object.entries(presets).map(
+          ([preset, m]) =>
+            `${preset}: p50 ${m.p50FrameMs} ms, p95 ${m.p95FrameMs} ms, long ${m.longFrames}, build ${m.buildMs} ms, tap ${m.tapLatencyMs} ms, ${m.drawCalls} calls`,
+        ),
+      ].join("\n"),
+    });
+
+    for (const [preset, metrics] of Object.entries(presets)) {
+      expect(metrics.p50FrameMs, `${preset} p50 frame cost`).toBeGreaterThan(0);
+      expect(metrics.tapLatencyMs, `${preset} tap latency`).toBeGreaterThan(0);
+    }
+    if (!LOCAL_GPU) return;
+
+    // The manual gate (§7.3, §7.6 AC9): only a real GPU can answer it, and only
+    // a renderer string that NAMES the device says which one rendered. A masked
+    // string ("WebKit WebGL", when WEBGL_debug_renderer_info is not exposed),
+    // none at all, or another software rasteriser (Mesa's llvmpipe / softpipe,
+    // Windows' WARP "Basic Render Driver", Apple's Software Renderer) would all
+    // pass a SwiftShader-only check.
+    expect(renderer, "RUN_LOCAL_PERF=1 needs the unmasked WebGL renderer").not.toMatch(
+      /^(unknown|WebKit WebGL)$/,
+    );
+    expect(renderer, "RUN_LOCAL_PERF=1 must render on a GPU, not in software").not.toMatch(
+      SOFTWARE_RENDERER,
+    );
+    for (const [preset, metrics] of Object.entries(presets)) {
+      expect(metrics.p95FrameMs, `${preset} p95 frame cost on ${renderer}`).toBeLessThanOrEqual(
+        FRAME_BUDGET_MS,
+      );
+    }
   });
 });
+
+/**
+ * One preset's soft numbers, at the tier the viewer chose for this device.
+ *
+ *   p50FrameMs    median of the three orbits' median frame COST (`frameCost`:
+ *                 render + GPU sync) — §3.4's "median of 3 orbits"
+ *   p95FrameMs    95th percentile of every frame's cost across the three orbits
+ *   longFrames    rAF intervals > 50 ms over three 1 s orbits (3 s, §7.3): the
+ *                 hitches a visitor would see, whatever each frame cost
+ *   buildMs       store creation → first drawn frame (`__va.perf.buildMs`)
+ *   tapLatencyMs  median of five taps alternating between two parts, each
+ *                 pointerdown → the selection in the DOM → the next frame
+ *                 presented (two rAFs), measured inside the page
+ *   drawCalls / triangles / programs   the counters at that tier, for the
+ *                 record (their hard budgets are the tests above)
+ */
+async function measurePreset(page: Page, isMobile: boolean): Promise<PresetSample> {
+  const buildMs = (await page.evaluate(() => window.__va!.perf.buildMs)) ?? Number.NaN;
+  const counters = await snapshotAfterFrames(page);
+
+  const orbitMedians: number[] = [];
+  const costs: number[] = [];
+  for (let orbit = 0; orbit < ORBITS; orbit++) {
+    const frames = await page.evaluate((n) => window.__va!.perf.frameCost(n), FRAMES_PER_ORBIT);
+    expect(frames.length, "frameCost rendered every frame it was asked for").toBe(FRAMES_PER_ORBIT);
+    orbitMedians.push(median(frames));
+    costs.push(...frames);
+  }
+
+  let longFrames = 0;
+  for (let orbit = 0; orbit < ORBITS; orbit++) {
+    const intervals = await page.evaluate((ms) => window.__va!.perf.runOrbit(ms), ORBIT_MS);
+    longFrames += intervals.filter((interval) => interval > LONG_FRAME_MS).length;
+  }
+
+  return {
+    p50FrameMs: median(orbitMedians),
+    p95FrameMs: percentile(costs, 95),
+    longFrames,
+    buildMs,
+    tapLatencyMs: await tapLatency(page, isMobile),
+    drawCalls: counters.calls,
+    triangles: counters.triangles,
+    programs: counters.programs,
+  };
+}
+
+/**
+ * Taps per preset; `tapLatencyMs` is their median. A single tap is one sample,
+ * and in both one-tap CI nightlies of W4 (perf.yml 35600024232, 35606491888)
+ * one desktop tap in 35 landed above 300 % of its own preset's median — 134 ms
+ * vs 41.8, 186.1 ms vs 58 — the ladder's FAIL line. A median drops a lone slow
+ * tap, the way §3.4 takes the median of three orbits; it does NOT drop a stall
+ * that spans several taps. The first five-tap nightly (35631845330) brought
+ * desktop's worst sample down to 232 %, yet one mobile sample still reached
+ * 317 % (road-rim-2x11, the first preset measured, three of its five taps
+ * slow). Tap latency is the one soft metric that crosses 300 % on noise; see
+ * docs/bike3d-perf.md before reading a tap-latency FAIL as a regression.
+ */
+const TAPS = 5;
+
+/**
+ * Tap (touch) or click (mouse) {@link TAPS} times from the drive-side pose,
+ * alternating between the two clickable parts farthest apart on screen, and
+ * return the median time, measured inside the page, from the `pointerdown` to
+ * the frame after the selection reached the DOM (`data-selected` on the
+ * viewer). Alternating makes every tap select a new part, and the distance
+ * keeps the selected part's outline (high tier, about 2 px wide) away from
+ * the next point — a tap caught by it would re-select the same part and
+ * change nothing.
+ */
+async function tapLatency(page: Page, isMobile: boolean): Promise<number> {
+  const points = Object.entries(
+    await page.evaluate(() => window.__va!.bike.hittable("drive-side")),
+  );
+  if (points.length === 0) throw new Error("no part hittable from drive-side");
+  let pair: [(typeof points)[number], (typeof points)[number]] = [points[0]!, points[0]!];
+  let farthest = -1;
+  for (const a of points) {
+    for (const b of points) {
+      const distance = (a[1].x - b[1].x) ** 2 + (a[1].y - b[1].y) ** 2;
+      if (distance > farthest) [farthest, pair] = [distance, [a, b]];
+    }
+  }
+  // One clickable part only: a second tap on it would select nothing new.
+  const taps = pair[0][0] === pair[1][0] ? 1 : TAPS;
+  const latencies: number[] = [];
+  for (let tap = 0; tap < taps; tap++) {
+    const [id, point] = pair[tap % 2]!;
+    latencies.push(await tapOnce(page, isMobile, id, point));
+  }
+  return median(latencies);
+}
+
+async function tapOnce(
+  page: Page,
+  isMobile: boolean,
+  id: string,
+  point: { x: number; y: number },
+): Promise<number> {
+  await page.evaluate((target) => {
+    const viewer = document.querySelector('[data-testid="bike3d-viewer"]')!;
+    const probe = { down: 0, done: 0 };
+    (window as unknown as { __vaTapProbe: typeof probe }).__vaTapProbe = probe;
+    window.addEventListener(
+      "pointerdown",
+      () => {
+        probe.down = performance.now();
+      },
+      { capture: true, once: true },
+    );
+    const observer = new MutationObserver(() => {
+      if (viewer.getAttribute("data-selected") !== target) return;
+      observer.disconnect();
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          probe.done = performance.now();
+        }),
+      );
+    });
+    observer.observe(viewer, { attributes: true, attributeFilter: ["data-selected"] });
+  }, id);
+
+  if (isMobile) await page.touchscreen.tap(point.x, point.y);
+  else await page.mouse.click(point.x, point.y);
+
+  const latency = await page.waitForFunction(
+    () => {
+      const probe = (window as unknown as { __vaTapProbe: { down: number; done: number } })
+        .__vaTapProbe;
+      return probe.down > 0 && probe.done > 0 ? probe.done - probe.down : null;
+    },
+    undefined,
+    { timeout: 15_000 },
+  );
+  return (await latency.jsonValue()) as number;
+}

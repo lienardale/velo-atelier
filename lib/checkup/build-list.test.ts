@@ -5,7 +5,13 @@ import { describe, expect, it } from "vitest";
 
 import { makeState, makeStep, threeStepPlan } from "@/tests/_helpers/checkup";
 
-import { deriveBuildList, markRechecked, mergeGuestBuildList, statusByPart } from "./build-list";
+import {
+  deriveBuildList,
+  markRechecked,
+  mergeGuestBuildList,
+  recheckedLines,
+  statusByPart,
+} from "./build-list";
 import type { BuildListItem } from "./types";
 import type { PartId } from "@/lib/domain/data/parts";
 
@@ -289,19 +295,154 @@ describe("mergeGuestBuildList", () => {
     expect(fresh.chosenProduct).toBeUndefined();
   });
 
-  it("closes an open stored line the new checkup answered OK (§6.7)", () => {
+  it("closes an open stored line a LATER checkup answered OK (§6.7)", () => {
     // The chain is fine now, and the KO that keeps the line alive is elsewhere.
     const state = makeState(PLAN, {
       answers: { [CHAIN.key]: "ok", [PADS.key]: "ko" },
       symptoms: { [PADS.key]: ["pad-worn"] },
     });
     const open = { ...stored, done: false, doneReason: undefined };
-    // The line survives only if the derivation still produces it, so derive a
-    // list that contains it and check the CLOSE rather than the drop.
-    const derived = [...deriveBuildList(state), { ...stored, done: false, sortOrder: 9 }];
-    const merged = mergeGuestBuildList([open], derived, state, false);
+    const merged = mergeGuestBuildList([open], deriveBuildList(state), state, false);
     const chain = merged.find((item) => item.partId === "chain");
     expect(chain).toMatchObject({ done: true, doneReason: "recheck-ok" });
+    // …and the pads line the same checkup found is open next to it.
+    expect(merged.find((item) => item.partId === "brake-pads-front")?.done).toBe(false);
+  });
+
+  /** Two questions of one checkup naming the same line, and disagreeing. */
+  const leverFeel = makeStep({
+    guideSlug: "check-brakes-disc",
+    stepId: "lever-feel",
+    ko: [{ action: "inspect-shop", partId: "brake-line-front", reasonKey: "lever-spongy" }],
+  });
+  const hoseLeak = makeStep({
+    guideSlug: "check-brakes-disc",
+    stepId: "hose-leak",
+    ko: [{ action: "inspect-shop", partId: "brake-line-front", reasonKey: "hose-leak" }],
+  });
+  const spongyButDry = () =>
+    makeState([leverFeel, hoseLeak], {
+      answers: { [leverFeel.key]: "ko", [hoseLeak.key]: "ok" },
+      symptoms: { [leverFeel.key]: ["lever-spongy"] },
+    });
+  const brakeLine = (overrides: Partial<BuildListItem>): BuildListItem => ({
+    id: `${hoseLeak.key}|brake-line-front|inspect-shop`,
+    stepKey: hoseLeak.key,
+    sourceKeys: [hoseLeak.key],
+    partId: "brake-line-front" as PartId,
+    action: "inspect-shop",
+    reasonKey: "hose-leak",
+    done: false,
+    sortOrder: 0,
+    ...overrides,
+  });
+
+  it.each([true, false])(
+    "never closes a line a KO of the same checkup derives, whatever another question says (same checkup: %s)",
+    (sameCheckup) => {
+      // The survey's reproduction: the stored line is open, this checkup's KO
+      // derives it again and another OK names the same pair. Before W4 the
+      // OK closed the stored copy and the merge carried `done` onto the KO's line.
+      const state = spongyButDry();
+      const [line] = mergeGuestBuildList(
+        [brakeLine({})],
+        deriveBuildList(state),
+        state,
+        sameCheckup,
+      );
+      expect(line).toMatchObject({ partId: "brake-line-front", done: false });
+      expect(Object.hasOwn(line, "doneReason")).toBe(false);
+    },
+  );
+
+  it("reopens a line a later checkup's KO derives again, even one closed by a recheck", () => {
+    const state = spongyButDry();
+    for (const closed of [
+      brakeLine({ done: true, doneReason: "recheck-ok" }),
+      brakeLine({ done: true, doneReason: "manual", refinement: { note: "kept" } }),
+    ]) {
+      const [line] = mergeGuestBuildList([closed], deriveBuildList(state), state, false);
+      expect(line.done, closed.doneReason).toBe(false);
+      expect(Object.hasOwn(line, "doneReason"), closed.doneReason).toBe(false);
+      // What the visitor TYPED about the part still survives.
+      expect(line.refinement).toEqual(closed.refinement);
+    }
+  });
+
+  it("keeps a hand-ticked line ticked across a re-run of the same checkup, but not a recheck", () => {
+    const state = spongyButDry();
+    const manual = mergeGuestBuildList(
+      [brakeLine({ done: true, doneReason: "manual" })],
+      deriveBuildList(state),
+      state,
+      true,
+    );
+    expect(manual[0]).toMatchObject({ done: true, doneReason: "manual" });
+
+    const rechecked = mergeGuestBuildList(
+      [brakeLine({ done: true, doneReason: "recheck-ok" })],
+      deriveBuildList(state),
+      state,
+      true,
+    );
+    expect(rechecked[0].done).toBe(false);
+  });
+
+  it("keeps a tick that carries no reason ticked across a re-run, and invents no reason", () => {
+    // A guest list written before lines carried a `doneReason`: `done` alone
+    // is the visitor's tick (only a checkup writes `recheck-ok`, and it always
+    // says so). It survives a re-run of the same checkup like a `manual` one —
+    // and, like the untouched line above, the merge does not put a
+    // `doneReason: undefined` key into a list that is stored as JSON.
+    const state = spongyButDry();
+    const legacy = brakeLine({ done: true });
+    expect(Object.hasOwn(legacy, "doneReason")).toBe(false);
+
+    const [line] = mergeGuestBuildList([legacy], deriveBuildList(state), state, true);
+
+    expect(line.done).toBe(true);
+    expect(Object.hasOwn(line, "doneReason")).toBe(false);
+  });
+});
+
+describe("recheckedLines", () => {
+  it("is every pair an OK step's ko[] names, in plan order, once", () => {
+    const again = makeStep({ guideSlug: "check-drivetrain", stepId: "chain-again", ko: CHAIN.ko });
+    const state = makeState([...PLAN, again], {
+      answers: { [PADS.key]: "ok", [CHAIN.key]: "ok", [again.key]: "ok", [CALIPER.key]: "skipped" },
+    });
+    expect(recheckedLines(state)).toEqual([
+      { action: "replace", partId: "brake-pads-front" },
+      ...CHAIN.ko.map((consequence) => ({
+        action: consequence.action,
+        partId: consequence.partId,
+      })),
+    ]);
+  });
+
+  it("leaves out a pair a KO of the same state derives", () => {
+    const leverFeel = makeStep({
+      guideSlug: "check-brakes-disc",
+      stepId: "lever-feel",
+      ko: [{ action: "inspect-shop", partId: "brake-line-front", reasonKey: "lever-spongy" }],
+    });
+    const hoseLeak = makeStep({
+      guideSlug: "check-brakes-disc",
+      stepId: "hose-leak",
+      ko: [
+        { action: "inspect-shop", partId: "brake-line-front", reasonKey: "hose-leak" },
+        { action: "replace", partId: "brake-line-front", reasonKey: "hose-leak", guideSlug: "x" },
+      ],
+    });
+    const state = makeState([leverFeel, hoseLeak], {
+      answers: { [leverFeel.key]: "ko", [hoseLeak.key]: "ok" },
+    });
+    // The replace line is not derived by the KO, so the OK still closes it.
+    expect(recheckedLines(state)).toEqual([{ action: "replace", partId: "brake-line-front" }]);
+  });
+
+  it("closes nothing when nothing was answered OK", () => {
+    expect(recheckedLines(makeState(PLAN, { answers: { [PADS.key]: "skipped" } }))).toEqual([]);
   });
 });
 

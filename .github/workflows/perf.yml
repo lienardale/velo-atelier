@@ -3,12 +3,13 @@ name: Perf
 # Nightly performance and Lighthouse run, plus the two "regenerate a recorded
 # artefact" operations that must never happen on a laptop:
 #
-#   update_baseline=true   rewrite tests/perf/baselines/* from THIS run
+#   update_baseline=true   record tests/perf/baselines/* from THIS run
 #                          (scripts/perf/compare.ts refuses outside Actions)
+#                          and open a bot PR with them (`perf baseline PR`)
 #   update_snapshots=true  regenerate the Playwright screenshot baselines and
 #                          open a PR labelled `visual-baseline` for review
 #
-# None of this is on the PR path: it costs ~20 minutes and its timing numbers
+# None of this is on the PR path: it costs ~35 minutes and its timing numbers
 # are advisory (CI renders through SwiftShader). The PR-blocking part of perf
 # lives in ci.yml's `perf` job — the hard WebGL counters.
 
@@ -45,7 +46,10 @@ env:
 
 jobs:
   build:
-    name: build
+    # Not `build`: that is a REQUIRED context (ci.yml), and a dispatch on a PR
+    # branch reports its checks on the PR's head commit — whichever `build`
+    # finished last would decide the required check.
+    name: build (nightly)
     runs-on: ubuntu-latest
     env:
       ENABLE_TEST_PAGES: "1"
@@ -103,6 +107,12 @@ jobs:
     env:
       PERF_REPEAT: "5"
       UPDATE_PERF_BASELINE: ${{ inputs.update_baseline == true && '1' || '0' }}
+      # Written into every run file and baseline; compare.ts warns when a run
+      # is compared against a baseline recorded on another runner. The same
+      # label as ci.yml's `perf` job: that job is compared against these.
+      # Spelled as the image reference so Renovate's Playwright customManager
+      # (renovate.json) bumps it with the container: a new image then warns.
+      PERF_RUNNER: ubuntu-latest (mcr.microsoft.com/playwright:v1.63.0-noble)
       POSTGRES_URL: postgresql://velo:velo@postgres:5432/velo_atelier_test
       POSTGRES_URL_NON_POOLING: postgresql://velo:velo@postgres:5432/velo_atelier_test
       ENABLE_TEST_PAGES: "1"
@@ -142,6 +152,11 @@ jobs:
             .perf/
             tests/perf/baselines/
             test-results/
+          # `.perf/` is a dotfile: without this, upload-artifact v4 skips it and
+          # the artifact holds only test-results/ — the run's timings, the thing
+          # this upload exists for, were silently dropped (the same trap as
+          # `.next` in the build job above).
+          include-hidden-files: true
           retention-days: 90
 
   lighthouse:
@@ -187,16 +202,89 @@ jobs:
         with:
           name: lighthouse-nightly
           path: .lighthouseci/
+          # A dotfile again: without this the artifact was empty.
+          include-hidden-files: true
           retention-days: 90
 
-  update-snapshots:
-    name: update-snapshots
+  # `update_baseline=true` only: the baselines the perf job just recorded, as a
+  # PR for a human to read — "recorded by CI", and nothing is downloaded to a
+  # laptop. It holds a write token, so — like `update-snapshots` below — it
+  # builds and tests nothing: no dependency script or git hook runs here, only
+  # scripts/ci/perf-baseline.sh (node + Prettier) over the perf job's artifact,
+  # then create-pull-request, and the checkout does not persist the token into
+  # .git/config. The perf job, which runs the branch, keeps the read-only token.
+  perf-baseline:
+    name: perf baseline PR
+    runs-on: ubuntu-latest
+    needs: perf
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_baseline }}
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # "Builds and tests nothing" includes the repository's own git hooks.
+      # With them installed, create-pull-request's `git commit` ran
+      # .husky/pre-commit (lint-staged, `tsc --noEmit`, `vitest related`) in a
+      # job holding a write token — and failed, because this fresh checkout
+      # has none of the
+      # generated trees tsc needs (dispatch 35600024232). The staged JSON is
+      # already validated and Prettier-checked by scripts/ci/perf-baseline.sh,
+      # and the PR itself goes through ci.yml like any other.
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # create-pull-request authenticates with its own `token` input; nothing
+          # else in this job needs the credential on disk.
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Download the recorded baselines
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: perf-nightly
+          path: ${{ runner.temp }}/perf-nightly
+      # --ignore-scripts: no dependency lifecycle script (nor husky's `prepare`)
+      # runs next to the write token; perf-baseline.sh needs only node and
+      # Prettier, neither of which has an install step.
+      - run: npm ci --no-audit --no-fund --prefer-offline --ignore-scripts
+      - env:
+          PERF_BASELINE_SOURCE: ${{ runner.temp }}/perf-nightly
+        run: bash scripts/ci/perf-baseline.sh
+      - name: Open a PR with the new baselines
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          branch: perf-baselines/${{ github.run_id }}
+          title: "test(perf): record the soft-tier baselines"
+          commit-message: "test(perf): record the soft-tier baselines (run ${{ github.run_id }})"
+          body: |
+            Recorded by the `perf.yml` workflow (`update_baseline=true`), run
+            ${{ github.run_id }}: the medians of five repetitions (`PERF_REPEAT=5`) of
+            `tests/perf/bike3d.perf.spec.ts`'s `@soft` test, per project and preset,
+            on `ubuntu-latest` in `mcr.microsoft.com/playwright:v1.63.0-noble`.
+
+            These are what `scripts/perf/compare.ts` holds every later run to
+            (warn > 150 %, fail > 300 %). Read them before merging: a baseline
+            recorded on a slow run makes every regression look like noise.
+          add-paths: tests/perf/baselines
+
+  # `update_snapshots=true` only, in two jobs so that the code that RECORDS the
+  # baselines never runs next to a write token. `record-snapshots` builds and
+  # tests the dispatched branch — `npm ci` with its install scripts, `next
+  # start`, the Playwright global setup, the @snapshot specs — with the
+  # workflow's read-only token, and uploads the PNGs. `update-snapshots` holds
+  # the write token and runs none of that: a checkout that does not persist the
+  # token, the artifact, a check that it holds nothing but PNGs, and
+  # create-pull-request (W4 integration review).
+  record-snapshots:
+    name: record-snapshots
     runs-on: ubuntu-latest
     needs: build
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
@@ -220,6 +308,8 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
@@ -230,25 +320,73 @@ jobs:
           name: next-build
           path: .next
       - run: npm ci --no-audit --no-fund --prefer-offline
+      # UPDATE_SNAPSHOTS=1 makes e2e.sh run the @snapshot tests only, with
+      # `--update-snapshots=changed`: these are the two projects that have
+      # baselines (every other project inverts @snapshot, playwright.config.ts).
       - env:
           PLAYWRIGHT_PROJECT: desktop-chromium
         run: bash scripts/ci/e2e.sh
       - env:
           PLAYWRIGHT_PROJECT: mobile-chromium
         run: bash scripts/ci/e2e.sh
-      # Never pushed straight to main: a regenerated baseline is a human saying
-      # "these pixels are correct", which is what the `visual-baseline` label
-      # and the visual-baseline-guard job in ci.yml enforce.
+      - name: Upload the recorded baselines
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__
+          if-no-files-found: error
+          retention-days: 3
+
+  update-snapshots:
+    name: update-snapshots
+    runs-on: ubuntu-latest
+    needs: record-snapshots
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # No git hook may run next to the write token (create-pull-request commits).
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Download the recorded baselines
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: visual-baselines
+          path: tests/e2e/__screenshots__
+      # The artifact came from a job that ran the branch: only images may reach
+      # the commit this token makes.
+      - name: Refuse anything but PNG files
+        run: |
+          stray="$(find tests/e2e/__screenshots__ -type f ! -name '*.png' -print)"
+          if [ -n "$stray" ]; then
+            printf 'not a PNG, refusing to commit:\n%s\n' "$stray"
+            exit 1
+          fi
+      # Never pushed straight to a branch: a regenerated baseline is a human
+      # saying "these pixels are correct", which is what the `visual-baseline`
+      # label and the visual-baseline-guard workflow enforce. The PR targets the
+      # branch this run was dispatched on.
       - name: Open a PR with the new baselines
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           branch: visual-baselines/${{ github.run_id }}
+          commit-message: "test(visual): record screenshot baselines (perf.yml run ${{ github.run_id }})"
           title: "test(visual): refresh screenshot baselines"
           body: |
             Regenerated by the `perf.yml` workflow (`update_snapshots=true`),
-            run ${{ github.run_id }}, on `mcr.microsoft.com/playwright:v1.63.0-noble`.
+            run ${{ github.run_id }}, on `mcr.microsoft.com/playwright:v1.63.0-noble`,
+            for `${{ github.ref_name }}` at ${{ github.sha }}.
 
             Review every image before merging: a baseline that hides a
             regression looks exactly like a baseline that fixes one.
+
+            This PR was opened with the workflow's `GITHUB_TOKEN`, and GitHub
+            starts no workflow for such an event: **close and reopen it** to run
+            CI — the e2e legs that compare these images, and
+            `visual-baseline-guard`, which requires the `visual-baseline` label.
           labels: visual-baseline
           add-paths: tests/e2e/__screenshots__

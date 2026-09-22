@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "next-intl";
 import * as z from "zod/mini";
 
@@ -11,18 +18,20 @@ import {
 } from "@/app/[locale]/velo/[id]/liste/actions";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui-ext/Callout";
-import { translateMessageKey } from "@/lib/actions/result";
 import { buildListKey, type GuestBikeRef } from "@/lib/bike/storage-keys";
 import type { BikeRef } from "@/lib/bike/resolve-bike-ref";
 import type { BuildAction, BuildListItem } from "@/lib/checkup/types";
+import type { BrandTier } from "@/lib/shop/questions";
 import { isPartId } from "@/lib/domain/data/parts";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
+import { chosenProductOf } from "@/lib/shop/chosen-product";
 import { cn } from "@/lib/utils";
 
 import { BuildItemCard } from "./BuildItemCard";
 import { CopyButton } from "./CopyButton";
+import { useListText } from "./list-text";
 import { PrintButton } from "./PrintButton";
 
 /**
@@ -82,15 +91,9 @@ const StoredItemSchema = z.object({
   refinement: z.optional(
     z.record(z.string().check(z.maxLength(64)), z.string().check(z.maxLength(64))),
   ),
-  chosenProduct: z.optional(
-    z.object({
-      brand: z.string().check(z.maxLength(80)),
-      model: z.string().check(z.maxLength(80)),
-      size: z.string().check(z.maxLength(40)),
-      vendor: z.string().check(z.maxLength(40)),
-      url: z.string().check(z.maxLength(2048)),
-    }),
-  ),
+  // Checked by `chosenProductOf` below rather than here: a product whose link
+  // does not go where its vendor says (§4.4) loses the PRODUCT, not the list.
+  chosenProduct: z.optional(z.unknown()),
   sortOrder: z.number().check(z.refine(Number.isFinite)),
 });
 
@@ -120,7 +123,11 @@ export function parseBuildList(raw: string | null): BuildListItem[] | null {
   const items = Array.isArray(parsed.data) ? parsed.data : parsed.data.items;
   return items
     .filter((item) => isPartId(item.partId))
-    .slice(0, MAX_BUILD_LIST_ITEMS) as BuildListItem[];
+    .slice(0, MAX_BUILD_LIST_ITEMS)
+    .map(({ chosenProduct, ...item }) => {
+      const product = chosenProduct === undefined ? undefined : chosenProductOf(chosenProduct);
+      return (product === undefined ? item : { ...item, chosenProduct: product }) as BuildListItem;
+    });
 }
 
 export type KeyValueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -250,6 +257,13 @@ export interface BuildListProps {
   initialItems: readonly BuildListItem[] | null;
   /** The `BuildList` row, for "Retirer ce qui est fait". `null` for a guest list. */
   buildListId: string | null;
+  /**
+   * Brands per tier for the parts of this bike that `content/brands.yaml`
+   * covers — read on the server, since the file never reaches the browser.
+   */
+  brandsByPart?: Readonly<Record<string, Readonly<Record<BrandTier, readonly string[]>>>>;
+  /** Server-rendered "Comment mesurer" drawings, keyed by attribute (`renderMeasureDrawings`). */
+  drawings?: Readonly<Record<string, ReactNode>>;
   className?: string;
 }
 
@@ -260,10 +274,12 @@ export function BuildList({
   locale,
   initialItems,
   buildListId,
+  brandsByPart = {},
+  drawings,
   className,
 }: BuildListProps): React.JSX.Element {
   const t = useTranslations("shop");
-  const tRoot = useTranslations();
+  const listText = useListText();
   const guestRef: GuestBikeRef | null = bikeRef.kind === "db" ? null : bikeRef.kind;
 
   const stored = useBuildListSnapshot(guestRef ?? "demo");
@@ -414,7 +430,7 @@ export function BuildList({
           label={t("list.copy")}
           doneLabel={t("list.copied")}
           failedLabel={t("list.copyFailed")}
-          reasonText={(key) => translateMessageKey(tRoot, `guides.reasons.${key}`)}
+          reasonText={(key) => listText(`guides.reasons.${key}`)}
         />
       </div>
 
@@ -448,6 +464,10 @@ export function BuildList({
                     build={build}
                     locale={locale}
                     bikeParam={bikeParam}
+                    brandTiers={
+                      Object.hasOwn(brandsByPart, item.partId) ? brandsByPart[item.partId] : null
+                    }
+                    drawings={drawings}
                     onChange={(next) => void save(next)}
                   />
                 </li>

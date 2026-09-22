@@ -10,14 +10,16 @@
  * produce exactly it. W5-T1 reads `REQUIRED_CHECKS` to configure the branch
  * protection rule instead of retyping twenty strings.
  *
- * Two contexts are deliberately NOT required:
+ * Three contexts are deliberately NOT required:
  *   - `e2e (mobile-webkit)`  — Linux WebKit is not iOS Safari; it runs with
  *     continue-on-error and informs rather than blocks.
- *   - `visual-baseline-guard` — path-filtered; it does not run on most PRs.
+ *   - `visual-baseline-guard` — its own path-filtered workflow
+ *     (visual-baseline-guard.yml); it does not run on most PRs, and a required
+ *     context that never reports blocks the merge forever.
  *   - `detect changes`       — plumbing for the other jobs' `if:`.
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 
@@ -55,6 +57,10 @@ export const NON_BLOCKING_CONTEXTS = [
 const WORKFLOW_DIR = path.join(process.cwd(), ".github", "workflows");
 const CI_WORKFLOW = path.join(WORKFLOW_DIR, "ci.yml");
 const CODEQL_WORKFLOW = path.join(WORKFLOW_DIR, "codeql.yml");
+const GUARD_WORKFLOW = path.join(WORKFLOW_DIR, "visual-baseline-guard.yml");
+
+/** Every workflow that reports a status context on a pull request. */
+const PR_WORKFLOWS = [CI_WORKFLOW, CODEQL_WORKFLOW, GUARD_WORKFLOW];
 
 interface MatrixInclude {
   [key: string]: unknown;
@@ -70,6 +76,7 @@ interface WorkflowJob {
 }
 
 interface Workflow {
+  on?: Record<string, unknown>;
   jobs: Record<string, WorkflowJob>;
 }
 
@@ -80,7 +87,7 @@ interface Context {
 }
 
 function loadWorkflow(file: string): Workflow {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- the two paths are module constants below.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- every caller passes one of the module constants above, or a file listed from WORKFLOW_DIR.
   return parse(readFileSync(file, "utf8")) as Workflow;
 }
 
@@ -120,11 +127,27 @@ function contextsOf(jobId: string, job: WorkflowJob): Context[] {
 }
 
 function allContexts(): Context[] {
-  return [CI_WORKFLOW, CODEQL_WORKFLOW]
-    .map(loadWorkflow)
-    .flatMap((workflow) =>
-      Object.entries(workflow.jobs).flatMap(([jobId, job]) => contextsOf(jobId, job)),
-    );
+  return PR_WORKFLOWS.map(loadWorkflow).flatMap((workflow) =>
+    Object.entries(workflow.jobs).flatMap(([jobId, job]) => contextsOf(jobId, job)),
+  );
+}
+
+/** A job's `run:` steps must be `npm ci` or one `bash scripts/ci/<step>.sh`. */
+function inlinedSteps(workflow: Workflow): string[] {
+  const offenders: string[] = [];
+  for (const [jobId, job] of Object.entries(workflow.jobs)) {
+    for (const step of job.steps ?? []) {
+      if (!step.run) continue;
+      const isNpmCi = step.run.startsWith("npm ci");
+      const isCiScript = /^bash scripts\/ci\/[a-z0-9-]+\.sh$/.test(step.run.trim());
+      // The one GitHub-only line: coverage-summary.json -> the job summary.
+      const isSummaryLine = step.run.startsWith("jq ") && step.run.includes("GITHUB_STEP_SUMMARY");
+      if (!isNpmCi && !isCiScript && !isSummaryLine) {
+        offenders.push(`${jobId}: ${step.run.split("\n")[0]}`);
+      }
+    }
+  }
+  return offenders;
 }
 
 describe("required status checks", () => {
@@ -160,28 +183,45 @@ describe("required status checks", () => {
       expect(REQUIRED_CHECKS).not.toContain(context);
     }
   });
+
+  it("no context is reported by two jobs", () => {
+    // Two jobs with one name report into ONE status context, and whichever
+    // finishes last wins it: a skipped copy can overwrite a real failure.
+    const seen = new Map<string, string[]>();
+    for (const { context, jobId } of allContexts()) {
+      seen.set(context, [...(seen.get(context) ?? []), jobId]);
+    }
+    const shared = [...seen].filter(([, jobs]) => jobs.length > 1);
+    expect(shared, "a status context produced by more than one job").toEqual([]);
+  });
+
+  it("no other workflow reports a required context", () => {
+    // A workflow_dispatch run on a PR's branch reports its checks on the PR's
+    // head commit, so a job named like a required context races the real one
+    // and whichever finishes last decides it. perf.yml's `build` did, until the
+    // W4 integration renamed it `build (nightly)`.
+    const others = readdirSync(WORKFLOW_DIR)
+      .filter((file) => /\.ya?ml$/.test(file))
+      .map((file) => path.join(WORKFLOW_DIR, file))
+      .filter((file) => !PR_WORKFLOWS.includes(file));
+    expect(others.map((file) => path.basename(file))).toContain("perf.yml");
+    const required = new Set<string>(REQUIRED_CHECKS);
+    const clashes = others.flatMap((file) =>
+      Object.entries(loadWorkflow(file).jobs)
+        .flatMap(([jobId, job]) => contextsOf(jobId, job))
+        .filter(({ context }) => required.has(context))
+        .map(({ context }) => `${path.basename(file)}: ${context}`),
+    );
+    expect(clashes, "a job outside the PR workflows named like a required check").toEqual([]);
+  });
 });
 
 describe("ci.yml job bodies", () => {
   const workflow = loadWorkflow(CI_WORKFLOW);
 
   it("runs only `npm ci` and scripts/ci/*.sh", () => {
-    const offenders: string[] = [];
-    for (const [jobId, job] of Object.entries(workflow.jobs)) {
-      for (const step of job.steps ?? []) {
-        if (!step.run) continue;
-        const isNpmCi = step.run.startsWith("npm ci");
-        const isCiScript = /^bash scripts\/ci\/[a-z0-9-]+\.sh$/.test(step.run.trim());
-        // The one GitHub-only line: coverage-summary.json -> the job summary.
-        const isSummaryLine =
-          step.run.startsWith("jq ") && step.run.includes("GITHUB_STEP_SUMMARY");
-        if (!isNpmCi && !isCiScript && !isSummaryLine) {
-          offenders.push(`${jobId}: ${step.run.split("\n")[0]}`);
-        }
-      }
-    }
     expect(
-      offenders,
+      inlinedSteps(workflow),
       "inlining a command here breaks the `npm run ci:local` mirror — put it in scripts/ci/",
     ).toEqual([]);
   });
@@ -199,5 +239,39 @@ describe("ci.yml job bodies", () => {
   it("cancels superseded runs on branches but never on main", () => {
     const raw = readFileSync(CI_WORKFLOW, "utf8");
     expect(raw).toContain("cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}");
+  });
+});
+
+/**
+ * §7.2: a PR touching `tests/e2e/__screenshots__/**` must carry the
+ * `visual-baseline` label. The LABEL is the check's input, so the check has to
+ * run again whenever a label is added or removed — which ci.yml's default
+ * `pull_request` types never do — and only on PRs that change a baseline.
+ */
+describe("visual-baseline-guard.yml", () => {
+  const workflow = loadWorkflow(GUARD_WORKFLOW);
+
+  it("runs on pull requests only, again on every label change", () => {
+    expect(Object.keys(workflow.on ?? {})).toEqual(["pull_request"]);
+    const trigger = workflow.on?.pull_request as { types?: string[]; paths?: string[] };
+    expect([...(trigger.types ?? [])].sort()).toEqual(
+      ["labeled", "opened", "reopened", "synchronize", "unlabeled"].sort(),
+    );
+  });
+
+  it("only on pull requests that change a baseline", () => {
+    const trigger = workflow.on?.pull_request as { paths?: string[] };
+    expect(trigger.paths).toEqual(["tests/e2e/__screenshots__/**"]);
+  });
+
+  it("is one job whose body is the label script", () => {
+    expect(allContexts().filter((c) => c.context === "visual-baseline-guard")).toEqual([
+      { context: "visual-baseline-guard", optional: false, jobId: "visual-baseline-guard" },
+    ]);
+    const runs = Object.values(workflow.jobs).flatMap((job) =>
+      (job.steps ?? []).flatMap((step) => (step.run ? [step.run.trim()] : [])),
+    );
+    expect(runs).toEqual(["bash scripts/ci/visual-label.sh"]);
+    expect(inlinedSteps(workflow)).toEqual([]);
   });
 });

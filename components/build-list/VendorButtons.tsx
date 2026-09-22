@@ -27,10 +27,11 @@ import { cn } from "@/lib/utils";
  *
  * A retailer's URLs are checked **by a human** opening them
  * (`docs/retailers.md`), and the date of that check lives in
- * `lib/domain/data/retailers.ts`. Today Rose Bikes is verified and the other
- * two are not, so the group carries one quiet line naming them (§5.5) rather
- * than a badge on each button. The note is driven by the data: the day someone
- * opens Alltricks and writes the date down, it disappears on its own.
+ * `lib/domain/data/retailers.ts`. A retailer whose date is `null` gets one
+ * quiet line naming it under the group (§5.5) rather than a badge on each
+ * button. The note is driven by the data: since the 2026-09-21 pass every
+ * retailer carries a date, so it renders nothing until one goes back to
+ * `null`.
  */
 export interface VendorButtonsProps {
   partId: string;

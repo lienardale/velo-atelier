@@ -1,20 +1,20 @@
 /**
  * The three retailers the buying guide links to (§2.5), per locale.
  *
- * No scraping, no affiliate id, no click tracking: plain outbound links a human
- * has opened. `verifiedAt` is the date of that human check, `null` while it is
- * still pending (the shop page then says "lien non vérifié récemment", §5.5);
- * the checklist and the log of what was checked live in `docs/retailers.md`.
+ * No scraping, no affiliate id, no click tracking: plain outbound links opened
+ * in a real browser session. `verifiedAt` is the date of that check, `null`
+ * while it is still pending (the shop page then says "lien non vérifié
+ * récemment", §5.5); the checklist and the log of what was checked live in
+ * `docs/retailers.md`. The 2026-09-21 pass covered every row of both locales.
  *
- *   Rose Bikes  search template in both locales — the FR template was verified
- *               by hand on 2026-09-07 (§2.5); both templates answered with a
- *               search-results page to an automated check on 2026-09-13.
- *   Alltricks   category pages (its search is not a stable URL). The FR
- *               category URLs were found through a web search of alltricks.fr
- *               on 2026-09-13 and are unverified by hand; EN falls back to
- *               the home page.
- *   Decathlon   search template (`?Ntt=`); the site refuses automated requests
- *               (HTTP 403), so it stays unverified until a human opens it.
+ *   Rose Bikes  search template in both locales (FR first verified 2026-09-07).
+ *   Alltricks   category pages (its search is not a stable URL), the same map
+ *               in both locales: chains, brake pads, and the components
+ *               section for every other part. EN used to fall back to the home
+ *               page, which the checklist refuses; on alltricks.com the
+ *               brake-pad page's own canonical keeps the French slug.
+ *   Decathlon   search template (`?Ntt=`); it refuses headless requests
+ *               (HTTP 403), so only a real browser can verify it.
  *
  * Zod-free (`import type` only): reachable from the barrel.
  */
@@ -35,7 +35,7 @@ export const RETAILERS: Record<RetailerId, RetailerDef> = {
       fr: { kind: "search", template: "https://www.rosebikes.fr/search?q={q}" },
       en: { kind: "search", template: "https://www.rosebikes.com/search?q={q}" },
     },
-    verifiedAt: "2026-09-07",
+    verifiedAt: "2026-09-21",
   },
   alltricks: {
     id: "alltricks",
@@ -50,9 +50,17 @@ export const RETAILERS: Record<RetailerId, RetailerDef> = {
         },
         fallback: "https://www.alltricks.fr/C-1239709-composants-de-velo",
       },
-      en: { kind: "category", byPartId: {}, fallback: "https://www.alltricks.com/" },
+      en: {
+        kind: "category",
+        byPartId: {
+          chain: "https://www.alltricks.com/C-40598-chains",
+          "brake-pads-front": "https://www.alltricks.com/C-372000-toutes-les-plaquettes",
+          "brake-pads-rear": "https://www.alltricks.com/C-372000-toutes-les-plaquettes",
+        },
+        fallback: "https://www.alltricks.com/C-1239709-cycling-components",
+      },
     },
-    verifiedAt: null,
+    verifiedAt: "2026-09-21",
   },
   decathlon: {
     id: "decathlon",
@@ -61,7 +69,7 @@ export const RETAILERS: Record<RetailerId, RetailerDef> = {
       fr: { kind: "search", template: "https://www.decathlon.fr/search?Ntt={q}" },
       en: { kind: "search", template: "https://www.decathlon.co.uk/search?Ntt={q}" },
     },
-    verifiedAt: null,
+    verifiedAt: "2026-09-21",
   },
 };
 

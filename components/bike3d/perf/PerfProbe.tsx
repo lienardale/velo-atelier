@@ -26,7 +26,12 @@ import { materialCount } from "@/lib/bike3d/materials";
 import { isQualityTier } from "@/lib/bike3d/quality";
 import type { ScenePlan } from "@/lib/bike3d/types";
 import { clickTargetOf, isPartId } from "@/lib/domain/data/parts";
-import { installE2EHooks, type ScreenPoint, type VaTestHooks } from "@/lib/testing/e2e-hooks";
+import {
+  installE2EHooks,
+  type ScreenPoint,
+  type VaTestHooks,
+  type WorldPoint,
+} from "@/lib/testing/e2e-hooks";
 
 import { useViewerStoreApi, type SceneBridge } from "../store";
 
@@ -34,7 +39,12 @@ interface Controls {
   setLookAt(...args: [number, number, number, number, number, number, boolean]): Promise<void>;
   update(delta: number): boolean;
   rotate(azimuth: number, polar: number, transition: boolean): Promise<void>;
+  /** camera-controls 3.1.2: `receiveEndValue` true = where a transition ends, false = now. */
+  getPosition(out: Vector3, receiveEndValue?: boolean): Vector3;
+  getTarget(out: Vector3, receiveEndValue?: boolean): Vector3;
 }
+
+const worldPoint = (vector: Vector3): WorldPoint => [vector.x, vector.y, vector.z];
 
 const MAX_SAMPLES_PER_MESH = 48;
 
@@ -209,6 +219,20 @@ export default function PerfProbe({ plan }: { plan: ScenePlan }): null {
         setQuality(tier) {
           if (isQualityTier(tier)) api.getState().setQuality(tier);
         },
+        camera() {
+          // Reads only — no `syncWorld`: `controls.update(0)` would advance the
+          // very transition a reduced-motion spec is timing.
+          const b = scene3d();
+          const controls = b?.controls as Controls | null | undefined;
+          if (!b || !controls) return null;
+          return {
+            // Written by camera-controls' `update()`, i.e. by the last frame drawn.
+            position: worldPoint(b.camera.position),
+            target: worldPoint(controls.getTarget(new Vector3(), false)),
+            endPosition: worldPoint(controls.getPosition(new Vector3(), true)),
+            endTarget: worldPoint(controls.getTarget(new Vector3(), true)),
+          };
+        },
       },
       perf: {
         snapshot() {
@@ -261,6 +285,36 @@ export default function PerfProbe({ plan }: { plan: ScenePlan }): null {
             requestAnimationFrame(tick);
           });
           return intervals;
+        },
+        async frameCost(n) {
+          const costs: number[] = [];
+          const pixel = new Uint8Array(4);
+          for (let i = 0; i < n; i++) {
+            const b = scene3d();
+            if (!b) break;
+            void (b.controls as Controls | null)?.rotate(0.03, 0, false);
+            syncWorld(b);
+            const context = b.gl.getContext();
+            const started = performance.now();
+            b.gl.render(b.scene, b.camera);
+            // Blocks until the GPU has executed the frame: the cost is the
+            // frame's, not the time it took to queue it.
+            context.readPixels(0, 0, 1, 1, context.RGBA, context.UNSIGNED_BYTE, pixel);
+            costs.push(performance.now() - started);
+            // One real frame between samples, so each starts from a composited canvas.
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          }
+          getBridge()?.invalidate();
+          return costs;
+        },
+        get renderer() {
+          const b = scene3d();
+          if (!b) return null;
+          const context = b.gl.getContext();
+          const debug = context.getExtension("WEBGL_debug_renderer_info");
+          return String(
+            context.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : context.RENDERER),
+          );
         },
         get buildMs() {
           return api.getState().buildMs;

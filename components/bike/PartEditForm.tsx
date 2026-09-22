@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { translateMessageKey } from "@/lib/actions/result";
 import type { BikeRepo } from "@/lib/bike/repo";
 import { partDefinition } from "@/lib/domain/data/parts";
 import { isAttributePresent } from "@/lib/domain/engine/parts-for-spec";
 import type { AttributeDef, AttributeValue, BikeBuild } from "@/lib/domain/schema/part";
 import { cn } from "@/lib/utils";
+
+import { useBikeActionText } from "./action-text";
+import { usePartsText } from "./parts-text";
 
 /**
  * The editable attributes of one part (§6.4, §6.8 AC11).
@@ -53,7 +55,8 @@ export function PartEditForm({
   className,
 }: PartEditFormProps): React.JSX.Element | null {
   const t = useTranslations("bike");
-  const tRoot = useTranslations();
+  const partsText = usePartsText();
+  const actionText = useBikeActionText();
   const definition = partDefinition(partId);
   const part = build.parts.find((candidate) => candidate.partId === partId);
   const [fields, setFields] = useState<Record<string, FieldState>>({});
@@ -95,7 +98,7 @@ export function PartEditForm({
 
         return (
           <div key={attribute.key} className="flex flex-col gap-1">
-            <Label htmlFor={fieldId}>{tRoot(attribute.labelKey as never)}</Label>
+            <Label htmlFor={fieldId}>{partsText(attribute.labelKey)}</Label>
             <AttributeControl
               id={fieldId}
               attribute={attribute}
@@ -117,7 +120,7 @@ export function PartEditForm({
                 : state.status === "saving"
                   ? t("panel.saving")
                   : state.status === "error"
-                    ? translateMessageKey(tRoot, state.messageKey)
+                    ? actionText(state.messageKey)
                     : ""}
             </p>
           </div>

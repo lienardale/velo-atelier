@@ -2,9 +2,12 @@
 # Lighthouse CI over the production build.
 #
 # `lighthouserc.cjs` owns the URL list, the assertions and the Chrome flags
-# (SwiftShader, because the demo-bike pages render WebGL). This script only
-# points `CHROME_PATH` at a browser that exists: in the Playwright container
-# there is no system Chrome, but Playwright's own chromium is there.
+# (SwiftShader, because the demo-bike pages render WebGL). This script points
+# `CHROME_PATH` at a browser that exists — in the Playwright container there is
+# no system Chrome, but Playwright's own chromium is there — and, pass or fail,
+# prints every run and the median per URL (scripts/perf/lighthouse-report.ts),
+# to the log and the job summary: the measured source every Lighthouse pin is
+# taken from. The step's exit code is still lhci's.
 source "$(dirname -- "${BASH_SOURCE[0]}")/_lib.sh"
 cd "$PROJECT_ROOT"
 
@@ -35,7 +38,18 @@ if [[ -z "${CHROME_PATH:-}" ]]; then
   fi
 fi
 
-log_step "lhci autorun"
-npx --no-install lhci autorun
+# Old runs must not be reported as this one's.
+rm -rf "${PROJECT_ROOT:?}/.lighthouseci"
 
+log_step "lhci autorun"
+status_code=0
+npx --no-install lhci autorun || status_code=$?
+
+log_step "lighthouse report (every run, and the medians)"
+npx --no-install tsx scripts/perf/lighthouse-report.ts || log_warn "lighthouse-report failed; the assertions above still decide"
+
+if [[ "$status_code" != "0" ]]; then
+  log_err "lighthouse assertions failed (lhci exit $status_code) — the table above has every run"
+  exit "$status_code"
+fi
 log_ok "lighthouse assertions passed"

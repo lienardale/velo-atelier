@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 import { Disclosure } from "@/components/ui-ext/Disclosure";
@@ -8,7 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import type { Locale } from "@/lib/i18n/routing";
-import { shopConstraintsFor, shopQuestionsFor, type Refinement } from "@/lib/shop/questions";
+import {
+  shopConstraintsFor,
+  shopQuestionsFor,
+  type BrandTier,
+  type Refinement,
+} from "@/lib/shop/questions";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,6 +41,21 @@ import { cn } from "@/lib/utils";
  * text the part panel shows, resolved through `lib/domain/i18n.ts` rather than
  * next-intl so a catalogue that grows an attribute before the message file
  * catches up degrades to the key instead of throwing.
+ *
+ * ## The brand tier (§6.5)
+ *
+ * Entry / mid / high — what actually changes between a 20 € chain and an 80 €
+ * one — is asked when the page handed this part's `brandTiers` down (the
+ * brands come from `content/brands.yaml`, which only the server reads). A part
+ * the file does not cover has no tier to ask about: choosing one would change
+ * nothing in the search.
+ *
+ * ## The drawings in "Comment mesurer"
+ *
+ * Where an existing drawing shows how to read the attribute off the bike
+ * (`lib/shop/measure-drawings.ts`), the page renders it on the server and hands
+ * it down in `drawings`, keyed by attribute: a client module may not import the
+ * illustration barrel (CLAUDE.md), and this form is one.
  */
 export interface RefinementFormProps {
   build: BikeBuild;
@@ -44,6 +64,10 @@ export interface RefinementFormProps {
   locale: Locale;
   /** Scopes the field ids, so two cards for the same part do not collide. */
   itemId: string;
+  /** This part's brands per tier, from the server; `null` / absent: no tier question. */
+  brandTiers?: Readonly<Record<BrandTier, readonly string[]>> | null;
+  /** Server-rendered "Comment mesurer" drawings, keyed by attribute (`renderMeasureDrawings`). */
+  drawings?: Readonly<Record<string, ReactNode>>;
   onChange: (refinement: Refinement) => void;
   className?: string;
 }
@@ -54,15 +78,27 @@ export function RefinementForm({
   refinement,
   locale,
   itemId,
+  brandTiers = null,
+  drawings = {},
   onChange,
   className,
 }: RefinementFormProps): React.JSX.Element | null {
   const t = useTranslations("shop");
   const prefix = useId();
 
+  const hasTiers = brandTiers !== null;
   const questions = useMemo(
-    () => shopQuestionsFor(build, partId as never, locale),
-    [build, partId, locale],
+    () =>
+      hasTiers
+        ? shopQuestionsFor(
+            build,
+            partId as never,
+            locale,
+            { entry: t("tiers.entry"), mid: t("tiers.mid"), high: t("tiers.high") },
+            { label: t("brand.label"), help: t("brand.help") },
+          )
+        : shopQuestionsFor(build, partId as never, locale),
+    [build, partId, locale, hasTiers, t],
   );
   const constraints = useMemo(
     () => shopConstraintsFor(build, partId as never, locale),
@@ -145,6 +181,7 @@ export function RefinementForm({
                     className="text-ink-muted text-xs"
                   >
                     <p>{question.help}</p>
+                    {Object.hasOwn(drawings, question.key) ? drawings[question.key] : null}
                   </Disclosure>
                 )}
               </div>

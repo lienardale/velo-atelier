@@ -12,6 +12,9 @@
  *
  * Runs on every project, including `mobile-narrow` (320 px), where the
  * fixtures' overflow guard also checks that nothing scrolls sideways.
+ *
+ * Every test runs in FR and EN except the first, whose subject is the one URL
+ * that has no locale: the bare origin, and where it sends a visitor.
  */
 /* eslint-disable security/detect-object-injection, security/detect-non-literal-regexp -- locale-keyed fixtures and patterns built from fixed paths */
 import en from "../../messages/en/common.json";
@@ -113,40 +116,46 @@ forEachLocale((locale) => {
   });
 });
 
-test("a nested unknown path is a 404 too", async ({ request }) => {
-  const response = await request.get("/en/not/a/page/at-all");
-  expect(response.status()).toBe(404);
-});
+forEachLocale((locale) => {
+  const t = COMMON[locale];
 
-test("the skip link moves focus to the main content", async ({ page }) => {
-  await page.goto(href("fr", "/"));
-  await page.keyboard.press("Tab");
-  const skip = page.getByRole("link", { name: fr.skipLink });
-  await expect(skip).toBeFocused();
-  await expect(skip).toBeInViewport();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("main#main-content")).toBeFocused();
-});
+  test(`a nested unknown path is a 404 too (${locale})`, async ({ request }) => {
+    const response = await request.get(`/${locale}/not/a/page/at-all`);
+    expect(response.status()).toBe(404);
+  });
 
-test("below lg, the header menu is a modal sheet that closes on Escape", async ({ page }) => {
-  const width = page.viewportSize()?.width ?? 1280;
-  test.skip(width >= 1024, "the inline navigation is used from lg (1024 px) up");
+  test(`the skip link moves focus to the main content (${locale})`, async ({ page }) => {
+    await page.goto(href(locale, "/"));
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: t.skipLink });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("main#main-content")).toBeFocused();
+  });
 
-  await page.goto(href("fr", "/"));
-  const menuButton = page.getByRole("button", { name: fr.nav.openMenu });
-  await expect(menuButton).toBeVisible();
-  const box = await menuButton.boundingBox();
-  expect(box?.width).toBeGreaterThanOrEqual(44);
-  expect(box?.height).toBeGreaterThanOrEqual(44);
+  test(`below lg, the header menu is a modal sheet that closes on Escape (${locale})`, async ({
+    page,
+  }) => {
+    const width = page.viewportSize()?.width ?? 1280;
+    test.skip(width >= 1024, "the inline navigation is used from lg (1024 px) up");
 
-  await menuButton.click();
-  const sheet = page.getByRole("dialog", { name: fr.nav.menu });
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole("link", { name: fr.nav.guides })).toBeVisible();
-  await expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    await page.goto(href(locale, "/"));
+    const menuButton = page.getByRole("button", { name: t.nav.openMenu });
+    await expect(menuButton).toBeVisible();
+    const box = await menuButton.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
 
-  await page.keyboard.press("Escape");
-  await expect(sheet).toBeHidden();
-  await expect(menuButton).toHaveAttribute("aria-expanded", "false");
-  await expect(menuButton).toBeFocused();
+    await menuButton.click();
+    const sheet = page.getByRole("dialog", { name: t.nav.menu });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole("link", { name: t.nav.guides })).toBeVisible();
+    await expect(menuButton).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+    await expect(menuButton).toBeFocused();
+  });
 });

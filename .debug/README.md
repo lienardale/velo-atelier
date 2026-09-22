@@ -16,16 +16,22 @@ person (or the next session) does not rediscover them.
 
 ## Index
 
-| #   | Date       | Subject                                                                                          | Status   |
-| --- | ---------- | ------------------------------------------------------------------------------------------------ | -------- |
-| 001 | 2026-09-12 | W0 scaffold: registry reality vs the plan's pins; W0 integration                                 | resolved |
-| 002 | 2026-09-09 | Prisma 7 + Turbopack: observed CLI flags and the init migration                                  | resolved |
-| 003 | 2026-09-13 | W1: five auth bugs, the sessionVersion contradiction, sub-agent stalls                           | resolved |
-| 004 | 2026-09-17 | W2: the test-hooks gate that shipped, `--strict` wired, callout legends                          | resolved |
-| 005 | 2026-09-17 | `Input.synthesizeScrollGesture` fires no `touchmove` on CI's Linux Chromium                      | resolved |
-| 006 | 2026-09-18 | `/velo/[id]`: static params vs the session, `loading.tsx` vs 404s, `"use server"` exports        | resolved |
-| 007 | 2026-09-17 | Home LCP: a re-created element, and 54 drawings in the RSC payload                               | resolved |
-| 008 | 2026-09-18 | The whole message catalogue on every page — and why trimming it is not the home TBT              | resolved |
-| 009 | 2026-09-18 | W2 closeout: two 5 s unit timeouts, and the bundle guard `ci:local` never asserted               | resolved |
-| 010 | 2026-09-20 | W3: a contract that moved under a sibling, `recheck-ok` that never fired, GFM in the legal pages | resolved |
-| 011 | 2026-09-21 | Home TBT: the decision tree was built on the client, not hydrated                                | resolved |
+Every note in this directory, in number order; the number links to the note.
+
+| #                                                        | Date       | Subject                                                                                                 | Status              |
+| -------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------- | ------------------- |
+| [001](./001-scaffold-2026-09-12.md)                      | 2026-09-12 | W0 scaffold: registry reality vs the plan's pins; W0 integration                                        | resolved            |
+| [002](./002-prisma-2026-09-09.md)                        | 2026-09-09 | Prisma 7 + Turbopack: observed CLI flags and the init migration                                         | resolved            |
+| [003](./003-wave-1-2026-09-13.md)                        | 2026-09-13 | W1: five auth bugs, the sessionVersion contradiction, sub-agent stalls                                  | resolved            |
+| [004](./004-wave-2-2026-09-17.md)                        | 2026-09-17 | W2: the test-hooks gate that shipped, `--strict` wired, callout legends                                 | resolved            |
+| [005](./005-touch-scroll-ci-2026-09-17.md)               | 2026-09-17 | `Input.synthesizeScrollGesture` fires no `touchmove` on CI's Linux Chromium                             | resolved            |
+| [006](./006-velo-routes-2026-09-18.md)                   | 2026-09-18 | `/velo/[id]`: static params vs the session, `loading.tsx` vs 404s, `"use server"` exports               | resolved            |
+| [007](./007-home-lcp-payload-2026-09-17.md)              | 2026-09-17 | Home LCP: a re-created element, and 54 drawings in the RSC payload                                      | resolved            |
+| [008](./008-client-message-namespaces-2026-09-18.md)     | 2026-09-18 | The whole message catalogue on every page — and why trimming it is not the home TBT                     | resolved            |
+| [009](./009-w2-closeout-2026-09-18.md)                   | 2026-09-18 | W2 closeout: two 5 s unit timeouts, and the bundle guard `ci:local` never asserted                      | resolved            |
+| [010](./010-wave-3-2026-09-20.md)                        | 2026-09-20 | W3: a contract that moved under a sibling, `recheck-ok` that never fired, GFM in the legal pages        | resolved            |
+| [011](./011-home-tbt-tree-hydration-2026-09-21.md)       | 2026-09-21 | Home TBT: the decision tree was built on the client, not hydrated                                       | resolved            |
+| [012](./012-wave-4-2026-09-21.md)                        | 2026-09-21 | W4: §7.6 proved on the merged tree, a write token beside branch code, a CSRF walk that missed an action | resolved            |
+| [013](./013-w4-t1-follow-ups-2026-09-21.md)              | 2026-09-21 | W4-T1: a 24 KB prefill, AC3's grep vs the generated client, a new checkup written into the finished one | resolved; §2 open   |
+| [014](./014-w4-t2-perf-2026-09-21.md)                    | 2026-09-21 | W4-T2: the bike page's LCP was a status line; bike TBT and SwiftShader raster, measured                 | LCP fixed; two open |
+| [015](./015-w4-t3-visual-webkit-hydration-2026-09-21.md) | 2026-09-21 | W4-T3: visual baselines, WebKit's wheel and goto races, a form that forgets pre-hydration input         | resolved            |

@@ -52,23 +52,27 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 
 ```bash
 npm run dev            # tree drawings, then Turbopack dev server on :3000
-npm run build          # tree drawings, content-check, then next build
+npm run build          # tree drawings, content:generate (structural check + lib/content/generated), next build
 npm run drawings       # render the decision tree's drawings to public/tree-drawings.json
-npm run drawings:check  # fail if that file is stale (runs in scripts/ci/content.sh)
+npm run drawings:check # fail if that file is stale (runs in scripts/ci/content.sh)
 npm run lint           # ESLint (flat config)
 npm run format:check   # Prettier
-npm run typecheck      # prisma generate && tsc --noEmit
-npm test               # every Vitest project
-npm run test:coverage  # Vitest + the 80 % gate (this is the gate, not a report)
-npm run e2e            # Playwright (needs a production build first)
+npm run typecheck      # prisma generate, content-collections build, content:generate, tsc --noEmit
+npm test               # every Vitest project (integration is dropped, with a warning, when no _test DB answers)
+npm run test:coverage  # Vitest + the coverage thresholds (this is the gate, not a report)
+npm run e2e            # Playwright, every project (needs a production build first; pass --project=<name>)
 npm run e2e:mobile     # Playwright on the mobile profiles
-npm run e2e:docker     # full Playwright suite in the amd64 container
+npm run e2e:docker     # Playwright in the amd64 CI image: the Linux reproducer (scripts/ci/e2e-docker.sh)
+npm run perf           # Playwright perf + perf-mobile (hard WebGL counters + the @soft timings)
+RUN_LOCAL_PERF=1 npm run perf:local  # the real-GPU gate: p95 frame cost <= 16.7 ms, writes .perf/local-<date>.json
 npm run lhci           # Lighthouse CI
-npm run db:up          # docker compose up -d --wait
+npm run db:up          # docker compose up -d --wait (main checkout only)
 npm run db:setup       # docker compose + migrate + seed (localhost only)
+npm run db:seed        # prisma db seed — idempotent upserts; refuses a non-local host unless ALLOW_REMOTE_SEED=1
 npm run db:reset       # destroy the volume and rebuild from scratch
-npm run content:check  # validate content/** frontmatter
-npm run ci:local       # local mirror of the GitHub Actions pipeline
+npm run content:check  # validate content/** (--strict)
+npm run content:new    # scaffold content/guides/<kind>-<slug>/{fr,en}.mdx; --part flags go after a --
+npm run ci:local       # bash scripts/ci.sh, the local mirror of the GitHub Actions pipeline
 ```
 
 ---
@@ -82,7 +86,8 @@ app/[locale]/…       routes (FR default, EN via routing.pathnames)
 auth.ts auth.config.ts proxy.ts     Auth.js split; proxy.ts is Node-only in Next 16
 lib/domain/          pure TS data + engine — zero React, zero Prisma
 lib/bike3d/          pure geometry (three imports allowed, no React)
-lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks
+lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks|seo|a11y|testing
+lib/env.ts           the environment contract (see "Contracts": not called at boot yet)
 components/ui/       generated shadcn — do not hand-edit
 components/ui-ext/   hand-rolled primitives (Stepper, Callout, MobileSheet, …)
 components/i18n/     ClientMessages — the per-route next-intl provider
@@ -92,6 +97,8 @@ messages/{fr,en}/    one JSON file per namespace
 prisma/              schema, migrations, seed
 tests/               unit, ui, bike3d, integration, security, e2e, perf
 scripts/             ci/, db/, perf/, content tooling
+docs/                contributor and operator docs — every one is linked from README.md
+.debug/              NNN-*.md investigation notes, indexed in .debug/README.md
 ```
 
 ---
@@ -136,8 +143,9 @@ scripts/             ci/, db/, perf/, content tooling
   user-facing string exists in **both** `messages/fr/` and `messages/en/`;
   `tests/unit/i18n/messages-parity.test.ts` enforces it.
 - **The catalogue the SERVER reads is whole; what reaches the BROWSER is
-  declared per route.** `lib/i18n/request.ts` still merges all 13 namespaces for
-  `getTranslations`. `NextIntlClientProvider` does not: every route mounts
+  declared per route.** `lib/i18n/request.ts` still merges all 16 namespaces
+  (`lib/i18n/namespaces.ts`) for `getTranslations`. `NextIntlClientProvider`
+  does not: every route mounts
   `components/i18n/ClientMessages.tsx` with its own entry of
   `lib/i18n/client-namespaces.ts` — the locale layout for the shell, a segment
   layout where one exists (`velo/[id]`, `(protected)`, so their `error.tsx` is
@@ -150,10 +158,21 @@ scripts/             ci/, db/, perf/, content tooling
   walks each route's client module graph and fails with the exact set to
   declare. It resolves every uncertainty against the payload — an import it
   cannot resolve fails the run, and a `useTranslations()` with **no literal
-  namespace** requires all 13 (which is why five `/velo` and `/compte`
-  components still pin their routes to the whole catalogue). Making a route
-  lighter means making what it reads visible: `useDecisionText()`
-  (`components/decision-tree/decision-text.ts`) is how the tree does it.
+  namespace** requires all 16 — so client code never uses a root translator.
+  A message key chosen at RUNTIME (an action's `fieldErrors`, a part's
+  `labelKey`, a build-list line's reason or compatibility rule) is resolved with
+  `translateScopedKey` (`lib/i18n/scoped-key.ts`) inside translators bound by
+  literal `useTranslations("…")` calls: `usePartsText()` (`parts`),
+  `useBikeActionText()` (`bike`, `errors`), `form-parts.tsx`'s
+  `useActionMessage()` (`errors`, `auth`) and `useListText()`
+  (`components/build-list/list-text.ts`: `guides`, `rules`); a key outside those
+  namespaces is reported missing, never resolved elsewhere. No route declares
+  the whole catalogue any more (W4). `app/[locale]/velo/[id]/controle` and
+  `app/[locale]/velo/[id]/liste` mount their own `ClientMessages` inside the `velo/[id]`
+  layout's, and a nested provider replaces messages, so each declares
+  everything its subtree reads. `useDecisionText()`
+  (`components/decision-tree/decision-text.ts`) is the one-namespace version of
+  the same idea.
 - **Navigation** — always import `Link`, `redirect`, `usePathname`, `useRouter`
   and `getPathname` from `@/lib/i18n/navigation`, never from `next/link` or
   `next/navigation`.
@@ -182,20 +201,27 @@ scripts/             ci/, db/, perf/, content tooling
   for that, not for the element: a click in that window is dropped, and
   `networkidle` is not "Next has finished prefetching" either (`.debug/011`).
 - **`server-only`** is imported only in `app/**` server files,
-  `lib/auth/password-policy.ts` and `lib/actions/with-user.ts`. Everything
-  reachable from `prisma/seed.ts` and `scripts/**` must be plain Node.
+  `components/mdx/index.ts` (the MDX rendering boundary: importing that barrel
+  from a client component fails the build), `lib/auth/password-policy.ts` and
+  `lib/actions/with-user.ts`. Everything reachable from `prisma/seed.ts` and
+  `scripts/**` must be plain Node (`tests/unit/no-server-only-in-scripts.test.ts`
+  walks the graph).
 - **Prisma** — import the client from `@/lib/generated/prisma/client`, never
   from `@prisma/client` (ESLint enforces it; a type-only import is allowed for
   the adapter cast in `auth.ts`).
-- **No logic in `components/bike3d/parts/**`** — no `if`, no ternary, no `&&`
-  rendering, no loops. Decide in `lib/bike3d/**`, pass a prop. ESLint enforces
-  it via `no-restricted-syntax`.
-- **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is a
-  72-component barrel. Only server files may import it: guides go through
-  `components/mdx/Illustration.tsx`, the decision tree through
-  `components/decision-tree/tree-illustrations.tsx`, which hands the client tree
-  already-rendered nodes. A `"use client"` file that imports the barrel puts all
-  ~70 drawings in the route's first-load JS. A drawing with numbered
+- **No logic in `components/bike3d/parts/**`** — no `if`, no `switch`, no
+  ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
+  prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
+- **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is the
+  generated barrel of all 68 drawings (72 exports: the 68, the placeholder, the
+  props type, and the name → component map with its lookup;
+  `docs/illustrations.md`). Only server files may import
+  it: guides go through `components/mdx/Illustration.tsx`, the decision tree
+  through `components/decision-tree/tree-illustrations.tsx`, which hands the
+  client tree already-rendered nodes, and the build list's "Comment mesurer"
+  through `components/build-list/measure-drawings.tsx` (ids registered in
+  `lib/shop/measure-drawings.ts`). A `"use client"` file that imports the
+  barrel puts all 68 drawings in the route's first-load JS. A drawing with numbered
   `data-callout`s always ships with its legend (`illustrations.<id>.callouts.<n>`),
   in the guide renderer and in the tree's `HelpFigure` alike.
 - **The decision tree's drawings are split: frame here, shapes over the wire**
@@ -249,6 +275,27 @@ scripts/             ci/, db/, perf/, content tooling
   ships `1` for `npm run dev` and `next build` reads `.env.local`, so without
   that pin every local build had the hooks on and `ci:local` asserted the
   _present_ direction, the same one CI's `build` job asserts (`.debug/009`).
+- **`window.__va.bike.camera()` is a read.** `CameraState`
+  (`lib/testing/e2e-hooks.ts`) has `position`/`target` as the last frame drew
+  them and `endPosition`/`endTarget` where camera-controls is heading. Unlike
+  `screenPositionOf`, it never calls `update()`. `reduced-motion.spec.ts`
+  asserts on the gap between the two, sampled per rendered frame
+  (`renderFrames(1)`), never per wall-clock second: under `reduce` it is below
+  1e-4 one frame after a focus (measured 0); with motion it is above 1e-3 and
+  closes over more than one frame. A frame count is an annotation only — it
+  measures the machine (`.debug/015` §3, §10).
+- **`lib/env.ts` declares the environment contract; nothing enforces it at
+  boot yet.** `parseEnv()` requires `AUTH_URL` and the Google pair in
+  production and refuses `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and
+  `NEXT_PUBLIC_DEMO_LOGIN` there (`tests/unit/db/env.test.ts`), but `getEnv()`
+  has no caller outside that test, and `scripts/bundle-guard.ts` follows the
+  hooks flag rather than refusing it. The comments in
+  `components/auth/SignInForm.tsx` and `app/[locale]/(auth)/connexion/page.tsx`
+  that say the boot fails are wrong. Wiring it needs the production test scoped
+  to `VERCEL_ENV` first: the `next` CLI defaults `NODE_ENV` to `production` for
+  every `next start` (unless it is set), the CI boot check and the e2e server
+  included (`docs/backlog.md`, W5). Until then the Vercel env list in
+  `docs/deploy.md` is the only guard.
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
   under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
   `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
@@ -257,6 +304,20 @@ scripts/             ci/, db/, perf/, content tooling
   no longer set a 404. A route-level `loading.tsx` anywhere must also be
   **silent**: it gets no `params`, so it cannot `setRequestLocale`, and one
   `useTranslations` in it turns the whole segment dynamic.
+  **§6.8 AC2, as amended** (W4 ruling — the plan's third clause also wanted
+  `/[locale]/velo/demo` static, which cannot hold beside §4.7's 404 for a
+  foreign bike, and the 404 wins; `.debug/010` §7): the criterion reads
+  "`/[locale]` and `/[locale]/guides/[slug]` static; `/velo/[id]` dynamic by
+  design (§4.7)". `npm run build` prints `●` for `/fr`, `/en` and every guide
+  path, and `ƒ` for `/[locale]/velo/[id]` and its sub-routes. **§6.8 AC9's
+  LCP-element clause, as found** (W4): Chrome never takes an inline `<svg>` as an
+  LCP candidate, so the bike page's LCP element is the server-rendered `<h1>` —
+  painted in the first frame, never the canvas, which is what the clause is for.
+- **Nothing the 3D viewer paints after the first paint may be text larger than
+  the page's `<h1>`.** LCP is the largest text painted before input, so a late
+  line moves LCP to whenever it appeared: `/en/bike/demo`'s LCP was the
+  transient "Loading the 3D view…" notice (4 520 ms on CI). That notice is
+  `sr-only` — announced, not painted (`BikeViewer`, `.debug/014`): 2 179 ms.
 - **The checkup is planned on the server, answered in the browser** (W3-T1).
   `planCheckup(build, scope, guides)` (`lib/checkup/plan.ts`) is a pure function
   of the bike and the corpus, recomputed on every request; the client sends back
@@ -268,6 +329,70 @@ scripts/             ci/, db/, perf/, content tooling
   and `reason-keys`), which is why `scripts/ci/test-unit.sh` generates them like
   `test-integration.sh` does. `lib/checkup/**` is zod/mini-only (ESLint) and
   carries a 100 % statements/branches gate.
+- **A checkup run is its `startedAt`.** The server's `existingCheckup` treats the
+  same `startedAt` as the same run, so a re-finish updates its own list. The
+  wizard stamps every NEW run with `createCheckupState`'s now — including after
+  a finished checkup reached through `?step=`, which only positions the new run
+  — and resumes only an unfinished stored run (`tests/e2e/checkup-second-run.spec.ts`).
+  Before W4 a second checkup reused the finished one's `startedAt` and was
+  written INTO it (`.debug/013` §6).
+- **Quotas (§4.2 c), literally**: 20 bikes/user, 50 checkups/bike, 10
+  lists/bike, 50 lines/list, each `TOO_MANY`, each checked BEFORE the first
+  write. `finishCheckupAction` names the limit in `fieldErrors.form`
+  (`checkup.finish.tooMany{Checkups,Lists,Lines}`); the wizard shows it as
+  `role="alert"` and stays on the summary. Every finished checkup creates its
+  list, and nothing writes `BuildList` `DONE`/`ARCHIVED`, so a bike holding 10
+  lists finishes no further checkup until a list lifecycle exists
+  (`docs/backlog.md`).
+- **A build-list line is an `(action, partId)` pair, never a part.**
+  `recheckedLines(state)` (`lib/checkup/build-list.ts`) is the ONE rule for what
+  a checkup closes: the pairs an OK step's `ko[]` names, minus every pair a KO of
+  the same state derives. The guest merge and `closeRecheckedItems` both apply
+  it and write `doneReason: 'recheck-ok'`; a hand tick is `manual`
+  (`setBuildListItemDoneAction`). `tests/unit/checkup/line-identity.test.ts`
+  holds both paths to it over all seven presets' real plans.
+- **`CheckupItem.reasonKeys` and `BuildListItem.doneReason`** arrive in
+  migration `20260921090547_checkup_symptoms_done_reason`, written with
+  `prisma migrate diff --from-schema <previous schema> --to-schema prisma/schema.prisma --script`
+  (no database needed). Symptoms survive a reload of a saved bike's checkup
+  (`writeItems` → `loadStoredCheckup`); `toItem` (`app/[locale]/velo/[id]/liste/load.ts`) reads
+  `doneReason` back.
+- **The `/velo/[id]` sub-routes read through owner-scoped `load.ts` files**
+  beside their `actions.ts` (`app/[locale]/velo/[id]/controle/load.ts`,
+  `app/[locale]/velo/[id]/liste/load.ts`), for the reason
+  below. The §7.3 budget (≤ 3 queries) covers `/velo/[id]`, `/liste` and
+  `/controle` in `tests/unit/bike/load-bike.test.ts`, and
+  `tests/integration/query-budget.test.ts` counts the same loads on Postgres
+  through `countingClient`.
+- **`/acheter?item=` pre-fills from the build-list line.** A guest's line is
+  read through `readGuestBuildList`, loaded with a dynamic `import()` only when a
+  guest `?item=` is present (a static import put `zod/mini` and the checkup
+  storage in `/acheter`'s first load, +24 KB over its pin); a saved bike's line
+  through `loadBuildListItemAction` (owner- and bike-scoped), handed down by the
+  static page as a prop — an action passed as a prop is a reference, so the route
+  stays `●`. The panel is `aria-busy` until the read answers.
+- **Server-side data reaches the list's client form only as props.** `/liste`
+  passes the brand tiers of THIS bike's parts (`content/brands.yaml`, read per
+  request — safe because Turbopack traces `content/` into the route's
+  `page.js.nft.json`) and the "Comment mesurer" drawings rendered by
+  `components/build-list/measure-drawings.tsx`, a SERVER module (it imports the
+  illustration barrel) that no `"use client"` file may import.
+- **`chosenProduct`'s link rule lives once**, in `lib/shop/chosen-product.ts`:
+  https, no credentials, on the named retailer's hosts — or `vendor: 'other'`;
+  any other vendor is refused. The guest import applies it on write; the
+  `/liste` loader and the guest list's parser apply it on read.
+- **`clientIp()` returns a rate-limit bucket, not an address.** IPv4 as is; an
+  IPv4-mapped IPv6 address becomes its IPv4; any other IPv6 address its /64.
+  Ports and zone ids are stripped. Header precedence is still §4.3's; a
+  trusted-proxy switch is post-MVP.
+- **`loadClientMessages` narrows its import specifier at run time**: an unknown
+  locale becomes the default, an unknown namespace throws.
+- **Every server action needs a row in `tests/security/csrf-and-actions.test.ts`.**
+  The test reads the exports of every `"use server"` module under `app/`,
+  whatever the file is called: a `withUser` export needs a row in
+  `EVERY_WITH_USER_ACTION`, every other export (sign-in, sign-up, sign-out,
+  Google) one in `ANONYMOUS_ACTIONS`, and an export it cannot name or an inline
+  `"use server"` fails the run.
 - **A `use server` file cannot hold a function that takes a `userId`.** Every
   export becomes a callable server reference, so
   `app/[locale]/velo/[id]/controle/load.ts` sits NEXT TO `actions.ts` rather
@@ -337,36 +462,156 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
 
 ## Quality gates
 
-Every gate runs locally exactly as it runs in CI (`npm run ci:local`).
+Every gate but CodeQL is a `scripts/ci/*.sh` script that runs the same way
+locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
+Lighthouse), which need a production build and run on their own, and the
+PR-only `visual-baseline-guard`.
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
 - Vitest projects `unit | ui | bike3d | integration | security`; coverage
-  thresholds 80 % overall, 100 % on `lib/domain/**`.
+  thresholds (`vitest.config.ts`, never lowered to pass): 80 % overall; 100 % on
+  `lib/domain/**`; 100 % statements and branches on `lib/checkup/**`; `lib/**`
+  90 % lines / functions / statements and 85 % branches; `components/**` 75 %
+  lines / functions / statements and 70 % branches. CI's two test jobs write
+  blob reports and `scripts/ci/coverage.sh` evaluates the thresholds on the
+  merge. The glob thresholds are live on their own: `lib/checkup/**` at 99.59 %
+  branches failed a run whose global numbers all passed, so run the full
+  `npx vitest run --coverage` after touching `lib/checkup/**` or
+  `lib/domain/**`. `coverage.include` also takes `components/**/*.ts`,
+  `app/**/load.ts` and `app/{sitemap,robots}.ts` (`components/bike3d/types.ts`,
+  declarations only, is excluded); coverage-v8 4.1.11 honours both `c8 ignore`
+  and `v8 ignore`. Node-tier tests build localized URLs with
+  `tests/_fakes/routes.ts`. §7.6 AC3's raw-SQL / `dangerouslySetInnerHTML` grep
+  runs over TRACKED sources (`git grep … -- app lib components`): after
+  `prisma generate`, the gitignored client under `lib/generated/` declares
+  `$queryRawUnsafe`.
 - Playwright on desktop, Pixel 7, landscape, 320 px, WebKit (non-blocking) and
   a no-WebGL profile; axe sweep with zero serious/critical violations. e2e runs a
-  production build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run build`
-  first) and reuses a running server locally — stop stale servers on :3100. Each
+  production build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh`
+  first — not a bare `npm run build`, which bakes `.env.local`'s `:3000` origin
+  into the canonicals `seo.spec.ts` and Lighthouse check on `:3100`) and reuses a
+  running server locally — stop stale servers on :3100. Each
   test gets its own `x-real-ip` so rate limits never collide between tests. Use
   `--project=<name>` (equals form): `--project` is variadic and eats a spec path.
   `PLAYWRIGHT_PORT` moves the whole run (one per worktree): `AUTH_URL` and
   `NEXT_PUBLIC_SITE_URL` are derived from it, and `.env.test`'s pinned `:3100`
   never wins — only a value exported in the shell does. A test database's name
   must end in `_test` (`assertTestDatabaseUrl`).
+- **Every e2e spec runs in FR and EN** (`forEachLocale`, hrefs from `href()`),
+  including subjects with no locale of their own (the viewer, the sheet, the
+  camera). A test stays single only when there is nothing locale-specific to
+  visit, and its spec header says why: the bare-origin redirect (`smoke`),
+  `sitemap.xml`/`robots.txt` (`seo`), the scan of the built client chunks (`csp`), the
+  prerender-manifest check (`shop`), auth-login's EN-cookie case, locale-switch's
+  pathnames meta-test, and the 7 preset images of `visual.spec.ts` (the canvas
+  draws no text).
+- **Visual baselines are Linux-rendered and recorded only by CI.**
+  `tests/e2e/visual.spec.ts` (`@snapshot`, `colorScheme: light` +
+  `reducedMotion: reduce`, the canvas after `renderFrames(3)`) takes 20 images:
+  the 7 presets through `/dev/bike3d?preset=` on desktop-chromium and
+  mobile-chromium (`maxDiffPixelRatio` 0.02), and home, a guide and the
+  checkup's tool list in FR and EN on mobile (0.03). It skips unless
+  `process.platform === "linux"`; only those two projects hold baselines, every
+  other one inverts `@snapshot`. To record: `gh workflow run perf.yml --ref
+<branch> -f update_snapshots=true` — `e2e.sh` with `UPDATE_SNAPSHOTS=1` runs
+  `--grep @snapshot --update-snapshots=changed` only, in the read-only
+  `record-snapshots` job, and `update-snapshots` — the write-token job, which
+  runs no project code and commits nothing but PNGs — opens a bot PR labelled
+  `visual-baseline`. A PR opened with `GITHUB_TOKEN`
+  starts no workflow: close and reopen it to run CI. Compare locally with
+  `npm run e2e:docker -- --grep @snapshot`; never `-u` on the host, never a PNG
+  made on macOS. `.github/workflows/visual-baseline-guard.yml` is its own
+  workflow (`opened|synchronize|reopened|labeled|unlabeled`, paths
+  `tests/e2e/__screenshots__/**`): it fails a baseline change without the label,
+  re-runs when the label changes, and is never a required check.
+- **`mobile-webkit` is non-blocking, but read.** `continue-on-error` carries its
+  reason next to the key in `ci.yml`. Its `@webgl` specs do run (WebGL without a
+  GPU). Two WebKit behaviours a Chromium run never shows (`.debug/015`):
+  `page.mouse.wheel` throws on a mobile WebKit descriptor (scroll by script),
+  and a `page.goto` issued while a `router.push` is in flight is overruled —
+  WebKit cancels the RSC fetch and Next 16 falls back to a browser navigation to
+  the push target, so after a click that navigates, wait for that URL. On this
+  Mac's emulated amd64 container every WebKit sign-up hangs: it is not the local
+  WebKit for sign-up flows.
+- **A controlled input on a prerendered page drops text typed before
+  hydration** (react-dom 19.2.8 keeps it in the DOM, never in state), and a guest
+  bike's `MeasurementForm` also re-seeds once `va:bike:local` resolves. e2e
+  types only once React owns the field (`fit.spec.ts` waits for the header's
+  "Mon vélo" link, `shop.spec.ts` for its search box); the product fix is open
+  (`docs/backlog.md`).
+- **Compose runs from the main checkout only.** `docker-compose.yml` pins
+  `container_name`, so `docker compose up` from a linked worktree creates a
+  second project fighting over that name, or — with the project name forced —
+  recreates the container every checkout shares. `bash scripts/ci.sh` (and so
+  the pre-push hook) therefore skips `npm run db:up` when the integration
+  database already answers and refuses to run it from a worktree; a worktree
+  exports its own `POSTGRES_URL`/`POSTGRES_URL_NON_POOLING` (two separate
+  `export`s — `export A=… B=$A` leaves `B` empty) pointing at its own `*_test`
+  database on the shared container.
 - **A green local e2e run does not mean CI is green.** CI's Linux Chromium is a
   different browser build with software GL, and at least one input API scrolls
   on macOS while doing nothing there (`.debug/005`). Reproduce a CI-only failure
-  with `npm run e2e:docker -- <playwright args>` (`scripts/ci/e2e-docker.sh`),
-  which runs the CI image on the compose network; build on the host first.
+  with `npm run e2e:docker -- <playwright args>` (`scripts/ci/e2e-docker.sh`).
+  It joins the running Postgres container's network (host `db`) and takes the
+  database NAME from the shell's `POSTGRES_URL` (a plain `*_test` name), so a
+  worktree runs against its own database; its `node_modules`/`lib/generated`
+  volumes are keyed by the lockfile (+ schema) hash and it never deletes one.
+  Build on the host first.
 - Bundle budget is a per-wave ratchet: `perf.budgets.json` ceilings are re-pinned
   at each wave integration to measured + 10 % (sizes print as KiB).
   `npx tsx scripts/perf/bundle-budget.ts --json` prints the raw gzip bytes and
   the `nextPin` to write; the pin history in `perf.budgets.json` says why each
   jump happened.
-- Lighthouse CI, a bundle budget, and WebGL draw-call/triangle counters.
+- **Lighthouse**: `scripts/ci/lighthouse.sh` runs `lhci autorun`, then
+  `scripts/perf/lighthouse-report.ts` prints every run and the median per URL
+  plus the bike-page pin proposal. The rule only tightens and works from the
+  worse bike URL's median: performance `max(current, min(0.70, floor(median −
+0.05)))` (floored on exact hundredths), LCP/TBT `min(current, max(target,
+ceil50(median × 1.15)))`; the content bar is frozen. Pins come from a
+  nightly's five-run medians, never a laptop's, and TBT from the worse of the
+  nightlies available (same-day runs differ 20–40 %). Local lhci only on an idle
+  machine: with the CI GL flags Chrome rasterises the page through SwiftShader
+  (`.debug/014`).
+- **Perf**: hard counters per tier (draw calls, triangles, programs, DPR, one
+  context) fail the job; the `@soft` tier writes `.perf/<project>.json` —
+  frame COST (`gl.render` + a 1-px `readPixels`; rAF intervals are
+  display-pinned on a real GPU), long frames, build time, tap latency (the
+  median of five taps between the two farthest-apart parts), counters, runner
+  label and three version — and `scripts/perf/compare.ts` ladders it against
+  `tests/perf/baselines/*.json` through `scripts/perf/ladder.ts`: warn > 150 %,
+  fail > 300 %, long frames on `(run+1)/(baseline+1)` (the fail line sits two
+  frames later than a plain ratio at every non-zero baseline) and **never above
+  a warning on a software renderer** — the W4 ruling: on SwiftShader the count
+  swings 0–6 between repetitions of identical code, and the first comparison
+  failed at 6 against a median of 1 (`.debug/012` §12); the four durations keep
+  their failure. `scripts/ci/perf.sh` runs the two projects
+  serially (`--workers=1`), so no soft timing measures the other project.
+  Baselines are recorded ONLY by `perf.yml` `workflow_dispatch update_baseline=true`,
+  whose `perf baseline PR` job opens a bot PR. **A job holding a write token
+  builds and tests nothing**: `perf.yml`'s two (`perf baseline PR`,
+  `update-snapshots`) take what a read-only job recorded (`perf`,
+  `record-snapshots`), validate it — `perf-baseline.sh` under node and a
+  Prettier installed `--ignore-scripts`, or a PNG-only check — and open a PR,
+  with `HUSKY=0` and a checkout that does not persist the token.
+  `UPDATE_PERF_BASELINE=1` outside Actions exits 1.
+- **`RUN_LOCAL_PERF=1 npm run perf:local`** swaps the SwiftShader flags for
+  `--ignore-gpu-blocklist --enable-gpu` (headless reaches the GPU on Apple
+  Silicon; `PERF_HEADED=1` otherwise), refuses any software or masked renderer
+  (SwiftShader, llvmpipe, WARP, "Apple Software Renderer", a masked "WebKit
+  WebGL"), requires p95 frame cost ≤ 16.7 ms on all 7 presets and writes
+  `.perf/local-<date>.json` — the one committed perf file (`.gitignore`:
+  `/.perf/*` + `!/.perf/local-*.json`), never compared, never a baseline.
+  `PERF_PRESETS=<id>` is a local smoke knob, refused on CI.
+- **Bundle budget** sizes print in KiB. `--budget '<route>=<bytes>'` overrides
+  one ceiling for one run (§7.6 AC8's 1000 → exit 1).
+  `scripts/perf/bundle-breakdown.ts '<route>'`, after
+  `npx next experimental-analyze --output`, explains a route's first load per
+  chunk and per package.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
 
-Husky runs the fast subset pre-commit and the full local mirror pre-push.
+Husky runs the fast subset pre-commit and, pre-push, the local mirror without
+its `build` step (`SKIP_BUILD=1`; `RUN_BUILD=1` keeps it).
 
 ---
 

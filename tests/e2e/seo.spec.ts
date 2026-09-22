@@ -18,6 +18,10 @@
  *      in a sitemap is a contradiction crawlers report as an error, so the stub
  *      guides being absent is asserted as hard as the full ones being present.
  *
+ * Everything runs in FR and EN. The sitemap and robots.txt tests run once:
+ * their subjects are the two locale-less files at the site root, and each
+ * asserts both locales' URLs inside them.
+ *
  * `/velo/demo` is deliberately NOT held to the indexable contract: it is
  * `noindex` by §6.6 and failed an SEO assertion it can never satisfy once
  * before (`.debug/004 §10`). Here it is only ever checked for being excluded.
@@ -149,37 +153,42 @@ forEachLocale((locale) => {
 
 // ─────────────────────────────────────────────────── what is NOT indexed ──
 
-test("the private routes say noindex in their own head", async ({ page, signedInContext }) => {
-  await signedInContext();
+forEachLocale((locale) => {
+  test(`the private routes say noindex in their own head (${locale})`, async ({
+    page,
+    signedInContext,
+  }) => {
+    await signedInContext();
 
-  const noindex: Array<[RouteKey, Record<string, string>]> = [
-    ["/velo/[id]", { id: "demo" }],
-    ["/velo/[id]/piece/[partId]", { id: "demo", partId: "saddle" }],
-    ["/velo/[id]/reglages", { id: "demo" }],
-    ["/compte", {}],
-    ["/mes-velos", {}],
-  ];
+    const noindex: Array<[RouteKey, Record<string, string>]> = [
+      ["/velo/[id]", { id: "demo" }],
+      ["/velo/[id]/piece/[partId]", { id: "demo", partId: "saddle" }],
+      ["/velo/[id]/reglages", { id: "demo" }],
+      ["/compte", {}],
+      ["/mes-velos", {}],
+    ];
 
-  for (const [key, params] of noindex) {
-    await page.goto(href("fr", key, params));
-    await expect(page.locator('meta[name="robots"]'), key).toHaveAttribute("content", /noindex/);
-  }
-});
+    for (const [key, params] of noindex) {
+      await page.goto(href(locale, key, params));
+      await expect(page.locator('meta[name="robots"]'), key).toHaveAttribute("content", /noindex/);
+    }
+  });
 
-test("the sign-in and sign-up pages say noindex too", async ({ page }) => {
-  for (const key of ["/connexion", "/inscription"] as const) {
-    await page.goto(href("fr", key));
-    await expect(page.locator('meta[name="robots"]'), key).toHaveAttribute("content", /noindex/);
-  }
-});
+  test(`the sign-in and sign-up pages say noindex too (${locale})`, async ({ page }) => {
+    for (const key of ["/connexion", "/inscription"] as const) {
+      await page.goto(href(locale, key));
+      await expect(page.locator('meta[name="robots"]'), key).toHaveAttribute("content", /noindex/);
+    }
+  });
 
-test("a stub guide is published but not indexed", async ({ page }) => {
-  test.skip(STUB_SLUGS.length === 0, "no stub guide on disk");
+  test(`a stub guide is published but not indexed (${locale})`, async ({ page }) => {
+    test.skip(STUB_SLUGS.length === 0, "no stub guide on disk");
 
-  const response = await page.goto(href("fr", "/guides/[slug]", { slug: STUB_SLUGS[0] }));
+    const response = await page.goto(href(locale, "/guides/[slug]", { slug: STUB_SLUGS[0] }));
 
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
 });
 
 // ───────────────────────────────────────────────────────────── sitemap.xml ──

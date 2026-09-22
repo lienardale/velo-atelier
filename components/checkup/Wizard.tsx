@@ -93,6 +93,26 @@ export interface WizardProps {
 /** Guest storage writes immediately; a round trip to the server waits (§6.5). */
 const SERVER_AUTOSAVE_MS = 2000;
 
+/** The quota refusals `finishCheckupAction` names (§4.2 c), as `checkup.*` keys. */
+const FINISH_REFUSALS = [
+  "finish.tooManyLists",
+  "finish.tooManyCheckups",
+  "finish.tooManyLines",
+] as const;
+
+type FinishError = (typeof FINISH_REFUSALS)[number] | "finish.failed";
+
+/**
+ * What to tell the visitor when the server refused to finish. The action's
+ * `form` key says which limit it was (`checkup.finish.tooManyLists`, …); a
+ * refusal it did not name — or one from a future version of the action — is
+ * still said out loud, just less precisely.
+ */
+function finishErrorOf(failure: { fieldErrors?: Readonly<Record<string, string>> }): FinishError {
+  const key = failure.fieldErrors?.form?.replace(/^checkup\./, "");
+  return FINISH_REFUSALS.find((known) => known === key) ?? "finish.failed";
+}
+
 /**
  * The checkup, from the tool list to "Créer ma liste" (§6.5).
  *
@@ -135,6 +155,7 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const [started, setStarted] = useState(() => alreadyStarted(props, props.initialStored));
   const [creating, setCreating] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
+  const [finishError, setFinishError] = useState<FinishError | null>(null);
 
   const guestRef = guestRefOf(props.bikeRef);
   const bikeId = props.bikeRef.kind === "db" ? props.bikeRef.id : null;
@@ -266,6 +287,8 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const onCreate = useCallback(() => {
     if (!canFinish(state) || creating) return;
     setCreating(true);
+    setFinishError(null);
+    const before = state;
     const finished = reduce(state, { type: "FINISH" });
     setState(finished);
     autosave.cancel();
@@ -292,7 +315,19 @@ export function Wizard(props: WizardProps): React.JSX.Element {
         } else {
           // The server re-plans, re-derives and writes the list itself (§5.4):
           // the browser never says what is on it.
-          await finishCheckupAction({ bikeId: bikeId ?? "", checkup: toStored(finished) });
+          const result = await finishCheckupAction({
+            bikeId: bikeId ?? "",
+            checkup: toStored(finished),
+          });
+          if (!result.ok) {
+            // Refused (a quota, §4.2 c): nothing was written, so the checkup
+            // goes back to exactly where it was, and the visitor is told why —
+            // never a navigation to a list that does not exist.
+            setState(before);
+            setFinishError(finishErrorOf(result));
+            setCreating(false);
+            return;
+          }
         }
         setSaveState("saved");
       } catch {
@@ -426,17 +461,16 @@ export function Wizard(props: WizardProps): React.JSX.Element {
           creating={creating}
         />
       ) : null}
+
+      {phase === "summary" && finishError !== null ? (
+        <Callout tone="danger" role="alert" data-testid="checkup-finish-error">
+          <p>{t(finishError)}</p>
+        </Callout>
+      ) : null}
     </div>
   );
 }
 
-/**
- * A stored checkup against today's plan, parked on `?step=` when there is one.
- *
- * `fromStored` is what keeps a corpus change cheap: the answers survive, the
- * questions are the ones on disk now, and the cursor lands on the first one
- * still open.
- */
 /**
  * A FINISHED checkup is history, not something to resume.
  *
@@ -448,27 +482,47 @@ export function Wizard(props: WizardProps): React.JSX.Element {
  * answered differently a month later). The list under `va:buildlist:<ref>`
  * survives, which is exactly what `mergeGuestBuildList` closes against.
  *
- * `?step=` still wins: a resume link into a finished checkup is a deliberate
- * request to look at it, and the summary is reachable from the list page.
+ * Not even through `?step=`. The wizard writes that parameter for the question
+ * on screen, and after a finished checkup that question belongs to a NEW run: a
+ * reload before the new run's first save (a phone that discarded the tab) came
+ * back with it, reopened the FINISHED run with its old verdicts on screen, and
+ * wrote the next answers into it. `?step=` only says which question of the new
+ * run to open (`tests/e2e/checkup-second-run.spec.ts`).
  */
 function isFinished(stored: StoredCheckup | null): boolean {
   return stored !== null && stored.completedAt !== undefined;
 }
 
+/**
+ * A stored checkup against today's plan, parked on `?step=` when there is one —
+ * or a NEW run, when there is nothing to resume.
+ *
+ * `fromStored` is what keeps a corpus change cheap: the answers survive, the
+ * questions are the ones on disk now, and the cursor lands on the first one
+ * still open.
+ *
+ * A new run gets its own id AND its own `startedAt` (`createCheckupState`
+ * stamps "now"), and the second matters as much as the first: a saved bike's
+ * server knows a run by its `startedAt` (`existingCheckup` in
+ * `controle/actions.ts`, where the same `startedAt` again is the same checkup
+ * finished again). A new run that inherited a finished one's was written INTO
+ * it — its first autosave overwrote the finished verdicts, finishing deleted
+ * the lines of its list instead of closing them `recheck-ok` (§5.4), and the
+ * bike never got a second row for the §4.2 (c) quotas to count
+ * (`tests/e2e/checkup-second-run.spec.ts`).
+ */
 function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState {
-  const empty = createCheckupState({
-    id: stored?.id ?? props.newCheckupId,
-    bikeRef: props.bikeRef,
-    scope: props.scope,
-    locale: props.locale,
-    steps: props.steps,
-    contentVersion: props.contentVersion,
-    ...(stored === null ? {} : { startedAt: stored.startedAt }),
-  });
-  const resumable = stored !== null && !(isFinished(stored) && props.initialStepKey === null);
+  const resumable = stored !== null && !isFinished(stored);
   const restored = resumable
     ? fromStored(stored, props.steps, props.contentVersion)
-    : { ...empty, id: props.newCheckupId };
+    : createCheckupState({
+        id: props.newCheckupId,
+        bikeRef: props.bikeRef,
+        scope: props.scope,
+        locale: props.locale,
+        steps: props.steps,
+        contentVersion: props.contentVersion,
+      });
   // `?step=` wins over "where you had got to": it IS the resume link, and it is
   // also what a deep link into one question of a checkup means.
   const at = stepIndexOf(restored, props.initialStepKey);
@@ -482,8 +536,8 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
  * they have already given, or following a `?step=` link, is not starting.
  */
 function alreadyStarted(props: WizardProps, stored: StoredCheckup | null): boolean {
-  if (isFinished(stored) && props.initialStepKey === null) return false;
-  if (stored !== null && Object.keys(stored.answers).length > 0) return true;
+  const resumable = stored !== null && !isFinished(stored);
+  if (resumable && Object.keys(stored.answers).length > 0) return true;
   return props.steps.some((step) => step.key === props.initialStepKey);
 }
 

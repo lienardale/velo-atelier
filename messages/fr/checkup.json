@@ -49,6 +49,12 @@
     "saved": "Sauvegardé",
     "failed": "Impossible de sauvegarder ce contrôle sur cet appareil."
   },
+  "finish": {
+    "tooManyLists": "Ce vélo a déjà 10 listes, le maximum pour un vélo : cette liste ne peut pas être créée.",
+    "tooManyCheckups": "Ce vélo a déjà 50 contrôles, le maximum pour un vélo : ce contrôle ne peut pas être enregistré.",
+    "tooManyLines": "Ce contrôle donnerait plus de 50 lignes, le maximum pour une liste. Refaites-le pièce par pièce, ou confiez le vélo à un atelier.",
+    "failed": "La liste n'a pas pu être créée. Réessayez dans un instant."
+  },
   "summary": {
     "title": "Récapitulatif",
     "intro": "Voici ce que vous avez répondu. Vous pouvez encore changer un verdict avant de créer la liste.",

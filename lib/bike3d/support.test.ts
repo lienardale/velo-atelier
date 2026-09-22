@@ -129,7 +129,12 @@ describe("highlight precedence: hover > selected > status > picked > base", () =
     expect(meshStatus("brake-caliper-front", { "brake-pads-front": "ok", saddle: "ko" })).toBe(
       "ok",
     );
-    expect(meshStatus("frame", { __proto__: "ko" } as never)).toBeNull();
+    // An OWN `__proto__` key, from `JSON.parse`. A literal `{ __proto__: "ko" }`
+    // sets no key at all — a string cannot be a prototype, so that object was
+    // empty (CodeQL #11) — and defining the key reads as a prototype write too.
+    const poisoned = JSON.parse('{"__proto__":"ko"}') as Record<string, string>;
+    expect(Object.keys(poisoned)).toEqual(["__proto__"]);
+    expect(meshStatus("frame", poisoned as never)).toBeNull();
     expect(meshStatus("frame", undefined)).toBeNull();
     expect(isPickedMesh("tire-rear", new Set(["sealant"]))).toBe(true);
     expect(isPickedMesh("tire-rear", new Set(["saddle"]))).toBe(false);

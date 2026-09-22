@@ -153,13 +153,20 @@ describe("refinementAnswers", () => {
   });
 
   it("ignores the brand tier and any other key that is not an attribute", () => {
-    const answers = refinementAnswers(gravel, "chain", {
+    // An OWN `__proto__` key, as a stored (JSON) refinement could carry one:
+    // `JSON.parse` creates it, and the spread copies it as data. A literal
+    // `__proto__: "poison"` sets no key at all (a string cannot be a prototype),
+    // so the input never held it — CodeQL #14.
+    const refinement: Record<string, string> = {
+      ...(JSON.parse('{"__proto__":"poison"}') as Record<string, string>),
       [BRAND_TIER_KEY]: "high",
       nonsense: "x",
-      __proto__: "poison",
-    });
+    };
+    expect(Object.keys(refinement)).toContain("__proto__");
+    const answers = refinementAnswers(gravel, "chain", refinement);
     expect(answers).not.toHaveProperty(BRAND_TIER_KEY);
     expect(answers).not.toHaveProperty("nonsense");
+    expect(Object.hasOwn(answers, "__proto__")).toBe(false);
     expect(Object.getPrototypeOf(answers)).toBe(Object.prototype);
   });
 

@@ -20,15 +20,25 @@
  *      no lookup, no write, nothing that could be timed or observed.
  *   4. The order is origin-then-session. A cross-origin request with a valid
  *      session is `FORBIDDEN`, never `UNAUTHORIZED`, and never executed.
+ *   5. **Every** server action is in a table — not the four `compte` actions
+ *      this file started with in W1. The exports are read back from every
+ *      `"use server"` module under `app/`, whatever its file name: a
+ *      `withUser` export needs a row in `EVERY_WITH_USER_ACTION`, and any
+ *      other export — sign-in, sign-up and sign-out cannot require a session —
+ *      a row in `ANONYMOUS_ACTIONS`. An action added later without a row fails
+ *      the run instead of shipping untested.
  */
 /* eslint-disable security/detect-non-literal-fs-filename -- every path read here is derived from `import.meta.url`, never from input */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LOCALE_COOKIE } from "@/auth.config";
 import { fakeDb } from "@/tests/_fakes/prisma";
 import {
   authModule,
+  authSpies,
+  cookieJar,
   sameOriginHeaders,
   sessionFor,
   setRequestHeaders,
@@ -36,9 +46,22 @@ import {
 } from "@/tests/_fakes/session";
 
 vi.mock("@/auth", async () => (await import("@/tests/_fakes/session")).authModule());
+vi.mock("content-collections", async () => ({
+  allGuides: (await import("@/tests/_helpers/guides")).diskGuides(),
+  allLegalPages: [],
+}));
 
+const connexion = await import("@/app/[locale]/(auth)/connexion/actions");
+const inscription = await import("@/app/[locale]/(auth)/inscription/actions");
+const compte = await import("@/app/[locale]/(protected)/compte/actions");
 const { updateProfileAction, changePasswordAction, setPasswordAction, deleteAccountAction } =
-  await import("@/app/[locale]/(protected)/compte/actions");
+  compte;
+const mesVelos = await import("@/app/[locale]/(protected)/mes-velos/actions");
+const guestImport = await import("@/app/[locale]/(protected)/import/actions");
+const velo = await import("@/app/[locale]/velo/[id]/actions");
+const controle = await import("@/app/[locale]/velo/[id]/controle/actions");
+const liste = await import("@/app/[locale]/velo/[id]/liste/actions");
+const reglages = await import("@/app/[locale]/velo/[id]/reglages/actions");
 
 const { IDLE } = await import("@/lib/actions/result");
 
@@ -79,6 +102,8 @@ beforeEach(() => {
   setRequestHeaders(sameOriginHeaders());
   fakeDb.reset();
   vi.mocked(authModule().auth).mockClear();
+  authSpies.signIn.mockClear();
+  authSpies.signOut.mockClear();
 });
 
 describe("next.config.ts", () => {
@@ -150,43 +175,184 @@ describe.each(ACTIONS)("%s", (_name, action, payload) => {
   });
 });
 
+/**
+ * The server actions that run WITHOUT `withUser` — signing in, up or out
+ * cannot require a session — each with the side effect a forged POST would be
+ * after. They call `guardSameOrigin()` themselves, first.
+ */
+const ANONYMOUS_ACTIONS: ReadonlyArray<
+  readonly [string, () => Promise<{ ok: boolean }>, () => void]
+> = [
+  [
+    "loginAction",
+    () => connexion.loginAction(IDLE, form({ email: "a@b.test", password: "whatever" })),
+    () => expect(authSpies.signIn).not.toHaveBeenCalled(),
+  ],
+  [
+    "googleSignInAction",
+    () => connexion.googleSignInAction(IDLE, form({ locale: "en" })),
+    () => {
+      expect(authSpies.signIn).not.toHaveBeenCalled();
+      // It writes NEXT_LOCALE before it leaves for Google. A forged POST must
+      // not get that far either, or any page could switch a visitor's language.
+      expect(cookieJar().has(LOCALE_COOKIE)).toBe(false);
+    },
+  ],
+  [
+    // Nobody can log a visitor out from a third-party page.
+    "signOutAction",
+    () => connexion.signOutAction(IDLE, form({ locale: "fr" })),
+    () => expect(authSpies.signOut).not.toHaveBeenCalled(),
+  ],
+  [
+    "signUpAction",
+    () =>
+      inscription.signUpAction(
+        IDLE,
+        form({ email: "victim@velo-atelier.test", password: "Guidon-Tandem-47!" }),
+      ),
+    () => expect(fakeDb.rows("User")).toHaveLength(0),
+  ],
+];
+
 describe("anonymous auth actions", () => {
-  it("refuse a cross-origin sign-in and never reach Auth.js", async () => {
-    const { loginAction } = await import("@/app/[locale]/(auth)/connexion/actions");
-    const { authSpies } = await import("@/tests/_fakes/session");
-    authSpies.signIn.mockClear();
-    setRequestHeaders({ origin: "https://evil.test", host: "localhost:3100" });
+  describe.each(ANONYMOUS_ACTIONS)("%s", (_name, call, reachedNothing) => {
+    it("refuses a cross-origin POST with FORBIDDEN and never reaches Auth.js or the database", async () => {
+      setRequestHeaders({ origin: "https://evil.test", host: "localhost:3100" });
 
-    const result = await loginAction(IDLE, form({ email: "a@b.test", password: "whatever" }));
-
-    expect(result).toEqual({ ok: false, code: "FORBIDDEN" });
-    expect(authSpies.signIn).not.toHaveBeenCalled();
-  });
-
-  it("refuse a cross-origin sign-up and never write a user", async () => {
-    const { signUpAction } = await import("@/app/[locale]/(auth)/inscription/actions");
-    setRequestHeaders({ origin: "https://evil.test", host: "localhost:3100" });
-
-    const result = await signUpAction(
-      IDLE,
-      form({ email: "victim@velo-atelier.test", password: "Guidon-Tandem-47!" }),
-    );
-
-    expect(result).toEqual({ ok: false, code: "FORBIDDEN" });
-    expect(fakeDb.rows("User")).toHaveLength(0);
-    expect(fakeDb.calls).toHaveLength(0);
-  });
-
-  it("refuse a cross-origin sign-out, so nobody can log a visitor out from a third-party page", async () => {
-    const { signOutAction } = await import("@/app/[locale]/(auth)/connexion/actions");
-    const { authSpies } = await import("@/tests/_fakes/session");
-    authSpies.signOut.mockClear();
-    setRequestHeaders({ origin: "https://evil.test", host: "localhost:3100" });
-
-    expect(await signOutAction(IDLE, form({ locale: "fr" }))).toEqual({
-      ok: false,
-      code: "FORBIDDEN",
+      expect(await call()).toEqual({ ok: false, code: "FORBIDDEN" });
+      expect(fakeDb.calls).toHaveLength(0);
+      reachedNothing();
     });
-    expect(authSpies.signOut).not.toHaveBeenCalled();
+
+    it("refuses a POST with no Origin at all", async () => {
+      setRequestHeaders({ host: "localhost:3100" });
+
+      expect(await call()).toEqual({ ok: false, code: "FORBIDDEN" });
+      expect(fakeDb.calls).toHaveLength(0);
+      reachedNothing();
+    });
+
+    it("watches something real: a same-origin POST does reach it", async () => {
+      // `beforeEach` made this request same-origin. Every success path leaves
+      // through a thrown redirect, so the outcome is ignored and only the side
+      // effect is read: if the probe passed here too, it could not fail above.
+      await call().catch(() => undefined);
+
+      expect(reachedNothing).toThrow();
+    });
+  });
+});
+
+// ── every `withUser` action ──────────────────────────────────────────────────
+
+const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+const ITEM = "6f9619ff-8b86-4d11-b42d-00c04fc964ff";
+
+/**
+ * Each action with an input that WOULD run if the request were allowed — the
+ * origin and session checks come first, so the payload never matters here, but
+ * a payload that parses keeps the test honest if the order ever flips.
+ */
+const EVERY_WITH_USER_ACTION: ReadonlyArray<readonly [string, () => Promise<{ ok: boolean }>]> = [
+  ["updateProfileAction", () => updateProfileAction(IDLE, form({ name: "C", locale: "fr" }))],
+  [
+    "changePasswordAction",
+    () => changePasswordAction(IDLE, form({ current: "a", next: "Chaine-Cassette-58?" })),
+  ],
+  ["setPasswordAction", () => setPasswordAction(IDLE, form({ next: "Chaine-Cassette-58?" }))],
+  ["deleteAccountAction", () => deleteAccountAction(IDLE, form({ confirmation: "SUPPRIMER" }))],
+  ["reauthenticateWithGoogleAction", () => compte.reauthenticateWithGoogleAction()],
+  ["createBikeAction", () => mesVelos.createBikeAction({ name: "Vélo", answers: {} })],
+  ["updateBikeAction", () => mesVelos.updateBikeAction({ bikeId: BIKE, answers: {} })],
+  ["renameBikeAction", () => mesVelos.renameBikeAction({ bikeId: BIKE, name: "Vélo" })],
+  ["deleteBikeAction", () => mesVelos.deleteBikeAction({ bikeId: BIKE })],
+  ["importGuestStateAction", () => guestImport.importGuestStateAction({ version: 1, bikes: [] })],
+  ["updateBikePartAction", () => velo.updateBikePartAction({ bikeId: BIKE, partId: "chain" })],
+  ["updateBikeFitAction", () => reglages.updateBikeFitAction({ bikeId: BIKE, fit: {} })],
+  ["loadCheckupAction", () => controle.loadCheckupAction({ bikeId: BIKE })],
+  ["listCheckupsAction", () => controle.listCheckupsAction({ bikeId: BIKE })],
+  ["saveCheckupAction", () => controle.saveCheckupAction({ bikeId: BIKE, checkup: {} })],
+  ["finishCheckupAction", () => controle.finishCheckupAction({ bikeId: BIKE, checkup: {} })],
+  [
+    "setBuildListItemDoneAction",
+    () => liste.setBuildListItemDoneAction({ itemId: ITEM, done: true }),
+  ],
+  [
+    "setBuildListItemRefinementAction",
+    () => liste.setBuildListItemRefinementAction({ itemId: ITEM, refinement: {} }),
+  ],
+  [
+    "clearDoneBuildListItemsAction",
+    () => liste.clearDoneBuildListItemsAction({ buildListId: ITEM }),
+  ],
+  ["loadBuildListItemAction", () => liste.loadBuildListItemAction({ bikeId: BIKE, itemId: ITEM })],
+];
+
+/**
+ * The exports of every `"use server"` module under `app/` — every one of them
+ * is a callable endpoint, whatever the file is called — split into the
+ * `export const <name> = withUser(` ones and all the others.
+ */
+function serverActionsInTheTree(): { withUser: string[]; other: string[] } {
+  const app = new URL("../../app/", import.meta.url);
+  const withUser: string[] = [];
+  const other: string[] = [];
+  for (const entry of readdirSync(app, { recursive: true, encoding: "utf8" })) {
+    if (!/\.(ts|tsx|js|jsx|mjs)$/.test(entry)) continue;
+    const source = readFileSync(new URL(entry, app), "utf8");
+    // The module-level directive: a line of its own, before any code. A
+    // function-level one would be an inline action this walk cannot see, so it
+    // is refused outright rather than silently missed.
+    if (!/^["']use server["'];?\s*$/m.test(source)) {
+      expect(source, `${entry} declares an inline server action`).not.toMatch(
+        /^\s+["']use server["']/m,
+      );
+      continue;
+    }
+    for (const [line] of source.matchAll(/^export\b.*$/gm)) {
+      if (/^export\s+(type|interface)\s/.test(line)) continue; // erased: not an endpoint
+      // Anything this cannot name — a default export, `export { … }`,
+      // `export *` — fails here instead of escaping both tables. Single spaces
+      // are safe to assume: `format:check` holds every file to Prettier.
+      const named = /^export (?:async )?(?:function\*? ?|const |let |var )(\w+)/.exec(line);
+      expect(named, `${entry}: cannot name the endpoint in "${line}"`).not.toBeNull();
+      const name = named![1]!;
+      (line.startsWith(`export const ${name} = withUser(`) ? withUser : other).push(name);
+    }
+  }
+  return { withUser: withUser.sort(), other: other.sort() };
+}
+
+describe("every server action", () => {
+  it("is in a table — an action added without a row fails here", () => {
+    const tree = serverActionsInTheTree();
+    expect(tree.withUser.length).toBeGreaterThanOrEqual(20);
+    expect(EVERY_WITH_USER_ACTION.map(([name]) => name).sort()).toEqual(tree.withUser);
+    expect(ANONYMOUS_ACTIONS.map(([name]) => name).sort()).toEqual(tree.other);
+  });
+});
+
+describe("every withUser action", () => {
+  describe.each(EVERY_WITH_USER_ACTION)("%s", (_name, call) => {
+    it("refuses a cross-origin POST with FORBIDDEN before any query", async () => {
+      setSession(sessionFor(USER));
+      setRequestHeaders({ origin: "https://evil.test", host: "localhost:3100" });
+      expect(await call()).toEqual({ ok: false, code: "FORBIDDEN" });
+      expect(fakeDb.calls).toHaveLength(0);
+    });
+
+    it("refuses a POST with no Origin at all", async () => {
+      setSession(sessionFor(USER));
+      setRequestHeaders({ host: "localhost:3100" });
+      expect(await call()).toEqual({ ok: false, code: "FORBIDDEN" });
+      expect(fakeDb.calls).toHaveLength(0);
+    });
+
+    it("answers UNAUTHORIZED to an anonymous same-origin caller before any query", async () => {
+      setSession(null);
+      expect(await call()).toEqual({ ok: false, code: "UNAUTHORIZED" });
+      expect(fakeDb.calls).toHaveLength(0);
+    });
   });
 });

@@ -11,6 +11,7 @@
  * integration tests.
  */
 import { screen, waitFor } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { checkupKey, buildListKey } from "@/lib/bike/storage-keys";
@@ -303,5 +304,139 @@ describe("a saved bike", () => {
     expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", CALIPER.key);
     // And nothing was written to the guest key.
     expect(window.localStorage.getItem(checkupKey("demo"))).toBeNull();
+  });
+});
+
+describe("the checkup after a finished one (§4.2 c, §5.4)", () => {
+  // The server knows a run by its `startedAt` (`existingCheckup`,
+  // `controle/actions.ts`). A new checkup that inherited the finished one's was
+  // written INTO it: its verdicts overwritten by the first autosave, the lines
+  // of its list deleted instead of closed `recheck-ok` (§5.4), and never a
+  // second row for the §4.2 (c) quotas to count.
+  const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  const NOW = "2026-10-01T09:00:00.000Z";
+  const finished: StoredCheckup = toStored(
+    makeState(PLAN, {
+      id: "22222222-2222-4222-8222-222222222222",
+      bikeRef: { kind: "db", id: BIKE },
+      answers: { [PADS.key]: "ko", [CALIPER.key]: "ok", [CHAIN.key]: "ok" },
+      symptoms: { [PADS.key]: ["pad-worn"] },
+      completedAt: "2026-09-19T08:30:00.000Z",
+    }),
+  );
+
+  /** What "Créer ma liste" sent, once every question of the run on screen is OK. */
+  async function finishEverythingOk(user: UserEvent): Promise<StoredCheckup> {
+    const { finishCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/actions");
+    for (const step of PLAN) {
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", step.key);
+      // Nothing is answered in THIS run: not the finished run's verdict.
+      expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "none");
+      await user.click(screen.getByTestId("verdict-ok"));
+    }
+    await user.click(screen.getByTestId("summary-create"));
+    await waitFor(() => expect(finishCheckupAction).toHaveBeenCalledTimes(1));
+    const [{ checkup }] = vi.mocked(finishCheckupAction).mock.calls[0] as [
+      { checkup: StoredCheckup },
+    ];
+    return checkup;
+  }
+
+  it("starts a NEW run: its own id and its own startedAt", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(NOW) });
+    const { user } = await renderWithIntl(
+      wizard({ bikeRef: { kind: "db", id: BIKE }, bikeParam: BIKE, initialStored: finished }),
+    );
+
+    // History, not something to resume: a new checkup, from its tool list.
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "tools");
+    await user.click(screen.getByTestId("checkup-start"));
+
+    expect(await finishEverythingOk(user)).toMatchObject({
+      id: "11111111-1111-4111-8111-111111111111",
+      startedAt: NOW,
+      answers: { [PADS.key]: "ok", [CALIPER.key]: "ok", [CHAIN.key]: "ok" },
+    });
+  });
+
+  it("opens the NEW run on the question `?step=` names, never the finished one", async () => {
+    // After a finished checkup the only URL that carries `?step=` is the new
+    // run's own — the wizard writes it for the question on screen — so a reload
+    // before the new run's first save lands here.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(NOW) });
+    const { user } = await renderWithIntl(
+      wizard({
+        bikeRef: { kind: "db", id: BIKE },
+        bikeParam: BIKE,
+        initialStored: finished,
+        initialStepKey: PADS.key,
+      }),
+    );
+
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
+    expect(await finishEverythingOk(user)).toMatchObject({
+      id: "11111111-1111-4111-8111-111111111111",
+      startedAt: NOW,
+    });
+  });
+});
+
+describe("a refused finish (§4.2 c)", () => {
+  const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  const answered: StoredCheckup = toStored(
+    makeState(PLAN, {
+      bikeRef: { kind: "db", id: BIKE },
+      answers: { [PADS.key]: "ko", [CALIPER.key]: "ok", [CHAIN.key]: "ok" },
+      symptoms: { [PADS.key]: ["pad-worn"] },
+    }),
+  );
+
+  async function pressCreate() {
+    const view = await renderWithIntl(
+      wizard({ bikeRef: { kind: "db", id: BIKE }, bikeParam: BIKE, initialStored: answered }),
+    );
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "summary");
+    await view.user.click(screen.getByTestId("summary-create"));
+    return view;
+  }
+
+  it("says which limit refused it, stays on the summary and goes nowhere", async () => {
+    const { finishCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/actions");
+    vi.mocked(finishCheckupAction).mockResolvedValueOnce({
+      ok: false,
+      code: "TOO_MANY",
+      fieldErrors: { form: "checkup.finish.tooManyLists" },
+    });
+
+    await pressCreate();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveAttribute("data-testid", "checkup-finish-error");
+    expect(alert).toHaveTextContent("Ce vélo a déjà 10 listes");
+    expect(routerSpies.push).not.toHaveBeenCalled();
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "summary");
+    // The visitor can try again (after deleting a list, or by redoing it by part).
+    expect(screen.getByTestId("summary-create")).toBeEnabled();
+  });
+
+  it("still says so when the refusal names no limit it knows", async () => {
+    const { finishCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/actions");
+    vi.mocked(finishCheckupAction).mockResolvedValueOnce({ ok: false, code: "NOT_FOUND" });
+
+    await pressCreate();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("La liste n'a pas pu être créée");
+    expect(routerSpies.push).not.toHaveBeenCalled();
+  });
+
+  it("goes to the list, with no alert, when the server accepts", async () => {
+    await pressCreate();
+
+    await waitFor(() =>
+      expect(routerSpies.push).toHaveBeenCalledWith(
+        expect.objectContaining({ pathname: "/velo/[id]/liste", params: { id: BIKE } }),
+      ),
+    );
+    expect(screen.queryByTestId("checkup-finish-error")).not.toBeInTheDocument();
   });
 });

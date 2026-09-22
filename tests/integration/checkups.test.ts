@@ -264,6 +264,129 @@ describe("finishing", () => {
   });
 });
 
+describe("what a checkup remembers, and what a later one closes (W4)", () => {
+  const PADS = "check-brakes-disc#pad-wear";
+  const FORK = "check-headset#fork-condition";
+  const HEADSET = "check-headset#headset-play";
+
+  it("gives a reloaded checkup back the symptom its KO was given", async () => {
+    const user = await signedInUser("symptom@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    await saveCheckupAction({ bikeId: bike.id, checkup: payload() });
+
+    const item = await prisma.checkupItem.findFirstOrThrow({
+      where: { checkup: { bikeId: bike.id } },
+    });
+    expect(item.reasonKeys).toEqual(["chain-elongation"]);
+
+    const loaded = await loadCheckupAction({ bikeId: bike.id });
+    expect(loaded.ok && loaded.data?.symptoms).toEqual({ [CHAIN]: ["chain-elongation"] });
+  });
+
+  it("closes a hosted part's line on the earlier list, by pair, and says why", async () => {
+    // The pads are planned through the caliper that hosts them: the W3 server
+    // closed by the viewer's host-expanded part, so this line never closed.
+    const user = await signedInUser("hosted@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [PADS]: "ko" },
+        symptoms: { [PADS]: ["pad-worn"] },
+        notes: {},
+        startedAt: "2026-09-01T08:00:00.000Z",
+      }),
+    });
+    const later = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [PADS]: "ok" },
+        symptoms: {},
+        notes: {},
+        startedAt: "2026-09-15T08:00:00.000Z",
+      }),
+    });
+    expect(later.ok).toBe(true);
+
+    const earlier = await prisma.buildListItem.findMany({
+      where: {
+        buildList: {
+          bikeId: bike.id,
+          checkup: { startedAt: new Date("2026-09-01T08:00:00.000Z") },
+        },
+      },
+      orderBy: { partId: "asc" },
+    });
+    expect(earlier.map((row) => [row.action, row.partId, row.done, row.doneReason])).toEqual([
+      ["REPLACE", "brake-pads-front", true, "recheck-ok"],
+      ["REPLACE", "brake-pads-rear", true, "recheck-ok"],
+    ]);
+  });
+
+  it("refuses to finish an 11th checkup on a bike that already has 10 lists (§4.2 c)", async () => {
+    const user = await signedInUser("quota@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    for (let day = 1; day <= 10; day += 1) {
+      const started = `2026-08-${String(day).padStart(2, "0")}T08:00:00.000Z`;
+      expect(
+        (await finishCheckupAction({ bikeId: bike.id, checkup: payload({ startedAt: started }) }))
+          .ok,
+      ).toBe(true);
+    }
+    expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(10);
+
+    const refused = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({ startedAt: "2026-09-20T08:00:00.000Z" }),
+    });
+    expect(refused).toEqual({
+      ok: false,
+      code: "TOO_MANY",
+      fieldErrors: { form: "checkup.finish.tooManyLists" },
+    });
+    // Nothing of the refused checkup reached the database.
+    expect(await prisma.checkup.count({ where: { bikeId: bike.id } })).toBe(10);
+    expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(10);
+
+    // Re-finishing one of the ten is an update of its own list, not an 11th.
+    const again = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({ startedAt: "2026-08-01T08:00:00.000Z" }),
+    });
+    expect(again.ok).toBe(true);
+  });
+
+  it("leaves a cracked-fork line open when a later checkup only says the headset has no play", async () => {
+    // Same part, another question, another action: an OK on `headset-play`
+    // (which reports on the fork) closed "have the fork looked at" before W4.
+    const user = await signedInUser("fork@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [FORK]: "ko" },
+        symptoms: { [FORK]: ["frame-crack"] },
+        notes: {},
+        startedAt: "2026-09-01T08:00:00.000Z",
+      }),
+    });
+    await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [HEADSET]: "ok" },
+        symptoms: {},
+        notes: {},
+        startedAt: "2026-09-15T08:00:00.000Z",
+      }),
+    });
+
+    const fork = await prisma.buildListItem.findFirstOrThrow({
+      where: { buildList: { bikeId: bike.id }, partId: "fork" },
+    });
+    expect(fork).toMatchObject({ action: "INSPECT_SHOP", done: false, doneReason: null });
+  });
+});
+
 describe("the schema's own guarantees", () => {
   it("cascades from the bike down to the build-list items", async () => {
     const user = await signedInUser("cascade@velo-atelier.test");
