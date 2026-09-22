@@ -1,0 +1,82 @@
+{
+  "project": "perf-mobile",
+  "runner": "ubuntu-latest (mcr.microsoft.com/playwright:v1.63.0-noble)",
+  "machine": "Intel(R) Xeon(R) 6973P-C ×4",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "three": "0.185.1",
+  "runId": "35692898573-1-1790056983",
+  "recordedAt": "2026-09-22T06:20:24.245Z",
+  "repetitions": 5,
+  "presets": {
+    "road-rim-2x11": {
+      "p50FrameMs": 56.7,
+      "p95FrameMs": 72.7,
+      "longFrames": 4,
+      "buildMs": 519,
+      "tapLatencyMs": 32.8,
+      "drawCalls": 27,
+      "triangles": 27996,
+      "programs": 2
+    },
+    "road-disc-2x12": {
+      "p50FrameMs": 58.5,
+      "p95FrameMs": 72.2,
+      "longFrames": 4,
+      "buildMs": 494.9,
+      "tapLatencyMs": 32.9,
+      "drawCalls": 29,
+      "triangles": 28648,
+      "programs": 2
+    },
+    "gravel-1x11": {
+      "p50FrameMs": 57.6,
+      "p95FrameMs": 73.2,
+      "longFrames": 3,
+      "buildMs": 493.3,
+      "tapLatencyMs": 32.7,
+      "drawCalls": 27,
+      "triangles": 28520,
+      "programs": 2
+    },
+    "mtb-hardtail-1x12": {
+      "p50FrameMs": 53.7,
+      "p95FrameMs": 69,
+      "longFrames": 2,
+      "buildMs": 500.1,
+      "tapLatencyMs": 32.7,
+      "drawCalls": 27,
+      "triangles": 25412,
+      "programs": 2
+    },
+    "mtb-full-dropper-1x12": {
+      "p50FrameMs": 54.3,
+      "p95FrameMs": 71.4,
+      "longFrames": 1,
+      "buildMs": 489.8,
+      "tapLatencyMs": 32.6,
+      "drawCalls": 28,
+      "triangles": 25704,
+      "programs": 2
+    },
+    "city-igh-8-hub-motor": {
+      "p50FrameMs": 54.1,
+      "p95FrameMs": 66.7,
+      "longFrames": 1,
+      "buildMs": 493.5,
+      "tapLatencyMs": 32.8,
+      "drawCalls": 30,
+      "triangles": 24760,
+      "programs": 2
+    },
+    "emtb-mid-1x12": {
+      "p50FrameMs": 55.4,
+      "p95FrameMs": 70.2,
+      "longFrames": 2,
+      "buildMs": 497.9,
+      "tapLatencyMs": 32.8,
+      "drawCalls": 30,
+      "triangles": 25912,
+      "programs": 2
+    }
+  }
+}
