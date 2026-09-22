@@ -91,6 +91,40 @@ previous list when a newer one is created and cap non-archived lists, or show
 the newest non-empty list. Each changes what `tests/e2e/checkup-quota.spec.ts`
 asserts.
 
+### Twelve CodeQL alerts have been open on `main` since W2–W3
+
+CodeQL's PR check fails only on NEW alerts, so the ones already on `main` never
+turned a check red, and nobody triaged them. W4 fixed the two it found vacuous
+(`js/invalid-prototype-value`, #11 and #14, closed by the merge: a literal
+`__proto__: "x"` sets no key, so those tests never held the poison key they
+were about). Twelve remain:
+
+- **#10 `js/user-controlled-bypass` (high), `app/api/session-expired/route.ts:50`.**
+  Assessed a false positive in W4. The flagged condition clears the session
+  cookies only when `auth()` rejects the visitor's OWN session. A third-party
+  page that navigates a signed-in visitor there sends a valid cookie and clears
+  nothing, as the route's header explains.
+- **Build scripts:** `js/clear-text-logging` (high) ×3 in
+  `scripts/gen-common-passwords.ts`, which logs entries of a public
+  common-password list, and `js/file-system-race` (high) ×2 in
+  `scripts/gen-illustration-placeholders.ts`. Both scripts run only on a
+  maintainer's machine.
+- **Tests:**
+  - `js/incomplete-sanitization` (high), `tests/security/session-rewrite.test.ts:86`;
+  - `js/incomplete-url-substring-sanitization` (high),
+    `components/shop/OutboundLink.test.tsx:163`;
+  - `js/identity-replacement` (medium), `tests/e2e/auth-login.spec.ts:132`;
+  - `js/superfluous-trailing-arguments` (warning) ×3.
+
+_Why W5_: a launch should start from zero open alerts, or from every remaining
+one dismissed with a written reason. A dismissal changes the repository's
+security record, so it is the maintainer's call, not an agent's.
+
+_To pick up_: fix what is cheap (the two scripts, the trailing arguments), and
+dismiss the rest as false positive or used-in-tests with the reason above. Then
+confirm `gh api repos/lienardale/velo-atelier/code-scanning/alerts?state=open`
+is empty.
+
 ---
 
 ## Post-MVP
