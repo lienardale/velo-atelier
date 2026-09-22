@@ -46,8 +46,21 @@ describe("viewerStatus", () => {
   });
 
   it("drops a part id the catalogue does not know, and a hole in the record", () => {
-    expect(
-      viewerStatus({ "not-a-part": "BROKEN", ["__proto__"]: "OK", chain: undefined, saddle: "OK" }),
-    ).toEqual({ saddle: "ok" });
+    const statuses: Partial<Record<string, "OK" | "BROKEN">> = {
+      "not-a-part": "BROKEN",
+      chain: undefined,
+      saddle: "OK",
+    };
+    // An OWN key named `__proto__`, as a stored record could carry one. Defined
+    // explicitly: a literal `__proto__:` (even computed) reads as setting the
+    // prototype, which CodeQL flags (js/invalid-prototype-value) — this is data.
+    Object.defineProperty(statuses, "__proto__", {
+      value: "OK",
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    expect(Object.keys(statuses)).toContain("__proto__");
+    expect(viewerStatus(statuses)).toEqual({ saddle: "ok" });
   });
 });
