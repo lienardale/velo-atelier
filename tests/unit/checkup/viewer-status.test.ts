@@ -46,20 +46,14 @@ describe("viewerStatus", () => {
   });
 
   it("drops a part id the catalogue does not know, and a hole in the record", () => {
-    const statuses: Partial<Record<string, "OK" | "BROKEN">> = {
-      "not-a-part": "BROKEN",
-      chain: undefined,
-      saddle: "OK",
-    };
-    // An OWN key named `__proto__`, as a stored record could carry one. Defined
-    // explicitly: a literal `__proto__:` (even computed) reads as setting the
-    // prototype, which CodeQL flags (js/invalid-prototype-value) — this is data.
-    Object.defineProperty(statuses, "__proto__", {
-      value: "OK",
-      enumerable: true,
-      configurable: true,
-      writable: true,
-    });
+    // An OWN key named `__proto__`, as a stored (JSON) record could carry one.
+    // `JSON.parse` creates it; a literal `__proto__:`, even computed, or an
+    // `Object.defineProperty` of it reads as setting the prototype, which CodeQL
+    // flags (js/invalid-prototype-value) — this is data, not a prototype.
+    const statuses = JSON.parse(
+      '{"not-a-part":"BROKEN","__proto__":"OK","saddle":"OK"}',
+    ) as Partial<Record<string, "OK" | "BROKEN">>;
+    statuses.chain = undefined; // a hole in the record
     expect(Object.keys(statuses)).toContain("__proto__");
     expect(viewerStatus(statuses)).toEqual({ saddle: "ok" });
   });
