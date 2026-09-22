@@ -54,9 +54,10 @@ job summary. §7.3's ladder, identical on PRs and at night:
 
 - **≤ 150 %** of the baseline: ok;
 - **> 150 %**: warning in the summary — look, but nothing is red;
-- **> 300 %**: the job fails. SwiftShader is noisy, but for the frame cost,
-  long frames and build time three times slower is not noise: over the first
-  three five-repetition nightlies their worst sample was 154 % of its preset's
+- **> 300 %**: the job fails — except `longFrames` on a software renderer,
+  which every CI run is (below). SwiftShader is noisy, but for the frame cost
+  and build time three times slower is not noise: over the first three
+  five-repetition nightlies their worst sample was 154 % of its preset's
   median. **Tap latency is the exception**: one sample in 70 crossed 300 % in
   each of those nightlies (134, 186 and — as a median of five taps — 114 ms
   against medians of 36–58 ms), two of the three on the first preset measured.
@@ -71,6 +72,17 @@ baseline a plain ratio is infinite at the first long frame, and one SwiftShader
 hitch would fail the job. Smoothed, a zero baseline warns at 1 and fails at 3;
 at any other baseline the fail line is exactly two long frames later than a
 plain ratio's (baseline 10: fail from 33, not 31), the warn line at most one.
+
+**On a software renderer, long frames never fail** (the W4 ruling,
+`.debug/012` §12). A long frame is an rAF interval over 50 ms, a hitch on a
+GPU; under SwiftShader it is the rasteriser's own scheduling. The nightly that
+recorded the W4 baselines counted `perf-mobile` / `mtb-full-dropper-1x12` at
+`[4, 1, 1, 1, 3]` over five repetitions of identical code on one runner, and
+the first comparison against that median of 1 failed at 6 with nothing changed.
+So `scripts/perf/ladder.ts` caps the count at a warning when the run's
+`renderer` names a software rasteriser: it is still measured and reported
+every run, and still fails on a GPU. The four durations keep their failure.
+
 A baseline recorded on another runner label or another three release is still
 compared, with a warning in the summary: that comparison is two machines, not
 two commits.

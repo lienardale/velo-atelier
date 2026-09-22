@@ -127,17 +127,25 @@ const BIKE_SCRIPT_CEILING =
  * owns ratcheting these down to it, exactly as `perf.budgets.json` does for
  * first-load JS. Raising one of these is a decision, not a formality — say why
  * in the commit, as here.
+ *
+ * PINNED at the W4 integration (2026-09-22) from nightly 35692898573's
+ * five-run medians on the merged tree, by `scripts/perf/lighthouse-report.ts`'s
+ * rule (tighten only, from the worse bike URL): performance 0.74 -> 0.69, LCP
+ * 2290 ms -> 3000 (§7.3's target: the page now meets the plan's LCP), TBT
+ * 922 ms -> 1100 unchanged (ceil50(922 x 1.15) = 1100: the margin leaves no
+ * room). The page got there through W4-T2's fixes, the 3D loading notice above
+ * all (`.debug/014`); the TBT gap to 600 is in `docs/backlog.md`.
  */
 const BIKE_TARGET = { performance: 0.7, largestContentfulPaint: 3000, totalBlockingTime: 600 };
 
 /** Bike pages: a WebGL canvas rendered in software. */
 const bikeAssertions = {
   ...contentAssertions,
-  // measured 0.62-0.75 -> 0.60; target BIKE_TARGET.performance
-  "categories:performance": ["error", { minScore: 0.6 }],
-  // measured 4345 ms -> 5000; target BIKE_TARGET.largestContentfulPaint
-  "largest-contentful-paint": ["error", { maxNumericValue: 5000 }],
-  // measured 910-930 ms -> 1100; target BIKE_TARGET.totalBlockingTime
+  // W4 nightly 0.74-0.76 (median 0.74) -> 0.69; target BIKE_TARGET.performance
+  "categories:performance": ["error", { minScore: 0.69 }],
+  // W4 nightly 2252-2341 ms (median 2290) -> 3000 = BIKE_TARGET.largestContentfulPaint
+  "largest-contentful-paint": ["error", { maxNumericValue: 3000 }],
+  // W4 nightly 856-954 ms (median 922) -> 1100 kept; target BIKE_TARGET.totalBlockingTime
   "total-blocking-time": ["error", { maxNumericValue: 1100 }],
   // resource-summary reports transfer size, so this is the gzipped total.
   "resource-summary:script:size": ["error", { maxNumericValue: BIKE_SCRIPT_CEILING }],

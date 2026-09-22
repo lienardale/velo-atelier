@@ -579,9 +579,13 @@ ceil50(median × 1.15)))`; the content bar is frozen. Pins come from a
   display-pinned on a real GPU), long frames, build time, tap latency (the
   median of five taps between the two farthest-apart parts), counters, runner
   label and three version — and `scripts/perf/compare.ts` ladders it against
-  `tests/perf/baselines/*.json`: warn > 150 %, fail > 300 %, long frames on
-  `(run+1)/(baseline+1)` (the fail line sits two frames later than a plain ratio
-  at every non-zero baseline). `scripts/ci/perf.sh` runs the two projects
+  `tests/perf/baselines/*.json` through `scripts/perf/ladder.ts`: warn > 150 %,
+  fail > 300 %, long frames on `(run+1)/(baseline+1)` (the fail line sits two
+  frames later than a plain ratio at every non-zero baseline) and **never above
+  a warning on a software renderer** — the W4 ruling: on SwiftShader the count
+  swings 0–6 between repetitions of identical code, and the first comparison
+  failed at 6 against a median of 1 (`.debug/012` §12); the four durations keep
+  their failure. `scripts/ci/perf.sh` runs the two projects
   serially (`--workers=1`), so no soft timing measures the other project.
   Baselines are recorded ONLY by `perf.yml` `workflow_dispatch update_baseline=true`,
   whose `perf baseline PR` job opens a bot PR. **A job holding a write token

@@ -10,7 +10,9 @@
 #             renders through SwiftShader (software), so a number there says
 #             nothing on its own; the spec writes it to `.perf/<project>.json`
 #             and `scripts/perf/compare.ts` turns it into a summary with the
-#             ladder (>150 % warn, >300 % fail vs tests/perf/baselines/).
+#             ladder (>150 % warn, >300 % fail vs tests/perf/baselines/;
+#             long frames only ever warn on a software renderer, which CI is:
+#             scripts/perf/ladder.ts has the W4 ruling).
 #
 # `UPDATE_PERF_BASELINE=1` (perf.yml, `update_baseline=true`) makes compare.ts
 # copy this run into tests/perf/baselines/ instead; it refuses outside Actions.

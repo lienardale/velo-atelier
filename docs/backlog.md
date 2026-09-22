@@ -403,10 +403,12 @@ plan-level options (Radix, `SessionProvider`), which need a plan change.
 
 #### Bike-page TBT is 713–971 ms on CI against a 600 ms target
 
-The Lighthouse ceiling stays 1 100 ms (derived from the worst of three
-nightlies; same-day runs differ 20–40 %). Most of it is the 3D mount: with
-WebGL disabled, local TBT is 60–83 ms (`.debug/014` §3). LCP is fixed (4 520 →
-2 179 ms on `/en/bike/demo`).
+The Lighthouse ceiling stays 1 100 ms. The W4 integration's five-run nightly
+(35692898573) measured 856–954 ms (median 922), and `ceil50(922 × 1.15)` is
+1 100, so the rule leaves no room; same-day runs differ 20–40 %. The same
+nightly pinned performance at 0.69 and LCP at 3 000 ms (§7.3's target: LCP is
+fixed, 4 520 → about 2 290 ms). Most of the TBT is the 3D mount: with WebGL
+disabled, local TBT is 60–83 ms (`.debug/014` §3).
 
 _To pick up_: `renderer.compileAsync` in `BikeScene` (three 0.185.1 polls
 `KHR_parallel_shader_compile`), building the scene across frames, hydrating
@@ -428,8 +430,11 @@ from new nightlies.
 
 Tap latency crossed compare.ts's 300 % FAIL line on one sample in 70 in three
 nightlies. W4 took the median of five taps and serialised the two perf projects
-(`--workers=1`). If the required `perf` job still fails on a timing alone,
-investigate the runner variance and report it — the ladder does not move.
+(`--workers=1`). The first comparison against real baselines then failed on
+long frames alone (6 against a median of 1, code unchanged); by the W4 ruling
+they only warn on a software renderer (`.debug/012` §12). If the required
+`perf` job still fails on a duration alone, investigate the runner variance and
+report it — the ladder does not move.
 
 ### Infrastructure and tooling
 

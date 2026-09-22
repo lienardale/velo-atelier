@@ -10,17 +10,15 @@
  * millisecond there is meaningless and only the ratio to a baseline recorded
  * on the same runner says anything.
  *
- * One ladder everywhere (PR and nightly), per §7.3:
+ * One ladder everywhere (PR and nightly), per §7.3 — `scripts/perf/ladder.ts`
+ * holds it as pure functions, with the reasons:
  *     ≤ 150 % of baseline   ok
  *     > 150 %               warning in the job summary
  *     > 300 %               hard failure (exit 1)
- * `longFrames` is a COUNT and is laddered on (run + 1) / (baseline + 1): with a
- * baseline of zero long frames a plain ratio is infinite for the first one, so
- * a single SwiftShader hitch would fail the job — the flake §7.3 keeps timings
- * advisory to avoid. Smoothed, a zero baseline warns at one long frame and
- * fails at three; at any other baseline the fail line sits exactly two long
- * frames later than a plain ratio's (baseline 10: fail from 33, not 31) and
- * the warn line at most one later. The durations are plain ratios.
+ * `longFrames` is laddered on (run + 1) / (baseline + 1), and never fails on a
+ * software renderer — which is every run this script compares, since CI draws
+ * through SwiftShader (the W4 ruling, `.debug/012` §12). The durations are
+ * plain ratios and keep their failure.
  *
  * Baselines are refreshed only from a workflow run: `UPDATE_PERF_BASELINE=1`
  * outside GitHub Actions exits 1 — whatever `.perf/` holds, including nothing —
@@ -46,6 +44,8 @@ import {
 } from "node:fs";
 import path from "node:path";
 
+import { isSoftwareRenderer, TIMING_METRICS, verdictOf, type Ladder } from "./ladder";
+
 const ROOT = process.cwd();
 const RUN_DIR = path.join(ROOT, ".perf");
 const BASELINE_DIR = path.join(ROOT, "tests", "perf", "baselines");
@@ -63,22 +63,6 @@ interface PerfFile {
   samples?: unknown;
   [field: string]: unknown;
 }
-
-interface Ladder {
-  warnPct: number;
-  failPct: number;
-}
-
-/** Metrics that are a timing and therefore subject to the ladder. */
-const TIMING_METRICS = new Set([
-  "p50FrameMs",
-  "p95FrameMs",
-  "longFrames",
-  "buildMs",
-  "tapLatencyMs",
-]);
-/** Of those, the one that is a count of events rather than a duration. */
-const COUNT_METRICS = new Set(["longFrames"]);
 
 /** The committed local GPU run (`RUN_LOCAL_PERF=1`): a real GPU is not this runner. */
 const LOCAL_RUN = /^local-.*\.json$/;
@@ -159,12 +143,6 @@ function updateBaselines(runs: string[]): void {
   flushSummary();
 }
 
-function ratioPct(metric: string, value: number, before: number): number {
-  if (COUNT_METRICS.has(metric)) return ((value + 1) / (before + 1)) * 100;
-  if (before === 0) return value === 0 ? 100 : Number.POSITIVE_INFINITY;
-  return (value / before) * 100;
-}
-
 function main(): void {
   const wantsUpdate = process.env.UPDATE_PERF_BASELINE === "1";
 
@@ -212,6 +190,7 @@ function main(): void {
 
     const run = readJson<PerfFile>(runFile);
     const baseline = readJson<PerfFile>(baselineFile);
+    const software = isSoftwareRenderer(run.renderer);
 
     if (baseline.three && run.three && baseline.three !== run.three) {
       warnings.push(
@@ -241,18 +220,23 @@ function main(): void {
           );
           continue;
         }
-        const pct = ratioPct(metric, value, before);
-        let verdict = "ok";
-        const line = `${project}/${preset}/${metric}: ${value} vs ${before} (${Number.isFinite(pct) ? `${pct.toFixed(0)} %` : "∞"})`;
-        if (pct > failPct) {
-          verdict = "FAIL";
-          failures.push(line);
-        } else if (pct > warnPct) {
-          verdict = "warn";
-          warnings.push(line);
-        }
+        const { pct, verdict, capped } = verdictOf(
+          metric,
+          value,
+          before,
+          { warnPct, failPct },
+          software,
+        );
+        const shown = Number.isFinite(pct) ? `${pct.toFixed(0)} %` : "∞";
+        const line = `${project}/${preset}/${metric}: ${value} vs ${before} (${shown})`;
+        if (verdict === "FAIL") failures.push(line);
+        else if (capped) {
+          warnings.push(
+            `${line} — past the fail line, but long frames never fail on a software renderer (.debug/012 §12)`,
+          );
+        } else if (verdict === "warn") warnings.push(line);
         rows.push(
-          `| ${project} | ${preset} | ${metric} | ${value} | ${before} | ${Number.isFinite(pct) ? `${pct.toFixed(0)} %` : "∞"} | ${verdict} |`,
+          `| ${project} | ${preset} | ${metric} | ${value} | ${before} | ${shown} | ${capped ? "warn (software renderer)" : verdict} |`,
         );
       }
     }

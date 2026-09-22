@@ -27,6 +27,7 @@ import type { Page } from "@playwright/test";
 
 import { PRESET_IDS } from "../../lib/domain";
 import type { PerfSnapshot } from "../../lib/testing/e2e-hooks";
+import { SOFTWARE_RENDERER } from "../../scripts/perf/ladder";
 import { expect, test } from "../e2e/_fixtures";
 import { median, percentile, recordRun, type PresetSample } from "./_record";
 
@@ -235,7 +236,7 @@ test.describe("bike3d runtime budgets", () => {
       /^(unknown|WebKit WebGL)$/,
     );
     expect(renderer, "RUN_LOCAL_PERF=1 must render on a GPU, not in software").not.toMatch(
-      /swiftshader|llvmpipe|softpipe|software|basic render/i,
+      SOFTWARE_RENDERER,
     );
     for (const [preset, metrics] of Object.entries(presets)) {
       expect(metrics.p95FrameMs, `${preset} p95 frame cost on ${renderer}`).toBeLessThanOrEqual(

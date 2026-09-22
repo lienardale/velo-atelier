@@ -9,8 +9,9 @@
 #   bash scripts/ci/e2e-docker.sh --grep @snapshot                      # compare with the baselines
 #   bash scripts/ci/e2e-docker.sh --grep @snapshot --update-snapshots   # a local look: never commit these
 #
-# Build first on the HOST (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 npm run
-# build`); the container reuses `.next` as is.
+# Build first on the HOST (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash
+# scripts/ci/build.sh`, which bakes the :3100 origin the container serves on);
+# the container reuses `.next` as is.
 #
 # Three things make it work, and all three are easy to get wrong:
 #
