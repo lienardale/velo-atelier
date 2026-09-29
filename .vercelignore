@@ -2,4 +2,12 @@
 .debug/
 .claude/
 docs/
-tests/
+
+# `tests/` STAYS. `next build` type-checks the whole tsconfig project, which
+# includes the *.test.ts(x) files next to the code under components/ and lib/:
+# they import `@/tests/_helpers/*` and `@/tests/_fakes/*`, and the jest-dom
+# matchers are typed from tests/. Excluding tests/ failed the very first
+# production build with 200+ TS2307 / TS2339 errors (W5, docs/deploy.md).
+# Only what the type-checker never reads stays out:
+tests/e2e/__screenshots__/
+tests/perf/baselines/

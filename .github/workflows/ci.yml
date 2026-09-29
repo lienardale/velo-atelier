@@ -37,73 +37,14 @@ env:
   NEXT_PUBLIC_SITE_URL: http://localhost:3100
   BCRYPT_COST: "4"
 
+# Every job here runs on every pull request, with no path filter. Branch
+# protection requires all 20 contexts (tests/unit/ci/required-checks.test.ts),
+# and a skipped job does not satisfy one: a skipped MATRIX job reports the
+# literal `e2e (${{ matrix.project }})`, so the five expanded contexts never
+# report and the PR stays "Expected — waiting for status" for ever. A
+# docs-only PR paid for that in W5 (#8). Filtering is only safe again if the
+# required list becomes one aggregate context.
 jobs:
-  changes:
-    name: detect changes
-    runs-on: ubuntu-latest
-    # dorny/paths-filter calls the PR list-files API on pull_request events;
-    # without pull-requests: read it fails with "Resource not accessible by
-    # integration" and every downstream job is skipped.
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      code: ${{ steps.filter.outputs.code }}
-      content: ${{ steps.filter.outputs.content }}
-      workflows: ${{ steps.filter.outputs.workflows }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
-        id: filter
-        with:
-          filters: |
-            code:
-              - 'app/**'
-              - 'lib/**'
-              - 'components/**'
-              - 'content/**'
-              - 'messages/**'
-              - 'styles/**'
-              - 'types/**'
-              - 'assets/**'
-              - 'prisma/**'
-              - 'prisma.config.ts'
-              - 'public/**'
-              - 'tests/**'
-              - 'scripts/**'
-              - 'auth.ts'
-              - 'auth.config.ts'
-              - 'proxy.ts'
-              - 'next.config.ts'
-              - 'content-collections.ts'
-              - 'global.d.ts'
-              - 'components.json'
-              - 'tsconfig.json'
-              - '.nvmrc'
-              - 'package.json'
-              - 'package-lock.json'
-              - 'vitest.config.ts'
-              - 'playwright.config.ts'
-              - 'lighthouserc.cjs'
-              - 'perf.budgets.json'
-              - 'eslint.config.mjs'
-              - '.gitleaks.toml'
-              - 'docker/**'
-              - 'docker-compose.yml'
-              # A workflow edit can break any job, and the CI and guard
-              # contract tests (tests/unit/ci/) live in the unit tier: a PR
-              # touching only a workflow must run everything, not just lint.
-              - '.github/workflows/**'
-            content:
-              - 'content/**'
-              - 'messages/**'
-              - 'scripts/content-check.ts'
-              - 'content-collections.ts'
-            workflows:
-              - '.github/workflows/**'
-          # No `screenshots` filter: a baseline change is label-checked by the
-          # path-filtered visual-baseline-guard.yml workflow, not by a job here.
-
   nvmrc:
     name: nvmrc-check
     runs-on: ubuntu-latest
@@ -117,8 +58,6 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.workflows == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -131,8 +70,6 @@ jobs:
   typecheck:
     name: typecheck
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -152,8 +89,6 @@ jobs:
   content:
     name: content
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.content == 'true' || needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -166,8 +101,6 @@ jobs:
   unit:
     name: unit
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -194,8 +127,6 @@ jobs:
   integration:
     name: integration
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     env:
       POSTGRES_URL: postgresql://velo:velo@localhost:5432/velo_atelier_test
       POSTGRES_URL_NON_POOLING: postgresql://velo:velo@localhost:5432/velo_atelier_test
@@ -234,11 +165,11 @@ jobs:
   coverage:
     name: coverage (80%)
     runs-on: ubuntu-latest
-    needs: [changes, unit, integration]
+    needs: [unit, integration]
     # `!cancelled()` and not `always()`: a failing test tier must make THIS job
     # fail (coverage.sh refuses to report a verdict when a tier is red) rather
     # than skip, so the required check is red instead of green-by-absence.
-    if: ${{ !cancelled() && (needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main') }}
+    if: ${{ !cancelled() }}
     env:
       UNIT_RESULT: ${{ needs.unit.result }}
       INTEGRATION_RESULT: ${{ needs.integration.result }}
@@ -268,8 +199,6 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     env:
       ENABLE_TEST_PAGES: "1"
       NEXT_PUBLIC_TEST_HOOKS: "1"
@@ -323,8 +252,7 @@ jobs:
   e2e:
     name: e2e (${{ matrix.project }})
     runs-on: ubuntu-latest
-    needs: [changes, build]
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
+    needs: build
     # Pinned to the same version as @playwright/test in package.json; renovate's
     # customManager bumps the image and the package together.
     container:
@@ -399,8 +327,7 @@ jobs:
   lighthouse:
     name: lighthouse
     runs-on: ubuntu-latest
-    needs: [changes, build]
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
+    needs: build
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
@@ -445,8 +372,7 @@ jobs:
   perf:
     name: perf
     runs-on: ubuntu-latest
-    needs: [changes, build]
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
+    needs: build
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
@@ -498,8 +424,6 @@ jobs:
   gitleaks:
     name: secrets scan (gitleaks)
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -513,8 +437,6 @@ jobs:
   audit:
     name: npm audit (audit-ci)
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -527,8 +449,6 @@ jobs:
   semgrep:
     name: SAST (semgrep)
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     # Not the semgrep/semgrep container: it is Alpine-based with no bash, and
     # every job body here has to be `bash scripts/ci/<step>.sh`. The script
     # installs semgrep (pipx) when it is missing and CI=true.
@@ -546,8 +466,6 @@ jobs:
   trivy:
     name: trivy fs scan
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.code == 'true' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Restore trivy DB cache

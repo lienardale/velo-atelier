@@ -16,7 +16,6 @@
  *   - `visual-baseline-guard` — its own path-filtered workflow
  *     (visual-baseline-guard.yml); it does not run on most PRs, and a required
  *     context that never reports blocks the merge forever.
- *   - `detect changes`       — plumbing for the other jobs' `if:`.
  */
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
@@ -48,11 +47,7 @@ export const REQUIRED_CHECKS = [
 ] as const;
 
 /** Contexts the workflows produce that are intentionally not blocking. */
-export const NON_BLOCKING_CONTEXTS = [
-  "detect changes",
-  "e2e (mobile-webkit)",
-  "visual-baseline-guard",
-] as const;
+export const NON_BLOCKING_CONTEXTS = ["e2e (mobile-webkit)", "visual-baseline-guard"] as const;
 
 const WORKFLOW_DIR = path.join(process.cwd(), ".github", "workflows");
 const CI_WORKFLOW = path.join(WORKFLOW_DIR, "ci.yml");
