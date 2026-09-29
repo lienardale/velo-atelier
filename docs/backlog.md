@@ -50,6 +50,46 @@ every `next start`, including the CI boot check in `scripts/ci/build.sh`
 `scripts/vercel-build.sh` refuse `NEXT_PUBLIC_TEST_HOOKS=1` when `VERCEL_ENV` is
 set, then correct the two comments.
 
+### Nothing in the repository reads `renovate.json`
+
+Renovate's first run on the installed app rejected the committed config and
+stopped every PR until it was fixed (`.debug/016` §4): a `false` where the
+schema wants `string | null`, and an invented `_comment_*` key. Both had been
+in the file since W1. No gate here parses it — the `$schema` line is honoured
+by editors, not by CI — so its first reader was the service, in production.
+
+_Why W5_: the same class as `.vercelignore` (`.debug/016` §1). A file whose only
+reader is a third party is untested however green the pipeline is, and this one
+fails closed: the symptom is no dependency PRs at all, which is silent.
+
+_To pick up_: `renovate-config-validator` ships inside the `renovate` package
+and reads the file directly —
+`npx --yes --package renovate -- renovate-config-validator renovate.json`. It is
+a slow install for a file that changes rarely, so scope the job to
+`paths: renovate.json` on pull requests. Note §4.1 of
+[`deploy.md`](./deploy.md): a path-filtered job must **not** become a required
+context, or every PR that leaves the file alone waits for a status that never
+reports.
+
+### A Neon branch that is not `production` is never migrated
+
+`scripts/vercel-build.sh` runs `prisma migrate deploy` only when
+`VERCEL_ENV=production`, so the shared `preview` branch gets its schema only if
+somebody applies it by hand. W5 found it with no `_prisma_migrations` table at
+all, and neither `/api/health` (a bare `SELECT 1`) nor `/velo/demo` (code-backed)
+noticed (`.debug/016` §3). Migrating it once fixed today; nothing stops it
+drifting again at the next migration.
+
+_Why W5_: it is a launch-time fact, not a defect in the code — the preview skip
+is deliberate (§2 of [`deploy.md`](./deploy.md)).
+
+_To pick up_: with the per-PR Neon branches entry below, which removes the
+shared branch entirely. Until then, either add a step that migrates `preview`
+when a migration lands on `main`, or give `/api/health` an optional deeper probe
+(one `count` on a real table) that a preview smoke test can call — the current
+endpoint is by design cheap enough to run per request, so a deeper check has to
+be a separate path, not a change to this one.
+
 ### The rate limiter logs a P2025 on every normal first attempt
 
 `lib/security/rate-limit.ts` decides on the row returned by each request's own

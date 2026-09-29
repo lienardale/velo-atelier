@@ -10,14 +10,14 @@
   "schedule": ["before 5am on monday"],
   "timezone": "Europe/Paris",
   "labels": ["dependencies"],
-  "_comment_minimumReleaseAge": "A freshly published version can be a compromised one. Hold every update for 7 days so a hijacked release is yanked before Renovate proposes it. Security updates bypass this via vulnerabilityAlerts. Required by the semgrep rule renovate-missing-minimum-release-age.",
+  "description": "A freshly published version can be a compromised one. Hold every update for 7 days so a hijacked release is yanked before Renovate proposes it. Security updates bypass the hold through vulnerabilityAlerts.minimumReleaseAge below.",
   "minimumReleaseAge": "7 days",
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "vulnerabilityAlerts": {
     "labels": ["security", "dependencies"],
     "schedule": ["at any time"],
-    "minimumReleaseAge": false
+    "minimumReleaseAge": null
   },
   "customManagers": [
     {
