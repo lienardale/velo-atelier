@@ -177,6 +177,12 @@ process.stdout.write(JSON.stringify({
   them); **`enforce_admins`** so that maintainer goes through the checks too.
 - `strict: false`: the plan does not ask for "branches must be up to date before
   merging"; set `strict: true` if you want it.
+- **Every `ci.yml` job runs on every PR, with no path filter.** A required
+  context has to report on every pull request. A skipped job does not satisfy
+  one, and a skipped MATRIX job reports the literal `e2e (${{ matrix.project }})`
+  instead of its five expanded names, so the PR waits for a status that never
+  comes. W5 hit exactly that on a two-file PR (#8, `.debug/016`) and removed the
+  filters. Filtering is only safe again behind a single aggregate context.
 - **Linear history** means a PR lands by squash or rebase. Settings → General →
   Pull Requests: allow squash and/or rebase merging — a merge commit cannot land
   on `main` once this rule is on.
