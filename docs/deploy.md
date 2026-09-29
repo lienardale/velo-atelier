@@ -20,15 +20,15 @@ maintainer clicks and pastes secrets.
 Read this before clicking anything: these are the behaviours the dashboards must
 not contradict.
 
-| Piece                     | What it does                                                                                                                                                                        |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vercel.json`             | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                    |
-| `scripts/vercel-build.sh` | `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/migrate-on-deploy.test.ts` pins that wiring |
-| `package.json`            | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                              |
-| `next.config.ts`          | security headers and a static Content-Security-Policy on every route                                                                                                                |
-| `GET /api/health`         | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                      |
-| `prisma/seed.ts`          | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**        |
-| `.vercelignore`           | keeps `.debug/`, `.claude/`, `docs/` and `tests/` out of the upload                                                                                                                 |
+| Piece                     | What it does                                                                                                                                                                                                                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vercel.json`             | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                                                                                                                                |
+| `scripts/vercel-build.sh` | `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/migrate-on-deploy.test.ts` pins that wiring                                                                                                             |
+| `package.json`            | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                                                                                                                                          |
+| `next.config.ts`          | security headers and a static Content-Security-Policy on every route                                                                                                                                                                                                                            |
+| `GET /api/health`         | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                                                                                                                                  |
+| `prisma/seed.ts`          | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**                                                                                                                    |
+| `.vercelignore`           | keeps `.debug/`, `.claude/`, `docs/`, the screenshot baselines and the perf baselines out of the upload. **`tests/` itself stays**: `next build` type-checks the `*.test.ts(x)` files beside the code, which import `@/tests/_helpers` and `@/tests/_fakes` (see the first-build failure in §2) |
 
 **The three test flags have no runtime guard.** `lib/env.ts` declares that
 `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and `NEXT_PUBLIC_DEMO_LOGIN` must
@@ -103,6 +103,15 @@ the custom domain added under Settings → Domains. A change to
 `vercel env pull .env.vercel` downloads the Development scope — never into
 `.env.local`, which must keep pointing at the Docker database (`.env.vercel` is
 gitignored).
+
+**The first production build failed, and why** (W5, 2026-09-29). `.vercelignore`
+excluded `tests/`, so the build machine had the code but not the helpers its
+co-located tests import: `next build` type-checks the whole tsconfig project and
+stopped with 200+ `TS2307: Cannot find module '@/tests/_helpers/…'` and
+`TS2339: Property 'toBeInTheDocument' does not exist`. Nothing local shows this —
+CI builds the whole tree, and `.vercelignore` is read only by Vercel. `tests/`
+now ships; only the screenshot and perf baselines, which the type-checker never
+reads, stay out.
 
 **Check** (§4.8 AC7).
 
