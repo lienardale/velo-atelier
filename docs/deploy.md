@@ -6,12 +6,34 @@ before anything was deployed: every step says **who** does it, **where** (the
 exact command or console path) and **how to check** it. Fill in the results —
 dates, the production domain — as W5 goes.
 
-Placeholders: `<prod-domain>` is the production host. No secret and no real
-connection string ever goes in this file.
+Placeholders: `<prod-domain>` is the production host — since 2026-09-29,
+**`velo-atelier.vercel.app`**. No secret and no real connection string ever goes
+in this file.
 
 Almost every step needs an account only the maintainer holds (Neon, Vercel,
 Google Cloud, GitHub as `lienardale`). An agent prepares and checks; the
 maintainer clicks and pastes secrets.
+
+---
+
+## What W5 did, and when
+
+Every row below was read back from the provider after the fact, never assumed.
+
+| What                    | Result                                                                                                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production host         | `https://velo-atelier.vercel.app` — the Vercel-assigned domain; no custom domain yet                                                                             |
+| Neon project            | `velo-atelier` (`aged-bird-87792451`), AWS `eu-central-1` (Frankfurt), Postgres **16**, Free plan, 6 h history retention — created 2026-09-23                    |
+| Neon branches           | `production` (default) and its child `preview` — see §1.2: the default branch is **not** called `main`                                                           |
+| Vercel project          | `lienardales-projects/velo-atelier`, region `cdg1`, production branch `main` — created 2026-09-29                                                                |
+| First production deploy | 2026-09-29, after one failure (`.vercelignore`, see §2). Migrations `20260911071112_init` and `20260921090547_checkup_symptoms_done_reason` applied at 08:11:43Z |
+| Google OAuth client     | `velo-atelier production` (Web application), created 2026-09-29 — §3                                                                                             |
+| Branch protection       | applied 2026-09-29: 20 contexts, `enforce_admins`, linear history, 0 reviews — §4.1                                                                              |
+| Renovate                | app installed 2026-09-29; its first run rejected `renovate.json` — §4.4                                                                                          |
+
+Still open at the end of W5-T1: the §5 launch checklist, the twelve CodeQL
+alerts ([`backlog.md`](./backlog.md)), and the README's "_(W5)_" live-site line,
+which §5.3 fills at tag time.
 
 ---
 
@@ -41,12 +63,12 @@ button out of production ([`backlog.md`](./backlog.md), W5 section).
 
 ## 1. Neon — who: the maintainer (Neon account)
 
-| Step | Where                                            | What                                                                                                                                                           |
-| ---- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.1  | Neon console → New project                       | name `velo-atelier`, **Postgres 16**, region **AWS `eu-central-1`** (Frankfurt)                                                                                |
-| 1.2  | the project's default branch                     | `main` = production                                                                                                                                            |
-| 1.3  | Branches → New branch, from `main`               | `preview`, **shared** by every Vercel preview deployment (one branch per PR is post-MVP, [`backlog.md`](./backlog.md))                                         |
-| 1.4  | Connection details, for each of the two branches | two strings: the **pooled** one (its host carries `-pooler`) becomes `POSTGRES_URL`, the **direct** one becomes `POSTGRES_URL_NON_POOLING`; copy them as shown |
+| Step | Where                                            | What                                                                                                                                                                                     |
+| ---- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1  | Neon console → New project                       | name `velo-atelier`, **Postgres 16**, region **AWS `eu-central-1`** (Frankfurt)                                                                                                          |
+| 1.2  | the project's default branch                     | production. **Neon named it `production`, not `main`** (W5): a Neon default branch is whatever the project was created with, and the name is unrelated to the git branch of the same job |
+| 1.3  | Branches → New branch, from `main`               | `preview`, **shared** by every Vercel preview deployment (one branch per PR is post-MVP, [`backlog.md`](./backlog.md))                                                                   |
+| 1.4  | Connection details, for each of the two branches | two strings: the **pooled** one (its host carries `-pooler`) becomes `POSTGRES_URL`, the **direct** one becomes `POSTGRES_URL_NON_POOLING`; copy them as shown                           |
 
 Nothing to enable by hand: the init migration
 (`prisma/migrations/20260911071112_init`) runs
@@ -60,6 +82,24 @@ Nothing to enable by hand: the init migration
   (`tests/security/seed-guard.test.ts` holds the same cases).
 - After the first production deploy (step 2.1): its build log shows
   `20260911071112_init` and every later migration applied.
+- **And then the same for `preview`, by hand.** `scripts/vercel-build.sh` runs
+  `prisma migrate deploy` only when `VERCEL_ENV=production`, so no preview
+  deployment ever migrates its own branch. A `preview` branched from
+  `production` _before_ the first production deploy therefore holds no schema
+  at all, and nothing reports it: `/api/health` is a bare `SELECT 1`, which an
+  empty database answers happily, and `/velo/demo` is code-backed. W5 branched
+  in that order and found `preview` with no `_prisma_migrations` table
+  (`.debug/016` §3). Migrate it once, with the **direct** URL, and assert the
+  host before running:
+
+  ```bash
+  POSTGRES_URL_NON_POOLING='<preview direct>' POSTGRES_URL='<preview pooled>' npx prisma migrate deploy
+  ```
+
+  Then check both branches carry the same count:
+  `select count(*) from "_prisma_migrations"`. Re-run it after any migration
+  that production takes and preview has not — or reset `preview` from its
+  parent in the Neon console, which is the same thing with one click.
 
 ## 2. Vercel — who: the maintainer (Vercel account)
 
@@ -87,13 +127,26 @@ Environment variables (§4.6):
 | `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**              | **never**     | idem                                                                                                                            |
 | `ALLOW_REMOTE_SEED`                     | **never**               | **never**              | **never**     | nothing on Vercel seeds                                                                                                         |
 
-Two decisions the plan leaves open, to take here and record in this file:
+Two decisions the plan leaves open. **Both were taken on 2026-09-29**, and the
+reasoning is here because the dashboard cannot hold it:
 
-- **The Development scope's database.** §4.6 sets the variables in all three
-  scopes but names a Neon branch only for Production and Preview; `preview` is
-  the only other branch that exists.
-- **`NEXT_PUBLIC_SITE_URL` on previews.** Whatever is set is what every preview
-  build prints as its canonical URL.
+- **The Development scope's database → the `preview` Neon branch.** §4.6 sets
+  the variables in all three scopes but names a Neon branch only for Production
+  and Preview; `preview` is the only other branch that exists. Development gets
+  it too, never `production`: the scope is read by `vercel dev` and
+  `vercel env pull`, neither of which this project uses — local development
+  runs against the Docker database in `.env.local` — so the value exists to be
+  harmless if something ever does read it, and pointing it at production would
+  make an accident write to the live database.
+- **`NEXT_PUBLIC_SITE_URL` on previews → `https://velo-atelier.vercel.app`, the
+  production host, in all three scopes.** Whatever is set is what every preview
+  build prints as its canonical URL. Nothing reads `VERCEL_URL`, so the honest
+  alternatives were one wrong-but-stable value or one per deployment, which a
+  build-time constant cannot give. A preview's canonical pointing at production
+  is the harmless direction: Vercel sends every preview `x-robots-tag: noindex`
+  of its own accord and sends production none (checked on both on 2026-09-29),
+  so no preview is indexable anyway, and a canonical that resolves to the real page
+  beats one that resolves to a deployment URL that dies with the branch.
 
 `<prod-domain>` is known once the project exists: its `*.vercel.app` host, or
 the custom domain added under Settings → Domains. A change to
@@ -137,6 +190,26 @@ reads, stay out.
 
 Locally, Google is optional: `.env.example` documents the redirect URI
 `http://localhost:3000/api/auth/callback/google` for a development client.
+
+**What W5 created** (2026-09-29). A new Google Cloud project `velo-atelier`, an
+**External** consent screen, and one Web-application client named
+`velo-atelier production` whose single authorised redirect URI is
+`https://velo-atelier.vercel.app/api/auth/callback/google`. No authorised
+JavaScript origin: Auth.js runs the whole exchange server-side, so the browser
+never calls Google's token endpoint and an origin here would only widen the
+client.
+
+**The client secret is shown once, and only once.** Google's client page now
+says so outright — "Viewing and downloading client secrets is no longer
+available" — and shows the existing one masked (`****abcd`). Two consequences:
+
+- Whoever creates the client copies the secret then, or adds a new one
+  afterwards. **Add secret** on the client page issues a second, live secret
+  without downtime; delete the old one once Vercel has the new one and a
+  production deployment has been rebuilt with it. That is also the rotation
+  procedure, and it is the only way back if the secret is lost.
+- Nothing may photograph, log or paste that dialogue. W5 had to rotate once for
+  exactly that reason.
 
 **Check.** The manual checklist in [`qa/google-oauth.md`](./qa/google-oauth.md),
 all seven sections, on production. While the consent screen is in "Testing",
@@ -211,6 +284,14 @@ deliberately failing unit test, opened as a draft PR, shows `coverage (80%)`
 | Discussions                       | Settings → General → Features | on — the issue chooser sends repair questions to `/discussions`                                                                                        |
 | Workflow permissions              | Settings → Actions → General  | default token read-only, "Allow GitHub Actions to create and approve pull requests" on (set during W4: `perf.yml`'s `update-snapshots` job opens a PR) |
 
+**Read back on 2026-09-29**: secret scanning and push protection `enabled`,
+visibility `PUBLIC`, discussions on, workflow permissions
+`{"default_workflow_permissions":"read","can_approve_pull_request_reviews":true}`,
+and branch protection exactly as §4.1 asks (20 contexts, `enforce_admins`,
+linear history, 0 reviews, no force pushes, no deletions). **Dependabot
+security updates are off** — the row above wants the _alerts_, which Renovate
+consumes; automatic Dependabot PRs would duplicate Renovate's.
+
 ### 4.3 CodeQL
 
 `.github/workflows/codeql.yml` is an **advanced setup**: `javascript-typescript`,
@@ -233,6 +314,29 @@ Playwright and content-collections.
 
 **Check.** A "Dependency Dashboard" issue appears, and the first Renovate PRs
 carry the `dependencies` label.
+
+**The first run rejected the config** (W5, 2026-09-29). Renovate opened
+`lienardale/velo-atelier#9`, "Action Required: Fix Renovate Configuration", and
+**stopped every PR** — including the dependency dashboard — until it was fixed:
+
+```
+Configuration option `vulnerabilityAlerts.minimumReleaseAge` should be a string,
+Invalid configuration option: _comment_minimumReleaseAge
+```
+
+Both were written in W1 and never executed: `renovate.json` is read by Renovate
+and by nothing else, so no local gate, no CI job and no JSON-schema check ever
+looked at it. Renovate's own schema settles both:
+
+- `minimumReleaseAge` is `{"type": ["string", "null"], "default": null}`, so the
+  way to exempt security updates from the 7-day hold is `null`, not `false`.
+- `description` is a real Renovate option at every config level (string or array
+  of strings). It is where a rationale belongs; an invented `_comment_*` key is
+  rejected like any other unknown option.
+
+**How to detect a regression**: `npx --yes --package renovate -- renovate-config-validator`
+reads `renovate.json` and exits non-zero on exactly these errors. Run it after
+editing the file.
 
 ---
 
