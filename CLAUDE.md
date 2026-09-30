@@ -412,6 +412,14 @@ docs/                contributor and operator docs — every one is linked from 
   (no database needed). Symptoms survive a reload of a saved bike's checkup
   (`writeItems` → `loadStoredCheckup`); `toItem` (`app/[locale]/velo/[id]/liste/load.ts`) reads
   `doneReason` back.
+  **`BuildList.checkupId` stopped being unique** in
+  `20260930094543_one_open_build_list_per_bike` (W5), written the same way from
+  the schema as `origin/main` had it: `DROP INDEX "BuildList_checkupId_key"` +
+  `CREATE INDEX "BuildList_checkupId_idx"`, and `Checkup.buildList BuildList?`
+  became `buildLists BuildList[]`. No data migration — a bike that already
+  holds one list per checkup keeps them, and its newest OPEN one is the one
+  every later checkup writes into. `tests/integration/schema.test.ts` holds
+  both indexes and the `SetNull` that still fires for two lists at once.
 - **The `/velo/[id]` sub-routes read through owner-scoped `load.ts` files**
   beside their `actions.ts` (`app/[locale]/velo/[id]/controle/load.ts`,
   `app/[locale]/velo/[id]/liste/load.ts`), for the reason

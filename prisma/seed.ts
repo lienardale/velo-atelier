@@ -252,7 +252,12 @@ async function seedCheckupAndList(bikeId: string): Promise<void> {
     itemIdByStepKey.set(item.stepKey, row.id);
   }
 
-  const existingList = await prisma.buildList.findUnique({
+  // `findFirst`, not `findUnique`: `BuildList.checkupId` stopped being unique
+  // when a bike gained ONE open list that every checkup merges into (W5), so
+  // the column only records the last checkup that wrote there. The seed still
+  // wants the demo bike's single list, and re-running it must update that same
+  // row rather than add another.
+  const existingList = await prisma.buildList.findFirst({
     where: { checkupId: checkup.id },
     select: { id: true },
   });
