@@ -12,7 +12,13 @@
  *    module; without the global, each reload would leak a pool until Postgres
  *    refuses new connections.
  *
- * 3. **Lazy construction.** The exported `prisma` is a proxy that builds the
+ * 3. **Errors are events, not stdout.** `log: [{ emit: "event", level: "error" }]`
+ *    plus a listener, so the one expected miss can be dropped and everything
+ *    else still printed. `lib/db/log.ts` holds the rule and says why the filter
+ *    has to live in the listener at all. Dev keeps its extra `warn` level on
+ *    stdout, where it has always been.
+ *
+ * 4. **Lazy construction.** The exported `prisma` is a proxy that builds the
  *    real client on first property access. `next build` imports every route
  *    module (including `app/api/health/route.ts`) to collect its metadata, so
  *    a client constructed at import time would make a build fail on a machine
@@ -26,9 +32,10 @@
 
 import { PrismaPg } from "@prisma/adapter-pg";
 
-import { PrismaClient } from "@/lib/generated/prisma/client";
+import { type Prisma, PrismaClient } from "@/lib/generated/prisma/client";
 
 import { getDatabaseUrls } from "./env";
+import { isExpectedNotFoundLog } from "./log";
 
 const globalForPrisma = globalThis as typeof globalThis & {
   __veloAtelierPrisma?: PrismaClient;
@@ -36,10 +43,26 @@ const globalForPrisma = globalThis as typeof globalThis & {
 
 function createPrismaClient(): PrismaClient {
   const { pooled } = getDatabaseUrls();
-  return new PrismaClient({
+
+  // `Prisma.LogDefinition[]` and not a literal: the exported `prisma` and this
+  // function are annotated `PrismaClient`, whose `LogOpts` generic defaults to
+  // `never`, so `prisma.$on(…)` off the annotated value does not typecheck at
+  // all. The listener is registered here, on the freshly constructed value,
+  // where the generic is still inferred from the options.
+  const log: Prisma.LogDefinition[] = [{ emit: "event", level: "error" }];
+  if (process.env.NODE_ENV === "development") log.push({ emit: "stdout", level: "warn" });
+
+  const client = new PrismaClient({
     adapter: new PrismaPg({ connectionString: pooled, max: 3 }),
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    log,
   });
+
+  client.$on("error", (event) => {
+    if (isExpectedNotFoundLog(event)) return;
+    console.error(`[prisma] ${event.target}: ${event.message}`);
+  });
+
+  return client;
 }
 
 function resolveClient(): PrismaClient {

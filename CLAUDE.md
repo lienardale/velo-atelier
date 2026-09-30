@@ -289,6 +289,19 @@ docs/                contributor and operator docs — every one is linked from 
 - **Prisma** — import the client from `@/lib/generated/prisma/client`, never
   from `@prisma/client` (ESLint enforces it; a type-only import is allowed for
   the adapter cast in `auth.ts`).
+  **Errors are EVENTS, not stdout**: the client is built with
+  `log: [{ emit: "event", level: "error" }]` and `lib/db/prisma.ts` prints them
+  itself, dropping exactly one line — `lib/db/log.ts`'s
+  `isExpectedNotFoundLog`, which matches `authAttempt.update` + P2025's
+  "required but not found". Prisma logs where it THROWS
+  (`handleAndLogRequestError`), so `createPrismaRateLimiter`'s conditional
+  `UPDATE` — which reads "no row" as its verdict, not as a failure — wrote one
+  P2025 to the log per fresh key, and a `catch` downstream could not stop it:
+  the filter has to be in the listener. Do NOT widen it into "ignore P2025",
+  and do not add a read to avoid the miss — the single conditional `UPDATE` is
+  what makes the limiter correct under a burst. Register the listener on the
+  freshly constructed value: the `PrismaClient` annotation collapses the log
+  generic to `never`, so `prisma.$on(…)` off the export does not typecheck.
 - **No logic in `components/bike3d/parts/**`** — no `if`, no `switch`, no
   ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
   prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
