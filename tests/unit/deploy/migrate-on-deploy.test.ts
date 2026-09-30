@@ -63,7 +63,13 @@ describe("deploy: migrations on production deploys only", () => {
     // to fire before `migrate deploy` touches the shared preview branch.
     // `tests/unit/deploy/vercel-build-guard.test.ts` executes the script and
     // proves the behaviour; this only keeps the ORDER from drifting.
-    const guardAt = vercelBuild.indexOf("NEXT_PUBLIC_TEST_HOOKS");
+    //
+    // Anchored on the `case` PATTERN, not on the string "NEXT_PUBLIC_TEST_HOOKS":
+    // the explanatory comment above the guard names the variable 880 bytes
+    // earlier, so an `indexOf` of the name matched the COMMENT and this test
+    // stayed green with the guard itself replaced by one that never fires.
+    // Spacing is loose because shfmt owns it. (Found in review, 2026-09-30.)
+    const guardAt = vercelBuild.search(/^\s*1\s*\|\s*true\s*\|\s*yes\)/m);
     expect(guardAt).toBeGreaterThan(-1);
     expect(guardAt).toBeLessThan(vercelBuild.indexOf("prisma migrate deploy"));
   });
