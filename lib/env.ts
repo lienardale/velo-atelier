@@ -68,6 +68,19 @@ const baseSchema = z.object({
   /** Set by Vercel only; `undefined` locally and in CI. */
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
 
+  /**
+   * Required BY THESE NAMES — and since W5 that is load-bearing, because this
+   * schema now decides whether a server boots.
+   *
+   * `lib/db/env.ts`, which RESOLVES the connections, additionally accepts
+   * Neon's own `DATABASE_URL` / `DATABASE_URL_UNPOOLED` "so a stock Neon
+   * integration also boots". This contract does not. A deployment configured
+   * with Neon's names only would therefore connect perfectly and still be
+   * refused here — the two modules disagree about what "configured" means.
+   * The Vercel project sets the `POSTGRES_*` names (`docs/deploy.md` §2), so
+   * nothing is broken today; reconciling the two is a decision, not a
+   * tidy-up, and it belongs to whoever takes it. Do not widen this quietly.
+   */
   POSTGRES_URL: postgresUrl,
   POSTGRES_URL_NON_POOLING: postgresUrl,
 

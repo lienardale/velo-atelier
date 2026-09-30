@@ -271,12 +271,42 @@ describe("parseEnv", () => {
 
     it("requires AUTH_SECRET and both database URLs on a preview deployment", () => {
       // Preview is non-production, so it is exempt from AUTH_URL and Google —
-      // and from nothing else. This is the shape the live Preview scope has.
+      // and from nothing else.
       expect(parseEnv(deployed("preview", { AUTH_URL: undefined })).isProduction).toBe(false);
       expect(() => parseEnv(deployed("preview", { AUTH_SECRET: "short" }))).toThrow(/AUTH_SECRET/);
       expect(() => parseEnv(deployed("preview", { POSTGRES_URL_NON_POOLING: undefined }))).toThrow(
         /POSTGRES_URL_NON_POOLING/,
       );
+    });
+
+    it("accepts the live Preview scope exactly as docs/deploy.md describes it", () => {
+      // Both database URLs, AUTH_SECRET, NEXT_PUBLIC_SITE_URL, AUTH_TRUST_HOST
+      // — no AUTH_URL and no Google pair, which Production alone carries.
+      // Nothing about this branch may make that deployment refuse to boot.
+      const env = parseEnv(
+        validEnv({ NODE_ENV: "production", VERCEL_ENV: "preview", AUTH_TRUST_HOST: "true" }),
+      );
+      expect(env.isProduction).toBe(false);
+      expect(env.AUTH_URL).toBeUndefined();
+      expect(env.AUTH_GOOGLE_ID).toBeUndefined();
+    });
+
+    it("ignores the variables a platform injects", () => {
+      // The schema is `z.object`, not `.strict()`, and it must stay that way:
+      // a deployment's environment holds dozens of VERCEL_*, CI and runtime
+      // variables this file knows nothing about. Strict, `getEnv()` would
+      // refuse every deployment there is — and, before W5, nothing called it,
+      // so nothing would have noticed.
+      expect(() =>
+        parseEnv(
+          validEnv({
+            VERCEL: "1",
+            VERCEL_URL: "velo-atelier-abc123.vercel.app",
+            VERCEL_GIT_COMMIT_SHA: "0123456789abcdef",
+            AWS_LAMBDA_FUNCTION_NAME: "whatever",
+          }),
+        ),
+      ).not.toThrow();
     });
   });
 });
