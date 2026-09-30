@@ -27,6 +27,17 @@ touches the database. The GitHub account is **`lienardale`** (the macOS user is
 a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 `next.config.ts` pins `turbopack: { root: process.cwd() }`.
 
+**`overrides` in `package.json` is the security fix; the audit allowlist is the
+last resort.** A transitive dependency whose patched release its parent's
+declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` today
+— and its GHSA id is then **removed** from `audit-ci.json`, so a regression
+fails the `audit` job instead of passing it silently. Every override is an
+untested version for its parent, so each one carries a compatibility note and a
+green `bash scripts/ci.sh` + `npm run build` in
+[`audit-ci-allowlist.md`](./audit-ci-allowlist.md), which also justifies every
+id that stays. A dependency whose parent already admits the patched release
+needs no override, only `npm update <pkg>`.
+
 ---
 
 ## Stack
@@ -625,6 +636,13 @@ ceil50(median × 1.15)))`; the content bar is frozen. Pins come from a
   `npx next experimental-analyze --output`, explains a route's first load per
   chunk and per package.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
+  **`audit` fetches advisories live, so it can go red with nothing in the repo
+  changed** — that is the design, not a flake. Fix first (`overrides`, or
+  `npm update <pkg>` when the parent's range already admits the patch), and
+  allow-list only what has no reachable patch, with the reason in
+  `audit-ci-allowlist.md`. A CodeQL alert is either fixed in code or dismissed
+  by the maintainer with a written reason: **an agent never runs a dismissal**,
+  because it changes the repository's security record.
 
 Husky runs the fast subset pre-commit and, pre-push, the local mirror without
 its `build` step (`SKIP_BUILD=1`; `RUN_BUILD=1` keeps it).
