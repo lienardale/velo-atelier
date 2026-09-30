@@ -364,18 +364,33 @@ docs/                contributor and operator docs — every one is linked from 
   1e-4 one frame after a focus (measured 0); with motion it is above 1e-3 and
   closes over more than one frame. A frame count is an annotation only — it
   measures the machine (`.debug/015` §3, §10).
-- **`lib/env.ts` declares the environment contract; nothing enforces it at
-  boot yet.** `parseEnv()` requires `AUTH_URL` and the Google pair in
-  production and refuses `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and
-  `NEXT_PUBLIC_DEMO_LOGIN` there (`tests/unit/db/env.test.ts`), but `getEnv()`
-  has no caller outside that test, and `scripts/bundle-guard.ts` follows the
-  hooks flag rather than refusing it. The comments in
-  `components/auth/SignInForm.tsx` and `app/[locale]/(auth)/connexion/page.tsx`
-  that say the boot fails are wrong. Wiring it needs the production test scoped
-  to `VERCEL_ENV` first: the `next` CLI defaults `NODE_ENV` to `production` for
-  every `next start` (unless it is set), the CI boot check and the e2e server
-  included (`docs/backlog.md`, W5). Until then the Vercel env list in
-  `docs/deploy.md` is the only guard.
+- **`lib/env.ts` is the environment contract and `instrumentation.ts` is what
+  runs it** (W5). `register()` calls `getEnv()` once, gated on
+  `NEXT_RUNTIME === "nodejs"`; on `next start` Next awaits it before the server
+  takes requests, and a throw is exit 1 with the variable's name. **Next does
+  NOT run it during a build** (`NEXT_PHASE=phase-production-build` returns
+  early), so a build still needs no database and no secret — which is also why
+  the one build-time flag is guarded elsewhere.
+  **The three test flags are refused when `VERCEL_ENV` is SET, not when
+  `isProduction`**, and that distinction is what made the wiring possible: the
+  `next` CLI defaults `NODE_ENV` to `production` for every command but `dev`,
+  so the CI boot check, Playwright's web server, Lighthouse and perf all start
+  a production server ON PURPOSE with `ENABLE_TEST_PAGES=1`. `VERCEL_ENV` is
+  set by Vercel and by nothing else. A PREVIEW deployment is refused too — a
+  preview URL is public. `AUTH_URL` and the Google pair are unchanged: required
+  when `isProduction`.
+  `NEXT_PUBLIC_TEST_HOOKS` is inlined by the bundler, so no boot check can take
+  it back: **`scripts/vercel-build.sh` exits 1 on it when `VERCEL_ENV` is set,
+  before `prisma migrate deploy`**, and `scripts/bundle-guard.ts` refuses the
+  same pair again after the compile instead of following the flag.
+  Consequence for every step that starts a server: the environment has to be
+  complete. `scripts/ci/{build,lighthouse}.sh` call
+  `load_env_contract_defaults` (`scripts/ci/_lib.sh`), which fills unset
+  variables from the committed `.env.test` — **never the three test flags**,
+  which a step sets deliberately or not at all. Playwright (and so perf)
+  already load `.env.test` in `playwright.config.ts` and need nothing.
+  `tests/boot/env-contract.test.ts` spawns the real server for all three
+  directions; see the `boot` project under "Quality gates".
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
   under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
   `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
@@ -601,7 +616,19 @@ PR-only `visual-baseline-guard`.
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
-- Vitest projects `unit | ui | bike3d | integration | security`; coverage
+- **The `boot` Vitest project** (`tests/boot/**`) spawns `next start` against
+  the build that just happened and asserts the environment contract on a real
+  server: `VERCEL_ENV=production ENABLE_TEST_PAGES=1` exits 1 with the
+  `EnvValidationError`, the same build with the flags on and no `VERCEL_ENV`
+  boots and serves `/api/health`, and a clean deployment boots. It builds
+  nothing itself; `scripts/ci/build.sh` runs it after the boot check.
+  `vitest.config.ts` defines the project only when `.next/BUILD_ID` exists
+  (or `--project boot` names it), so `npm test` in a fresh clone never sees
+  it — and it is NOT in `tests/integration/`, where the CI `integration` job's
+  buildless checkout would have made it skip vacuously. Never assert on a
+  refused connection there: Next binds the socket before `register()` runs, so
+  a request in that window gets a 500.
+- Vitest projects `unit | ui | bike3d | integration | security | boot`; coverage
   thresholds (`vitest.config.ts`, never lowered to pass): 80 % overall; 100 % on
   `lib/domain/**`; 100 % statements and branches on `lib/checkup/**`; `lib/**`
   90 % lines / functions / statements and 85 % branches; `components/**` 75 %

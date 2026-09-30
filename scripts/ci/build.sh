@@ -61,17 +61,22 @@ if [[ ! -f app/api/health/route.ts ]]; then
   exit 0
 fi
 
-# `/api/health` opens a connection, so the boot check needs a database URL. In
-# CI the workflow's `env:` block provides it (the service container); locally
-# there is no `.env` in a fresh clone, so fall back to the committed `.env.test`
-# — real environment variables always win.
-if [[ -z "${POSTGRES_URL:-}" && -f .env.test ]]; then
-  while IFS='=' read -r key value; do
-    [[ "$key" =~ ^[[:space:]]*(#|$) ]] && continue
-    [[ -n "${!key:-}" ]] && continue
-    export "$key=$value"
-  done <.env.test
-fi
+# The boot check starts a real server, so it needs the whole environment
+# contract, not just a database URL: since W5 `instrumentation.ts` runs
+# `getEnv()` before the server takes requests, and the `next` CLI makes every
+# `next start` NODE_ENV=production, so a missing AUTH_SECRET or AUTH_URL is now
+# exit 1 instead of a later surprise.
+#
+# It used to be "if POSTGRES_URL is unset, load the whole of .env.test", which
+# was all-or-nothing: CI sets POSTGRES_URL in the job's `env:` block, so CI
+# loaded NOTHING and the started server had no AUTH_URL at all. Per key, with a
+# real variable always winning, is what makes both paths complete. The three
+# test flags are never read from the file (see `_lib.sh`) — the two that matter
+# here are exported above, deliberately.
+#
+# This runs AFTER `npm run build` on purpose: `NEXT_PUBLIC_*` is inlined by the
+# bundler, so a value acquired here must never be able to reach the bundle.
+load_env_contract_defaults
 
 BOOT_PORT="${BOOT_PORT:-3001}"
 BOOT_LOG="$(mktemp "${TMPDIR:-/tmp}/velo-boot.XXXXXX")"
@@ -117,5 +122,20 @@ case "$body" in
   exit 1
   ;;
 esac
+
+# Stop it before the next step: the `boot` project starts servers of its own
+# and must not share the runner with this one.
+cleanup
+BOOT_PID=""
+
+# The boot check above proves this build starts. The `boot` Vitest project
+# proves the OTHER direction — that a poisoned deployment environment does not
+# — by spawning `next start` against this same `.next` and asserting exit 1
+# with the EnvValidationError. It lives here and not in `tests/integration/`
+# because the CI `integration` job has no build: a spec placed there would skip
+# vacuously and prove nothing. The project is only defined when `.next/BUILD_ID`
+# exists (vitest.config.ts), so `npm test` in a fresh clone never sees it.
+log_step "boot contract (vitest --project boot)"
+npx --no-install vitest run --project boot
 
 log_ok "build passed"

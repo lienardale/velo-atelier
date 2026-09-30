@@ -13,7 +13,9 @@
  *
  * Deliberately **not** validated at module scope: `next build` imports server
  * modules to collect route metadata, and a build should not require a running
- * database or a production secret. The first request does.
+ * database or a production secret. `instrumentation.ts`'s `register()` is the
+ * one caller, and Next does not run it during a build (W5) — so the boot of a
+ * started server is where this fires, and `next build` still needs nothing.
  *
  * `NEXT_PUBLIC_*` values are inlined by the bundler at build time, so they are
  * read as literal `process.env.NEXT_PUBLIC_…` members wherever the client
@@ -85,7 +87,7 @@ const baseSchema = z.object({
     z.coerce.number().int().min(4).max(15).optional().default(12),
   ),
 
-  /** Local/CI only — see the guards below. */
+  /** Local/CI only — refused on a Vercel deployment; see the guards below. */
   ENABLE_TEST_PAGES: flag,
   NEXT_PUBLIC_TEST_HOOKS: flag,
   NEXT_PUBLIC_DEMO_LOGIN: flag,
@@ -101,6 +103,41 @@ function computeIsProduction(parsed: z.infer<typeof baseSchema>): boolean {
 }
 
 const schema = baseSchema.superRefine((parsed, ctx) => {
+  // The dev pages, the demo-login callout and the Playwright hooks must never
+  // exist on a DEPLOYMENT — preview included: a preview URL is public, and
+  // `/dev/*` or `window.__va` there is the same remote control it would be on
+  // production. Failing the boot is the only way to make that non-negotiable.
+  //
+  // Scoped to `VERCEL_ENV` being set, NOT to `isProduction`, and that
+  // distinction is load-bearing (W5). The `next` CLI defaults `NODE_ENV` to
+  // `production` for every command but `dev` (`next/dist/bin/next`), so every
+  // `next start` is "production" here: CI's boot check, Playwright's web
+  // server, Lighthouse and perf all start a production server ON PURPOSE with
+  // these flags on. `VERCEL_ENV` is set by Vercel and by nothing else, which
+  // makes it the only honest signal that separates a deployment from a local
+  // production server.
+  //
+  // `NEXT_PUBLIC_TEST_HOOKS` is also a BUILD-time flag — the bundler inlines
+  // it, so by the time this runs the bundle is already decided. Refusing it
+  // here keeps a poisoned deployment from serving; `scripts/vercel-build.sh`
+  // is what stops the bundle being built in the first place.
+  if (parsed.VERCEL_ENV) {
+    const forbidden: readonly (readonly [string, boolean])[] = [
+      ["ENABLE_TEST_PAGES", parsed.ENABLE_TEST_PAGES],
+      ["NEXT_PUBLIC_TEST_HOOKS", parsed.NEXT_PUBLIC_TEST_HOOKS],
+      ["NEXT_PUBLIC_DEMO_LOGIN", parsed.NEXT_PUBLIC_DEMO_LOGIN],
+    ];
+    for (const [key, enabled] of forbidden) {
+      if (enabled) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `must never be set on a deployment (VERCEL_ENV=${parsed.VERCEL_ENV})`,
+        });
+      }
+    }
+  }
+
   if (!computeIsProduction(parsed)) return;
 
   // Google is the only OAuth provider; production without it silently loses
@@ -112,19 +149,6 @@ const schema = baseSchema.superRefine((parsed, ctx) => {
   ];
   for (const [key, value] of required) {
     if (!value) ctx.addIssue({ code: "custom", path: [key], message: "is required in production" });
-  }
-
-  // The dev pages and the Playwright hooks must never exist on a public
-  // deployment. Failing the boot is the only way to make that non-negotiable.
-  const forbidden: readonly (readonly [string, boolean])[] = [
-    ["ENABLE_TEST_PAGES", parsed.ENABLE_TEST_PAGES],
-    ["NEXT_PUBLIC_TEST_HOOKS", parsed.NEXT_PUBLIC_TEST_HOOKS],
-    ["NEXT_PUBLIC_DEMO_LOGIN", parsed.NEXT_PUBLIC_DEMO_LOGIN],
-  ];
-  for (const [key, enabled] of forbidden) {
-    if (enabled) {
-      ctx.addIssue({ code: "custom", path: [key], message: "must never be set in production" });
-    }
   }
 });
 

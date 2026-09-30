@@ -38,6 +38,17 @@ if [[ -z "${CHROME_PATH:-}" ]]; then
   fi
 fi
 
+# lhci starts the server itself (`startServerCommand: npm run start`), and since
+# W5 `instrumentation.ts` validates the environment before that server answers.
+# The job's `env:` block carries a database URL and AUTH_SECRET but no AUTH_URL,
+# so without this the audit would fail at boot rather than on a metric. Derive
+# AUTH_URL from the origin actually being audited — a worktree moves both with
+# LHCI_BASE_URL — and take everything else still missing from `.env.test`.
+# Real environment variables win; the three test flags are never read from the
+# file, so what the page renders is decided by the BUILD, exactly as before.
+export AUTH_URL="${AUTH_URL:-${LHCI_BASE_URL:-http://localhost:3100}}"
+load_env_contract_defaults
+
 # Old runs must not be reported as this one's.
 rm -rf "${PROJECT_ROOT:?}/.lighthouseci"
 

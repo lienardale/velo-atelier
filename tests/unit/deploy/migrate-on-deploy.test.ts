@@ -57,6 +57,17 @@ describe("deploy: migrations on production deploys only", () => {
     expect(vercelBuild).toMatch(/VERCEL_ENV.*=.*"?production"?/);
   });
 
+  it("refuses the test hooks before it migrates anything", () => {
+    // W5: the hooks flag is inlined at build time and `register()` does not run
+    // during a build, so this script is the only guard on Vercel — and it has
+    // to fire before `migrate deploy` touches the shared preview branch.
+    // `tests/unit/deploy/vercel-build-guard.test.ts` executes the script and
+    // proves the behaviour; this only keeps the ORDER from drifting.
+    const guardAt = vercelBuild.indexOf("NEXT_PUBLIC_TEST_HOOKS");
+    expect(guardAt).toBeGreaterThan(-1);
+    expect(guardAt).toBeLessThan(vercelBuild.indexOf("prisma migrate deploy"));
+  });
+
   it("aborts the build if the migration fails", () => {
     // Without `set -e`, a failed `migrate deploy` would be followed by a
     // successful build — which is precisely the outage being guarded against.

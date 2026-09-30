@@ -1,5 +1,5 @@
 /**
- * Vitest — five projects, one coverage gate.
+ * Vitest — six projects, one coverage gate.
  *
  * Shape copied from skipper-website: inline projects with `extends: true`
  * (they inherit `plugins`, `resolve` and the root `test` options), while
@@ -11,6 +11,7 @@
  *   bike3d       jsdom  tests/bike3d/**                  R3F test renderer, WebGL stubs
  *   integration  node   tests/integration/**             real Postgres `_test` DB, one fork, serial
  *   security     node   tests/security/**                OWASP-style tier, fake Prisma
+ *   boot         node   tests/boot/**                    spawns `next start` on a real build
  *
  * `vitest run --coverage` exiting non-zero IS the gate (§7.1): the thresholds
  * below start at their final values and are never lowered to make a run pass.
@@ -71,6 +72,40 @@ function isCoverageShard(argv: readonly string[]): boolean {
   );
 }
 
+/** Was this project asked for by name (`--project x` or `--project=x`)? */
+function namedProject(argv: readonly string[], name: string): boolean {
+  return argv.some(
+    (arg, i) => arg === `--project=${name}` || (arg === "--project" && argv[i + 1] === name),
+  );
+}
+
+/**
+ * Whether the `boot` project is part of this run.
+ *
+ * It spawns `next start` against `.next` and asserts what the environment
+ * contract does to a real server: `VERCEL_ENV=production ENABLE_TEST_PAGES=1`
+ * exits 1, the same build without the poison serves `/api/health`. There is
+ * nothing to run without a production build, so it is defined only when one is
+ * on disk — `npm test` in a fresh clone (and the CI `unit` job, whose checkout
+ * has no `.next`) never sees the project at all, which is the point: a spec
+ * that skips itself proves nothing, and one placed in `tests/integration/`
+ * would have skipped vacuously in the job that runs that tier.
+ *
+ * `scripts/ci/build.sh` runs it right after the build, where `.next` exists by
+ * construction. Named explicitly it is always defined, so `--project boot`
+ * without a build fails in the spec's own guard with an actionable message
+ * instead of "no project matched".
+ *
+ * `next build` writes `BUILD_ID`; `next dev` does not, so a dev server's
+ * leftover `.next` does not enable a tier that would then try to `next start`
+ * it.
+ */
+function bootTierEnabled(argv: readonly string[]): boolean {
+  if (namedProject(argv, "boot")) return true;
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed path under the repo root
+  return existsSync(`${root}.next/BUILD_ID`);
+}
+
 /**
  * Whether the `integration` project is part of this run.
  *
@@ -92,14 +127,7 @@ async function integrationTierEnabled(argv: readonly string[]): Promise<boolean>
   if (process.env.VITEST_REQUIRE_DB === "1" || process.env.CI) return true;
   // Asked for by name (`--project integration`, `npm run test:integration`):
   // run it, so a missing database is reported by the global setup, not hidden.
-  if (
-    argv.some(
-      (arg, i) =>
-        arg === "--project=integration" || (arg === "--project" && argv[i + 1] === "integration"),
-    )
-  ) {
-    return true;
-  }
+  if (namedProject(argv, "integration")) return true;
 
   // Vitest evaluates this file once for the root and once per inline project;
   // probe (and warn) once per process.
@@ -157,6 +185,7 @@ function isPortOpen(host: string, port: number, timeoutMs = 750): Promise<boolea
 export default defineConfig(async (): Promise<ViteUserConfig> => {
   const shard = isCoverageShard(process.argv);
   const withIntegration = await integrationTierEnabled(process.argv);
+  const withBoot = bootTierEnabled(process.argv);
 
   return {
     plugins: [react()],
@@ -229,6 +258,30 @@ export default defineConfig(async (): Promise<ViteUserConfig> => {
             setupFiles: ["./tests/setup.ts", "./tests/setup.fake-db.ts"],
           },
         },
+        ...(withBoot
+          ? [
+              {
+                extends: true,
+                test: {
+                  name: "boot",
+                  environment: "node",
+                  include: ["tests/boot/**/*.test.ts"],
+                  // No `tests/setup.ts`: it stubs Next's request-time modules
+                  // and pins env defaults with `??=` for code running IN this
+                  // process. Nothing here imports app code — the subject is a
+                  // child `next start` — and the env it inherits has to be the
+                  // real one, so the spec builds each child's environment
+                  // itself.
+                  setupFiles: [],
+                  // Each case starts a server: never two at once.
+                  fileParallelism: false,
+                  pool: "forks",
+                  testTimeout: 120_000,
+                  hookTimeout: 120_000,
+                },
+              } satisfies TestProjectInlineConfiguration,
+            ]
+          : []),
       ],
 
       coverage: {

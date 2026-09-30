@@ -18,7 +18,9 @@
  *      when `NEXT_PUBLIC_TEST_HOOKS === "1"` at build time, so the probe must
  *      be in the bundle when the flag is on and absent when it is not. Both
  *      directions are asserted, because "absent" is only meaningful if we know
- *      the marker would have been found had it been there.
+ *      the marker would have been found had it been there. On a DEPLOYMENT
+ *      (`VERCEL_ENV` set) there is no "on" direction to follow: the flag is
+ *      refused outright — see `main()`.
  *
  * Run after `next build`, wherever the build happens:
  *   - `scripts/ci/build.sh` (CI build job, `npm run ci:local`) — CI builds with
@@ -81,6 +83,24 @@ function* walk(dir: string): Generator<string> {
 }
 
 function main(): void {
+  // On a DEPLOYMENT the hooks direction is not a variable — it is always
+  // "absent". Rule 2 follows the flag, which is right for CI (it builds the
+  // e2e artifact with the flag on and proves the marker is findable) and wrong
+  // for Vercel, where following it would turn "window.__va shipped" into a
+  // PASS. `scripts/vercel-build.sh` already refuses this combination before
+  // the compile; this is the second lock, so the rule holds even if the build
+  // is invoked some other way. VERCEL_ENV is set by Vercel and by nothing
+  // else, so `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash
+  // scripts/ci/build.sh` — the e2e build — is untouched.
+  if (process.env.VERCEL_ENV && process.env.NEXT_PUBLIC_TEST_HOOKS === "1") {
+    console.error(
+      `bundle-guard: NEXT_PUBLIC_TEST_HOOKS=1 on a deployment (VERCEL_ENV=${process.env.VERCEL_ENV}).` +
+        ` The test hooks must never be built into a deployed bundle — unset it in the Vercel` +
+        ` environment variables and redeploy (§3.6 AC7).`,
+    );
+    process.exit(1);
+  }
+
   let files: string[];
   try {
     files = [...walk(STATIC_DIR)];

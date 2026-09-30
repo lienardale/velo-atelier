@@ -45,19 +45,45 @@ not contradict.
 | Piece                     | What it does                                                                                                                                                                                                                                                                                    |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `vercel.json`             | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                                                                                                                                |
-| `scripts/vercel-build.sh` | `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/migrate-on-deploy.test.ts` pins that wiring                                                                                                             |
+| `scripts/vercel-build.sh` | refuses `NEXT_PUBLIC_TEST_HOOKS=1` when `VERCEL_ENV` is set, then `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/{migrate-on-deploy,vercel-build-guard}.test.ts` pin that wiring                       |
+| `instrumentation.ts`      | `register()` runs `getEnv()` once, before the server takes requests. A wrong environment is exit 1 with the variable's name (`next start`) or a failed invocation (Vercel), never an `undefined` deep inside Auth.js. Next does not run it during a build                                       |
 | `package.json`            | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                                                                                                                                          |
 | `next.config.ts`          | security headers and a static Content-Security-Policy on every route                                                                                                                                                                                                                            |
 | `GET /api/health`         | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                                                                                                                                  |
 | `prisma/seed.ts`          | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**                                                                                                                    |
 | `.vercelignore`           | keeps `.debug/`, `.claude/`, `docs/`, the screenshot baselines and the perf baselines out of the upload. **`tests/` itself stays**: `next build` type-checks the `*.test.ts(x)` files beside the code, which import `@/tests/_helpers` and `@/tests/_fakes` (see the first-build failure in §2) |
 
-**The three test flags have no runtime guard.** `lib/env.ts` declares that
-`ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and `NEXT_PUBLIC_DEMO_LOGIN` must
-never be set in production, but nothing calls its `getEnv()` outside the unit
-tests, and `scripts/bundle-guard.ts` asserts whatever the flag says. On Vercel,
-step 2 below is the only thing keeping `/dev/*`, `window.__va` and the demo
-button out of production ([`backlog.md`](./backlog.md), W5 section).
+**The three test flags are refused at boot, on every scope** (W5). `getEnv()`
+has a caller — `instrumentation.ts` — so `ENABLE_TEST_PAGES`,
+`NEXT_PUBLIC_TEST_HOOKS` and `NEXT_PUBLIC_DEMO_LOGIN` now fail a deployment
+instead of being a rule nothing read. Three things to know about the shape of
+that guard:
+
+- **It keys off `VERCEL_ENV` being set, not off "production".** The `next` CLI
+  defaults `NODE_ENV` to `production` for every command but `dev`, so every
+  `next start` is a production server — CI's boot check, Playwright, Lighthouse
+  and perf included, and all four start one on purpose with the flags on.
+  `VERCEL_ENV` is set by Vercel and by nothing else. Consequence: **a preview
+  deployment is refused too**, which is right — a preview URL is public.
+  `AUTH_URL` and the Google pair are unchanged: still required when
+  `VERCEL_ENV=production` (or `NODE_ENV=production` with no Vercel), still not
+  on a preview.
+- **`NEXT_PUBLIC_TEST_HOOKS` is caught earlier, by `scripts/vercel-build.sh`.**
+  The bundler inlines it and Next does not run `register()` during a build, so
+  by the time a boot check could object, `window.__va` would already be
+  compiled in. The script exits 1 before `prisma migrate deploy`;
+  `scripts/bundle-guard.ts` refuses the same pair a second time after the
+  compile.
+- **Everything the contract requires must therefore be present, or the
+  deployment does not boot**: both database URLs, `AUTH_SECRET` and
+  `NEXT_PUBLIC_SITE_URL` in every scope; `AUTH_URL` and the Google pair in
+  Production. That is the table below, and it is now load-bearing rather than
+  advisory.
+
+`tests/boot/env-contract.test.ts` (the `boot` Vitest project, run by
+`scripts/ci/build.sh` after the build) spawns the real thing: a deployment
+carrying a flag exits 1, a local production server with all three on boots, and
+a clean deployment boots.
 
 ---
 
@@ -122,9 +148,9 @@ Environment variables (§4.6):
 | `HUSKY`                                 | `0`                     | `0`                    | `0`           | skips the hook installation on Vercel's checkout                                                                                |
 | `AUTH_URL`                              | `https://<prod-domain>` | —                      | —             | Production only; previews rely on `AUTH_TRUST_HOST`                                                                             |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | from step 3             | —                      | —             | Production only: a preview URL can never be a registered redirect URI                                                           |
-| `ENABLE_TEST_PAGES`                     | **never**               | **never**              | **never**     | see "no runtime guard" above                                                                                                    |
-| `NEXT_PUBLIC_TEST_HOOKS`                | **never**               | **never**              | **never**     | idem                                                                                                                            |
-| `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**              | **never**     | idem                                                                                                                            |
+| `ENABLE_TEST_PAGES`                     | **never**               | **never**              | **never**     | set in any scope → the deployment refuses to boot (`instrumentation.ts`)                                                        |
+| `NEXT_PUBLIC_TEST_HOOKS`                | **never**               | **never**              | **never**     | set in any scope → the BUILD exits 1 (`scripts/vercel-build.sh`), before it migrates anything                                   |
+| `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**              | **never**     | set in any scope → the deployment refuses to boot (`instrumentation.ts`)                                                        |
 | `ALLOW_REMOTE_SEED`                     | **never**               | **never**              | **never**     | nothing on Vercel seeds                                                                                                         |
 
 Two decisions the plan leaves open. **Both were taken on 2026-09-29**, and the

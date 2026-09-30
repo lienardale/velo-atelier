@@ -187,6 +187,98 @@ describe("parseEnv", () => {
       expect((error as EnvValidationError).issues.map((i) => i.path)).toContain("AUTH_SECRET");
     });
   });
+
+  /**
+   * The three test flags are refused on `VERCEL_ENV` being set, not on
+   * `isProduction` (W5).
+   *
+   * `instrumentation.ts` runs this on every boot, and the `next` CLI defaults
+   * NODE_ENV to `production` for `next start`. Keyed off `isProduction`, the
+   * contract would refuse to start CI's boot check, Playwright's web server,
+   * Lighthouse and perf — all of which start a production build ON PURPOSE
+   * with `ENABLE_TEST_PAGES=1`. `VERCEL_ENV` is set by Vercel and by nothing
+   * else, so it is the only signal that separates a deployment from a local
+   * production server. Both directions are pinned here, in both scopes,
+   * because a rule with one untested direction is half a rule.
+   */
+  describe("the test flags are scoped to a deployment", () => {
+    const FLAGS = [
+      "ENABLE_TEST_PAGES",
+      "NEXT_PUBLIC_TEST_HOOKS",
+      "NEXT_PUBLIC_DEMO_LOGIN",
+    ] as const;
+
+    const deployed = (scope: string, overrides: EnvSource = {}) =>
+      validEnv({
+        NODE_ENV: "production",
+        VERCEL_ENV: scope,
+        AUTH_URL: "https://velo-atelier.example",
+        AUTH_GOOGLE_ID: "google-id",
+        AUTH_GOOGLE_SECRET: "google-secret",
+        ...overrides,
+      });
+
+    /** The issue this environment raises for `flag`, or undefined if it parses. */
+    const issueFor = (flag: string, source: EnvSource) => {
+      try {
+        parseEnv(source);
+        return undefined;
+      } catch (error) {
+        return (error as EnvValidationError).issues.find((issue) => issue.path === flag);
+      }
+    };
+
+    it.each(FLAGS)("refuses %s on a production deployment", (flag) => {
+      expect(issueFor(flag, deployed("production", { [flag]: "1" }))?.message).toMatch(
+        /deployment/,
+      );
+    });
+
+    it.each(FLAGS)("refuses %s on a PREVIEW deployment too", (flag) => {
+      // A preview URL is public. `isProduction` is false there, so this case
+      // only holds because the rule keys off VERCEL_ENV.
+      expect(issueFor(flag, deployed("preview", { [flag]: "1" }))?.message).toMatch(/deployment/);
+    });
+
+    it.each(FLAGS)("allows %s on a local `next start` (NODE_ENV=production, no VERCEL_ENV)", () => {
+      // The combination nothing pinned before W5, and the one every browser
+      // tier actually runs in.
+      const env = parseEnv(
+        validEnv({
+          NODE_ENV: "production",
+          AUTH_URL: "http://localhost:3100",
+          AUTH_GOOGLE_ID: "ci-dummy",
+          AUTH_GOOGLE_SECRET: "ci-dummy",
+          ENABLE_TEST_PAGES: "1",
+          NEXT_PUBLIC_TEST_HOOKS: "1",
+          NEXT_PUBLIC_DEMO_LOGIN: "1",
+        }),
+      );
+      expect(env.isProduction).toBe(true);
+      expect(env.ENABLE_TEST_PAGES).toBe(true);
+      expect(env.NEXT_PUBLIC_TEST_HOOKS).toBe(true);
+      expect(env.NEXT_PUBLIC_DEMO_LOGIN).toBe(true);
+    });
+
+    it("still requires AUTH_URL and the Google pair on that local production server", () => {
+      // Scoping the FLAGS to VERCEL_ENV moved nothing else: `isProduction` is
+      // still NODE_ENV-driven when Vercel is not in the picture.
+      const bare = validEnv({ NODE_ENV: "production" });
+      expect(() => parseEnv(bare)).toThrow(/AUTH_URL/);
+      expect(() => parseEnv(bare)).toThrow(/AUTH_GOOGLE_ID/);
+      expect(() => parseEnv(bare)).toThrow(/AUTH_GOOGLE_SECRET/);
+    });
+
+    it("requires AUTH_SECRET and both database URLs on a preview deployment", () => {
+      // Preview is non-production, so it is exempt from AUTH_URL and Google —
+      // and from nothing else. This is the shape the live Preview scope has.
+      expect(parseEnv(deployed("preview", { AUTH_URL: undefined })).isProduction).toBe(false);
+      expect(() => parseEnv(deployed("preview", { AUTH_SECRET: "short" }))).toThrow(/AUTH_SECRET/);
+      expect(() => parseEnv(deployed("preview", { POSTGRES_URL_NON_POOLING: undefined }))).toThrow(
+        /POSTGRES_URL_NON_POOLING/,
+      );
+    });
+  });
 });
 
 describe("getEnv", () => {

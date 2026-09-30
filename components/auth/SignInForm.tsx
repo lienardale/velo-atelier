@@ -27,8 +27,11 @@ import { FormError, PasswordField, SubmitButton, TextField, useFieldMessage } fr
  * suggestion, never a fact.
  *
  * The demo callout appears only when `NEXT_PUBLIC_DEMO_LOGIN=1`, which is set in
- * `.env.example` and by the Playwright web server, and never on Vercel
- * (`lib/env.ts` fails the boot if it is).
+ * `.env.example` and by the Playwright web server, and never on Vercel. That
+ * last part is enforced since W5 and not merely intended: `instrumentation.ts`
+ * runs `getEnv()` before the server takes requests, and `lib/env.ts` refuses
+ * the flag whenever `VERCEL_ENV` is set — preview included, because a preview
+ * URL is public too.
  */
 export function SignInForm({
   locale,
