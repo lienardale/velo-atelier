@@ -354,6 +354,25 @@ describe("what a checkup remembers, and what a later one closes (W4, W5)", () =>
       expect(lines.map((row) => [row.partId, row.action, row.done, row.doneReason])).toEqual([
         run === 11 ? ["chain", "REPLACE", true, "recheck-ok"] : ["chain", "REPLACE", false, null],
       ]);
+
+      // What the visitor typed after the first run has eleven more checkups
+      // to survive, none of them theirs (W3-T2's columns).
+      if (run === 1) {
+        await prisma.buildListItem.updateMany({
+          where: { buildList: { bikeId: bike.id }, partId: "chain" },
+          data: {
+            refinement: { speeds: "11" },
+            chosenProduct: {
+              brand: "KMC",
+              model: "X11",
+              size: "118",
+              vendor: "rosebikes",
+              url: "https://www.rosebikes.fr/x11",
+            },
+          },
+        });
+      }
+      expect(lines[0].refinement, `run ${run}`).toEqual(run === 1 ? null : { speeds: "11" });
     }
 
     // Twelve runs of their own, every one finished, and one list.
@@ -384,6 +403,8 @@ describe("what a checkup remembers, and what a later one closes (W4, W5)", () =>
       ["chain", false],
     ]);
     expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(1);
+    // Thirteen checkups later, the chain they chose is still the chain they chose.
+    expect(after[1].chosenProduct).toMatchObject({ brand: "KMC", model: "X11" });
   });
 
   it("refuses to finish on a bike with ten lists and none of them open (§4.2 c)", async () => {
