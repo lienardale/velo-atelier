@@ -214,9 +214,10 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
  * carries it there. The one difference left is what a prune may take: this
  * one drops every line the new derivation does not name, including the
  * survivors of earlier runs, because a guest's list is rewritten whole. The
- * server deletes only the rows the re-finished run itself wrote, because its
- * list is shared and another run's finding is not this run's to discard
- * (`reFinishOf`; `docs/backlog.md` holds the question of aligning them).
+ * server (`reFinishOf`) deletes only the rows the re-finished run itself
+ * wrote, because its list is shared and another run's finding is not this
+ * run's to discard. Narrowing the guest's prune to match is a product
+ * decision nobody has taken.
  *
  * What survives from the previous line is what the visitor typed:
  * `refinement`, `chosenProduct` and its place in the list. What comes from the

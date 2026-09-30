@@ -9,11 +9,14 @@
  * written INTO the first: its first autosave overwrote the first run's
  * verdicts, finishing deleted the line the first run had put on the list
  * instead of closing it `recheck-ok`, and the bike never got a second
- * `Checkup` or `BuildList` row — the 50-checkup and 10-list quotas (§4.2 c)
- * could never be reached from the UI. And a reload of that second run before
+ * `Checkup` row. And a reload of that second run before
  * its first save came back with the run's own `?step=`, which reopened the
  * FINISHED run. Every lower tier hands the server two hand-picked dates; only
  * the browser builds the payload, so only this row covers what it sends.
+ *
+ * Since W5 the second run does NOT get a `BuildList` of its own: both runs
+ * write to the bike's one open list, which is why this file now reads the
+ * lists of the BIKE rather than joining them to a checkup.
  *
  * Every test writes its own user and bike (label = locale + project): the
  * Playwright projects share one database.
@@ -72,47 +75,79 @@ interface Run {
   status: string;
   chain: string | null;
   reasonKeys: string[] | null;
-  lines: [string, string, boolean, string | null][];
 }
 
-/** The bike's checkups, oldest first: the chain verdict, and the lines of each run's list. */
+/** The bike's checkups, oldest first: status and the chain verdict of each. */
 async function runsOf(bikeId: string): Promise<Run[]> {
   return withDb(async (client) => {
     const { rows } = await client.query<{
-      id: string;
       status: string;
       result: string | null;
       reason_keys: string[] | null;
     }>(
-      `SELECT c.id, c.status, i.result, i."reasonKeys" AS reason_keys
+      `SELECT c.status, i.result, i."reasonKeys" AS reason_keys
          FROM "Checkup" c
          LEFT JOIN "CheckupItem" i ON i."checkupId" = c.id AND i."stepKey" = $2
         WHERE c."bikeId" = $1
         ORDER BY c."startedAt" ASC`,
       [bikeId, CHAIN_STEP],
     );
-    const runs: Run[] = [];
-    for (const row of rows) {
+    return rows.map((row) => ({
+      status: row.status,
+      chain: row.result,
+      reasonKeys: row.reason_keys,
+    }));
+  });
+}
+
+interface ListState {
+  status: string;
+  /** Which run wrote here last — `BuildList.checkupId`, by `startedAt` order. */
+  lastWriter: number | null;
+  lines: [string, string, boolean, string | null][];
+}
+
+/**
+ * The bike's build lists, oldest first, with their lines.
+ *
+ * Not joined on `l."checkupId"` any more (W5): a bike has ONE list, every
+ * checkup writes into it, and the column only says which one wrote last — so
+ * "the second run's list" is not a thing to query for.
+ */
+async function listsOf(bikeId: string): Promise<ListState[]> {
+  return withDb(async (client) => {
+    const { rows: checkups } = await client.query<{ id: string }>(
+      `SELECT id FROM "Checkup" WHERE "bikeId" = $1 ORDER BY "startedAt" ASC`,
+      [bikeId],
+    );
+    const order = new Map(checkups.map((row, index) => [row.id, index]));
+    const { rows: lists } = await client.query<{
+      id: string;
+      status: string;
+      checkupId: string | null;
+    }>(
+      `SELECT id, status, "checkupId" FROM "BuildList" WHERE "bikeId" = $1 ORDER BY "createdAt" ASC`,
+      [bikeId],
+    );
+    const out: ListState[] = [];
+    for (const list of lists) {
       const { rows: lines } = await client.query<{
         action: string;
         partId: string;
         done: boolean;
         doneReason: string | null;
       }>(
-        `SELECT li.action, li."partId", li.done, li."doneReason"
-           FROM "BuildListItem" li JOIN "BuildList" l ON l.id = li."buildListId"
-          WHERE l."checkupId" = $1
-          ORDER BY li."partId", li.action`,
-        [row.id],
+        `SELECT action, "partId", done, "doneReason" FROM "BuildListItem"
+          WHERE "buildListId" = $1 ORDER BY "partId", action`,
+        [list.id],
       );
-      runs.push({
-        status: row.status,
-        chain: row.result,
-        reasonKeys: row.reason_keys,
+      out.push({
+        status: list.status,
+        lastWriter: list.checkupId === null ? null : (order.get(list.checkupId) ?? null),
         lines: lines.map((line) => [line.action, line.partId, line.done, line.doneReason]),
       });
     }
-    return runs;
+    return out;
   });
 }
 
@@ -151,15 +186,19 @@ forEachLocale((locale) => {
     await page.getByTestId("summary-create").click();
     await page.waitForURL((url) => url.pathname === listPath);
 
-    // Two rows, the first one untouched, and its line closed BY the second run.
+    // Two runs of their own, the first one's verdicts untouched…
     expect(await runsOf(bikeId)).toEqual([
+      { status: "COMPLETED", chain: "KO", reasonKeys: ["chain-elongation"] },
+      { status: "COMPLETED", chain: "OK", reasonKeys: [] },
+    ]);
+    // …and ONE list (W5), which the second run wrote to last, holding the
+    // line the first run found — closed by the second, not deleted by it.
+    expect(await listsOf(bikeId)).toEqual([
       {
-        status: "COMPLETED",
-        chain: "KO",
-        reasonKeys: ["chain-elongation"],
+        status: "OPEN",
+        lastWriter: 1,
         lines: [["REPLACE", "chain", true, "recheck-ok"]],
       },
-      { status: "COMPLETED", chain: "OK", reasonKeys: [], lines: [] },
     ]);
   });
 });
