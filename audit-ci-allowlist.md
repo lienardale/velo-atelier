@@ -15,7 +15,8 @@ pinned in the `overrides` block of `package.json` and its id is _removed_ from
 the array above, so a regression fails the `audit` job instead of passing it
 silently.
 
-Baseline recorded on 2026-09-30 with Node 24.16.0 / npm 11.13.0.
+Baseline recorded on 2026-09-30 with Node 24.16.0 / npm 11.13.0, on a tree
+holding Next 16.3.8 (see “That rule was tested on this branch” below).
 
 ## Pinned through `overrides` instead of allow-listed
 
@@ -127,6 +128,30 @@ Anything in `dependencies` that ships to the server or the browser: `next`,
 `react`, `react-dom`, `next-auth`, `@auth/prisma-adapter`, `@prisma/client`,
 `@prisma/adapter-pg`, `pg`, `bcryptjs`, `zod`, `three` and the React Three
 Fiber stack. An advisory on any of those blocks the pipeline until it is fixed.
+
+### That rule was tested on this branch: `next` (2026-09-30)
+
+**GHSA-vcvr-r3jv-pc5j** — "Next.js: Remote Code Execution in `next/og`
+ImageResponse", **critical**, range `>=16.2.0 <16.3.6`. It went live against
+the 16.3.4 pin after the overrides above were recorded, and it is not
+theoretical here: `app/[locale]/opengraph-image.tsx` and
+`app/[locale]/guides/[slug]/opengraph-image.tsx` both
+`import { ImageResponse } from "next/og"` and construct one.
+
+`next` is a direct `dependencies` entry, so neither escape hatch applied — an
+`overrides` entry is for a transitive whose parent pins it too low, and the
+section above forbids allow-listing this package by name. The pin moved
+instead: **`next` and `eslint-config-next` 16.3.4 → 16.3.8**, together,
+because the second must match the first exactly. `npm audit` reports the bump
+`isSemVerMajor: false`, and the resolved change is confined to the Next family
+— `next`, `eslint-config-next`, `@next/env`, `@next/eslint-plugin-next` and
+the eight `@next/swc-*` platform binaries. Nothing else in the lockfile moved.
+
+16.3.6 is the lowest release that clears the advisory; 16.3.8 is the top of
+the 16.3 line and what `npm audit` names as the fix, so it is the one that does
+not need re-bumping next week. After it, `npm audit` reports **0 critical**,
+and the five ids still found are exactly the five in the array — no allow-list
+entry is dead.
 
 ## Removed from the array (2026-09-30)
 

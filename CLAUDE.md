@@ -43,13 +43,27 @@ same single copy while hiding that it is tree-wide — and an unscoped entry als
 covers a second parent arriving later, which is the direction that matters for
 a security pin. Scope one the day two parents need different majors.
 
+**A shipped direct dependency is bumped — never overridden, never
+allow-listed.** `overrides` exists for a transitive whose parent pins it too
+low, and the allowlist for a dev tool that cannot reach a request (`prisma`
+and `@lhci/cli` are direct `devDependencies` and both have ids in the array).
+A `dependencies` entry has neither excuse: it ships, and this repository owns
+its version, so an advisory on one is answered by changing that version.
+`next` is the worked example: GHSA-vcvr-r3jv-pc5j
+(critical, RCE in `next/og` `ImageResponse`, range `>=16.2.0 <16.3.6`) went
+live against the 16.3.4 pin while this branch was open, and both
+`app/[locale]/opengraph-image.tsx` and
+`app/[locale]/guides/[slug]/opengraph-image.tsx` build their card with exactly
+that API. The answer was `next` **and** `eslint-config-next` to 16.3.8
+together — the two are one pin, and the Stack table is where the number lives.
+
 ---
 
 ## Stack
 
 | Layer      | Choice                                               | Notes                                                                             |
 | ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Framework  | Next.js **16.3.4** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
+| Framework  | Next.js **16.3.8** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
 | Language   | TypeScript **5.9.x**                                 | capped `<7`; the TS 7 Go port breaks `next build` and `@typescript-eslint`        |
 | Runtime    | Node **24**                                          | `.nvmrc`, `engines.node`, CI `node-version-file`                                  |
 | i18n       | next-intl **v4**                                     | `localePrefix: 'always'`, `localeDetection: false`                                |
@@ -453,15 +467,16 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   (`client-namespaces` fails with exactly that list).
 - **A file-convention `opengraph-image` must sit in the SAME segment as the page
   it is for.** `lib/seo/metadata.ts` gives every page an explicit `openGraph`
-  object, and on Next 16.3.4 an explicit `openGraph` in a descendant segment
-  replaces the parent's — images included. An `app/opengraph-image.tsx` at the
-  app root (where §1.1 draws it) therefore reached exactly one route, Next's own
-  `/_not-found`, which then warned five times per build that it had no
-  `metadataBase` to resolve it against, while `/fr` and `/en` built with no
-  `og:image` at all. The site card lives in `app/[locale]/`; the guide card
-  already lived beside its page, which is why that one always worked. An image
-  route inherits no `params` from the layout above it either — both spell out
-  their own `generateStaticParams`.
+  object, and on Next 16.3.4 — re-checked on 16.3.8, where the built `/fr` and
+  `/en` documents still carry the `app/[locale]` card — an explicit `openGraph`
+  in a descendant segment replaces the parent's, images included. An
+  `app/opengraph-image.tsx` at the app root (where §1.1 draws it) therefore
+  reached exactly one route, Next's own `/_not-found`, which then warned five
+  times per build that it had no `metadataBase` to resolve it against, while
+  `/fr` and `/en` built with no `og:image` at all. The site card lives in
+  `app/[locale]/`; the guide card already lived beside its page, which is why
+  that one always worked. An image route inherits no `params` from the layout
+  above it either — both spell out their own `generateStaticParams`.
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
