@@ -25,6 +25,26 @@
  * is the symptom ticked on a KO (W4), so a reloaded in-progress checkup gets
  * back WHICH problem it was, not only that there was one; `load.ts` restores it.
  *
+ * ## One OPEN build list per bike (W5)
+ *
+ * A finished checkup gets no list of its own. It merges into the bike's OPEN
+ * `BuildList` — the newest one, the very row `/liste` renders
+ * (`liste/load.ts`) — and creates it only when the bike has none.
+ * `BuildList.checkupId` records the LAST checkup that wrote there, which is
+ * all that still tells a re-finish of the same run from a later checkup.
+ *
+ * What a finish does to that list, mirroring the guest's
+ * `mergeGuestBuildList`:
+ *
+ *   - a pair this checkup DERIVES updates its row (`reasonKey`, `guideSlug`,
+ *     `checkupItemId`, `sortOrder`) and REOPENS it — a KO is a new finding,
+ *     whatever closed the line before — while never touching the `refinement`
+ *     or the `chosenProduct` the visitor typed;
+ *   - a pair `recheckedLines(state)` names is closed on that same list,
+ *     `done` with `doneReason: 'recheck-ok'` (§5.4, §6.7);
+ *   - every other line survives, untouched, across as many checkups as the
+ *     bike has.
+ *
  * ## Quotas (§4.2 c), literally
  *
  * 50 checkups per bike, 10 lists per bike, 50 lines per list — each answered
@@ -32,6 +52,13 @@
  * exactly as it was (the wizard shows the refusal; it never fails silently).
  * Counted in the request that would create the next one, like
  * `QUOTAS.bikesPerUser` in `mes-velos/actions.ts`.
+ *
+ * Since W5 the two list limits count what the open list will HOLD rather than
+ * what this checkup alone produced: `listsPerBike` is checked only on the
+ * create path — a bike with no open list — which the normal flow no longer
+ * takes, so ten lists is reachable only by a bike whose lists a future list
+ * lifecycle has closed; `itemsPerList` counts the union of the lines already
+ * on the open list and the pairs this checkup derives.
  *
  * ## Ownership
  *
@@ -194,8 +221,12 @@ function acceptedState(
  * Matched on `startedAt`, not on `status`: the client's own "when did I start"
  * is what identifies a run, so editing a verdict on the summary and pressing
  * "Créer ma liste" again updates the checkup that was just finished instead of
- * opening a second one (and orphaning its list). The client's `id` is
- * deliberately NOT used — a row id is the server's to choose.
+ * opening a second one. The client's `id` is deliberately NOT used — a row id
+ * is the server's to choose.
+ *
+ * Since W5 that identity does one more job: a run that is already the open
+ * list's `checkupId` is a RE-finish, the only case in which a line may be
+ * pruned rather than merged ({@link prunedLines}).
  */
 async function existingCheckup(
   bikeId: string,
@@ -396,12 +427,23 @@ export const finishCheckupAction = withUser(
     const bikeId = parsed.data.bikeId;
 
     // Every quota is checked before the first write, so a refusal leaves the
-    // checkup exactly as the visitor left it — nothing half-finished.
+    // checkup exactly as the visitor left it — nothing half-finished. Which
+    // means every read the decision needs comes first: the run, the bike's
+    // open list with the lines it already holds, and (for a re-finish) the
+    // `CheckupItem` ids this run owns BEFORE `writeItems` rewrites them.
     const items = deriveBuildList(state);
-    if (items.length > QUOTAS.itemsPerList) return tooMany("lines");
+    const derived = new Set(items.map((item) => pairKey(toBuildAction(item.action), item.partId)));
     let checkup = await existingCheckup(bikeId, user.id, state.startedAt);
-    const list = checkup === null ? null : await listOf(checkup.id, user.id);
-    if (list === null && !(await roomForList(bikeId, user.id))) return tooMany("lists");
+    const open = await openList(bikeId, user.id);
+    const { reFinish, pruned } = await reFinishOf(open, checkup, user.id, derived);
+
+    // The lines the open list will HOLD, not the ones this checkup produced.
+    const after = new Set([
+      ...(open?.lines ?? []).filter((row) => !pruned.has(row.id)).map(rowPair),
+      ...derived,
+    ]);
+    if (after.size > QUOTAS.itemsPerList) return tooMany("lines");
+    if (open === null && !(await roomForList(bikeId, user.id))) return tooMany("lists");
     if (checkup === null) {
       if (!(await roomForCheckup(bikeId, user.id))) return tooMany("checkups");
       checkup = await createCheckup(bikeId, state.scope, state.startedAt);
@@ -413,8 +455,16 @@ export const finishCheckupAction = withUser(
       data: { status: "COMPLETED", completedAt: new Date() },
     });
 
-    const buildListId = await writeBuildList(bikeId, user.id, checkup.id, items, list);
-    await closeRecheckedItems(bikeId, user.id, buildListId, state);
+    const buildListId = await writeBuildList({
+      bikeId,
+      userId: user.id,
+      checkupId: checkup.id,
+      items,
+      open,
+      pruned,
+      reFinish,
+    });
+    await closeRecheckedItems(bikeId, user.id, state);
     await writePartStates(bikeId, user.id, state);
 
     revalidatePath("/[locale]/velo/[id]", "page");
@@ -423,36 +473,164 @@ export const finishCheckupAction = withUser(
   },
 );
 
-/** The list a checkup already produced (a re-finish), or `null`. */
-function listOf(checkupId: string, userId: string): Promise<{ id: string } | null> {
-  return prisma.buildList.findFirst({
-    where: { checkupId, bike: { userId } },
-    select: { id: true },
-  });
+/** `(action, partId)` — the identity of a line, in the Prisma spelling. */
+function pairKey(action: BuildAction, partId: string): string {
+  return `${action}|${partId}`;
+}
+
+/** One line of the open list, as the merge needs to read it. */
+interface OpenLine {
+  id: string;
+  partId: string;
+  action: BuildAction;
+  checkupItemId: string | null;
+  done: boolean;
+  doneReason: string | null;
+}
+
+const rowPair = (row: OpenLine): string => pairKey(row.action, row.partId);
+
+/** The bike's one open list, as the merge reads it. */
+interface OpenBuildList {
+  id: string;
+  /** The last checkup that wrote here — `null` on a list no checkup made. */
+  checkupId: string | null;
+  lines: OpenLine[];
 }
 
 /**
- * The derived list, merged into the bike's list for this checkup.
+ * The bike's OPEN build list and the lines it holds, or `null`.
  *
- * Merged rather than replaced: `done`, `refinement` and `chosenProduct` are the
- * visitor's own edits (W3-T2) and a re-run of the same checkup must not throw
- * away the cassette they already chose. Lines the checkup no longer produces
- * are removed; everything else keeps its row.
+ * The newest one, by exactly the rule `/liste` renders with
+ * (`loadBuildList`): whatever this writes has to be what the visitor is then
+ * shown. One query, its lines included — they are what both the line quota
+ * and the merge read, and reading them twice would only invite the two to
+ * disagree.
  */
-async function writeBuildList(
-  bikeId: string,
+async function openList(bikeId: string, userId: string): Promise<OpenBuildList | null> {
+  const row = await prisma.buildList.findFirst({
+    where: { bikeId, bike: { userId }, status: "OPEN" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      checkupId: true,
+      items: {
+        select: {
+          id: true,
+          partId: true,
+          action: true,
+          checkupItemId: true,
+          done: true,
+          doneReason: true,
+        },
+      },
+    },
+  });
+  return row === null ? null : { id: row.id, checkupId: row.checkupId, lines: row.items };
+}
+
+/**
+ * The `CheckupItem` ids this run owns, read BEFORE `writeItems` runs.
+ *
+ * Before, because `writeItems` deletes the row of a question that lost its
+ * verdict, and `onDelete: SetNull` then nulls the `checkupItemId` of the line
+ * that question produced — after which nothing could tell that line apart
+ * from a line an older checkup left behind, and withdrawing a verdict would
+ * leave its line on the list for ever.
+ */
+async function ownItemIds(checkupId: string, userId: string): Promise<Set<string>> {
+  const rows = await prisma.checkupItem.findMany({
+    where: { checkupId, checkup: { bike: { userId } } },
+    select: { id: true },
+  });
+  return new Set(rows.map((row) => row.id));
+}
+
+/**
+ * Is this a RE-finish — the same run that last wrote to the open list — and
+ * which of that list's lines may it therefore delete?
+ *
+ * The ones this very run wrote and no longer derives, because the visitor
+ * withdrew the verdict behind them. Deliberately narrower than the guest's
+ * `mergeGuestBuildList`, which also drops the survivors of earlier runs when
+ * it prunes. The guest can: its `va:buildlist:<ref>` is rewritten whole. Here
+ * one list is shared by every checkup the bike ever had — "lines survive
+ * across checkups" is the W5 ruling — so deleting a line ANOTHER run found
+ * would be data loss the visitor never asked for. A line of an earlier run
+ * that this one contradicts is closed `recheck-ok` by
+ * {@link closeRecheckedItems}, never deleted.
+ */
+async function reFinishOf(
+  open: OpenBuildList | null,
+  checkup: { id: string } | null,
   userId: string,
-  checkupId: string,
-  items: readonly BuildListItem[],
-  /** The checkup's list if it has one already (read by the quota check). */
-  existing: { id: string } | null,
-): Promise<string> {
+  derived: ReadonlySet<string>,
+): Promise<{ reFinish: boolean; pruned: Set<string> }> {
+  if (open === null || checkup === null || open.checkupId !== checkup.id) {
+    return { reFinish: false, pruned: new Set() };
+  }
+  const own = await ownItemIds(checkup.id, userId);
+  const pruned = open.lines
+    .filter(
+      (row) =>
+        row.checkupItemId !== null && own.has(row.checkupItemId) && !derived.has(rowPair(row)),
+    )
+    .map((row) => row.id);
+  return { reFinish: true, pruned: new Set(pruned) };
+}
+
+/**
+ * This checkup's findings, merged into the bike's ONE open list (W5).
+ *
+ * Merged rather than replaced, for two different reasons now. `refinement`
+ * and `chosenProduct` are the visitor's own edits (W3-T2) and a re-run must
+ * not throw away the cassette they already chose; and the list is no longer
+ * this checkup's — every line an earlier run left on it stays exactly as it
+ * is unless this checkup says otherwise.
+ *
+ * A derived pair REOPENS its line: a KO is this checkup's finding, newer than
+ * whatever closed the line before (the same rule as the guest's, which never
+ * carries a `recheck-ok` onto a line a KO derived). The one exception is a
+ * re-finish of the run that closed it BY HAND: `manual` is the visitor's own
+ * tick on their own run, and pressing "Créer ma liste" a second time must not
+ * undo it.
+ */
+async function writeBuildList(args: {
+  bikeId: string;
+  userId: string;
+  checkupId: string;
+  items: readonly BuildListItem[];
+  /** The bike's open list as it was read before the first write, or `null`. */
+  open: OpenBuildList | null;
+  /** Line ids {@link reFinishOf} chose. */
+  pruned: ReadonlySet<string>;
+  /** Is this the same run as the one that last wrote to the open list? */
+  reFinish: boolean;
+}): Promise<string> {
+  const { bikeId, userId, checkupId, items, open, pruned, reFinish } = args;
+  const owned = { buildList: { bike: { userId } } };
+
   const list =
-    existing ??
+    open ??
     (await prisma.buildList.create({
       data: { bikeId, checkupId, name: "" },
-      select: { id: true },
+      select: { id: true, checkupId: true },
     }));
+
+  // `checkupId` is "who wrote here last", so a checkup that is not already it
+  // takes it over. `updateMany`, with the owner in the `where` (§4.7).
+  if (list.checkupId !== checkupId) {
+    await prisma.buildList.updateMany({
+      where: { id: list.id, bike: { userId } },
+      data: { checkupId },
+    });
+  }
+
+  if (pruned.size > 0) {
+    await prisma.buildListItem.deleteMany({
+      where: { id: { in: [...pruned] }, ...owned },
+    });
+  }
 
   const itemsByStepKey = new Map(
     (
@@ -463,34 +641,25 @@ async function writeBuildList(
     ).map((row) => [row.stepKey, row.id]),
   );
 
-  const owned = { buildList: { bike: { userId } } };
-  const keep = new Set(items.map((item) => `${item.partId}|${toBuildAction(item.action)}`));
-  const stale = (
-    await prisma.buildListItem.findMany({
-      where: { buildListId: list.id, ...owned },
-      select: { id: true, partId: true, action: true },
-    })
-  ).filter((row) => !keep.has(`${row.partId}|${row.action}`));
-  if (stale.length > 0) {
-    await prisma.buildListItem.deleteMany({
-      where: { id: { in: stale.map((row) => row.id) }, ...owned },
-    });
-  }
+  const before = new Map((open?.lines ?? []).map((row) => [rowPair(row), row]));
 
   for (const item of items) {
+    const action = toBuildAction(item.action);
+    const where = { buildListId: list.id, partId: item.partId, action };
+    const kept = before.get(pairKey(action, item.partId));
+    // The guest's `ticked`, in Prisma: a hand tick survives a re-finish of its
+    // own run; anything else — another run's tick, a `recheck-ok`, a line that
+    // was open — comes back open.
+    const handTicked =
+      reFinish && kept !== undefined && kept.done && kept.doneReason !== "recheck-ok";
     const data = {
       reasonKey: item.reasonKey,
       guideSlug: item.guideSlug ?? null,
       sortOrder: item.sortOrder,
       checkupItemId: itemsByStepKey.get(item.stepKey) ?? null,
+      // `refinement` and `chosenProduct` are the visitor's and are never here.
+      ...(handTicked ? {} : { done: false, doneReason: null }),
     };
-    const where = {
-      buildListId: list.id,
-      partId: item.partId,
-      action: toBuildAction(item.action),
-    };
-    // `done` and the visitor's own columns (`refinement`, `chosenProduct`) are
-    // deliberately NOT in the update.
     const updated = await prisma.buildListItem.updateMany({ where: { ...where, ...owned }, data });
     if (updated.count === 0) {
       await prisma.buildListItem.create({ data: { ...where, done: item.done, ...data } });
@@ -501,29 +670,35 @@ async function writeBuildList(
 }
 
 /**
- * §5.4 / §6.7: an OK closes a line that was already open, on ANOTHER list.
+ * §5.4 / §6.7: an OK closes a line that was already open — on the bike's list,
+ * whichever list that is.
  *
- * `writeBuildList` merges within this checkup's own list, which is where a
- * re-run of the same checkup is handled. This is the other half: a PARTIAL
- * checkup answered OK a month later gets its own `Checkup` row and its own
- * `BuildList`, so the line it should close lives on the list the first checkup
- * produced. `done` is set with `doneReason: 'recheck-ok'` rather than deleted —
- * §5.4 wants the list to say why it closed, and a visitor who ticks a box by
- * hand must stay distinguishable from one the bike answered for.
+ * The other half of the merge. `writeBuildList` writes what this checkup
+ * FOUND; this closes what it contradicts: a partial checkup answered OK a
+ * month later says the pads it once condemned are fine, and the line that
+ * said to replace them is the answer. `done` is set with
+ * `doneReason: 'recheck-ok'` rather than deleted — §5.4 wants the list to say
+ * why a line closed, and a visitor who ticks a box by hand must stay
+ * distinguishable from one the bike answered for.
  *
  * WHICH lines is `recheckedLines(state)` — the same rule the guest merge
- * applies — matched on `(action, partId)`, the identity of a line. It used to be
- * "every open line on a part some step answered OK", through the viewer's
+ * applies — matched on `(action, partId)`, the identity of a line. It used to
+ * be "every open line on a part some step answered OK", through the viewer's
  * host-expanded tint: a hosted part (the pads, reached through the caliper)
  * could never close, and a line with another action on the same part did.
  *
- * A guest's equivalent is `mergeGuestBuildList`: `va:buildlist:<ref>` is one
- * list per bike, so there the two halves are the same merge.
+ * Until W5 it also skipped the list this checkup had just written, because
+ * every checkup had a list of its own and closing a line on it would have
+ * contradicted the KO that had just derived it. There is one list now, so
+ * that exclusion had to go — and it is not needed: `recheckedLines` already
+ * excludes every pair a KO of this same state derives.
+ *
+ * Every list of the bike, not only the open one: a bike from before W5 holds
+ * one list per checkup, and an OK still closes what it contradicts there.
  */
 async function closeRecheckedItems(
   bikeId: string,
   userId: string,
-  currentListId: string,
   state: CheckupState,
 ): Promise<void> {
   const lines = recheckedLines(state);
@@ -531,7 +706,6 @@ async function closeRecheckedItems(
 
   await prisma.buildListItem.updateMany({
     where: {
-      buildListId: { not: currentListId },
       done: false,
       OR: lines.map((line) => ({ partId: line.partId, action: toBuildAction(line.action) })),
       buildList: { bikeId, bike: { userId } },

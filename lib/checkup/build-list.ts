@@ -56,6 +56,11 @@
  * (brake pads, reached through the caliper) never closed and a line with a
  * different action on the same part did. `tests/unit/checkup/
  * line-identity.test.ts` holds both paths to that rule over all seven presets.
+ *
+ * Since W5 an account's bike has ONE open `BuildList` too, which every
+ * checkup merges into, so the two paths are no longer "the same rule applied
+ * to different shapes": that same test asserts they produce the same list,
+ * line for line.
  */
 import type { PartId } from "@/lib/domain/data/parts";
 
@@ -194,8 +199,9 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
  * `va:buildlist:<ref>` holds ONE list per bike, so this is where a guest's
  * §5.4 "a later OK closes an open line" lives: the previous list is
  * {@link markRechecked} against the new state before anything is merged into
- * it. An account's equivalent is `finishCheckupAction`, which closes matching
- * open lines on the bike's other lists after writing this checkup's.
+ * it. An account's equivalent is `finishCheckupAction`, which does the same
+ * to the bike's one open `BuildList` — this function is the model W5 made the
+ * server follow.
  *
  * Merged on `(action, partId)`, NOT on `id` — the id embeds the first step that
  * produced the line, and a re-run can reach the same line from a different
@@ -203,27 +209,30 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
  * (`writeBuildList`), so the two agree.
  *
  * And, like the server, it treats a re-run of the SAME checkup differently from
- * a later one: `writeBuildList` prunes the lines its own checkup no longer
- * produces, while `closeRecheckedItems` only ever closes lines on OTHER lists.
- * A guest has one list key per bike, so `sameCheckup` is what carries that
- * distinction here.
+ * a later one: only a re-run prunes. `sameCheckup` is what carries that
+ * distinction here; `BuildList.checkupId` — the last checkup that wrote —
+ * carries it there. The one difference left is what a prune may take: this
+ * one drops every line the new derivation does not name, including the
+ * survivors of earlier runs, because a guest's list is rewritten whole. The
+ * server deletes only the rows the re-finished run itself wrote, because its
+ * list is shared and another run's finding is not this run's to discard
+ * (`reFinishOf`; `docs/backlog.md` holds the question of aligning them).
  *
  * What survives from the previous line is what the visitor typed:
  * `refinement`, `chosenProduct` and its place in the list. What comes from the
  * new derivation is what the checkup found: `reasonKey`, `guideSlug`,
- * `sourceKeys`. Lines the checkup no longer produces are dropped, again as the
- * server does.
+ * `sourceKeys`.
  *
  * ## A line a KO derived is open
  *
  * `done` survives only a re-run of the SAME checkup, and only when the visitor
- * ticked it — the server's `writeBuildList` never touches `done` on the list of
- * the checkup being re-finished. A LATER checkup whose KO derives the line
- * again is a new finding: the line comes back open, whatever closed it before,
- * exactly as it does on the fresh list the server writes for that checkup. And
- * a `recheck-ok` is never carried onto a line a KO derived: it is the bike's
- * earlier answer, and this KO is its newer one. Before W4 both were carried, so
- * a line could come back from a KO already ticked "closed by a recheck".
+ * ticked it — the server's `writeBuildList` keeps exactly that tick and
+ * reopens everything else. A LATER checkup whose KO derives the line again is
+ * a new finding: the line comes back open, whatever closed it before, on both
+ * paths. And a `recheck-ok` is never carried onto a line a KO derived: it is
+ * the bike's earlier answer, and this KO is its newer one. Before W4 both were
+ * carried, so a line could come back from a KO already ticked "closed by a
+ * recheck".
  */
 export function mergeGuestBuildList(
   previous: readonly BuildListItem[],

@@ -25,7 +25,11 @@
  *      2026-09-21): the 51st checkup of a bike, its 11th list and a 51st line
  *      are each `TOO_MANY`, named by a `checkup.finish.*` key the wizard shows,
  *      and refused before the first write — a refused finish leaves no checkup
- *      row, no item, no list and no part state behind.
+ *      row, no item, no list and no part state behind. Since W5 the 11th list
+ *      is only ever counted on the path that would CREATE one: a finish
+ *      merges into the bike's open list, so a bike that has one is never
+ *      refused, and a 51st LINE is the union of that list and the pairs this
+ *      checkup derives, not this checkup's own count.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -215,8 +219,22 @@ async function seedBike(userId: string): Promise<{ id: string }> {
   })) as { id: string };
 }
 
-/** `count` checkups of `bikeId`, each with its own list when `withLists`. */
-async function fillHistory(bikeId: string, count: number, withLists: boolean): Promise<string[]> {
+/**
+ * `count` checkups of `bikeId`, each with a list of its own when `withLists`
+ * — the shape a bike from before W5 has, one `BuildList` per `Checkup`.
+ *
+ * `createdAt` is spelled out and increasing so that "the bike's newest OPEN
+ * list" (what a finish now writes into) is a fact of the fixture and not of
+ * how fast the fake seeds rows. `listStatus` is what makes the create path
+ * reachable at all: only a bike with no OPEN list can be refused
+ * `tooManyLists` now.
+ */
+async function fillHistory(
+  bikeId: string,
+  count: number,
+  withLists: boolean,
+  listStatus: "OPEN" | "DONE" = "OPEN",
+): Promise<string[]> {
   const ids: string[] = [];
   for (let index = 0; index < count; index++) {
     const checkup = (await fakeDb.seed("Checkup", {
@@ -225,7 +243,15 @@ async function fillHistory(bikeId: string, count: number, withLists: boolean): P
       status: "COMPLETED",
       startedAt: new Date(Date.UTC(2025, 0, 1 + index)),
     })) as { id: string; startedAt: Date };
-    if (withLists) await fakeDb.seed("BuildList", { bikeId, checkupId: checkup.id, name: "" });
+    if (withLists) {
+      await fakeDb.seed("BuildList", {
+        bikeId,
+        checkupId: checkup.id,
+        name: "",
+        status: listStatus,
+        createdAt: new Date(Date.UTC(2025, 0, 1 + index)),
+      });
+    }
     ids.push(checkup.startedAt.toISOString());
   }
   return ids;
@@ -316,10 +342,44 @@ describe("checkups per bike", () => {
 });
 
 describe("lists per bike", () => {
-  it("refuses finishing an 11th checkup on a bike that already has 10 lists", async () => {
-    // The user's own example of the rule (2026-09-21).
+  // The limit is unchanged (§4.2 c) and so is its key; what changed in W5 is
+  // WHEN it is counted. A finish merges into the bike's open list, so the
+  // count only happens on the path that would create one — which a bike with
+  // an open list never takes. The old "an 11th checkup on a bike with 10
+  // lists is refused" is now the first case below: the same fixture, and the
+  // finish goes through, into the list the bike already had.
+
+  it("writes an eleventh checkup into the open list a bike with ten already has", async () => {
     const bike = await seedBike(me.id);
     await fillHistory(bike.id, QUOTAS.listsPerBike, true);
+    fakeDb.resetCalls();
+
+    const finished = await finishCheckupAction({ bikeId: bike.id, checkup: checkup(LATER) });
+    expect(finished.ok).toBe(true);
+
+    // No eleventh list, and the line landed on the newest OPEN one — the row
+    // `/liste` shows — which now names the checkup that last wrote there.
+    const lists = fakeDb.rows("BuildList");
+    expect(lists).toHaveLength(QUOTAS.listsPerBike);
+    const target = finished.ok ? finished.data.buildListId : "";
+    const newest = [...lists].sort(
+      (a, b) => Number(b.createdAt as Date) - Number(a.createdAt as Date),
+    )[0];
+    expect(target).toBe(newest.id);
+    expect(newest.status).toBe("OPEN");
+    const checkups = fakeDb.rows("Checkup");
+    expect(newest.checkupId).toBe(
+      checkups.find((row) => (row.startedAt as Date).toISOString() === LATER)?.id,
+    );
+    expect(fakeDb.rows("BuildListItem").map((row) => row.buildListId)).toEqual([target]);
+    expectScopedToUser(fakeDb.calls, me.id);
+  });
+
+  it("still refuses the create path: ten lists and none of them open", async () => {
+    // Nothing writes `DONE` yet (`docs/backlog.md`), so this is the quota's
+    // remaining reachable case — and the reason it is still counted at all.
+    const bike = await seedBike(me.id);
+    await fillHistory(bike.id, QUOTAS.listsPerBike, true, "DONE");
     fakeDb.resetCalls();
 
     const refused = await finishCheckupAction({ bikeId: bike.id, checkup: checkup(LATER) });
@@ -339,9 +399,9 @@ describe("lists per bike", () => {
     expectScopedToUser(fakeDb.calls, me.id);
   });
 
-  it("finishes the tenth list, and re-finishes a checkup that already has one", async () => {
+  it("opens the tenth list on a bike whose nine are closed, and re-finishes into it", async () => {
     const bike = await seedBike(me.id);
-    const started = await fillHistory(bike.id, QUOTAS.listsPerBike - 1, true);
+    await fillHistory(bike.id, QUOTAS.listsPerBike - 1, true, "DONE");
     fakeDb.resetCalls();
 
     const tenth = await finishCheckupAction({ bikeId: bike.id, checkup: checkup(LATER) });
@@ -349,10 +409,11 @@ describe("lists per bike", () => {
     expect(fakeDb.rows("BuildList")).toHaveLength(QUOTAS.listsPerBike);
 
     // Editing a verdict on the summary and pressing "Créer ma liste" again is
-    // an update of that checkup's own list, not an 11th one.
-    const again = await finishCheckupAction({ bikeId: bike.id, checkup: checkup(started[0]) });
+    // an update of the list that is now open, not an 11th one.
+    const again = await finishCheckupAction({ bikeId: bike.id, checkup: checkup(LATER) });
     expect(again.ok).toBe(true);
     expect(fakeDb.rows("BuildList")).toHaveLength(QUOTAS.listsPerBike);
+    expect(again.ok && again.data.buildListId).toBe(tenth.ok && tenth.data.buildListId);
   });
 });
 

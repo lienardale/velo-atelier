@@ -34,6 +34,7 @@ const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
 const { CONTENT_VERSION } = await import("@/lib/content/generated/version");
 
 const PLANNED = "check-drivetrain#chain-wear";
+const CASSETTE = "check-drivetrain#cassette-teeth";
 
 let bikeId: string;
 
@@ -59,7 +60,11 @@ beforeEach(async () => {
   fakeDb.resetCalls();
 });
 
-function finish(symptoms: Record<string, string[]>) {
+function finishRun(
+  answers: Record<string, "ok" | "ko" | "skipped">,
+  symptoms: Record<string, string[]>,
+  startedAt = "2026-09-21T08:00:00.000Z",
+) {
   return finishCheckupAction({
     bikeId,
     checkup: {
@@ -68,14 +73,18 @@ function finish(symptoms: Record<string, string[]>) {
       bikeRef: { kind: "demo" },
       scope: { kind: "full" },
       locale: "fr",
-      answers: { [PLANNED]: "ko" },
+      answers,
       symptoms,
       notes: {},
       toolsMissing: [],
-      startedAt: "2026-09-21T08:00:00.000Z",
+      startedAt,
       contentVersion: CONTENT_VERSION,
     },
   });
+}
+
+function finish(symptoms: Record<string, string[]>) {
+  return finishRun({ [PLANNED]: "ko" }, symptoms);
 }
 
 describe("lines per list", () => {
@@ -97,6 +106,54 @@ describe("lines per list", () => {
   it("accepts a list at the limit", async () => {
     const result = await finish({ [PLANNED]: ["chain-elongation"] });
     expect(result.ok).toBe(true);
+    expect(fakeDb.rows("BuildListItem")).toHaveLength(1);
+  });
+
+  // ── the union, since the list is shared (W5) ───────────────────────────────
+  //
+  // A finish merges into the bike's OPEN list, so the limit is a property of
+  // THAT list and not of the checkup: a second run counts what is already
+  // there. Without this the 50 could be walked past one checkup at a time.
+
+  it("counts the lines already on the open list, and refuses the pair that overflows it", async () => {
+    expect((await finish({ [PLANNED]: ["chain-elongation"] })).ok).toBe(true);
+    const listId = fakeDb.rows("BuildList")[0].id;
+    fakeDb.resetCalls();
+
+    // A LATER run (its own `startedAt`), finding a different part: one line
+    // on the list plus one derived is two, and the limit here is one.
+    const refused = await finishRun(
+      { [CASSETTE]: "ko" },
+      { [CASSETTE]: ["cassette-worn"] },
+      "2026-09-28T08:00:00.000Z",
+    );
+    expect(refused).toEqual({
+      ok: false,
+      code: "TOO_MANY",
+      fieldErrors: { form: "checkup.finish.tooManyLines" },
+    });
+    // Refused before the first write: the second run left no row behind and
+    // the list is exactly as the first one left it.
+    expect(fakeDb.rows("Checkup")).toHaveLength(1);
+    expect(fakeDb.rows("BuildList")).toHaveLength(1);
+    expect(fakeDb.rows("BuildListItem")).toHaveLength(1);
+    expect(fakeDb.calls.filter((call) => call.op !== "findFirst" && call.op !== "count")).toEqual(
+      [],
+    );
+    expect(fakeDb.rows("BuildListItem")[0].buildListId).toBe(listId);
+  });
+
+  it("lets a later run through when it finds the line the list already holds", async () => {
+    expect((await finish({ [PLANNED]: ["chain-elongation"] })).ok).toBe(true);
+
+    // The same pair: the union is one, so the list still fits its limit.
+    const again = await finishRun(
+      { [PLANNED]: "ko" },
+      { [PLANNED]: ["chain-elongation"] },
+      "2026-09-28T08:00:00.000Z",
+    );
+    expect(again.ok).toBe(true);
+    expect(fakeDb.rows("BuildList")).toHaveLength(1);
     expect(fakeDb.rows("BuildListItem")).toHaveLength(1);
   });
 });

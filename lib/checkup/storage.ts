@@ -384,11 +384,11 @@ export interface StoredBuildList {
   version: typeof CHECKUP_STATE_VERSION;
   updatedAt: string;
   /**
-   * The checkup that wrote it. A guest has ONE list key per bike where an
-   * account has one `BuildList` row per `Checkup`, so this is what lets
-   * `mergeGuestBuildList` tell a re-run of the same checkup (the visitor
-   * corrected a verdict: prune the line) from a later one (the bike answered
-   * differently: close the line, §6.7).
+   * The checkup that wrote it LAST — the guest's `BuildList.checkupId`. Both
+   * sides hold one list per bike (W5), and on both this is what lets the
+   * merge tell a re-run of the same checkup (the visitor corrected a verdict:
+   * prune the line) from a later one (the bike answered differently: close
+   * the line, §6.7).
    */
   checkupId: string;
   items: BuildListItem[];

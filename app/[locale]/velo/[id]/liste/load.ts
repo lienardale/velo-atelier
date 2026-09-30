@@ -94,6 +94,17 @@ export interface LoadedBuildList {
 /**
  * The bike's newest OPEN list, as the page renders it. Nothing (not an error)
  * when the bike has no list yet, or is not this user's.
+ *
+ * Since W5 that is THE list: `finishCheckupAction` looks it up with this very
+ * `where` and `orderBy` and merges into it, so what a checkup writes and what
+ * the visitor is then shown cannot come apart. The two must be changed
+ * together. A bike from before W5 still holds one list per checkup, and the
+ * newest open one is the one it carries on with.
+ *
+ * `sortOrder` alone no longer totally orders the lines: a checkup numbers the
+ * pairs it derives from zero and the lines earlier checkups left keep their
+ * own numbers, so `createdAt` breaks the ties — oldest first, and the same
+ * order on every request.
  */
 export async function loadBuildList(
   bikeId: string,
@@ -106,7 +117,7 @@ export async function loadBuildList(
     select: {
       id: true,
       items: {
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         select: {
           id: true,
           partId: true,
