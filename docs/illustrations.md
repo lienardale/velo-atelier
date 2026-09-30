@@ -40,6 +40,22 @@ placeholder goes out through an exclusive `wx` write, so the existence test and
 the write are one syscall and no `existsSync` answer can go stale between them
 (CodeQL `js/file-system-race`).
 
+### What it prints
+
+No CI job runs this script, so **the lines below are its only guard** — a
+change to one of them belongs in the same commit as the change that caused it.
+Counts are the tree of the day; 68 is the count at the time of writing.
+
+| When                       | Stream   | Exit | Output                                                                                                                                                |
+| -------------------------- | -------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| write mode                 | `stdout` | 0    | `illustrations: N placeholder(s) created, 68 component(s) exported.` — `N` is 0 on an up-to-date tree                                                 |
+| `--check`, all present     | `stdout` | 0    | `illustrations: 68 components, barrel up to date.`                                                                                                    |
+| `--check`, N missing       | `stderr` | 1    | `Missing N illustration component(s):`, then one indented `<id> → <Name>.tsx` per entry, then `Run: npx tsx scripts/gen-illustration-placeholders.ts` |
+| `--check`, barrel is stale | `stderr` | 1    | `<absolute path to components/illustrations/index.ts> is out of date. Run: npx tsx scripts/gen-illustration-placeholders.ts`                          |
+
+`--check` writes nothing in any of those cases, the missing one included: the
+single directory listing it takes at the start is the whole answer.
+
 ## Rules for every drawing
 
 - **Accessible name.** `role="img"`, named by a `<title id>` that reads

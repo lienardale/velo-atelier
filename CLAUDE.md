@@ -36,7 +36,12 @@ untested version for its parent, so each one carries a compatibility note and a
 green `bash scripts/ci.sh` + `npm run build` in
 [`audit-ci-allowlist.md`](./audit-ci-allowlist.md), which also justifies every
 id that stays. A dependency whose parent already admits the patched release
-needs no override, only `npm update <pkg>`.
+needs no override, only `npm update <pkg>`. The four are written **unscoped**
+(`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose: each names
+a package this tree resolves exactly once, so the scoped form would pin the
+same single copy while hiding that it is tree-wide — and an unscoped entry also
+covers a second parent arriving later, which is the direction that matters for
+a security pin. Scope one the day two parents need different majors.
 
 ---
 
@@ -474,8 +479,10 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   component folder with `ENOENT` caught as a value — no `existsSync` anywhere.
   Test and use are one syscall, so "a real drawing is never touched" stops
   being a convention the script follows and becomes one the kernel enforces
-  (CodeQL `js/file-system-race`). Its printed lines are documented in
-  `docs/illustrations.md` and must not drift.
+  (CodeQL `js/file-system-race`). **No CI job runs it**, so the table under
+  "What it prints" in [`docs/illustrations.md`](./docs/illustrations.md) is the
+  only guard its output has: change a line there in the commit that changes it
+  here.
 - **Nothing in `scripts/gen-common-passwords.ts` names a line of the list
   `password`.** CodeQL's `js/clear-text-logging` takes the identifier as its
   source and follows `.length` into `console.log`, so a script that only ever

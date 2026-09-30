@@ -42,9 +42,23 @@ Compatibility notes, because an override is a version its parent never tested:
   uses `require("uuid").v4()` for its temporary entry file and `@lhci/cli` for
   its run ids.
 - `tmp@0.2.x` keeps `fileSync`/`dirSync`; 0.2.6 is the release that sanitises
-  `prefix`/`postfix`, which is the fix itself.
+  `prefix`/`postfix`, which is the fix itself. The three call sites in this
+  tree are `@lhci/cli/src/open/open.js:47` (`tmp.fileSync({postfix: '.html'})`)
+  and `external-editor/main/index.js:131` (`tmp.tmpNameSync(...)`), both still
+  on 0.2.7's surface; `@lhci/cli/src/collect/node-runner.js:65` is the
+  `uuid.v4()` above.
 - `mysql2` is never loaded — the override only stops the advisory tracking a
-  version we do not run.
+  version we do not run. It is still the largest jump (3.15.3 → 3.24.5) and it
+  reshapes the tree: `sqlstring` is replaced by a first-time transitive,
+  `sql-escaper@1.5.2`, and `denque`, `seq-queue` and `os-tmpdir` leave
+  altogether (`npm ls` finds no other dependent for any of them). Nothing
+  imports `mysql2` here, so none of it is loaded, but the new package is worth
+  naming rather than discovering later.
+- **Not proved by a local run:** `npm run lhci` was not executed for these, and
+  it is the one gate that exercises `uuid` and `tmp`. The three call sites above
+  were read against the resolved tree and the APIs they use still exist, so the
+  residual risk is an LHCI runtime path none of them touches. The `lighthouse`
+  job on the PR settles it.
 
 Three more advisories (`brace-expansion` ×3, `ip-address` ×2, `fast-uri`)
 appeared in dev-tool chains (`eslint > minimatch`, `shadcn`, `ajv`) whose
@@ -54,8 +68,13 @@ only a lockfile bump (`npm update brace-expansion ip-address fast-uri`).
 ## Prisma CLI chain — dev-only, never bundled
 
 The `prisma` CLI (migrations, `generate`, `db seed`) drags in a generic driver
-and config layer. It is a `devDependency`; npm marks its subtree `prod` in the
-lockfile only because `@prisma/client` declares an optional peer on it. The
+and config layer. It is a `devDependency`, but npm marks its subtree
+`devOptional` in the lockfile rather than plain `dev` — `prisma`,
+`@prisma/config`, `deepmerge-ts` and `mysql2` all carry `"devOptional": true`
+and no `dev` key — because the production `@prisma/client` declares an optional
+peer on `prisma`. That peer edge is real: `npm ls --omit=dev --omit=optional`
+still prints the chain. **So the scope flag is not the argument here; the
+bundle is.** The
 application itself talks to Postgres through `@prisma/adapter-pg` + `pg`, and
 `serverExternalPackages` keeps the CLI out of every server bundle.
 
@@ -90,11 +109,17 @@ puppeteer-core > @puppeteer/browsers > extract-zip@2.0.1`. **There is no
   to localhost during a CI job, the second only starts under `shadcn mcp`, which
   nothing in this repository runs. `express@4.22.2` declares `qs: "~6.15.1"`,
   which stops one minor short of the `6.16.0` fix; `express@5.2.1` declares
-  `^6.14.0` and would take it, but npm resolves one `qs` for both, so a global
-  override hands LHCI's Express a minor it never shipped with. Not worth it for
-  two servers that never listen. What would change the answer: an `express@4`
-  release whose range reaches `qs@6.16`, or a `qs` in something that handles a
-  real request.
+  `^6.14.0` and would take it, but both hoist to the one top-level `qs@6.15.3`,
+  so an unscoped override hands LHCI's Express a minor it never shipped with.
+  A **scoped** override (`"express": { "qs": "^6.16.0" }`) is mechanically
+  available — npm does nest a second copy when a range demands one, and this
+  very tree proves it: `node_modules/body-parser@1.20.8` declares `qs: "~6.16.0"`
+  and got `node_modules/body-parser/node_modules/qs@6.16.0` beside the
+  top-level 6.15.3. It is declined, not impossible: it would still be an
+  untested minor under two servers that never listen, and the gate that would
+  exercise it is `lighthouse`, which does not run in `npm run ci:local`. What
+  would change the answer: an `express@4` release whose range reaches
+  `qs@6.16`, or a `qs` in something that handles a real request.
 
 ## What is **not** allow-listed
 

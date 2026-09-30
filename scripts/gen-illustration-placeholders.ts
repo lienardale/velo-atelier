@@ -153,7 +153,10 @@ function main(): void {
 
   // One directory listing rather than one `existsSync` per manifest entry, and
   // the same set the barrel is built from: "has a component" means exactly
-  // "is exported".
+  // "is exported". That equivalence is the point, and it is deliberately
+  // stricter than "the file is on disk": a manifest name `COMPONENT_NAME`
+  // rejects is reported missing even with its file present, because the barrel
+  // would not export it either. Widen the regex and the manifest together.
   const drawn = new Set(componentsOnDisk());
 
   const missing: string[] = [];
