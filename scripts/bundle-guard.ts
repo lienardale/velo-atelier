@@ -92,6 +92,18 @@ function main(): void {
   // is invoked some other way. VERCEL_ENV is set by Vercel and by nothing
   // else, so `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash
   // scripts/ci/build.sh` — the e2e build — is untouched.
+  //
+  // `=== "1"` here against `1 | true | yes` in `scripts/vercel-build.sh` is
+  // deliberate, not a drift (raised in review, 2026-09-30). The two guards
+  // answer different questions. vercel-build.sh asks "did an operator mean to
+  // turn this on?", so it reads the flag the generous way `lib/env.ts` does
+  // and refuses every spelling. This file asks "is `window.__va` in the bytes
+  // I am looking at?", and only `"1"` can put it there: `next.config.ts`
+  // normalises the variable to the literal `"1"`/`"0"` and inlines it, so
+  // `NEXT_PUBLIC_TEST_HOOKS=true` compiles to `"0" === "1"` and the probe is
+  // dropped along with its import. On `true` this branch is therefore skipped
+  // and the ABSENCE rule below runs instead — which is the correct assertion
+  // for that build, and still fails if a hook marker somehow shipped.
   if (process.env.VERCEL_ENV && process.env.NEXT_PUBLIC_TEST_HOOKS === "1") {
     console.error(
       `bundle-guard: NEXT_PUBLIC_TEST_HOOKS=1 on a deployment (VERCEL_ENV=${process.env.VERCEL_ENV}).` +

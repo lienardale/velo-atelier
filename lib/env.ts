@@ -65,7 +65,24 @@ const postgresUrl = z
 
 const baseSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional().default("development"),
-  /** Set by Vercel only; `undefined` locally and in CI. */
+  /**
+   * Set by Vercel only; `undefined` locally and in CI.
+   *
+   * KNOWN SHARP EDGE, the same shape as the database-name one below: this
+   * enum became load-bearing in W5, and it fails CLOSED on a value it does
+   * not know. A Vercel **Custom Environment** puts its own name here
+   * (`staging`, …), which would raise `EnvValidationError` at boot and 500
+   * every request — on a deployment carrying none of the forbidden flags,
+   * i.e. for nothing.
+   *
+   * The project has Production + Preview only, so nothing is broken today,
+   * and widening is a decision rather than a tidy-up: an unknown value would
+   * then read as non-production, which skips the `AUTH_URL` and Google
+   * requirements below. It would NOT weaken the flag refusal — that one is
+   * `if (parsed.VERCEL_ENV)`, any value. So: before creating a Custom
+   * Environment, widen this to `z.string().min(1)` deliberately and say so in
+   * `docs/deploy.md`. Do not discover it during a deploy.
+   */
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
 
   /**

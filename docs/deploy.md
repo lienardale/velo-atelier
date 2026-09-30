@@ -151,20 +151,39 @@ Nothing to enable by hand: the init migration
 
 Environment variables (§4.6):
 
-| Variable                                | Production              | Preview                | Development   | Notes                                                                                                                                                                |
-| --------------------------------------- | ----------------------- | ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_URL`                          | Neon `main`, pooled     | Neon `preview`, pooled | see below     | **by this exact name**: `lib/env.ts` does not read Neon's `DATABASE_URL` fallback that `lib/db/env.ts` accepts, and since W5 it decides whether the deployment boots |
-| `POSTGRES_URL_NON_POOLING`              | Neon `main`, direct     | Neon `preview`, direct | see below     | migrations use it; no fallback to the pooled URL, and — as above — no `DATABASE_URL_UNPOOLED` fallback in `lib/env.ts`                                               |
-| `AUTH_SECRET`                           | its own value           | its own value          | its own value | **distinct per scope**, at least 32 characters: `npx auth secret` or `openssl rand -base64 32`                                                                       |
-| `AUTH_TRUST_HOST`                       | `true`                  | `true`                 | `true`        |                                                                                                                                                                      |
-| `NEXT_PUBLIC_SITE_URL`                  | `https://<prod-domain>` | to decide              | to decide     | baked in at build time: canonical, `hreflang`, sitemap, `og:url`; nothing reads `VERCEL_URL`, so one value serves every preview                                      |
-| `HUSKY`                                 | `0`                     | `0`                    | `0`           | skips the hook installation on Vercel's checkout                                                                                                                     |
-| `AUTH_URL`                              | `https://<prod-domain>` | —                      | —             | Production only; previews rely on `AUTH_TRUST_HOST`                                                                                                                  |
-| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | from step 3             | —                      | —             | Production only: a preview URL can never be a registered redirect URI                                                                                                |
-| `ENABLE_TEST_PAGES`                     | **never**               | **never**              | **never**     | set in any scope → the deployment serves nothing, every request 500s (`instrumentation.ts`)                                                                          |
-| `NEXT_PUBLIC_TEST_HOOKS`                | **never**               | **never**              | **never**     | set in any scope → the BUILD exits 1 (`scripts/vercel-build.sh`), before it migrates anything                                                                        |
-| `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**              | **never**     | set in any scope → the deployment serves nothing, every request 500s (`instrumentation.ts`)                                                                          |
-| `ALLOW_REMOTE_SEED`                     | **never**               | **never**              | **never**     | nothing on Vercel seeds                                                                                                                                              |
+| Variable                                | Production              | Preview                 | Development             | Notes                                                                                                                                                                                                                                                       |
+| --------------------------------------- | ----------------------- | ----------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_URL`                          | Neon `main`, pooled     | Neon `preview`, pooled  | see below               | **by this exact name**: `lib/env.ts` does not read Neon's `DATABASE_URL` fallback that `lib/db/env.ts` accepts, and since W5 it decides whether the deployment boots                                                                                        |
+| `POSTGRES_URL_NON_POOLING`              | Neon `main`, direct     | Neon `preview`, direct  | see below               | migrations use it; no fallback to the pooled URL, and — as above — no `DATABASE_URL_UNPOOLED` fallback in `lib/env.ts`                                                                                                                                      |
+| `AUTH_SECRET`                           | its own value           | its own value           | its own value           | **distinct per scope**, at least 32 characters: `npx auth secret` or `openssl rand -base64 32`                                                                                                                                                              |
+| `AUTH_TRUST_HOST`                       | `true`                  | `true`                  | `true`                  |                                                                                                                                                                                                                                                             |
+| `NEXT_PUBLIC_SITE_URL`                  | `https://<prod-domain>` | `https://<prod-domain>` | `https://<prod-domain>` | **required in EVERY scope** — since W5 a deployment without it boots to a 500 on every request. Baked in at build time: canonical, `hreflang`, sitemap, `og:url`; nothing reads `VERCEL_URL`, so one value serves every preview (decided 2026-09-29, below) |
+| `HUSKY`                                 | `0`                     | `0`                     | `0`                     | skips the hook installation on Vercel's checkout                                                                                                                                                                                                            |
+| `AUTH_URL`                              | `https://<prod-domain>` | —                       | —                       | Production only; previews rely on `AUTH_TRUST_HOST`                                                                                                                                                                                                         |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | from step 3             | —                       | —                       | Production only: a preview URL can never be a registered redirect URI                                                                                                                                                                                       |
+| `ENABLE_TEST_PAGES`                     | **never**               | **never**               | **never**               | set in any scope → the deployment serves nothing, every request 500s (`instrumentation.ts`)                                                                                                                                                                 |
+| `NEXT_PUBLIC_TEST_HOOKS`                | **never**               | **never**               | **never**               | set in any scope → the BUILD exits 1 (`scripts/vercel-build.sh`), before it migrates anything                                                                                                                                                               |
+| `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**               | **never**               | set in any scope → the deployment serves nothing, every request 500s (`instrumentation.ts`)                                                                                                                                                                 |
+| `ALLOW_REMOTE_SEED`                     | **never**               | **never**               | **never**               | nothing on Vercel seeds                                                                                                                                                                                                                                     |
+
+**Two ways to take a deployment down that the table cannot show**, both created
+by W5 making `lib/env.ts` decide whether a server boots. Neither is reachable
+from the settings this project has today; both are one dashboard click away.
+
+- **The database URLs are required BY NAME.** `lib/env.ts` wants
+  `POSTGRES_URL` and `POSTGRES_URL_NON_POOLING`. Neon's own integration also
+  offers `DATABASE_URL` / `DATABASE_URL_UNPOOLED`, and `lib/db/env.ts` — which
+  actually opens the connection — accepts those too. So a project configured
+  with Neon's names only would connect perfectly and still be refused at boot.
+  Set the `POSTGRES_*` names.
+- **A Vercel Custom Environment does not boot.** `VERCEL_ENV` is typed as
+  `production | preview | development`; a Custom Environment puts its own name
+  there (`staging`, …), which fails validation and 500s every request — on a
+  deployment carrying none of the forbidden flags. Before creating one, widen
+  `VERCEL_ENV` in `lib/env.ts` to `z.string().min(1)` **deliberately**, knowing
+  that an unknown value then reads as non-production and so stops requiring
+  `AUTH_URL` and the Google pair. The flag refusal is unaffected either way: it
+  fires on `VERCEL_ENV` being set to anything at all.
 
 Two decisions the plan leaves open. **Both were taken on 2026-09-29**, and the
 reasoning is here because the dashboard cannot hold it:

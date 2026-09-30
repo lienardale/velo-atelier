@@ -139,7 +139,11 @@ npm run lint           # ESLint (flat config)
 npm run format:check   # Prettier
 npm run typecheck      # prisma generate, content-collections build, content:generate, tsc --noEmit
 npm test               # every Vitest project (integration is dropped, with a warning, when no _test DB answers)
-npm run test:coverage  # Vitest + the coverage thresholds (this is the gate, not a report)
+                       # WARNING: `boot` joins whenever .next/BUILD_ID exists — i.e. in any worktree that has
+                       # built. It spawns `next start` three times and NEEDS a reachable database; unlike
+                       # integration it has no graceful drop (it polls /api/health to a 90 s deadline, twice).
+                       # `rm -rf .next` or `--project=unit …` to run without it.
+npm run test:coverage  # Vitest + the coverage thresholds (this is the gate, not a report) — same boot caveat
 npm run e2e            # Playwright, every project (needs a production build first; pass --project=<name>)
 npm run e2e:mobile     # Playwright on the mobile profiles
 npm run e2e:docker     # Playwright in the amd64 CI image: the Linux reproducer (scripts/ci/e2e-docker.sh)
@@ -167,7 +171,8 @@ auth.ts auth.config.ts proxy.ts     Auth.js split; proxy.ts is Node-only in Next
 lib/domain/          pure TS data + engine — zero React, zero Prisma
 lib/bike3d/          pure geometry (three imports allowed, no React)
 lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks|seo|a11y|testing
-lib/env.ts           the environment contract (see "Contracts": not called at boot yet)
+lib/env.ts           the environment contract — enforced at boot by instrumentation.ts
+instrumentation.ts   register() calls getEnv() once; Next never runs it during a build
 components/ui/       generated shadcn — do not hand-edit
 components/ui-ext/   hand-rolled primitives (Stepper, Callout, MobileSheet, …)
 components/i18n/     ClientMessages — the per-route next-intl provider
@@ -307,6 +312,16 @@ docs/                contributor and operator docs — every one is linked from 
   real PostgreSQL and checks that what Prisma emits is still what the filter
   recognises — and fails loudly if Prisma ever stops emitting it at all, which
   would make the filter dead code to delete rather than keep.
+  **Taking the events made our listener the only thing that prints a Prisma
+  error**, so silencing it is now a silent outage rather than a noisy one: a
+  `() => {}` in place of the body dropped 43 real `[prisma]` lines from a CI
+  run with all 389 integration tests still green (found in review, W5). The
+  body is therefore `lib/db/log.ts`'s `reportPrismaError` — one call, so it
+  can be unit-tested in both directions — and the WIRING is pinned separately
+  on the shared singleton (`prisma-error-log.test.ts`, spying on
+  `console.error`), because a unit test of the function alone stays green with
+  the `$on` deleted. Keep both; either on its own proves nothing about the
+  other.
 - **No logic in `components/bike3d/parts/**`** — no `if`, no `switch`, no
   ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
   prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
@@ -411,13 +426,20 @@ docs/                contributor and operator docs — every one is linked from 
   `NEXT_PUBLIC_TEST_HOOKS` is inlined by the bundler, so no boot check can take
   it back: **`scripts/vercel-build.sh` exits 1 on it when `VERCEL_ENV` is set,
   before `prisma migrate deploy`**, and `scripts/bundle-guard.ts` refuses the
-  same pair again after the compile instead of following the flag.
+  same pair again after the compile instead of following the flag. The two
+  read the flag differently ON PURPOSE: vercel-build.sh takes `1 | true | yes`
+  like `lib/env.ts` does, because it is asking what an operator MEANT;
+  bundle-guard takes `"1"` only, because it is asking what is in the bytes,
+  and `next.config.ts` inlines the literal `"1"` for nothing else — on `true`
+  the hooks are never compiled and the ABSENCE rule is the correct one to run.
   Consequence for every step that starts a server: the environment has to be
   complete. `scripts/ci/{build,lighthouse}.sh` call
   `load_env_contract_defaults` (`scripts/ci/_lib.sh`), which fills unset
   variables from the committed `.env.test` — **never the three test flags**,
-  which a step sets deliberately or not at all. Playwright (and so perf)
-  already load `.env.test` in `playwright.config.ts` and need nothing.
+  which a step sets deliberately or not at all
+  (`tests/unit/deploy/env-contract-defaults.test.ts` runs the function and
+  checks both halves). Playwright (and so perf) already load `.env.test` in
+  `playwright.config.ts` and need nothing.
   `tests/boot/env-contract.test.ts` spawns the real server for all three
   directions; see the `boot` project under "Quality gates".
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
