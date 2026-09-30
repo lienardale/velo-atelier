@@ -193,12 +193,14 @@ async function refusal(server: Server): Promise<Refusal> {
 }
 
 /**
- * The first answer from `/api/health` that is not the boot race.
+ * The first answer from `/api/health` that is not the boot race — for the two
+ * cases that expect a working server.
  *
- * A connection error means the socket is not up yet; a 500 means it is up and
- * `register()` has not finished (or has thrown — hence the exit check, which
- * turns "poisoned server" into a readable failure instead of a 90-second
- * timeout).
+ * A connection error means the socket is not bound yet; a 500 means it is
+ * bound and `register()` has not finished. Both are retried. A server that
+ * 500s forever (because `register()` threw) therefore ends in this function's
+ * timeout, which prints the whole server log — the EnvValidationError
+ * included — so the reason is in the failure rather than behind it.
  */
 async function healthResponse(server: Server): Promise<Response> {
   const url = `http://127.0.0.1:${server.port}/api/health`;

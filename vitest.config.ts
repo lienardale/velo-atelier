@@ -331,6 +331,10 @@ export default defineConfig(async (): Promise<ViteUserConfig> => {
           "lib/db/prisma.ts",
           "auth.ts",
           "proxy.ts",
+          // Three lines calling `getEnv()`; what it decides is covered by
+          // `tests/unit/db/env.test.ts`, and that it runs at all is covered by
+          // the `boot` tier, which measures a child process.
+          "instrumentation.ts",
           "app/api/auth/**",
           // Generated shadcn primitives (components.json); not edited by hand.
           "components/ui/**",
