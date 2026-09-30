@@ -302,6 +302,11 @@ docs/                contributor and operator docs — every one is linked from 
   what makes the limiter correct under a burst. Register the listener on the
   freshly constructed value: the `PrismaClient` annotation collapses the log
   generic to `never`, so `prisma.$on(…)` off the export does not typecheck.
+  Neither literal is ours, so
+  `tests/integration/prisma-error-log.test.ts` drives the real limiter against
+  real PostgreSQL and checks that what Prisma emits is still what the filter
+  recognises — and fails loudly if Prisma ever stops emitting it at all, which
+  would make the filter dead code to delete rather than keep.
 - **No logic in `components/bike3d/parts/**`** — no `if`, no `switch`, no
   ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
   prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
