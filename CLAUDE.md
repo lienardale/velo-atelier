@@ -457,6 +457,22 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   on CI: `prisma/seed.ts` importing `lib/content/generated/*` took down
   typecheck, integration and build at the W2 integration. To check a gate
   honestly, delete the tree first (`rm -rf lib/content/generated`) and run it.
+- **A generator never asks the file system a question and then acts on the
+  answer.** `scripts/gen-illustration-placeholders.ts` writes a placeholder with
+  the exclusive `wx` flag (catching `EEXIST`) and reads the barrel and the
+  component folder with `ENOENT` caught as a value — no `existsSync` anywhere.
+  Test and use are one syscall, so "a real drawing is never touched" stops
+  being a convention the script follows and becomes one the kernel enforces
+  (CodeQL `js/file-system-race`). Its printed lines are documented in
+  `docs/illustrations.md` and must not drift.
+- **Nothing in `scripts/gen-common-passwords.ts` names a line of the list
+  `password`.** CodeQL's `js/clear-text-logging` takes the identifier as its
+  source and follows `.length` into `console.log`, so a script that only ever
+  prints counts still raised three high alerts. The names are `entry` /
+  `entries`, in `normalizeList`, `renderModule` and `main` alike — renaming one
+  and not the others only moves the alert. `lib/auth/common-passwords.ts` is
+  byte-identical output: `npx tsx scripts/gen-common-passwords.ts --check` is
+  the proof.
 
 ---
 

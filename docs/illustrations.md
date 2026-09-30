@@ -35,7 +35,10 @@ npx tsx scripts/gen-illustration-placeholders.ts --check   # fail if anything is
 
 It exports every `Ill*.tsx` file it finds, creates a labelled placeholder for a
 decision-tree id that has no component yet, and never touches or deletes an
-existing drawing.
+existing drawing. That last promise is the kernel's, not the script's: the
+placeholder goes out through an exclusive `wx` write, so the existence test and
+the write are one syscall and no `existsSync` answer can go stale between them
+(CodeQL `js/file-system-race`).
 
 ## Rules for every drawing
 

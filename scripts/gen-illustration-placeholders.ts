@@ -18,11 +18,19 @@
  * Components are keyed there by **component name**, which is what the manifest
  * stores: that is the seam that keeps `lib/domain` free of React.
  *
+ * Nothing here asks the file system a question and then acts on the answer:
+ * a placeholder is written with the exclusive `wx` flag, and the barrel and the
+ * component folder are read with "not there" caught as a value. The test and
+ * the use are one syscall, so no window exists in which a real drawing could
+ * appear and be overwritten — the promise above stops being a convention this
+ * script follows and becomes one the kernel enforces (CodeQL
+ * `js/file-system-race`, W5 alerts #7 and #8).
+ *
  * Plain Node (`tsx`): no `server-only` anywhere in its import graph
  * (`tests/unit/no-server-only-in-scripts.test.ts`).
  */
 /* eslint-disable security/detect-non-literal-fs-filename -- every path below is built from the repo root plus a component name matched against /^Ill[A-Za-z0-9]*$/ */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { ILLUSTRATIONS } from "../lib/domain/data/illustrations";
@@ -90,26 +98,73 @@ export function illustrationComponent(name: string): ComponentType<IllustrationP
 `;
 }
 
+/** The errno of a failed `fs` call, or `undefined` when this is not one. */
+function errnoOf(error: unknown): string | undefined {
+  return error instanceof Error && "code" in error && typeof error.code === "string"
+    ? error.code
+    : undefined;
+}
+
 /** Component names present on disk, whatever their origin. */
 function componentsOnDisk(): string[] {
-  if (!existsSync(COMPONENT_DIR)) return [];
-  return readdirSync(COMPONENT_DIR)
+  let entries: string[];
+  try {
+    entries = readdirSync(COMPONENT_DIR);
+  } catch (error) {
+    if (errnoOf(error) === "ENOENT") return [];
+    throw error;
+  }
+  return entries
     .filter((file) => file.endsWith(".tsx"))
     .map((file) => file.slice(0, -".tsx".length))
     .filter((name) => COMPONENT_NAME.test(name))
     .sort();
 }
 
+/**
+ * Write the placeholder unless something is already there; say whether it
+ * happened. `wx` is the whole point: the existence test and the write are one
+ * syscall, so a real drawing can never be clobbered by a file that appeared
+ * in between.
+ */
+function createPlaceholder(file: string, source: string): boolean {
+  try {
+    writeFileSync(file, source, { encoding: "utf8", flag: "wx" });
+    return true;
+  } catch (error) {
+    if (errnoOf(error) === "EEXIST") return false;
+    throw error;
+  }
+}
+
+/** The file's contents, or `undefined` when it does not exist yet. */
+function readIfPresent(file: string): string | undefined {
+  try {
+    return readFileSync(file, "utf8");
+  } catch (error) {
+    if (errnoOf(error) === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
 function main(): void {
   const check = process.argv.includes("--check");
   mkdirSync(COMPONENT_DIR, { recursive: true });
 
+  // One directory listing rather than one `existsSync` per manifest entry, and
+  // the same set the barrel is built from: "has a component" means exactly
+  // "is exported".
+  const drawn = new Set(componentsOnDisk());
+
   const missing: string[] = [];
   for (const [id, definition] of Object.entries(ILLUSTRATIONS)) {
+    if (drawn.has(definition.component)) continue;
     const file = join(COMPONENT_DIR, `${definition.component}.tsx`);
-    if (existsSync(file)) continue;
-    missing.push(`${id} → ${definition.component}.tsx`);
-    if (!check) writeFileSync(file, placeholderSource(id, definition.component), "utf8");
+    // `--check` writes nothing, so the listing above is the whole answer;
+    // otherwise the exclusive write is what decides, and it refuses to clobber.
+    if (check || createPlaceholder(file, placeholderSource(id, definition.component))) {
+      missing.push(`${id} → ${definition.component}.tsx`);
+    }
   }
 
   if (check && missing.length > 0) {
@@ -122,7 +177,7 @@ function main(): void {
 
   const components = componentsOnDisk();
   const barrel = barrelSource(components);
-  const current = existsSync(BARREL) ? readFileSync(BARREL, "utf8") : "";
+  const current = readIfPresent(BARREL) ?? "";
 
   if (check) {
     if (current !== barrel) {
