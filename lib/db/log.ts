@@ -51,3 +51,44 @@ const NOT_FOUND_MESSAGE = /required but not found/;
 export function isExpectedNotFoundLog(event: PrismaErrorLogEvent): boolean {
   return EXPECTED_NOT_FOUND.has(event.target) && NOT_FOUND_MESSAGE.test(event.message);
 }
+
+/**
+ * How a Prisma error line is recognisable in the server log.
+ *
+ * Exported because the tests grep for it. An assertion that matched on the
+ * message alone would also pass against a line Prisma printed itself — which
+ * is precisely the arrangement this change replaced.
+ */
+export const PRISMA_LOG_PREFIX = "[prisma]";
+
+/**
+ * Print one Prisma error line, unless it is the expected miss above.
+ *
+ * This is the entire body of the singleton's `error` listener, extracted so
+ * the half of the rule that SPEAKS has a subject a test can hold.
+ *
+ * It matters more than an extracted callback usually would. Under
+ * `emit: "stdout"` Prisma printed its own errors and nothing we wrote could
+ * lose one. Under `emit: "event"` this function is the only thing that prints
+ * a Prisma error at all: short-circuit it, or drop the `$on` in
+ * `lib/db/prisma.ts`, and a genuine failure leaves no trace in the server log
+ * — silently, on the surface an operator reads when the site is down, on the
+ * change whose whole purpose is that those logs stay readable.
+ *
+ * Both directions are pinned here (`tests/unit/db/log.test.ts`), and that
+ * `lib/db/prisma.ts` is actually WIRED to it is pinned separately against the
+ * real driver (`tests/integration/prisma-error-log.test.ts`): a unit test of
+ * this function alone stays green with the listener silenced, which is the
+ * regression that matters.
+ *
+ * @param log seam for the test. A default parameter is evaluated per call, so
+ *   a `vi.spyOn(console, "error")` installed long after this module loaded is
+ *   still the function that runs.
+ */
+export function reportPrismaError(
+  event: PrismaErrorLogEvent,
+  log: (line: string) => void = console.error,
+): void {
+  if (isExpectedNotFoundLog(event)) return;
+  log(`${PRISMA_LOG_PREFIX} ${event.target}: ${event.message}`);
+}

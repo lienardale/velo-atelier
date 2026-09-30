@@ -18,6 +18,12 @@
  *    has to live in the listener at all. Dev keeps its extra `warn` level on
  *    stdout, where it has always been.
  *
+ *    The consequence to keep in mind when editing that listener: with the
+ *    events taken, `reportPrismaError` is the ONLY thing that prints a Prisma
+ *    error anywhere in the app. It is one call rather than a body so it can be
+ *    unit-tested, and `tests/integration/prisma-error-log.test.ts` asserts on
+ *    THIS singleton that the call is still there.
+ *
  * 4. **Lazy construction.** The exported `prisma` is a proxy that builds the
  *    real client on first property access. `next build` imports every route
  *    module (including `app/api/health/route.ts`) to collect its metadata, so
@@ -35,7 +41,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { type Prisma, PrismaClient } from "@/lib/generated/prisma/client";
 
 import { getDatabaseUrls } from "./env";
-import { isExpectedNotFoundLog } from "./log";
+import { reportPrismaError } from "./log";
 
 const globalForPrisma = globalThis as typeof globalThis & {
   __veloAtelierPrisma?: PrismaClient;
@@ -57,10 +63,13 @@ function createPrismaClient(): PrismaClient {
     log,
   });
 
-  client.$on("error", (event) => {
-    if (isExpectedNotFoundLog(event)) return;
-    console.error(`[prisma] ${event.target}: ${event.message}`);
-  });
+  // The listener's whole body is `reportPrismaError` so that it can be tested;
+  // this line is the WIRING, and `tests/integration/prisma-error-log.test.ts`
+  // is what makes deleting or silencing it fail a gate. Called through an
+  // arrow rather than passed by reference: `reportPrismaError`'s second
+  // parameter is the log seam, and a future Prisma that handed its listener a
+  // second argument would quietly rebind it.
+  client.$on("error", (event) => reportPrismaError(event));
 
   return client;
 }

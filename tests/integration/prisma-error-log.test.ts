@@ -20,10 +20,10 @@
  * filter has become unnecessary — delete it rather than keep a dead rule.
  */
 import { PrismaPg } from "@prisma/adapter-pg";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDatabaseUrls } from "@/lib/db/env";
-import { isExpectedNotFoundLog, type PrismaErrorLogEvent } from "@/lib/db/log";
+import { isExpectedNotFoundLog, PRISMA_LOG_PREFIX, type PrismaErrorLogEvent } from "@/lib/db/log";
 import { prisma } from "@/lib/db/prisma";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 import { createPrismaRateLimiter } from "@/lib/security/rate-limit";
@@ -70,5 +70,75 @@ describe("the Prisma error event lib/db/log.ts filters", () => {
     expect(events.map((event) => event.target)).toEqual(events.map(() => "authAttempt.update"));
     expect(events[0].message).toMatch(/required but not found/);
     expect(events.every(isExpectedNotFoundLog)).toBe(true);
+  });
+});
+
+/**
+ * The SHARED singleton still reports. This is the wiring, not the rule.
+ *
+ * Everything above uses a client of its own, on purpose — it is asking what
+ * Prisma emits, and the singleton's filter would hide the answer. That leaves
+ * the singleton itself unexamined, and it is the half with the regression in
+ * it: moving from `emit: "stdout"` to `emit: "event"` made our own listener
+ * the only thing that prints a Prisma error, so deleting the `$on` — or
+ * letting it return early — silences every database failure in production
+ * while every test in the repository stays green. (Measured: with the body
+ * replaced by `() => {}`, 43 real `[prisma]` lines disappeared from a CI run
+ * and all 389 integration tests still passed.)
+ *
+ * So this drives the real singleton, both ways, through the log it actually
+ * writes. It is deliberately the crudest possible assertion — spy on
+ * `console.error`, count the lines — because anything cleverer would be
+ * testing a seam rather than the wiring.
+ */
+describe("the shared prisma singleton's error listener", () => {
+  /** A bike that does not exist. `Bike.id` is a uuid, so this is well-typed and unmatched. */
+  const ABSENT_BIKE = "00000000-0000-4000-8000-0000000000ff";
+
+  /** Lines the singleton's listener wrote, in order. */
+  async function prismaLinesDuring(act: () => Promise<void>): Promise<string[]> {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await act();
+      // The event is emitted synchronously at the throw site, so it has
+      // already run by the time the rejection is caught; a tick costs nothing
+      // and removes the ordering question entirely.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return spy.mock.calls
+        .map((call) => String(call[0]))
+        .filter((line) => line.startsWith(PRISMA_LOG_PREFIX));
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  it("prints a real failure, with the target that caused it", async () => {
+    const lines = await prismaLinesDuring(async () => {
+      // P2025 from a model that is NOT allowed to miss: a real failure as far
+      // as the filter is concerned, and nothing is written either way.
+      await expect(
+        prisma.bike.update({ where: { id: ABSENT_BIKE }, data: { name: "never written" } }),
+      ).rejects.toThrow();
+    });
+
+    expect(
+      lines,
+      "the singleton no longer reports Prisma errors — lib/db/prisma.ts's $on is gone or silent, " +
+        "and a database failure in production would now be invisible",
+    ).toHaveLength(1);
+    expect(lines[0]).toContain("bike.update");
+    expect(lines[0]).toContain("required but not found");
+  });
+
+  it("stays silent for the rate limiter's expected miss", async () => {
+    // Ruling 3's own subject, measured on the singleton rather than on the
+    // predicate: this is the line that used to appear on every first sign-in.
+    const lines = await prismaLinesDuring(async () => {
+      await expect(
+        prisma.authAttempt.update({ where: { key: KEY }, data: { count: 1 } }),
+      ).rejects.toThrow();
+    });
+
+    expect(lines).toEqual([]);
   });
 });
