@@ -84,7 +84,7 @@ function namedProject(argv: readonly string[], name: string): boolean {
  *
  * It spawns `next start` against `.next` and asserts what the environment
  * contract does to a real server: `VERCEL_ENV=production ENABLE_TEST_PAGES=1`
- * exits 1, the same build without the poison serves `/api/health`. There is
+ * serves nothing, the same build without the poison serves `/api/health`. There is
  * nothing to run without a production build, so it is defined only when one is
  * on disk — `npm test` in a fresh clone (and the CI `unit` job, whose checkout
  * has no `.next`) never sees the project at all, which is the point: a spec

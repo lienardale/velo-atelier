@@ -42,21 +42,21 @@ which §5.3 fills at tag time.
 Read this before clicking anything: these are the behaviours the dashboards must
 not contradict.
 
-| Piece                     | What it does                                                                                                                                                                                                                                                                                    |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vercel.json`             | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                                                                                                                                |
-| `scripts/vercel-build.sh` | refuses `NEXT_PUBLIC_TEST_HOOKS=1` when `VERCEL_ENV` is set, then `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/{migrate-on-deploy,vercel-build-guard}.test.ts` pin that wiring                       |
-| `instrumentation.ts`      | `register()` runs `getEnv()` once, before the server takes requests. A wrong environment is exit 1 with the variable's name (`next start`) or a failed invocation (Vercel), never an `undefined` deep inside Auth.js. Next does not run it during a build                                       |
-| `package.json`            | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                                                                                                                                          |
-| `next.config.ts`          | security headers and a static Content-Security-Policy on every route                                                                                                                                                                                                                            |
-| `GET /api/health`         | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                                                                                                                                  |
-| `prisma/seed.ts`          | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**                                                                                                                    |
-| `.vercelignore`           | keeps `.debug/`, `.claude/`, `docs/`, the screenshot baselines and the perf baselines out of the upload. **`tests/` itself stays**: `next build` type-checks the `*.test.ts(x)` files beside the code, which import `@/tests/_helpers` and `@/tests/_fakes` (see the first-build failure in §2) |
+| Piece                     | What it does                                                                                                                                                                                                                                                                                             |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vercel.json`             | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                                                                                                                                         |
+| `scripts/vercel-build.sh` | refuses `NEXT_PUBLIC_TEST_HOOKS=1` when `VERCEL_ENV` is set, then `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/{migrate-on-deploy,vercel-build-guard}.test.ts` pin that wiring                                |
+| `instrumentation.ts`      | `register()` runs `getEnv()` once, before the server takes requests. A wrong environment makes the server serve **nothing** — every request 500s and the log names the variable — instead of an `undefined` deep inside Auth.js. Next does not run it during a build. It does not exit either: see below |
+| `package.json`            | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                                                                                                                                                   |
+| `next.config.ts`          | security headers and a static Content-Security-Policy on every route                                                                                                                                                                                                                                     |
+| `GET /api/health`         | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                                                                                                                                           |
+| `prisma/seed.ts`          | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**                                                                                                                             |
+| `.vercelignore`           | keeps `.debug/`, `.claude/`, `docs/`, the screenshot baselines and the perf baselines out of the upload. **`tests/` itself stays**: `next build` type-checks the `*.test.ts(x)` files beside the code, which import `@/tests/_helpers` and `@/tests/_fakes` (see the first-build failure in §2)          |
 
 **The three test flags are refused at boot, on every scope** (W5). `getEnv()`
 has a caller — `instrumentation.ts` — so `ENABLE_TEST_PAGES`,
 `NEXT_PUBLIC_TEST_HOOKS` and `NEXT_PUBLIC_DEMO_LOGIN` now fail a deployment
-instead of being a rule nothing read. Three things to know about the shape of
+instead of being a rule nothing read. Four things to know about the shape of
 that guard:
 
 - **It keys off `VERCEL_ENV` being set, not off "production".** The `next` CLI
@@ -75,15 +75,28 @@ that guard:
   `scripts/bundle-guard.ts` refuses the same pair a second time after the
   compile.
 - **Everything the contract requires must therefore be present, or the
-  deployment does not boot**: both database URLs, `AUTH_SECRET` and
+  deployment serves nothing**: both database URLs, `AUTH_SECRET` and
   `NEXT_PUBLIC_SITE_URL` in every scope; `AUTH_URL` and the Google pair in
   Production. That is the table below, and it is now load-bearing rather than
   advisory.
+- **What a refusal looks like, measured on Next 16.3.4.** Not a crash, and not
+  an exit code: `NextNodeServer`'s constructor fires
+  `this.prepare().catch(err => console.error("Failed to prepare server", err))`,
+  so the error `register()` raises is logged and swallowed and
+  `start-server.js`'s `process.exit(1)` is never reached. The socket stays
+  bound and **every request answers 500** for as long as the process lives.
+  Operationally: `/api/health` returns 500 rather than 200 or 503, the log
+  carries `EnvValidationError` and the variable's name, and nothing is ever
+  served — so the deployment is visibly, totally down, which is the intent.
+  On Vercel it shows up as a function error on every invocation.
+  **How to diagnose it** on a deployment that answers 500 everywhere: read the
+  runtime logs for `EnvValidationError`, fix the named variable in the right
+  scope, and redeploy.
 
 `tests/boot/env-contract.test.ts` (the `boot` Vitest project, run by
 `scripts/ci/build.sh` after the build) spawns the real thing: a deployment
-carrying a flag exits 1, a local production server with all three on boots, and
-a clean deployment boots.
+carrying a flag serves nothing and logs the reason, a local production server
+with all three flags on boots, and a clean deployment boots.
 
 ---
 
@@ -148,9 +161,9 @@ Environment variables (§4.6):
 | `HUSKY`                                 | `0`                     | `0`                    | `0`           | skips the hook installation on Vercel's checkout                                                                                |
 | `AUTH_URL`                              | `https://<prod-domain>` | —                      | —             | Production only; previews rely on `AUTH_TRUST_HOST`                                                                             |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | from step 3             | —                      | —             | Production only: a preview URL can never be a registered redirect URI                                                           |
-| `ENABLE_TEST_PAGES`                     | **never**               | **never**              | **never**     | set in any scope → the deployment refuses to boot (`instrumentation.ts`)                                                        |
+| `ENABLE_TEST_PAGES`                     | **never**               | **never**              | **never**     | set in any scope → the deployment serves nothing, every request 500s (`instrumentation.ts`)                                     |
 | `NEXT_PUBLIC_TEST_HOOKS`                | **never**               | **never**              | **never**     | set in any scope → the BUILD exits 1 (`scripts/vercel-build.sh`), before it migrates anything                                   |
-| `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**              | **never**     | set in any scope → the deployment refuses to boot (`instrumentation.ts`)                                                        |
+| `NEXT_PUBLIC_DEMO_LOGIN`                | **never**               | **never**              | **never**     | set in any scope → the deployment serves nothing, every request 500s (`instrumentation.ts`)                                     |
 | `ALLOW_REMOTE_SEED`                     | **never**               | **never**              | **never**     | nothing on Vercel seeds                                                                                                         |
 
 Two decisions the plan leaves open. **Both were taken on 2026-09-29**, and the

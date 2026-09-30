@@ -379,11 +379,22 @@ docs/                contributor and operator docs — every one is linked from 
   measures the machine (`.debug/015` §3, §10).
 - **`lib/env.ts` is the environment contract and `instrumentation.ts` is what
   runs it** (W5). `register()` calls `getEnv()` once, gated on
-  `NEXT_RUNTIME === "nodejs"`; on `next start` Next awaits it before the server
-  takes requests, and a throw is exit 1 with the variable's name. **Next does
-  NOT run it during a build** (`NEXT_PHASE=phase-production-build` returns
-  early), so a build still needs no database and no secret — which is also why
-  the one build-time flag is guarded elsewhere.
+  `NEXT_RUNTIME === "nodejs"`. **Next does NOT run it during a build**
+  (`NEXT_PHASE=phase-production-build` returns early), so a build still needs
+  no database and no secret — which is also why the one build-time flag is
+  guarded elsewhere.
+  **A refusal is NOT an exit code** (Next 16.3.4, measured — the W5 plan
+  assumed otherwise). `prepareImpl()` awaits `register()`, but
+  `NextNodeServer`'s constructor fires
+  `this.prepare().catch(err => console.error("Failed to prepare server", err))`,
+  so the rejection is logged and swallowed there and `start-server.js`'s
+  `process.exit(1)` is never reached. The socket stays bound and EVERY request
+  is a 500 for as long as the process lives: nothing is ever served, and
+  nothing exits. `scripts/ci/build.sh`'s boot check (curl `/api/health`) is
+  what turns that into a failed step, and `tests/boot/**` samples the status
+  instead of waiting for an exit. The same mechanism binds the socket BEFORE
+  `register()` has run, so **one 500 is never a verdict** — a healthy server
+  answers one too, for a moment.
   **The three test flags are refused when `VERCEL_ENV` is SET, not when
   `isProduction`**, and that distinction is what made the wiring possible: the
   `next` CLI defaults `NODE_ENV` to `production` for every command but `dev`,
@@ -631,16 +642,16 @@ PR-only `visual-baseline-guard`.
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
 - **The `boot` Vitest project** (`tests/boot/**`) spawns `next start` against
   the build that just happened and asserts the environment contract on a real
-  server: `VERCEL_ENV=production ENABLE_TEST_PAGES=1` exits 1 with the
-  `EnvValidationError`, the same build with the flags on and no `VERCEL_ENV`
-  boots and serves `/api/health`, and a clean deployment boots. It builds
-  nothing itself; `scripts/ci/build.sh` runs it after the boot check.
+  server: `VERCEL_ENV=production ENABLE_TEST_PAGES=1` serves nothing and logs
+  the `EnvValidationError`, the same build with all three flags on and no
+  `VERCEL_ENV` boots and serves `/api/health`, and a clean deployment boots.
+  It builds nothing itself; `scripts/ci/build.sh` runs it after the boot check.
   `vitest.config.ts` defines the project only when `.next/BUILD_ID` exists
   (or `--project boot` names it), so `npm test` in a fresh clone never sees
   it — and it is NOT in `tests/integration/`, where the CI `integration` job's
   buildless checkout would have made it skip vacuously. Never assert on a
-  refused connection there: Next binds the socket before `register()` runs, so
-  a request in that window gets a 500.
+  refused connection there, and never on an exit code: Next binds the socket
+  before `register()` runs and keeps the process alive after it throws.
 - Vitest projects `unit | ui | bike3d | integration | security | boot`; coverage
   thresholds (`vitest.config.ts`, never lowered to pass): 80 % overall; 100 % on
   `lib/domain/**`; 100 % statements and branches on `lib/checkup/**`; `lib/**`

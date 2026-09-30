@@ -15,13 +15,21 @@
  *     `lib/env.ts`'s header promises — and the BUILD-time half of the contract
  *     (`NEXT_PUBLIC_TEST_HOOKS`, which the bundler inlines and no runtime check
  *     can take back) has to be guarded in `scripts/vercel-build.sh` instead.
- *   - **On `next start` it is awaited before the server takes requests**
- *     (`next-server.js` `prepareImpl()`), and a throw reaches
- *     `server/lib/start-server.js`, which prints it and calls
- *     `process.exit(1)`. The socket binds before init, so a request landing in
- *     that race window gets a 500 rather than a refused connection;
- *     `tests/boot/env-contract.test.ts` asserts on the exit code and the
- *     printed error, never on a connection failing.
+ *   - **A throw here stops the server SERVING, but does not kill it** —
+ *     measured on 16.3.4, not assumed. `prepareImpl()` awaits `register()`,
+ *     but `NextNodeServer`'s constructor fires
+ *     `this.prepare().catch(err => console.error('Failed to prepare server', err))`,
+ *     so that rejection is logged and swallowed there;
+ *     `server/lib/start-server.js` sees `initialize()` resolve and never
+ *     reaches its `process.exit(1)`. The socket stays bound and the
+ *     per-request `await` of the same rejected promise makes EVERY request a
+ *     500, for as long as the process lives. Loud and total — nothing is ever
+ *     served — but there is no exit code to read, which is why
+ *     `scripts/ci/build.sh`'s boot check (curl `/api/health`) is what catches
+ *     it in CI, and why `tests/boot/env-contract.test.ts` samples the status
+ *     instead of waiting for an exit. It also means the socket is bound before
+ *     this has run at all, so a request in that window gets a 500 on a server
+ *     that is perfectly fine: never read one 500 as a verdict.
  *   - **The `next` CLI defaults `NODE_ENV` to `production` for every command
  *     but `dev`** (`dist/bin/next`). Every `next start` is therefore
  *     "production" to `lib/env.ts` — CI's boot check, Playwright, Lighthouse

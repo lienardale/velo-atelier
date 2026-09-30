@@ -84,8 +84,8 @@ skip_step() {
 #
 # Why a step needs this at all: `instrumentation.ts` runs `getEnv()` on every
 # `next start` (W5), and the `next` CLI defaults NODE_ENV to production, so a
-# started server with no AUTH_SECRET or no AUTH_URL now refuses to boot instead
-# of failing later and elsewhere. Two steps start a server from an environment
+# started server with no AUTH_SECRET or no AUTH_URL now answers 500 to every
+# request instead of failing later and elsewhere. Two steps start a server from an environment
 # that was never complete — `build.sh`'s boot check and the `npm run start`
 # that `lighthouse.sh` has lhci run — and `.env.test` is exactly the set of
 # values CI already runs against (gitleaks allowlists the file; nothing in it

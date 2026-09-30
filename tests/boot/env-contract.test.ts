@@ -2,12 +2,12 @@
  * The environment contract, as a real server obeys it (W5).
  *
  * `tests/unit/db/env.test.ts` pins what `parseEnv` decides. This tier pins the
- * consequence: that `instrumentation.ts` is wired, that Next awaits it, and
- * that a refusal is an exit code — not a warning nobody reads.
+ * consequence: that `instrumentation.ts` is wired, and that a wrong
+ * environment stops the server SERVING — not a warning nobody reads.
  *
  * Three cases, one build, no build of its own:
  *
- *   1. a DEPLOYMENT carrying a test flag           → exit 1, EnvValidationError
+ *   1. a DEPLOYMENT carrying a test flag           → never serves; the reason is logged
  *   2. a local production server, all flags on     → boots, serves /api/health
  *   3. a clean deployment                          → boots, serves /api/health
  *
@@ -17,10 +17,22 @@
  * started on purpose with `ENABLE_TEST_PAGES=1`. Case 3 is the other guard
  * rail: the contract must not make a legitimate deployment fail to boot.
  *
- * **Never assert on a refused connection.** Next binds the socket before it
- * runs `register()`, so a request that lands in that window gets a 500 and a
- * poisoned server looks briefly alive. Case 1 waits for the process to exit
- * and reads its output; cases 2 and 3 retry past a 500.
+ * **HOW A REFUSAL LOOKS, measured on Next 16.3.4 and not assumed.** It is NOT
+ * a non-zero exit. `NextNodeServer`'s constructor fires
+ * `this.prepare().catch(err => console.error('Failed to prepare server', err))`
+ * (`next-server.js`), so the rejection `register()` raises is logged and
+ * swallowed there; `initialize()` in `server/lib/start-server.js` resolves
+ * normally and its `process.exit(1)` path is never reached. The socket stays
+ * bound and the per-request `await` of that same rejected promise turns EVERY
+ * request into a 500, for as long as the process lives. So: sample the status
+ * several times and require that nothing is ever served, rather than waiting
+ * for an exit that does not come. Case 1 accepts a non-zero exit too, so the
+ * test still passes if a future Next makes the failure fatal — what it will
+ * never accept is a 200.
+ *
+ * For the same reason cases 2 and 3 retry PAST a 500: the socket is bound
+ * before `register()` finishes, so a request in that window is a 500 on a
+ * server that is perfectly fine.
  *
  * Where this lives and why: the CI `integration` job has no `.next`, so a spec
  * placed in `tests/integration/` would skip vacuously in the one job that runs
@@ -46,7 +58,10 @@ const NEXT_BIN = `${root}node_modules/next/dist/bin/next`;
 const BUILD_ID = `${root}.next/BUILD_ID`;
 
 const HEALTH_TIMEOUT_MS = 90_000;
-const EXIT_TIMEOUT_MS = 60_000;
+/** How long a refused server is given to answer at all, and how often it is then sampled. */
+const REFUSAL_TIMEOUT_MS = 60_000;
+const REFUSAL_SAMPLES = 3;
+const REFUSAL_SAMPLE_GAP_MS = 750;
 
 /* eslint-disable security/detect-non-literal-fs-filename -- both paths are fixed, relative to this file */
 const dotenvTest = (): Record<string, string> => {
@@ -138,13 +153,43 @@ function startServer(port: number, env: NodeJS.ProcessEnv): Server {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
-  return Promise.race([
-    promise,
-    delay(ms).then<T>(() => {
-      throw new Error(`timed out after ${ms} ms waiting for ${what}`);
-    }),
-  ]);
+/** What a server that must not serve actually did. */
+interface Refusal {
+  /** Non-null only if the process died — Next 16.3.4 keeps it alive. */
+  readonly exitCode: number | null;
+  /** One status per sample, `[]` when the process exited before answering. */
+  readonly statuses: number[];
+}
+
+/**
+ * Watch a server that is expected to refuse, and report HOW it refused.
+ *
+ * Waits for the socket to answer at all (or the process to die), then samples
+ * a few times so a permanent refusal is told apart from the boot race, in
+ * which a healthy server also answers 500 for a moment.
+ */
+async function refusal(server: Server): Promise<Refusal> {
+  const url = `http://127.0.0.1:${server.port}/api/health`;
+  const deadline = Date.now() + REFUSAL_TIMEOUT_MS;
+  const statuses: number[] = [];
+
+  while (statuses.length < REFUSAL_SAMPLES) {
+    if (server.hasExited()) return { exitCode: await server.exited, statuses };
+    const response = await fetch(url).catch(() => undefined);
+    if (response) {
+      statuses.push(response.status);
+      await response.arrayBuffer(); // release the socket
+      await delay(REFUSAL_SAMPLE_GAP_MS);
+      continue;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        `${url} neither answered nor died in ${REFUSAL_TIMEOUT_MS} ms:\n${server.output()}`,
+      );
+    }
+    await delay(250);
+  }
+  return { exitCode: null, statuses };
 }
 
 /**
@@ -191,15 +236,29 @@ describe("boot: the environment contract on a started server", () => {
     ).toBe(true);
   });
 
-  it("refuses a deployment that carries a test flag, with exit 1", async () => {
+  it("never serves a deployment that carries a test flag", async () => {
     const server = startServer(
       await freePort(),
       childEnv({ VERCEL_ENV: "production", ENABLE_TEST_PAGES: "1" }),
     );
 
-    const code = await withTimeout(server.exited, EXIT_TIMEOUT_MS, "the server to refuse and exit");
+    const { exitCode, statuses } = await refusal(server);
+    const context = `exit=${exitCode} statuses=[${statuses.join(", ")}]\n${server.output()}`;
 
-    expect(code, `server did not exit 1:\n${server.output()}`).toBe(1);
+    // The property that matters, whichever way Next chooses to fail: not one
+    // request was served. On 16.3.4 that is three 500s and a process still
+    // running; a future Next that exits non-zero satisfies it too.
+    expect(
+      statuses.filter((status) => status < 500),
+      context,
+    ).toEqual([]);
+    expect(
+      exitCode === null ? statuses.length === REFUSAL_SAMPLES : exitCode !== 0,
+      `the poisoned server neither refused every request nor died: ${context}`,
+    ).toBe(true);
+
+    // And it said why, with the variable's name — the whole point of wiring
+    // `getEnv()` to the boot rather than leaving it a declaration.
     expect(server.output()).toContain("EnvValidationError");
     expect(server.output()).toContain("ENABLE_TEST_PAGES");
   });
