@@ -41,6 +41,15 @@ describe("GuestBanner", () => {
     expect(screen.getByTestId("guest-banner")).toBeInTheDocument();
   });
 
+  /**
+   * A bare `Event`, not a `StorageEvent`: `subscribe()` registers a listener
+   * that takes no argument and re-reads `localStorage` itself, so the event's
+   * `key` and `newValue` are never looked at — the notification IS the payload,
+   * and writing the key into the event would assert something the component
+   * does not read. It also keeps CodeQL honest: its bundled extern still models
+   * `StorageEvent` as zero-arity (a 2011 draft), so the two real constructor
+   * arguments read as superfluous (`js/superfluous-trailing-arguments`).
+   */
   it("follows another tab: importing there takes the banner away here", async () => {
     window.localStorage.setItem(LOCAL_BIKE_KEY, JSON.stringify({ version: 1 }));
     const { container } = await renderWithIntl(<GuestBanner />);
@@ -48,7 +57,7 @@ describe("GuestBanner", () => {
 
     act(() => {
       window.localStorage.removeItem(LOCAL_BIKE_KEY);
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
     expect(container).toBeEmptyDOMElement();
   });
