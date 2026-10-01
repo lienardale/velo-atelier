@@ -513,13 +513,15 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   on CI: `prisma/seed.ts` importing `lib/content/generated/*` took down
   typecheck, integration and build at the W2 integration. To check a gate
   honestly, delete the tree first (`rm -rf lib/content/generated`) and run it.
-- **A generator never asks the file system a question and then acts on the
-  answer.** `scripts/gen-illustration-placeholders.ts` writes a placeholder with
+- **A generator never decides whether to touch someone else's file by asking
+  first.** `scripts/gen-illustration-placeholders.ts` writes a placeholder with
   the exclusive `wx` flag (catching `EEXIST`) and reads the barrel and the
   component folder with `ENOENT` caught as a value — no `existsSync` anywhere.
-  Test and use are one syscall, so "a real drawing is never touched" stops
-  being a convention the script follows and becomes one the kernel enforces
-  (CodeQL `js/file-system-race`). **No CI job runs it**, so the table under
+  For a placeholder, test and use are one syscall, so "a real drawing is never
+  touched" stops being a convention the script follows and becomes one the
+  kernel enforces (CodeQL `js/file-system-race`). The barrel is still
+  read-compare-write, two syscalls apart, and that is fine: the generator is its
+  only writer, and rewriting its own output is not a race over anyone's work. **No CI job runs it**, so the table under
   "What it prints" in [`docs/illustrations.md`](./docs/illustrations.md) is the
   only guard its output has: change a line there in the commit that changes it
   here.

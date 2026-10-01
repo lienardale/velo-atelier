@@ -56,7 +56,8 @@ Counts are the tree of the day; 68 is the count at the time of writing.
 `--check` writes no file in any of those cases, the missing one included: the
 single directory listing it takes at the start is the whole answer. "No file"
 rather than "nothing" is literal: `main()` runs
-`mkdirSync(COMPONENT_DIR, { recursive: true })` before it reads the flag, so a
+`mkdirSync(COMPONENT_DIR, { recursive: true })` unconditionally, whatever the
+flag says, so a
 `--check` on a tree without `components/illustrations/` creates that one empty
 directory. It is the only thing `--check` puts on disk.
 

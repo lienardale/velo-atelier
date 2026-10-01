@@ -32,8 +32,8 @@ a green `bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
 | ------------------- | ----------- | -------------- | ---------------------------------------- | -------------------------------------------------------------------------- |
 | `toml: ^4.2.0`      | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`   |
 | `uuid: ^11.1.1`     | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                      | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                      |
-| `tmp: ^0.2.6`       | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6 | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                      |
-| `mysql2: ^3.22.0`   | 3.24.5      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3 | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only) |
+| `tmp: ^0.2.7`       | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6 | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                      |
+| `mysql2: 3.23.1`    | 3.23.1      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3 | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only) |
 | `basic-ftp: ^6.2.1` | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                      | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`          |
 
 Compatibility notes, because an override is a version its parent never tested:
@@ -47,18 +47,27 @@ Compatibility notes, because an override is a version its parent never tested:
 - `uuid@11` keeps `v4` on both the CJS and the ESM entry point; `mdx-bundler`
   uses `require("uuid").v4()` for its temporary entry file and `@lhci/cli` for
   its run ids.
-- `tmp@0.2.x` keeps `fileSync`/`dirSync`; 0.2.6 is the release that sanitises
-  `prefix`/`postfix`, which is the fix itself. The three call sites in this
+- `tmp@0.2.x` keeps `fileSync`/`dirSync`. The floor is **0.2.7**, not 0.2.6:
+  0.2.6 sanitises `prefix`/`postfix`, and GHSA-7c78-jf6q-g5cm is the
+  type-confusion bypass of that very sanitiser, patched in 0.2.7. A range whose
+  floor is still vulnerable to an advisory this table claims it fixes is a
+  wrong document of record, even when the lock resolves above it. The three call sites in this
   tree are `@lhci/cli/src/open/open.js:47` (`tmp.fileSync({postfix: '.html'})`)
   and `external-editor/main/index.js:131` (`tmp.tmpNameSync(...)`), both still
   on 0.2.7's surface; `@lhci/cli/src/collect/node-runner.js:65` is the
   `uuid.v4()` above.
 - `mysql2` is never loaded — the override only stops the advisory tracking a
-  version we do not run. It is still the largest jump (3.15.3 → 3.24.5) and it
-  reshapes the tree: `sqlstring` is replaced by a first-time transitive,
-  `sql-escaper@1.5.2`, and `denque`, `seq-queue` and `os-tmpdir` leave
-  altogether (`npm ls` finds no other dependent for any of them). Nothing
-  imports `mysql2` here, so none of it is loaded, but the new package is worth
+  version we do not run. It is pinned **exactly** at the lowest release that
+  clears both ids: GHSA-3f6p-5ww8-9rcr is patched in 3.22.0 and
+  GHSA-rgwj-5xj2-c3m3 in 3.23.1, so 3.23.1 is the floor, and it is 74 days old,
+  which is the rule below rather than an exception to it. A `^3.22.0` range
+  floated to 3.24.5, published eighteen hours earlier — the newest release, not
+  the lowest, with its own tree reshaping to review: `sqlstring` out for a
+  first-time transitive `sql-escaper`, `denque`, `seq-queue` and `os-tmpdir`
+  gone. It is still the largest jump here (3.15.3 → 3.23.1), and
+  `sql-escaper@1.5.2` arrives with it: `mysqljs/sql-escaper`, same maintainer as
+  `mysql2` and `sqlstring`, MIT, with a provenance attestation. Nothing imports
+  `mysql2` in this tree, so none of it is loaded, but the new package is worth
   naming rather than discovering later.
 - `basic-ftp@6` is a major its parent never declared: `get-uri@6.0.5` asks for
   `^5.0.2`, and so does the newest `get-uri` (8.0.1 — `^5.3.1`), so no upstream
@@ -80,8 +89,8 @@ Compatibility notes, because an override is a version its parent never tested:
   residual risk is an LHCI runtime path none of them touches. The `lighthouse`
   job on the PR settles it.
 
-Four more advisories (`brace-expansion` ×3, `ip-address` ×2, `fast-uri`,
-`serialize-javascript`) appeared in dev-tool chains (`eslint > minimatch`,
+Seven more advisories across four packages (`brace-expansion` ×3,
+`ip-address` ×2, `fast-uri`, `serialize-javascript`) appeared in dev-tool chains (`eslint > minimatch`,
 `shadcn`, `ajv`, `@content-collections/core`) whose declared ranges already
 admit the patched releases: those needed no override, only a lockfile bump
 (`npm update brace-expansion ip-address fast-uri`, then
@@ -253,3 +262,63 @@ job goes red, which is the point: GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j
 (`toml`), GHSA-w5hq-g745-h8pq (`uuid`), GHSA-ph9p-34f9-6g65,
 GHSA-52f5-9888-hmc6 (`tmp`), GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3
 (`mysql2`).
+
+## Alerts dismissed on GitHub, and why (the maintainer runs these)
+
+`audit-ci.json` governs the `audit` gate. GitHub's own alert lists are a second
+record, and this section is the first one's written reason for every alert it
+leaves open there: a dismissal changes the repository's security record, so it
+is the maintainer's to make, never an agent's. The commands are exact — the
+comment is what a reader finds months later next to a closed alert.
+
+### CodeQL — four alerts stay open after this branch fixes eight
+
+| #   | Rule                                       | Where                                       | Reason           |
+| --- | ------------------------------------------ | ------------------------------------------- | ---------------- |
+| 10  | `js/user-controlled-bypass`                | `app/api/session-expired/route.ts:50`       | `false positive` |
+| 9   | `js/incomplete-sanitization`               | `tests/security/session-rewrite.test.ts:86` | `used in tests`  |
+| 12  | `js/incomplete-url-substring-sanitization` | `components/shop/OutboundLink.test.tsx:163` | `used in tests`  |
+| 3   | `js/identity-replacement`                  | `tests/e2e/auth-login.spec.ts:132`          | `used in tests`  |
+
+```bash
+gh api -X PATCH repos/lienardale/velo-atelier/code-scanning/alerts/10 -f state=dismissed \
+  -f dismissed_reason='false positive' \
+  -f dismissed_comment='loginUrl() only builds the sign-in path; CodeQL reads "login" as an auth check. The user value only decides whether ?callbackUrl is added, through safeCallbackUrl. The cookies are cleared only when server-side auth() rejects the visitors own session.'
+
+gh api -X PATCH repos/lienardale/velo-atelier/code-scanning/alerts/9 -f state=dismissed \
+  -f dismissed_reason='used in tests' \
+  -f dismissed_comment='Test fixture, not a sanitiser: it percent-encodes one "." of a freshly minted token to forge a cookie header that differs from the decoded store value. That one encoded character IS the attack under test.'
+
+gh api -X PATCH repos/lienardale/velo-atelier/code-scanning/alerts/12 -f state=dismissed \
+  -f dismissed_reason='used in tests' \
+  -f dismissed_comment='Test code, not a URL check: it narrows the anchors our own components rendered to the Rose FR ones, then asserts one equals outboundUrl(...) exactly. No navigation or trust decision depends on this startsWith.'
+
+gh api -X PATCH repos/lienardale/velo-atelier/code-scanning/alerts/3 -f state=dismissed \
+  -f dismissed_reason='used in tests' \
+  -f dismissed_comment='Test code: builds the expected-URL regex for a Playwright toHaveURL assertion. The replace(/%/g, "%") is a no-op, not an escaping step; the encoded path (e.g. %2Ffr%2Fmes-velos) holds no regex metacharacter. Deleting the no-op would close this in code instead.'
+```
+
+Alert 3 is the one with a choice: that `replace` really is dead code, so removing
+the line closes the alert without a dismissal. The ruling for this wave kept it
+as a dismissal; either answer is defensible and this note is here so the next
+reader knows it was a decision.
+
+### Dependabot — the two `extract-zip` alerts have no patched version
+
+Alerts **4** and **12** (`CVE-2026-56876`, `CVE-2026-19693`, both high) are
+`extract-zip`, reached only through `@lhci/cli > puppeteer-core`. There is no
+fixed release to move to (`first_patched_version: null` on both). It unpacks a
+Chrome download on a CI runner and on a maintainer's machine, never a visitor's
+input, and nothing in the deployed application imports it. The other six alerts
+(`toml` ×2, `uuid`, `mysql2`, `tmp` ×2) close by themselves once the `overrides`
+in this branch reach `main`.
+
+```bash
+gh api -X PATCH repos/lienardale/velo-atelier/dependabot/alerts/4 -f state=dismissed \
+  -f dismissed_reason=tolerable_risk \
+  -f dismissed_comment='extract-zip has no patched release. Dev-only: @lhci/cli > puppeteer-core unpacks a Chrome download on CI and on a maintainer machine, never visitor input, and nothing in the deployed app imports it. Revisit when a fix ships: audit-ci-allowlist.md.'
+
+gh api -X PATCH repos/lienardale/velo-atelier/dependabot/alerts/12 -f state=dismissed \
+  -f dismissed_reason=tolerable_risk \
+  -f dismissed_comment='extract-zip has no patched release. Dev-only: @lhci/cli > puppeteer-core unpacks a Chrome download on CI and on a maintainer machine, never visitor input, and nothing in the deployed app imports it. Revisit when a fix ships: audit-ci-allowlist.md.'
+```
