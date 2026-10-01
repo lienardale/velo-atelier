@@ -15,21 +15,26 @@ pinned in the `overrides` block of `package.json` and its id is _removed_ from
 the array above, so a regression fails the `audit` job instead of passing it
 silently.
 
-Baseline recorded on 2026-09-30 with Node 24.16.0 / npm 11.13.0, on a tree
-holding Next 16.3.8 (see “That rule was tested on this branch” below).
+Baseline re-recorded on 2026-10-01 with Node 24.16.0 / npm 11.13.0, on a tree
+holding Next 16.3.6 and the five overrides below (see “That rule was tested on
+this branch”). On it `npm audit` finds **11** advisories — 0 critical, 9 high,
+2 moderate — and every id it names is one of the five in the array. Two more
+were live earlier the same day and are now fixed rather than tolerated; see
+“Advisories that arrived while the branch was open” below.
 
 ## Pinned through `overrides` instead of allow-listed
 
-These four are **fixed**, not tolerated. Each parent's declared range excludes
+These five are **fixed**, not tolerated. Each parent's declared range excludes
 the patched version, so npm needs the override to reach it; each was proved by
 a green `bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
 
-| Override          | Resolves to | Replaces       | Fixes                                    | Reached through                                                            |
-| ----------------- | ----------- | -------------- | ---------------------------------------- | -------------------------------------------------------------------------- |
-| `toml: ^4.2.0`    | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`   |
-| `uuid: ^11.1.1`   | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                      | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                      |
-| `tmp: ^0.2.6`     | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6 | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                      |
-| `mysql2: ^3.22.0` | 3.24.5      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3 | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only) |
+| Override            | Resolves to | Replaces       | Fixes                                    | Reached through                                                            |
+| ------------------- | ----------- | -------------- | ---------------------------------------- | -------------------------------------------------------------------------- |
+| `toml: ^4.2.0`      | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`   |
+| `uuid: ^11.1.1`     | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                      | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                      |
+| `tmp: ^0.2.6`       | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6 | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                      |
+| `mysql2: ^3.22.0`   | 3.24.5      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3 | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only) |
+| `basic-ftp: ^6.2.1` | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                      | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`          |
 
 Compatibility notes, because an override is a version its parent never tested:
 
@@ -55,16 +60,32 @@ Compatibility notes, because an override is a version its parent never tested:
   altogether (`npm ls` finds no other dependent for any of them). Nothing
   imports `mysql2` here, so none of it is loaded, but the new package is worth
   naming rather than discovering later.
+- `basic-ftp@6` is a major its parent never declared: `get-uri@6.0.5` asks for
+  `^5.0.2`, and so does the newest `get-uri` (8.0.1 — `^5.3.1`), so no upstream
+  has adopted 6.x yet. It is also the only one of the five whose behaviour was
+  checked directly rather than read. `get-uri/dist/ftp.js` is the single
+  consumer and touches six things: `new Client()`, `access`, `lastMod`,
+  `list()` → `entry.name` / `entry.modifiedAt`, `downloadTo` and `close`, plus
+  `err.code === 550`. All six exist on 6.2.1, the packaging is unchanged (CJS,
+  `main: dist/index`, `engines.node >=10`), and `parseList` — the function the
+  advisory is about — returns **byte-identical** output on 5.3.1 and 6.2.1 for
+  both a Unix `LIST` and an `MLSD` listing, down to `modifiedAt` being
+  `undefined` on the Unix form. `get-uri/dist/index.js` requires `./ftp`
+  eagerly, so load order matters and `require('proxy-agent')` was run against
+  the resolved tree. What would change the answer: a `get-uri` that declares
+  `^6` (then the override can go), or a `basic-ftp@7`.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
   it is the one gate that exercises `uuid` and `tmp`. The three call sites above
   were read against the resolved tree and the APIs they use still exist, so the
   residual risk is an LHCI runtime path none of them touches. The `lighthouse`
   job on the PR settles it.
 
-Three more advisories (`brace-expansion` ×3, `ip-address` ×2, `fast-uri`)
-appeared in dev-tool chains (`eslint > minimatch`, `shadcn`, `ajv`) whose
-declared ranges already admit the patched releases: those needed no override,
-only a lockfile bump (`npm update brace-expansion ip-address fast-uri`).
+Four more advisories (`brace-expansion` ×3, `ip-address` ×2, `fast-uri`,
+`serialize-javascript`) appeared in dev-tool chains (`eslint > minimatch`,
+`shadcn`, `ajv`, `@content-collections/core`) whose declared ranges already
+admit the patched releases: those needed no override, only a lockfile bump
+(`npm update brace-expansion ip-address fast-uri`, then
+`npm update serialize-javascript`).
 
 ## Prisma CLI chain — dev-only, never bundled
 
@@ -141,17 +162,88 @@ theoretical here: `app/[locale]/opengraph-image.tsx` and
 `next` is a direct `dependencies` entry, so neither escape hatch applied — an
 `overrides` entry is for a transitive whose parent pins it too low, and the
 section above forbids allow-listing this package by name. The pin moved
-instead: **`next` and `eslint-config-next` 16.3.4 → 16.3.8**, together,
+instead: **`next` and `eslint-config-next` 16.3.4 → 16.3.6**, together,
 because the second must match the first exactly. `npm audit` reports the bump
 `isSemVerMajor: false`, and the resolved change is confined to the Next family
 — `next`, `eslint-config-next`, `@next/env`, `@next/eslint-plugin-next` and
 the eight `@next/swc-*` platform binaries. Nothing else in the lockfile moved.
 
-16.3.6 is the lowest release that clears the advisory; 16.3.8 is the top of
-the 16.3 line and what `npm audit` names as the fix, so it is the one that does
-not need re-bumping next week. After it, `npm audit` reports **0 critical**,
-and the five ids still found are exactly the five in the array — no allow-list
-entry is dead.
+### Why 16.3.6 and not the top of the line
+
+The first draft of this branch took **16.3.8**, on the reasoning that the top
+of the 16.3 line is the one that will not need re-bumping next week. That was
+wrong against this repository's own written policy, and the correction is the
+rule now stated in `CLAUDE.md`: **take the lowest release that clears the
+advisory.**
+
+`renovate.json` holds every update for **7 days** — its own words: “a freshly
+published version can be a compromised one. Hold every update for 7 days so a
+hijacked release is yanked before Renovate proposes it.” The hold is waived
+for `vulnerabilityAlerts` (`minimumReleaseAge: null`) for one purpose: a
+security response must not be _delayed_ by it. Here nothing was delayed.
+Measured against the advisory's own publication at 2026-09-30T14:48:30Z
+(`gh api /advisories/GHSA-vcvr-r3jv-pc5j`), `npm view next time` gives:
+
+| Release    | Published            | Age at the fix | Clears the advisory | Clears the 7-day hold |
+| ---------- | -------------------- | -------------- | ------------------- | --------------------- |
+| **16.3.6** | 2026-09-22T16:19:00Z | **8 days**     | yes (first patched) | **yes**               |
+| 16.3.7     | 2026-09-29T09:04:19Z | 1 day          | yes                 | no                    |
+| 16.3.8     | 2026-09-30T16:07:21Z | **1 h 41 min** | yes                 | no                    |
+
+16.3.6 is the first patched version named by the advisory and it satisfies
+both constraints at once, so the waiver was never needed. 16.3.8 was published
+**79 minutes after the advisory went public** — precisely the shape the hold
+exists to catch — and buys nothing: no advisory in this tree names a version
+above 16.3.6, and 16.3.7/16.3.8 fix nothing else this repository uses. `next`
+is the largest single body of code shipped to production here, so “two extra
+patch releases of unreviewed change” is not a rounding error. The pin is
+16.3.6 and Renovate will propose 16.3.7+ on the normal schedule, once they
+have aged through the hold like everything else.
+
+If a future advisory forces a release that is inside the hold window, that is
+a real decision and it belongs here in writing: name the advisory, the age of
+the release taken, and why no aged release clears it.
+
+At 16.3.6, `npm audit` reports **0 critical**, and the five ids still found are
+exactly the five in the array — no allow-list entry is dead.
+
+## Advisories that arrived while the branch was open
+
+The advisory feed is fetched live, so the `audit` gate is a moving target: an
+id that did not exist when a run went green can turn the next one red with no
+commit in between. Three did so on this branch, in two days. None was among the
+eight Dependabot alerts the branch set out to triage, and each is recorded here
+so the next person can tell "we decided this" from "we never saw it".
+
+| Published (UTC)  | Advisory            | Severity | Package                | Answer                                   |
+| ---------------- | ------------------- | -------- | ---------------------- | ---------------------------------------- |
+| 2026-09-30 14:48 | GHSA-vcvr-r3jv-pc5j | critical | `next` (direct)        | pin 16.3.4 → 16.3.6 (two sections above) |
+| 2026-09-30 15:40 | GHSA-gfhx-hw2g-v5hg | low      | `serialize-javascript` | `npm update` — in range, no override     |
+| 2026-10-01 14:42 | GHSA-c475-qrg2-pj4r | high     | `basic-ftp`            | `overrides` 5.3.1 → 6.2.1                |
+
+**GHSA-c475-qrg2-pj4r** — quadratic-time CPU denial of service in
+`Client.list()`'s Unix directory-listing parser (`RE_LINE` backtracking).
+Reached three ways, all dev-only: `@lhci/cli > proxy-agent > pac-proxy-agent >
+get-uri > basic-ftp`, and twice more through `lighthouse > puppeteer-core >
+@puppeteer/browsers > proxy-agent > …`. It would have been defensible to
+allow-list: the only caller is `get-uri`'s `ftp:` handler, which
+`pac-proxy-agent` invokes solely to fetch a PAC file from an `ftp://` URL, and
+nothing here configures a proxy at all — `lighthouserc.cjs` points at
+localhost. It was **not** allow-listed, for three reasons. The patch is a real
+release (6.2.1), it is **35 days old** so it clears the 7-day hold on its own,
+and the vulnerable function's output is provably unchanged (the compatibility
+note above). An allow-list entry is permanent and needs re-reading every
+quarter; a patched leaf dependency needs nothing. The rule at the top of this
+file — last resort, not first move — decides it.
+
+**GHSA-gfhx-hw2g-v5hg** — XSS via an unescaped `</script>` in a serialized
+function body, in `@content-collections/core > serialize-javascript@7.1.1`.
+Low, and `audit-ci.json` fails at `moderate`, so this one never blocked the
+gate. It was still fixed rather than left: `@content-collections/core@0.15.2`
+declares `^7.0.5`, which already admits the patched **7.1.2** (published
+2026-09-23, 8 days old), so a plain `npm update serialize-javascript` reached
+it — no override, no allow-list entry, one line of lockfile. A fix that costs
+nothing is not worth a justification paragraph explaining why it was skipped.
 
 ## Removed from the array (2026-09-30)
 

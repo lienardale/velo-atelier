@@ -29,33 +29,58 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 
 **`overrides` in `package.json` is the security fix; the audit allowlist is the
 last resort.** A transitive dependency whose patched release its parent's
-declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` today
-— and its GHSA id is then **removed** from `audit-ci.json`, so a regression
-fails the `audit` job instead of passing it silently. Every override is an
-untested version for its parent, so each one carries a compatibility note and a
-green `bash scripts/ci.sh` + `npm run build` in
+declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
+`basic-ftp` today — and its GHSA id is then **removed** from `audit-ci.json`,
+so a regression fails the `audit` job instead of passing it silently. Every
+override is an untested version for its parent, so each one carries a
+compatibility note and a green `bash scripts/ci.sh` + `npm run build` in
 [`audit-ci-allowlist.md`](./audit-ci-allowlist.md), which also justifies every
 id that stays. A dependency whose parent already admits the patched release
-needs no override, only `npm update <pkg>`. The four are written **unscoped**
-(`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose: each names
-a package this tree resolves exactly once, so the scoped form would pin the
-same single copy while hiding that it is tree-wide — and an unscoped entry also
-covers a second parent arriving later, which is the direction that matters for
-a security pin. Scope one the day two parents need different majors.
+needs no override, only `npm update <pkg>`. The five are written **unscoped**
+(`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose — and the
+reason is what the unscoped form _did_, not what the tree already looked like.
+`main` resolved two of them TWICE: `uuid@8.3.2` beside
+`mdx-bundler/node_modules/uuid@9.0.1`, and `tmp@0.1.0` beside
+`external-editor/node_modules/tmp@0.0.33`. The unscoped entry is what collapsed
+each pair to a single copy, which also moved `mdx-bundler` off uuid@9 and
+`external-editor` off tmp@0.0.33 — larger jumps than the one top-level number
+suggests, which is why
+[`audit-ci-allowlist.md`](./audit-ci-allowlist.md) names and checks every call
+site. A scoped entry would have pinned one copy and left the duplicate
+vulnerable; an unscoped one also covers a second parent arriving later, which
+is the direction that matters for a security pin. Scope one the day two parents
+need different majors.
 
 **A shipped direct dependency is bumped — never overridden, never
 allow-listed.** `overrides` exists for a transitive whose parent pins it too
-low, and the allowlist for a dev tool that cannot reach a request (`prisma`
-and `@lhci/cli` are direct `devDependencies` and both have ids in the array).
-A `dependencies` entry has neither excuse: it ships, and this repository owns
+low, and the allowlist for a transitive **under** a dev tool that cannot reach
+a request. Every id in the array today is one of those: `deepmerge-ts` under
+`prisma`, `extract-zip` and `qs` under `@lhci/cli`. No entry is on a direct
+dependency of any kind, and whether a direct `devDependency` could itself be
+allow-listed has never come up here — do not read one out of this rule. A
+`dependencies` entry has neither excuse: it ships, and this repository owns
 its version, so an advisory on one is answered by changing that version.
 `next` is the worked example: GHSA-vcvr-r3jv-pc5j
-(critical, RCE in `next/og` `ImageResponse`, range `>=16.2.0 <16.3.6`) went
+(critical, CVSS v4 9.5, RCE in `next/og` `ImageResponse`, range
+`>=16.2.0 <16.3.6`) went
 live against the 16.3.4 pin while this branch was open, and both
 `app/[locale]/opengraph-image.tsx` and
 `app/[locale]/guides/[slug]/opengraph-image.tsx` build their card with exactly
-that API. The answer was `next` **and** `eslint-config-next` to 16.3.8
+that API. The answer was `next` **and** `eslint-config-next` to 16.3.6
 together — the two are one pin, and the Stack table is where the number lives.
+
+**Take the LOWEST release that clears the advisory, not the newest.**
+`renovate.json` holds every update for 7 days — "a freshly published version
+can be a compromised one" — and waives the hold only under
+`vulnerabilityAlerts`, so that a security response is never _delayed_ by it.
+The waiver is not a licence to skip the hold when nothing is delayed:
+16.3.6 was the first patched release and 8 days old, so it cleared the
+advisory **and** the hold. 16.3.7 (1 day old) and 16.3.8 (published 79 minutes
+_after_ the advisory went public) fix nothing this tree needs and sit squarely
+inside the window the hold exists for, on the largest single body of code the
+site ships. Reach past the first patched release only when a later one fixes
+something this tree needs — and when you do, record the skipped hold in
+`audit-ci-allowlist.md` so it is a decision and not an oversight.
 
 ---
 
@@ -63,7 +88,7 @@ together — the two are one pin, and the Stack table is where the number lives.
 
 | Layer      | Choice                                               | Notes                                                                             |
 | ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Framework  | Next.js **16.3.8** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
+| Framework  | Next.js **16.3.6** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
 | Language   | TypeScript **5.9.x**                                 | capped `<7`; the TS 7 Go port breaks `next build` and `@typescript-eslint`        |
 | Runtime    | Node **24**                                          | `.nvmrc`, `engines.node`, CI `node-version-file`                                  |
 | i18n       | next-intl **v4**                                     | `localePrefix: 'always'`, `localeDetection: false`                                |
@@ -467,7 +492,7 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   (`client-namespaces` fails with exactly that list).
 - **A file-convention `opengraph-image` must sit in the SAME segment as the page
   it is for.** `lib/seo/metadata.ts` gives every page an explicit `openGraph`
-  object, and on Next 16.3.4 — re-checked on 16.3.8, where the built `/fr` and
+  object, and on Next 16.3.4 — re-checked on 16.3.6, where the built `/fr` and
   `/en` documents still carry the `app/[locale]` card — an explicit `openGraph`
   in a descendant segment replaces the parent's, images included. An
   `app/opengraph-image.tsx` at the app root (where §1.1 draws it) therefore

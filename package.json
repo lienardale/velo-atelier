@@ -67,7 +67,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.43.0",
-    "next": "16.3.8",
+    "next": "16.3.6",
     "next-auth": "5.0.0-beta.32",
     "next-intl": "^4.14.2",
     "pg": "^8.23.0",
@@ -101,7 +101,7 @@
     "audit-ci": "^7.1.0",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-security": "^3.0.1",
     "fast-check": "^4.9.0",
@@ -123,6 +123,7 @@
     "toml": "^4.2.0",
     "uuid": "^11.1.1",
     "tmp": "^0.2.6",
-    "mysql2": "^3.22.0"
+    "mysql2": "^3.22.0",
+    "basic-ftp": "^6.2.1"
   }
 }
