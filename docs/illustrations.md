@@ -53,8 +53,12 @@ Counts are the tree of the day; 68 is the count at the time of writing.
 | `--check`, N missing       | `stderr` | 1    | `Missing N illustration component(s):`, then one indented `<id> → <Name>.tsx` per entry, then `Run: npx tsx scripts/gen-illustration-placeholders.ts` |
 | `--check`, barrel is stale | `stderr` | 1    | `<absolute path to components/illustrations/index.ts> is out of date. Run: npx tsx scripts/gen-illustration-placeholders.ts`                          |
 
-`--check` writes nothing in any of those cases, the missing one included: the
-single directory listing it takes at the start is the whole answer.
+`--check` writes no file in any of those cases, the missing one included: the
+single directory listing it takes at the start is the whole answer. "No file"
+rather than "nothing" is literal: `main()` runs
+`mkdirSync(COMPONENT_DIR, { recursive: true })` before it reads the flag, so a
+`--check` on a tree without `components/illustrations/` creates that one empty
+directory. It is the only thing `--check` puts on disk.
 
 ## Rules for every drawing
 
