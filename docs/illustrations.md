@@ -35,7 +35,31 @@ npx tsx scripts/gen-illustration-placeholders.ts --check   # fail if anything is
 
 It exports every `Ill*.tsx` file it finds, creates a labelled placeholder for a
 decision-tree id that has no component yet, and never touches or deletes an
-existing drawing.
+existing drawing. That last promise is the kernel's, not the script's: the
+placeholder goes out through an exclusive `wx` write, so the existence test and
+the write are one syscall and no `existsSync` answer can go stale between them
+(CodeQL `js/file-system-race`).
+
+### What it prints
+
+No CI job runs this script, so **the lines below are its only guard** — a
+change to one of them belongs in the same commit as the change that caused it.
+Counts are the tree of the day; 68 is the count at the time of writing.
+
+| When                       | Stream   | Exit | Output                                                                                                                                                |
+| -------------------------- | -------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| write mode                 | `stdout` | 0    | `illustrations: N placeholder(s) created, 68 component(s) exported.` — `N` is 0 on an up-to-date tree                                                 |
+| `--check`, all present     | `stdout` | 0    | `illustrations: 68 components, barrel up to date.`                                                                                                    |
+| `--check`, N missing       | `stderr` | 1    | `Missing N illustration component(s):`, then one indented `<id> → <Name>.tsx` per entry, then `Run: npx tsx scripts/gen-illustration-placeholders.ts` |
+| `--check`, barrel is stale | `stderr` | 1    | `<absolute path to components/illustrations/index.ts> is out of date. Run: npx tsx scripts/gen-illustration-placeholders.ts`                          |
+
+`--check` writes no file in any of those cases, the missing one included: the
+single directory listing it takes at the start is the whole answer. "No file"
+rather than "nothing" is literal: `main()` runs
+`mkdirSync(COMPONENT_DIR, { recursive: true })` unconditionally, whatever the
+flag says, so a
+`--check` on a tree without `components/illustrations/` creates that one empty
+directory. It is the only thing `--check` puts on disk.
 
 ## Rules for every drawing
 

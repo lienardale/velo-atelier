@@ -27,13 +27,68 @@ touches the database. The GitHub account is **`lienardale`** (the macOS user is
 a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 `next.config.ts` pins `turbopack: { root: process.cwd() }`.
 
+**`overrides` in `package.json` is the security fix; the audit allowlist is the
+last resort.** A transitive dependency whose patched release its parent's
+declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
+`basic-ftp` today — and its GHSA id is then **removed** from `audit-ci.json`,
+so a regression fails the `audit` job instead of passing it silently. Every
+override is an untested version for its parent, so each one carries a
+compatibility note and a green `bash scripts/ci.sh` + `npm run build` in
+[`audit-ci-allowlist.md`](./audit-ci-allowlist.md), which also justifies every
+id that stays. A dependency whose parent already admits the patched release
+needs no override, only `npm update <pkg>`. The five are written **unscoped**
+(`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose — and the
+reason is what the unscoped form _did_, not what the tree already looked like.
+`main` resolved two of them TWICE: `uuid@8.3.2` beside
+`mdx-bundler/node_modules/uuid@9.0.1`, and `tmp@0.1.0` beside
+`external-editor/node_modules/tmp@0.0.33`. The unscoped entry is what collapsed
+each pair to a single copy, which also moved `mdx-bundler` off uuid@9 and
+`external-editor` off tmp@0.0.33 — larger jumps than the one top-level number
+suggests, which is why
+[`audit-ci-allowlist.md`](./audit-ci-allowlist.md) names and checks every call
+site. A scoped entry would have pinned one copy and left the duplicate
+vulnerable; an unscoped one also covers a second parent arriving later, which
+is the direction that matters for a security pin. Scope one the day two parents
+need different majors.
+
+**A shipped direct dependency is bumped — never overridden, never
+allow-listed.** `overrides` exists for a transitive whose parent pins it too
+low, and the allowlist for a transitive **under** a dev tool that cannot reach
+a request. Every id in the array today is one of those: `deepmerge-ts` under
+`prisma`, `extract-zip` and `qs` under `@lhci/cli`. No entry is on a direct
+dependency of any kind, and whether a direct `devDependency` could itself be
+allow-listed has never come up here — do not read one out of this rule. A
+`dependencies` entry has neither excuse: it ships, and this repository owns
+its version, so an advisory on one is answered by changing that version.
+`next` is the worked example: GHSA-vcvr-r3jv-pc5j
+(critical, CVSS v4 9.5, RCE in `next/og` `ImageResponse`, range
+`>=16.2.0 <16.3.6`) went
+live against the 16.3.4 pin while this branch was open, and both
+`app/[locale]/opengraph-image.tsx` and
+`app/[locale]/guides/[slug]/opengraph-image.tsx` build their card with exactly
+that API. The answer was `next` **and** `eslint-config-next` to 16.3.6
+together — the two are one pin, and the Stack table is where the number lives.
+
+**Take the LOWEST release that clears the advisory, not the newest.**
+`renovate.json` holds every update for 7 days — "a freshly published version
+can be a compromised one" — and waives the hold only under
+`vulnerabilityAlerts`, so that a security response is never _delayed_ by it.
+The waiver is not a licence to skip the hold when nothing is delayed:
+16.3.6 was the first patched release and 8 days old, so it cleared the
+advisory **and** the hold. 16.3.7 (1 day old) and 16.3.8 (published 79 minutes
+_after_ the advisory went public) fix nothing this tree needs and sit squarely
+inside the window the hold exists for, on the largest single body of code the
+site ships. Reach past the first patched release only when a later one fixes
+something this tree needs — and when you do, record the skipped hold in
+`audit-ci-allowlist.md` so it is a decision and not an oversight.
+
 ---
 
 ## Stack
 
 | Layer      | Choice                                               | Notes                                                                             |
 | ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Framework  | Next.js **16.3.4** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
+| Framework  | Next.js **16.3.6** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
 | Language   | TypeScript **5.9.x**                                 | capped `<7`; the TS 7 Go port breaks `next build` and `@typescript-eslint`        |
 | Runtime    | Node **24**                                          | `.nvmrc`, `engines.node`, CI `node-version-file`                                  |
 | i18n       | next-intl **v4**                                     | `localePrefix: 'always'`, `localeDetection: false`                                |
@@ -437,15 +492,16 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   (`client-namespaces` fails with exactly that list).
 - **A file-convention `opengraph-image` must sit in the SAME segment as the page
   it is for.** `lib/seo/metadata.ts` gives every page an explicit `openGraph`
-  object, and on Next 16.3.4 an explicit `openGraph` in a descendant segment
-  replaces the parent's — images included. An `app/opengraph-image.tsx` at the
-  app root (where §1.1 draws it) therefore reached exactly one route, Next's own
-  `/_not-found`, which then warned five times per build that it had no
-  `metadataBase` to resolve it against, while `/fr` and `/en` built with no
-  `og:image` at all. The site card lives in `app/[locale]/`; the guide card
-  already lived beside its page, which is why that one always worked. An image
-  route inherits no `params` from the layout above it either — both spell out
-  their own `generateStaticParams`.
+  object, and on Next 16.3.4 — re-checked on 16.3.6, where the built `/fr` and
+  `/en` documents still carry the `app/[locale]` card — an explicit `openGraph`
+  in a descendant segment replaces the parent's, images included. An
+  `app/opengraph-image.tsx` at the app root (where §1.1 draws it) therefore
+  reached exactly one route, Next's own `/_not-found`, which then warned five
+  times per build that it had no `metadataBase` to resolve it against, while
+  `/fr` and `/en` built with no `og:image` at all. The site card lives in
+  `app/[locale]/`; the guide card already lived beside its page, which is why
+  that one always worked. An image route inherits no `params` from the layout
+  above it either — both spell out their own `generateStaticParams`.
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
@@ -457,6 +513,26 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   on CI: `prisma/seed.ts` importing `lib/content/generated/*` took down
   typecheck, integration and build at the W2 integration. To check a gate
   honestly, delete the tree first (`rm -rf lib/content/generated`) and run it.
+- **A generator never decides whether to touch someone else's file by asking
+  first.** `scripts/gen-illustration-placeholders.ts` writes a placeholder with
+  the exclusive `wx` flag (catching `EEXIST`) and reads the barrel and the
+  component folder with `ENOENT` caught as a value — no `existsSync` anywhere.
+  For a placeholder, test and use are one syscall, so "a real drawing is never
+  touched" stops being a convention the script follows and becomes one the
+  kernel enforces (CodeQL `js/file-system-race`). The barrel is still
+  read-compare-write, two syscalls apart, and that is fine: the generator is its
+  only writer, and rewriting its own output is not a race over anyone's work. **No CI job runs it**, so the table under
+  "What it prints" in [`docs/illustrations.md`](./docs/illustrations.md) is the
+  only guard its output has: change a line there in the commit that changes it
+  here.
+- **Nothing in `scripts/gen-common-passwords.ts` names a line of the list
+  `password`.** CodeQL's `js/clear-text-logging` takes the identifier as its
+  source and follows `.length` into `console.log`, so a script that only ever
+  prints counts still raised three high alerts. The names are `entry` /
+  `entries`, in `normalizeList`, `renderModule` and `main` alike — renaming one
+  and not the others only moves the alert. `lib/auth/common-passwords.ts` is
+  byte-identical output: `npx tsx scripts/gen-common-passwords.ts --check` is
+  the proof.
 
 ---
 
@@ -609,6 +685,13 @@ ceil50(median × 1.15)))`; the content bar is frozen. Pins come from a
   `npx next experimental-analyze --output`, explains a route's first load per
   chunk and per package.
 - gitleaks, `audit-ci`, semgrep, trivy, CodeQL.
+  **`audit` fetches advisories live, so it can go red with nothing in the repo
+  changed** — that is the design, not a flake. Fix first (`overrides`, or
+  `npm update <pkg>` when the parent's range already admits the patch), and
+  allow-list only what has no reachable patch, with the reason in
+  `audit-ci-allowlist.md`. A CodeQL alert is either fixed in code or dismissed
+  by the maintainer with a written reason: **an agent never runs a dismissal**,
+  because it changes the repository's security record.
 
 Husky runs the fast subset pre-commit and, pre-push, the local mirror without
 its `build` step (`SKIP_BUILD=1`; `RUN_BUILD=1` keeps it).
