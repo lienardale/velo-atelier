@@ -263,6 +263,23 @@ job goes red, which is the point: GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j
 GHSA-52f5-9888-hmc6 (`tmp`), GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3
 (`mysql2`).
 
+## `braces`, through three dev-tool glob chains — no patched release
+
+**GHSA-vfj7-8cjw-p6xm** (high, published 2026-09-18): stack exhaustion on deeply
+nested patterns, `braces <= 3.0.3`, and **3.0.3 is the latest release** — there
+is nothing to move to, so this is an allowlist entry rather than an override.
+
+Reached three ways, all dev-only and all through `fast-glob > micromatch`:
+`eslint-config-next > @next/eslint-plugin-next`, the `shadcn` CLI, and
+`ts-morph > @ts-morph/common`. Every pattern any of them expands comes from this
+repository's own configuration — `eslint.config.mjs`, a `components.json` path,
+a `tsconfig` include — never from a request, a guide or anything a visitor
+writes. Nothing in the deployed application imports `braces`, `micromatch` or
+`fast-glob`: they exist for linting, scaffolding and type-analysis on a
+developer's machine and on CI.
+
+Re-evaluate when `braces` ships a fix, or when `fast-glob` moves off it.
+
 ## Alerts dismissed on GitHub, and why (the maintainer runs these)
 
 `audit-ci.json` governs the `audit` gate. GitHub's own alert lists are a second
