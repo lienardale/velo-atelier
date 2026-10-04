@@ -36,19 +36,33 @@ describe("MyBikeLink", () => {
     expect(screen.getByRole("link")).toHaveAttribute("href", "/velo/local");
   });
 
+  /**
+   * A bare `Event`, not a `StorageEvent` — for THIS component. `subscribe()`
+   * here registers a listener that takes no argument and re-reads
+   * `localStorage` itself, so the event's `key` and `newValue` are never looked
+   * at: for `MyBikeLink` the notification is the whole payload, and writing the
+   * key into the event would assert something the component does not read. It
+   * also keeps CodeQL honest: its bundled extern still models `StorageEvent` as
+   * zero-arity (a 2011 draft), so the two real constructor arguments read as
+   * superfluous (`js/superfluous-trailing-arguments`).
+   *
+   * Not a repository-wide rule: `components/shop/item-prefill.ts` filters on
+   * `event.key`, so a test for that one needs a real `StorageEvent` and will
+   * raise the same alert — dismiss it there rather than weakening the test.
+   */
   it("follows a bike saved or removed in another tab", async () => {
     await renderWithIntl(<MyBikeLink>Mon vélo</MyBikeLink>);
     expect(screen.getByRole("link")).toHaveAttribute("href", "/velo/demo");
 
     act(() => {
       window.localStorage.setItem(LOCAL_BIKE_STORAGE_KEY, "{}");
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_STORAGE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
     expect(screen.getByRole("link")).toHaveAttribute("href", "/velo/local");
 
     act(() => {
       window.localStorage.removeItem(LOCAL_BIKE_STORAGE_KEY);
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_STORAGE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
     expect(screen.getByRole("link")).toHaveAttribute("href", "/velo/demo");
   });
