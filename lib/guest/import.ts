@@ -146,7 +146,8 @@ function checkupCreate(userId: string, checkup: GuestCheckup, now: number) {
  * The part statuses a COMPLETED checkup implies (§4.2 b): KO → BROKEN, OK → OK
  * with a service date, SKIPPED → unchanged.
  *
- * `completeCheckupAction` writes these when the checkup finishes on the server
+ * `finishCheckupAction` (§4.4's `completeCheckupAction`) writes these when the
+ * checkup finishes on the server
  * (W3-T1). An imported checkup finished in the visitor's browser, so the same
  * conclusion has to be drawn here, or a bike arrives with a completed checkup
  * and forty parts still `UNKNOWN`. Checkups are applied oldest first, so the

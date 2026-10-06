@@ -225,7 +225,7 @@ export const DEMO_BUILD_LIST: DemoBuildListSeed = {
   ],
 };
 
-/** Part statuses `completeCheckupAction` would write for {@link DEMO_CHECKUP} (§4.2 b). */
+/** Part statuses `finishCheckupAction` would write for {@link DEMO_CHECKUP} (§4.2 b). */
 export const DEMO_PART_STATUSES: Readonly<Record<string, SeedPartStatus>> = {
   chain: "BROKEN",
   "brake-pads-rear": "BROKEN",

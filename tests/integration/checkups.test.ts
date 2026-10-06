@@ -264,7 +264,7 @@ describe("finishing", () => {
   });
 });
 
-describe("what a checkup remembers, and what a later one closes (W4)", () => {
+describe("what a checkup remembers, and what a later one closes (W4, W5)", () => {
   const PADS = "check-brakes-disc#pad-wear";
   const FORK = "check-headset#fork-condition";
   const HEADSET = "check-headset#headset-play";
@@ -283,7 +283,7 @@ describe("what a checkup remembers, and what a later one closes (W4)", () => {
     expect(loaded.ok && loaded.data?.symptoms).toEqual({ [CHAIN]: ["chain-elongation"] });
   });
 
-  it("closes a hosted part's line on the earlier list, by pair, and says why", async () => {
+  it("closes a hosted part's line on the bike's open list, by pair, and says why", async () => {
     // The pads are planned through the caliper that hosts them: the W3 server
     // closed by the viewer's host-expanded part, so this line never closed.
     const user = await signedInUser("hosted@velo-atelier.test");
@@ -308,32 +308,120 @@ describe("what a checkup remembers, and what a later one closes (W4)", () => {
     });
     expect(later.ok).toBe(true);
 
-    const earlier = await prisma.buildListItem.findMany({
-      where: {
-        buildList: {
-          bikeId: bike.id,
-          checkup: { startedAt: new Date("2026-09-01T08:00:00.000Z") },
-        },
-      },
+    // One list, the one the first checkup opened, and the lines it found are
+    // still on it — closed, not deleted (W5).
+    const lists = await prisma.buildList.findMany({ where: { bikeId: bike.id } });
+    expect(lists).toHaveLength(1);
+    const lines = await prisma.buildListItem.findMany({
+      where: { buildList: { bikeId: bike.id } },
       orderBy: { partId: "asc" },
     });
-    expect(earlier.map((row) => [row.action, row.partId, row.done, row.doneReason])).toEqual([
+    expect(lines.map((row) => [row.action, row.partId, row.done, row.doneReason])).toEqual([
       ["REPLACE", "brake-pads-front", true, "recheck-ok"],
       ["REPLACE", "brake-pads-rear", true, "recheck-ok"],
     ]);
+    // And the list now names the checkup that wrote to it last.
+    const second = await prisma.checkup.findFirstOrThrow({
+      where: { bikeId: bike.id, startedAt: new Date("2026-09-15T08:00:00.000Z") },
+    });
+    expect(lists[0].checkupId).toBe(second.id);
   });
 
-  it("refuses to finish an 11th checkup on a bike that already has 10 lists (§4.2 c)", async () => {
+  it("finishes twelve checkups into one open list, carrying, closing and reopening", async () => {
+    // The W5 ruling in one run: a bike's lines live on ONE list, across as
+    // many checkups as it has. Twelve is past the 10-list quota on purpose —
+    // that limit is now only ever met by a bike with no open list at all.
+    const user = await signedInUser("twelve@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+
+    const day = (n: number) => `2026-08-${String(n).padStart(2, "0")}T08:00:00.000Z`;
+    // 1..10: the chain is worn. 11: it is fine — the line closes. 12: worn
+    // again — the same line reopens, as a new finding.
+    for (let run = 1; run <= 12; run += 1) {
+      const answers = run === 11 ? { [CHAIN]: "ok" } : { [CHAIN]: "ko" };
+      const symptoms = run === 11 ? {} : { [CHAIN]: ["chain-elongation"] };
+      const result = await finishCheckupAction({
+        bikeId: bike.id,
+        checkup: payload({ answers, symptoms, notes: {}, startedAt: day(run) }),
+      });
+      expect(result.ok, `run ${run}`).toBe(true);
+
+      const lists = await prisma.buildList.findMany({ where: { bikeId: bike.id } });
+      expect(lists, `run ${run}`).toHaveLength(1);
+      const lines = await prisma.buildListItem.findMany({
+        where: { buildList: { bikeId: bike.id } },
+      });
+      expect(lines.map((row) => [row.partId, row.action, row.done, row.doneReason])).toEqual([
+        run === 11 ? ["chain", "REPLACE", true, "recheck-ok"] : ["chain", "REPLACE", false, null],
+      ]);
+
+      // What the visitor typed after the first run has eleven more checkups
+      // to survive, none of them theirs (W3-T2's columns).
+      if (run === 1) {
+        await prisma.buildListItem.updateMany({
+          where: { buildList: { bikeId: bike.id }, partId: "chain" },
+          data: {
+            refinement: { speeds: "11" },
+            chosenProduct: {
+              brand: "KMC",
+              model: "X11",
+              size: "118",
+              vendor: "rosebikes",
+              url: "https://www.rosebikes.fr/x11",
+            },
+          },
+        });
+      }
+      expect(lines[0].refinement, `run ${run}`).toEqual(run === 1 ? null : { speeds: "11" });
+    }
+
+    // Twelve runs of their own, every one finished, and one list.
+    expect(await prisma.checkup.count({ where: { bikeId: bike.id, status: "COMPLETED" } })).toBe(
+      12,
+    );
+    const [list] = await prisma.buildList.findMany({ where: { bikeId: bike.id } });
+    expect(list.status).toBe("OPEN");
+
+    // A line an EARLIER run found and a later one never mentions survives all
+    // twelve: the cassette the first run condemned is still on the list.
+    const withCassette = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [CASSETTE]: "ko" },
+        symptoms: { [CASSETTE]: ["cassette-worn"] },
+        notes: {},
+        startedAt: day(13),
+      }),
+    });
+    expect(withCassette.ok).toBe(true);
+    const after = await prisma.buildListItem.findMany({
+      where: { buildList: { bikeId: bike.id } },
+      orderBy: { partId: "asc" },
+    });
+    expect(after.map((row) => [row.partId, row.done])).toEqual([
+      ["cassette", false],
+      ["chain", false],
+    ]);
+    expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(1);
+    // Thirteen checkups later, the chain they chose is still the chain they chose.
+    expect(after[1].chosenProduct).toMatchObject({ brand: "KMC", model: "X11" });
+  });
+
+  it("refuses to finish on a bike with ten lists and none of them open (§4.2 c)", async () => {
     const user = await signedInUser("quota@velo-atelier.test");
     const bike = await gravelBike(user.id);
+    // `createdAt` spelled out: "the newest one" is what the action looks for,
+    // and a loop of ten `now()` defaults is a race to read the test by.
     for (let day = 1; day <= 10; day += 1) {
-      const started = `2026-08-${String(day).padStart(2, "0")}T08:00:00.000Z`;
-      expect(
-        (await finishCheckupAction({ bikeId: bike.id, checkup: payload({ startedAt: started }) }))
-          .ok,
-      ).toBe(true);
+      await prisma.buildList.create({
+        data: {
+          bikeId: bike.id,
+          name: `Liste ${day}`,
+          status: "DONE",
+          createdAt: new Date(`2026-07-${String(day).padStart(2, "0")}T08:00:00.000Z`),
+        },
+      });
     }
-    expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(10);
 
     const refused = await finishCheckupAction({
       bikeId: bike.id,
@@ -345,15 +433,73 @@ describe("what a checkup remembers, and what a later one closes (W4)", () => {
       fieldErrors: { form: "checkup.finish.tooManyLists" },
     });
     // Nothing of the refused checkup reached the database.
-    expect(await prisma.checkup.count({ where: { bikeId: bike.id } })).toBe(10);
+    expect(await prisma.checkup.count({ where: { bikeId: bike.id } })).toBe(0);
     expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(10);
 
-    // Re-finishing one of the ten is an update of its own list, not an 11th.
+    // One of the ten reopened is all it takes: the finish merges into it.
+    const [reopened] = await prisma.buildList.findMany({
+      where: { bikeId: bike.id },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    });
+    await prisma.buildList.update({ where: { id: reopened.id }, data: { status: "OPEN" } });
     const again = await finishCheckupAction({
       bikeId: bike.id,
-      checkup: payload({ startedAt: "2026-08-01T08:00:00.000Z" }),
+      checkup: payload({ startedAt: "2026-09-20T08:00:00.000Z" }),
     });
-    expect(again.ok).toBe(true);
+    expect(again.ok && again.data.buildListId).toBe(reopened.id);
+    expect(await prisma.buildList.count({ where: { bikeId: bike.id } })).toBe(10);
+  });
+
+  it("counts the line quota over the open list, not over this checkup alone", async () => {
+    // §4.2 c's 50 lines is a property of the LIST, and the list is shared now.
+    // The mechanism against the real limit is `quota-lines-per-list.test.ts`
+    // (which lowers it to one); what this pins is that lines already on the
+    // list are counted — 49 of them plus this checkup's one is the last one
+    // that fits.
+    const user = await signedInUser("lines@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    const first = await finishCheckupAction({ bikeId: bike.id, checkup: payload() });
+    expect(first.ok).toBe(true);
+    const listId = first.ok ? first.data.buildListId : "";
+
+    // 49 lines nothing derives, on parts the plan never names: they survive
+    // every checkup, and they count.
+    await prisma.buildListItem.createMany({
+      data: Array.from({ length: 49 }, (_, index) => ({
+        buildListId: listId,
+        partId: `filler-${index}`,
+        action: "REPLACE" as const,
+        reasonKey: "chain-elongation",
+        sortOrder: 100 + index,
+      })),
+    });
+
+    const refused = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [CHAIN]: "ko", [CASSETTE]: "ko" },
+        symptoms: { [CHAIN]: ["chain-elongation"], [CASSETTE]: ["cassette-worn"] },
+        notes: {},
+        startedAt: "2026-09-25T08:00:00.000Z",
+      }),
+    });
+    // 49 fillers + the chain line already there + the cassette line = 51.
+    expect(refused).toEqual({
+      ok: false,
+      code: "TOO_MANY",
+      fieldErrors: { form: "checkup.finish.tooManyLines" },
+    });
+    expect(await prisma.buildListItem.count({ where: { buildListId: listId } })).toBe(50);
+    expect(await prisma.checkup.count({ where: { bikeId: bike.id } })).toBe(1);
+
+    // The chain alone still fits: it is a line the list already holds.
+    const fits = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({ startedAt: "2026-09-26T08:00:00.000Z" }),
+    });
+    expect(fits.ok).toBe(true);
+    expect(await prisma.buildListItem.count({ where: { buildListId: listId } })).toBe(50);
   });
 
   it("leaves a cracked-fork line open when a later checkup only says the headset has no play", async () => {

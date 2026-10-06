@@ -236,9 +236,13 @@ model Checkup {
   startedAt   DateTime  @default(now())
   completedAt DateTime?
 
-  bike      Bike          @relation(fields: [bikeId], references: [id], onDelete: Cascade)
-  items     CheckupItem[]
-  buildList BuildList?
+  bike       Bike          @relation(fields: [bikeId], references: [id], onDelete: Cascade)
+  items      CheckupItem[]
+  /// A LIST, not one row (W5). A checkup writes into the bike's open build
+  /// list, which outlives it, so `BuildList.checkupId` is "the last checkup
+  /// that wrote here" — and one checkup can be the last writer of more than
+  /// one list over the bike's life.
+  buildLists BuildList[]
 
   @@index([bikeId, startedAt(sort: Desc)])
 }
@@ -276,8 +280,12 @@ model CheckupItem {
 model BuildList {
   id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   bikeId    String  @db.Uuid
-  /// Nulled rather than cascaded: a list outlives the checkup it came from.
-  checkupId String? @unique @db.Uuid
+  /// The LAST checkup that wrote here, not the one that owns the list (W5).
+  /// A bike has one OPEN list and every checkup merges into it, so this is a
+  /// plain nullable pointer: not unique (several lists of one bike can name
+  /// the same last writer over time), and nulled rather than cascaded,
+  /// because a list outlives every checkup that ever touched it.
+  checkupId String? @db.Uuid
 
   name   String          @db.VarChar(80)
   status BuildListStatus @default(OPEN)
@@ -290,6 +298,9 @@ model BuildList {
   items   BuildListItem[]
 
   @@index([bikeId, status])
+  /// What the dropped `@unique` used to provide: the lookup "which list did
+  /// this checkup last write to", now that several rows may answer it.
+  @@index([checkupId])
 }
 
 model BuildListItem {

@@ -385,7 +385,11 @@ docs/                contributor and operator docs — every one is linked from 
   `test-integration.sh` does. `lib/checkup/**` is zod/mini-only (ESLint) and
   carries a 100 % statements/branches gate.
 - **A checkup run is its `startedAt`.** The server's `existingCheckup` treats the
-  same `startedAt` as the same run, so a re-finish updates its own list. The
+  same `startedAt` as the same run, so a re-finish updates its own lines —
+  and, since W5, a re-finish is the ONLY thing allowed to delete one: a run
+  that is already the open list's `checkupId` may drop the rows it wrote and
+  no longer derives (the visitor withdrew the verdict), while every other
+  finish only adds, reopens or closes. The
   wizard stamps every NEW run with `createCheckupState`'s now — including after
   a finished checkup reached through `?step=`, which only positions the new run
   — and resumes only an unfinished stored run (`tests/e2e/checkup-second-run.spec.ts`).
@@ -395,10 +399,29 @@ docs/                contributor and operator docs — every one is linked from 
   lists/bike, 50 lines/list, each `TOO_MANY`, each checked BEFORE the first
   write. `finishCheckupAction` names the limit in `fieldErrors.form`
   (`checkup.finish.tooMany{Checkups,Lists,Lines}`); the wizard shows it as
-  `role="alert"` and stays on the summary. Every finished checkup creates its
-  list, and nothing writes `BuildList` `DONE`/`ARCHIVED`, so a bike holding 10
-  lists finishes no further checkup until a list lifecycle exists
-  (`docs/backlog.md`).
+  `role="alert"` and stays on the summary. Since W5 the two list limits are
+  counted over the bike's OPEN list, not over the checkup: `listsPerBike` only
+  on the path that would CREATE one, which a bike with an open list never
+  takes — so ten lists is reachable only by a bike whose lists something
+  closed, and nothing writes `BuildList` `DONE`/`ARCHIVED` yet
+  (`docs/backlog.md`) — and `itemsPerList` over the union of the lines that
+  list already holds and the pairs this checkup derives (less the ones a
+  re-finish prunes), so the 50 cannot be walked past one checkup at a time.
+- **One OPEN build list per bike** (W5 ruling). `finishCheckupAction` does not
+  open a list of its own: it merges into the bike's newest `OPEN` `BuildList`
+  — by the very rule `/liste` renders with (`loadBuildList`) — and creates one
+  only when the bike has none. `BuildList.checkupId` is no longer unique; it
+  records the LAST checkup that wrote there. A derived pair updates its row
+  (`reasonKey`, `guideSlug`, `checkupItemId`, `sortOrder`) and REOPENS it,
+  never touching the `refinement` / `chosenProduct` the visitor typed; a pair
+  `recheckedLines` names is closed `recheck-ok` on that same list — the
+  old "every list but the current one" exclusion is gone, and is not needed
+  because `recheckedLines` already excludes what this state's KOs derive; a
+  hand tick survives only a re-finish of its own run. Everything else
+  survives, across as many checkups as the bike has. This is the guest's
+  `mergeGuestBuildList` semantics, and
+  `tests/unit/checkup/line-identity.test.ts` now asserts the two paths produce
+  the SAME list, line for line, over all seven presets.
 - **A build-list line is an `(action, partId)` pair, never a part.**
   `recheckedLines(state)` (`lib/checkup/build-list.ts`) is the ONE rule for what
   a checkup closes: the pairs an OK step's `ko[]` names, minus every pair a KO of
@@ -412,6 +435,14 @@ docs/                contributor and operator docs — every one is linked from 
   (no database needed). Symptoms survive a reload of a saved bike's checkup
   (`writeItems` → `loadStoredCheckup`); `toItem` (`app/[locale]/velo/[id]/liste/load.ts`) reads
   `doneReason` back.
+  **`BuildList.checkupId` stopped being unique** in
+  `20260930094543_one_open_build_list_per_bike` (W5), written the same way from
+  the schema as `origin/main` had it: `DROP INDEX "BuildList_checkupId_key"` +
+  `CREATE INDEX "BuildList_checkupId_idx"`, and `Checkup.buildList BuildList?`
+  became `buildLists BuildList[]`. No data migration — a bike that already
+  holds one list per checkup keeps them, and its newest OPEN one is the one
+  every later checkup writes into. `tests/integration/schema.test.ts` holds
+  both indexes and the `SetNull` that still fires for two lists at once.
 - **The `/velo/[id]` sub-routes read through owner-scoped `load.ts` files**
   beside their `actions.ts` (`app/[locale]/velo/[id]/controle/load.ts`,
   `app/[locale]/velo/[id]/liste/load.ts`), for the reason

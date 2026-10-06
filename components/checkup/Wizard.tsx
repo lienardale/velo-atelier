@@ -299,8 +299,9 @@ export function Wizard(props: WizardProps): React.JSX.Element {
           await store.save(finished);
           // Merged, not replaced: `va:buildlist:<ref>` is the guest's ONE list,
           // so this is where a later OK closes an earlier line (§5.4, §6.7)
-          // and where the cassette they already chose survives a re-run. The
-          // server path does the same thing in `writeBuildList`.
+          // and where the cassette they already chose survives a re-run. A
+          // saved bike has one open `BuildList` too since W5, and
+          // `writeBuildList` merges into it by the same rules.
           const stored = readGuestBuildList(guestRef);
           writeGuestBuildList(
             guestRef,

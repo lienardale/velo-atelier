@@ -12,8 +12,9 @@
  *                        KO naming it again reopens it.
  *
  *   guest   `mergeGuestBuildList` over `va:buildlist:<ref>` (one list per bike);
- *   server  `finishCheckupAction` against the recording fake: one `BuildList`
- *           per checkup, `closeRecheckedItems` on the others.
+ *   server  `finishCheckupAction` against the recording fake — since W5 also
+ *           one list per bike, so the two paths no longer merely close the
+ *           same pairs: they must produce the SAME LIST, line for line.
  *
  * Before W4 they disagreed twice. The server closed by PART, through the
  * viewer's host-expanded tint, so a hosted part (the pads, planned through the
@@ -21,6 +22,12 @@
  * the guest merge could hand a KO's line back already closed. Both are what the
  * cross-path assertion below catches — `recheckedLines` is the one rule, and
  * the two paths must close exactly its pairs.
+ *
+ * Until W5 the server also gave every checkup a `BuildList` of its own and
+ * closed rechecked lines on the OTHER ones, which is the difference this file
+ * had to describe twice. It does not exist any more: a later checkup writes
+ * into the list the earlier one left, exactly as a guest's `va:buildlist:<ref>`
+ * always did.
  *
  * `fast-check` draws the verdicts (ok / ko / skipped / unanswered, a symptom or
  * none) from each preset's real plan; the corpus is planned once, at module
@@ -177,7 +184,7 @@ describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
       setSession(sessionFor(USER));
     });
 
-    it("closes exactly the open lines its OKs name and its KOs do not, on both paths", async () => {
+    it("leaves the bike's one open list exactly where the guest merge leaves it", async () => {
       await fc.assert(
         fc.asyncProperty(
           drawsFor(steps),
@@ -213,7 +220,7 @@ describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
             );
             const firstResult = await finishCheckupAction({ bikeId, checkup: toStored(earlier) });
             expect(firstResult.ok).toBe(true);
-            const listOne = firstResult.ok ? firstResult.data.buildListId : "";
+            const listId = firstResult.ok ? firstResult.data.buildListId : "";
             for (const row of fakeDb.rows("BuildListItem")) {
               if (ticked.has(rowPair(row))) {
                 await fakeDb.client.buildListItem.update({
@@ -223,7 +230,33 @@ describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
               }
             }
 
-            // ── the later checkup ──
+            // ── the later checkup, on both paths ──
+            const merged = mergeGuestBuildList(guestList, deriveBuildList(later), later, false);
+            const secondResult = await finishCheckupAction({ bikeId, checkup: toStored(later) });
+            expect(secondResult.ok).toBe(true);
+
+            // One list, the one the first checkup opened (W5).
+            expect(fakeDb.rows("BuildList").map((row) => row.id)).toEqual([listId]);
+            expect(secondResult.ok && secondResult.data.buildListId).toBe(listId);
+
+            // The same list, line for line: which pairs are on it and how each
+            // one is closed. `sortOrder`, `refinement` and `chosenProduct` are
+            // not compared — the guest re-indexes and nothing typed anything.
+            const rows = fakeDb.rows("BuildListItem");
+            const state = (done: unknown, reason: unknown) => `${String(done)}|${reason ?? ""}`;
+            expect(
+              new Map(rows.map((row) => [rowPair(row), state(row.done, row.doneReason)])),
+              `${id}: server vs guest`,
+            ).toEqual(
+              new Map(
+                merged.map((line) => [
+                  pair(line.action, line.partId),
+                  state(line.done, line.doneReason),
+                ]),
+              ),
+            );
+
+            // And the rule itself, spelled out rather than only cross-checked.
             const expectedClosed = new Set(
               [...closingPairs(later)].filter(
                 (closing) =>
@@ -231,49 +264,34 @@ describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
                   !ticked.has(closing),
               ),
             );
-
-            const merged = mergeGuestBuildList(guestList, deriveBuildList(later), later, false);
-            const guestClosed = new Set(
-              merged
-                .filter((line) => line.doneReason === "recheck-ok")
-                .map((line) => pair(line.action, line.partId)),
-            );
-
-            const secondResult = await finishCheckupAction({ bikeId, checkup: toStored(later) });
-            expect(secondResult.ok).toBe(true);
-            const rows = fakeDb.rows("BuildListItem");
-            const serverClosed = new Set(
-              rows
-                .filter((row) => row.buildListId === listOne && row.doneReason === "recheck-ok")
-                .map(rowPair),
-            );
-
-            // The one rule, applied the same way on both paths.
-            expect(guestClosed, `${id}: guest`).toEqual(expectedClosed);
-            expect(serverClosed, `${id}: server`).toEqual(expectedClosed);
-            for (const row of rows.filter(
-              (entry) => entry.buildListId === listOne && serverClosed.has(rowPair(entry)),
-            )) {
-              expect(row.done).toBe(true);
-            }
-            // A hand tick is the visitor's, on both paths.
-            for (const tick of ticked) {
-              expect(
-                rows.find((row) => row.buildListId === listOne && rowPair(row) === tick)
-                  ?.doneReason,
-              ).toBe("manual");
-            }
-            // And the later checkup's own findings are open lines, on both paths.
+            expect(
+              new Set(rows.filter((row) => row.doneReason === "recheck-ok").map(rowPair)),
+              `${id}: server`,
+            ).toEqual(expectedClosed);
+            // A hand tick is the visitor's — unless this checkup found the
+            // line again, which reopens it whatever closed it before.
             const found = derivedPairs(later);
-            const secondList = secondResult.ok ? secondResult.data.buildListId : "";
-            const listTwo = rows.filter((row) => row.buildListId === secondList);
-            expect(new Set(listTwo.map(rowPair))).toEqual(found);
-            expect(listTwo.every((row) => row.done === false)).toBe(true);
+            for (const tick of ticked) {
+              const row = rows.find((entry) => rowPair(entry) === tick);
+              expect(row?.doneReason, `${id}: ${tick}`).toBe(found.has(tick) ? null : "manual");
+            }
+            // The later checkup's own findings are open lines, on both paths.
+            expect(
+              rows.filter((row) => found.has(rowPair(row))).every((row) => row.done === false),
+              `${id}: server findings open`,
+            ).toBe(true);
             expect(
               merged
                 .filter((line) => found.has(pair(line.action, line.partId)))
                 .every((line) => !line.done),
             ).toBe(true);
+            // Nothing the earlier checkup found was deleted (W5: lines survive).
+            for (const item of firstList) {
+              expect(
+                rows.some((row) => rowPair(row) === pair(item.action, item.partId)),
+                `${id}: ${item.id} survived`,
+              ).toBe(true);
+            }
           },
         ),
         // A failure is reported as its first counterexample, unshrunk: shrinking

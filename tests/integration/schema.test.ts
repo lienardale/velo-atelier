@@ -261,3 +261,46 @@ describe("migration 20260921090547_checkup_symptoms_done_reason (W4)", () => {
     }
   });
 });
+
+describe("migration 20260930094543_one_open_build_list_per_bike (W5)", () => {
+  it("no longer holds a checkup to at most one list", async () => {
+    const indexes = await rows<{ indexname: string }>(
+      prisma.$queryRaw`SELECT indexname FROM pg_indexes WHERE schemaname = 'public'`,
+    );
+    const names = indexes.map((row) => row.indexname);
+    // The unique index is what one-list-per-checkup used to be made of.
+    expect(names).not.toContain("BuildList_checkupId_key");
+    // …replaced by the plain index the same lookup still needs.
+    expect(names).toContain("BuildList_checkupId_idx");
+  });
+
+  it("lets one checkup be the last writer of two lists, and still nulls both", async () => {
+    // What the dropped constraint used to make impossible, and what a bike
+    // that already had several lists before W5 now does on every finish.
+    const user = await prisma.user.create({
+      data: { email: `two-lists-${Date.now()}@velo-atelier.test` },
+    });
+    try {
+      const bike = await prisma.bike.create({
+        data: { userId: user.id, name: "Test", answers: {}, spec: {}, parts: [] },
+      });
+      const checkup = await prisma.checkup.create({ data: { bikeId: bike.id, scope: "FULL" } });
+      const first = await prisma.buildList.create({
+        data: { bikeId: bike.id, checkupId: checkup.id, name: "" },
+      });
+      const second = await prisma.buildList.create({
+        data: { bikeId: bike.id, checkupId: checkup.id, name: "" },
+      });
+
+      // `onDelete: SetNull` still holds for both (§4.2: a list outlives its checkup).
+      await prisma.checkup.delete({ where: { id: checkup.id } });
+      const kept = await prisma.buildList.findMany({
+        where: { id: { in: [first.id, second.id] } },
+      });
+      expect(kept).toHaveLength(2);
+      expect(kept.every((list) => list.checkupId === null)).toBe(true);
+    } finally {
+      await prisma.user.delete({ where: { id: user.id } });
+    }
+  });
+});

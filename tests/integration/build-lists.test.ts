@@ -389,8 +389,10 @@ describe("what the schema itself guarantees", () => {
 
   it("outlives the checkup it came from (§4.2)", async () => {
     const { list } = await seededList();
+    // `buildLists: { some: … }`, not `buildList: { … }`: the back relation is a
+    // list since a bike's one OPEN list is written by every checkup (W5).
     const checkup = await prisma.checkup.findFirstOrThrow({
-      where: { buildList: { id: list.id } },
+      where: { buildLists: { some: { id: list.id } } },
     });
 
     await prisma.checkup.delete({ where: { id: checkup.id } });
