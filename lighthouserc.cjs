@@ -1,8 +1,11 @@
 /**
  * Lighthouse CI.
  *
- * Run: `npm run lhci` (after `npm run build`), or the `lighthouse` job, which
- * calls scripts/ci/lighthouse.sh.
+ * Run: `npm run lhci`, or the CI `lighthouse` job — both are
+ * `bash scripts/ci/lighthouse.sh`, never a bare `lhci autorun`: the script
+ * gives the server lhci starts (`startServerCommand` below) the complete
+ * environment the contract in `lib/env.ts` now requires at boot. Build first,
+ * with `scripts/ci/build.sh`; with no `.next/` the script skips and exits 0.
  *
  * Two things make this configuration unusual:
  *

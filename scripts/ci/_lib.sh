@@ -75,6 +75,48 @@ skip_step() {
   exit 0
 }
 
+# load_env_contract_defaults [file]
+#
+# Fill in, from the committed `.env.test`, every variable `lib/env.ts` requires
+# that is not already set. A real environment variable always wins, so a CI
+# `env:` block (Postgres on host `postgres`, not `localhost`) and a worktree's
+# own exports are untouched.
+#
+# Why a step needs this at all: `instrumentation.ts` runs `getEnv()` on every
+# `next start` (W5), and the `next` CLI defaults NODE_ENV to production, so a
+# started server with no AUTH_SECRET or no AUTH_URL now answers 500 for every
+# page and route handler instead of failing later and elsewhere. Two steps
+# start a server from an environment that was never complete — `build.sh`'s
+# boot check and the `npm run start` that `lighthouse.sh` has lhci run — and
+# `.env.test` is exactly the set of values CI already runs against (gitleaks
+# allowlists the file; nothing in it is a credential).
+#
+# That includes the DATABASE: a step that had no POSTGRES_URL of its own gets
+# `.env.test`'s, the `_test` database. An exported variable beats every `.env*`
+# file `next start` loads, `.env.local` included — so a local
+# `npm run lhci` audits a server on the `_test` database, not the dev one,
+# unless the shell exports its own POSTGRES_URL / POSTGRES_URL_NON_POOLING.
+#
+# THE THREE TEST FLAGS ARE NEVER TAKEN FROM THE FILE. `ENABLE_TEST_PAGES`,
+# `NEXT_PUBLIC_TEST_HOOKS` and `NEXT_PUBLIC_DEMO_LOGIN` open `/dev/*`, ship
+# `window.__va` and print demo credentials. A step that wants one sets it
+# deliberately (build.sh does, and pins the hooks OFF by default); a step that
+# does not must never acquire one by reading a file.
+load_env_contract_defaults() {
+  local file="${1:-$PROJECT_ROOT/.env.test}"
+  [[ -f "$file" ]] || return 0
+  local key value
+  while IFS='=' read -r key value; do
+    [[ "$key" =~ ^[[:space:]]*(#|$) ]] && continue
+    case "$key" in
+    ENABLE_TEST_PAGES | NEXT_PUBLIC_TEST_HOOKS | NEXT_PUBLIC_DEMO_LOGIN) continue ;;
+    esac
+    [[ -n "${!key:-}" ]] && continue
+    export "$key=$value"
+    printf "  %s <- %s (was unset)\n" "$key" "$(basename -- "$file")"
+  done <"$file"
+}
+
 # summary <markdown...>  — append to the GitHub job summary, echo it locally.
 summary() {
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then

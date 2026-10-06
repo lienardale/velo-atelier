@@ -13,7 +13,15 @@
  *
  * Deliberately **not** validated at module scope: `next build` imports server
  * modules to collect route metadata, and a build should not require a running
- * database or a production secret. The first request does.
+ * database or a production secret. Two things evaluate it instead (W5):
+ *
+ *   - `instrumentation.ts`'s `register()` calls `getEnv()` when a server
+ *     starts. Next does not run it during a build, so `next build` — and so
+ *     `npm run build` and CI's `scripts/ci/build.sh` — still needs nothing.
+ *   - `scripts/check-env.ts` calls `parseEnv` during the VERCEL build only
+ *     (`scripts/vercel-build.sh`), where the scope's variables are present. A
+ *     wrong scope then fails the build, before the migration, instead of being
+ *     found out by the first request to a deployment that is already live.
  *
  * `NEXT_PUBLIC_*` values are inlined by the bundler at build time, so they are
  * read as literal `process.env.NEXT_PUBLIC_…` members wherever the client
@@ -63,9 +71,41 @@ const postgresUrl = z
 
 const baseSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).optional().default("development"),
-  /** Set by Vercel only; `undefined` locally and in CI. */
+  /**
+   * Set by Vercel only; `undefined` locally and in CI.
+   *
+   * This enum became load-bearing in W5, and it fails CLOSED on a value it
+   * does not know: `VERCEL_ENV=staging` is an `EnvValidationError`, at the
+   * Vercel build (`scripts/check-env.ts`) and at boot. That is a decision, and
+   * `tests/unit/db/env.test.ts` pins it. A value this file cannot classify
+   * must not be read as "not production": that reading would drop the
+   * `AUTH_URL` and Google requirements below without anyone having chosen to.
+   *
+   * What is known about Vercel **Custom Environments**, and what is not:
+   * Vercel's documentation gives `VERCEL_ENV` three possible values —
+   * production, preview, development — and puts a custom environment's name
+   * in a different variable, `VERCEL_TARGET_ENV`, which nothing here reads.
+   * What `VERCEL_ENV` actually holds on a custom-environment deployment was
+   * NOT observed here (the project has Production + Preview only). If it is
+   * one of the three, such a deployment is treated as that scope; if it is
+   * anything else, it is refused, loudly and before it migrates. Either way,
+   * look at the first one's build log rather than assuming.
+   */
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
 
+  /**
+   * Required BY THESE NAMES — and since W5 that is load-bearing, because this
+   * schema now decides whether a server boots.
+   *
+   * `lib/db/env.ts`, which RESOLVES the connections, additionally accepts
+   * Neon's own `DATABASE_URL` / `DATABASE_URL_UNPOOLED` "so a stock Neon
+   * integration also boots". This contract does not. A deployment configured
+   * with Neon's names only would therefore connect perfectly and still be
+   * refused here — the two modules disagree about what "configured" means.
+   * The Vercel project sets the `POSTGRES_*` names (`docs/deploy.md` §2), so
+   * nothing is broken today; reconciling the two is a decision, not a
+   * tidy-up, and it belongs to whoever takes it. Do not widen this quietly.
+   */
   POSTGRES_URL: postgresUrl,
   POSTGRES_URL_NON_POOLING: postgresUrl,
 
@@ -85,7 +125,7 @@ const baseSchema = z.object({
     z.coerce.number().int().min(4).max(15).optional().default(12),
   ),
 
-  /** Local/CI only — see the guards below. */
+  /** Local/CI only — refused on a Vercel deployment; see the guards below. */
   ENABLE_TEST_PAGES: flag,
   NEXT_PUBLIC_TEST_HOOKS: flag,
   NEXT_PUBLIC_DEMO_LOGIN: flag,
@@ -101,6 +141,52 @@ function computeIsProduction(parsed: z.infer<typeof baseSchema>): boolean {
 }
 
 const schema = baseSchema.superRefine((parsed, ctx) => {
+  // The dev pages, the demo-login callout and the Playwright hooks must never
+  // exist on a DEPLOYMENT — preview included: a preview URL is public, and
+  // `/dev/*` or `window.__va` there is the same remote control it would be on
+  // production. Failing the boot is the only way to make that non-negotiable.
+  //
+  // Scoped to `VERCEL_ENV` being set, NOT to `isProduction`, and that
+  // distinction is load-bearing (W5). The `next` CLI defaults `NODE_ENV` to
+  // `production` for every command but `dev` (`next/dist/bin/next`), so every
+  // `next start` is "production" here: CI's boot check, Playwright's web
+  // server, Lighthouse and perf all start a production server ON PURPOSE with
+  // these flags on. `VERCEL_ENV` is set by Vercel and by nothing else, which
+  // makes it the only honest signal that separates a deployment from a local
+  // production server.
+  //
+  // The converse is the sharp edge: with `VERCEL_ENV` ABSENT this refusal is
+  // off, by design for a local server and by accident for a deployment that
+  // has lost the variable (Vercel documents it as present only while the
+  // project exposes its system environment variables). Nothing in this file
+  // can tell those two apart, so `scripts/vercel-build.sh` refuses to build
+  // without a known `VERCEL_ENV`. A production server that is not on Vercel
+  // accepts the three flags — that is what the rule says, not an oversight.
+  //
+  // `NEXT_PUBLIC_TEST_HOOKS` is also a BUILD-time flag — the bundler inlines
+  // it, so by the time a server starts the bundle is already decided.
+  // Refusing it at boot stops every page and route handler from being
+  // answered, but not the compiled chunks under `/_next/static` from being
+  // fetched (`instrumentation.ts` has the measurement). So the refusal that
+  // matters for this one is the build-time one: `scripts/vercel-build.sh`
+  // stops the bundle being built in the first place.
+  if (parsed.VERCEL_ENV) {
+    const forbidden: readonly (readonly [string, boolean])[] = [
+      ["ENABLE_TEST_PAGES", parsed.ENABLE_TEST_PAGES],
+      ["NEXT_PUBLIC_TEST_HOOKS", parsed.NEXT_PUBLIC_TEST_HOOKS],
+      ["NEXT_PUBLIC_DEMO_LOGIN", parsed.NEXT_PUBLIC_DEMO_LOGIN],
+    ];
+    for (const [key, enabled] of forbidden) {
+      if (enabled) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `must never be set on a deployment (VERCEL_ENV=${parsed.VERCEL_ENV})`,
+        });
+      }
+    }
+  }
+
   if (!computeIsProduction(parsed)) return;
 
   // Google is the only OAuth provider; production without it silently loses
@@ -112,19 +198,6 @@ const schema = baseSchema.superRefine((parsed, ctx) => {
   ];
   for (const [key, value] of required) {
     if (!value) ctx.addIssue({ code: "custom", path: [key], message: "is required in production" });
-  }
-
-  // The dev pages and the Playwright hooks must never exist on a public
-  // deployment. Failing the boot is the only way to make that non-negotiable.
-  const forbidden: readonly (readonly [string, boolean])[] = [
-    ["ENABLE_TEST_PAGES", parsed.ENABLE_TEST_PAGES],
-    ["NEXT_PUBLIC_TEST_HOOKS", parsed.NEXT_PUBLIC_TEST_HOOKS],
-    ["NEXT_PUBLIC_DEMO_LOGIN", parsed.NEXT_PUBLIC_DEMO_LOGIN],
-  ];
-  for (const [key, enabled] of forbidden) {
-    if (enabled) {
-      ctx.addIssue({ code: "custom", path: [key], message: "must never be set in production" });
-    }
   }
 });
 

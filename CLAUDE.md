@@ -133,19 +133,28 @@ something this tree needs — and when you do, record the skipped hold in
 ```bash
 npm run dev            # tree drawings, then Turbopack dev server on :3000
 npm run build          # tree drawings, content:generate (structural check + lib/content/generated), next build
+npm run start          # next start: a PRODUCTION server — refused (500s, EnvValidationError in its log) while
+                       # AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET are empty, as .env.example ships them (dev is fine)
 npm run drawings       # render the decision tree's drawings to public/tree-drawings.json
 npm run drawings:check # fail if that file is stale (runs in scripts/ci/content.sh)
 npm run lint           # ESLint (flat config)
 npm run format:check   # Prettier
 npm run typecheck      # prisma generate, content-collections build, content:generate, tsc --noEmit
 npm test               # every Vitest project (integration is dropped, with a warning, when no _test DB answers)
-npm run test:coverage  # Vitest + the coverage thresholds (this is the gate, not a report)
+                       # WARNING: `boot` joins whenever .next/BUILD_ID exists — i.e. in any worktree that has
+                       # built. It spawns `next start` four times against the build ON DISK (a stale .next
+                       # is what it tests, not your working tree) and NEEDS a reachable database; unlike
+                       # integration it has no graceful drop: without one, two of its four cases fail at
+                       # once on a 503 (about half a second each, not a 90 s wait).
+                       # `rm -rf .next` or `--project=unit …` to run without it.
+npm run test:coverage  # Vitest + the coverage thresholds (this is the gate, not a report) — same boot caveat
 npm run e2e            # Playwright, every project (needs a production build first; pass --project=<name>)
 npm run e2e:mobile     # Playwright on the mobile profiles
 npm run e2e:docker     # Playwright in the amd64 CI image: the Linux reproducer (scripts/ci/e2e-docker.sh)
 npm run perf           # Playwright perf + perf-mobile (hard WebGL counters + the @soft timings)
 RUN_LOCAL_PERF=1 npm run perf:local  # the real-GPU gate: p95 frame cost <= 16.7 ms, writes .perf/local-<date>.json
-npm run lhci           # Lighthouse CI
+npm run lhci           # Lighthouse CI = bash scripts/ci/lighthouse.sh (needs a build; audits a server on
+                       # .env.test's _test database unless the shell exports POSTGRES_URL[_NON_POOLING])
 npm run db:up          # docker compose up -d --wait (main checkout only)
 npm run db:setup       # docker compose + migrate + seed (localhost only)
 npm run db:seed        # prisma db seed — idempotent upserts; refuses a non-local host unless ALLOW_REMOTE_SEED=1
@@ -167,7 +176,8 @@ auth.ts auth.config.ts proxy.ts     Auth.js split; proxy.ts is Node-only in Next
 lib/domain/          pure TS data + engine — zero React, zero Prisma
 lib/bike3d/          pure geometry (three imports allowed, no React)
 lib/content|checkup|shop|geometry|bike|guest|auth|security|db|actions|i18n|hooks|seo|a11y|testing
-lib/env.ts           the environment contract (see "Contracts": not called at boot yet)
+lib/env.ts           the environment contract — checked at the Vercel build, enforced again at every boot
+instrumentation.ts   register() calls getEnv() once per server start; Next never runs it during a build
 components/ui/       generated shadcn — do not hand-edit
 components/ui-ext/   hand-rolled primitives (Stepper, Callout, MobileSheet, …)
 components/i18n/     ClientMessages — the per-route next-intl provider
@@ -176,7 +186,7 @@ content/             MDX guides + YAML data (CC BY-SA 4.0)
 messages/{fr,en}/    one JSON file per namespace
 prisma/              schema, migrations, seed
 tests/               unit, ui, bike3d, integration, security, e2e, perf
-scripts/             ci/, db/, perf/, content tooling
+scripts/             ci/, db/, perf/, content tooling; vercel-build.sh + check-env.ts are the Vercel build
 docs/                contributor and operator docs — every one is linked from README.md
 .debug/              NNN-*.md investigation notes, indexed in .debug/README.md
 ```
@@ -289,6 +299,69 @@ docs/                contributor and operator docs — every one is linked from 
 - **Prisma** — import the client from `@/lib/generated/prisma/client`, never
   from `@prisma/client` (ESLint enforces it; a type-only import is allowed for
   the adapter cast in `auth.ts`).
+  **Errors are EVENTS, not stdout**: the client is built with
+  `log: [{ emit: "event", level: "error" }]` and `lib/db/prisma.ts` prints them
+  itself, dropping exactly one line — `lib/db/log.ts`'s
+  `isExpectedNotFoundLog`, which matches the target `authAttempt.update` +
+  P2025's "required but not found" **on the last non-empty line of the
+  message**, the engine's own sentence. Never the whole message: outside
+  production Prisma's `colorless` format opens with the caller's source lines,
+  and a comment quoting the wording above an `update(` made a P1001 — the
+  database unreachable — on that target read as the expected miss under
+  `NODE_ENV=development` and `test` (measured on Prisma 7.10.0 from a probe
+  written that way; `rate-limit.ts` holds no such comment, and production's
+  `minimal` format has no frame to match). Prisma logs where it THROWS
+  (`handleAndLogRequestError`), so `createPrismaRateLimiter`'s two conditional
+  `UPDATE`s — which read "no row" as their verdict, not as a failure — wrote
+  two P2025s to the log per fresh key (both statements miss), one per expired
+  window and none for an open one: up to six on a first sign-in, which
+  consumes three fresh buckets (`lib/auth/authorize.ts`; all counted on
+  PostgreSQL with Prisma 7.10.0). A `catch` downstream could not stop it:
+  the filter has to be in the listener. Do NOT widen it into "ignore P2025",
+  and do not add a read to avoid the miss — the single conditional `UPDATE` is
+  what makes the limiter correct under a burst. Register the listener on the
+  freshly constructed value: the `PrismaClient` annotation collapses the log
+  generic to `never`, so `prisma.$on(…)` off the export does not typecheck.
+  Neither literal is ours, so
+  `tests/integration/prisma-error-log.test.ts` drives the real limiter against
+  real PostgreSQL and checks that what Prisma emits is still what the filter
+  recognises, last line included — and fails loudly if Prisma ever stops
+  emitting it at all, which would make the filter dead code to delete rather
+  than keep. (That tier runs with `NODE_ENV=test`, so it holds the FRAMED
+  format; production's frameless one is held by the recorded messages in
+  `tests/unit/db/log.test.ts`.)
+  **Taking the events made our listener the only thing that prints a Prisma
+  error**, so silencing it is now a silent outage rather than a noisy one: a
+  `() => {}` in place of the body dropped 43 real `[prisma]` lines from a
+  local run with all 389 integration tests still green (found in review, W5 —
+  the commit that recorded it says "a CI run", on a branch that had never run
+  on GitHub Actions). The
+  body is therefore `lib/db/log.ts`'s `reportPrismaError` — one call, so it
+  can be unit-tested in both directions — and the WIRING is pinned separately
+  on the shared singleton, by two tests in `prisma-error-log.test.ts` that
+  listen differently ON PURPOSE. That it still SPEAKS: `console.error`, our
+  `[prisma]` prefix, exactly one line for a `bike.update` on an absent row — a
+  unit test of the function alone stays green with the `$on` deleted. That the
+  noise has not COME BACK: the real limiter through the singleton on a fresh
+  key, with `console.log`, `info`, `warn` and `error` all recorded, every
+  argument joined, no prefix filter, and not one line carrying the wording.
+  That second recorder is what fails when `"error"` or
+  `{ emit: "stdout", level: "error" }` goes back into the client's `log` —
+  instead of the event entry or, the quiet mistake, BESIDE it, where `tsc`,
+  ESLint, the unit tests and the speaking test all stay green (measured) and
+  two `prisma:error` lines per fresh key return. Prisma's own print is
+  `console.log("prisma:error", message)`: stdout, two arguments, no `[prisma]`
+  prefix — which is why the first version of that test, `console.error` plus
+  our prefix, passed with the very line this change removes back in the log.
+  Keep both; either on its own proves nothing about the other.
+  `event.message` is Prisma's text, printed verbatim: for a
+  `PrismaClientValidationError` it includes the call's arguments, so the
+  `[prisma]` line must not be forwarded unredacted to a third-party sink
+  (unchanged from `log: ["error"]`, which printed the same message). And the
+  listener belongs to the client, which outlives a hot reload on `globalThis`:
+  an edit to `lib/db/log.ts` needs a dev-server restart to take effect (shown
+  by re-evaluating both modules — same client, same listener — not observed
+  under `next dev` itself).
 - **No logic in `components/bike3d/parts/**`** — no `if`, no `switch`, no
   ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
   prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
@@ -364,18 +437,156 @@ docs/                contributor and operator docs — every one is linked from 
   1e-4 one frame after a focus (measured 0); with motion it is above 1e-3 and
   closes over more than one frame. A frame count is an annotation only — it
   measures the machine (`.debug/015` §3, §10).
-- **`lib/env.ts` declares the environment contract; nothing enforces it at
-  boot yet.** `parseEnv()` requires `AUTH_URL` and the Google pair in
-  production and refuses `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and
-  `NEXT_PUBLIC_DEMO_LOGIN` there (`tests/unit/db/env.test.ts`), but `getEnv()`
-  has no caller outside that test, and `scripts/bundle-guard.ts` follows the
-  hooks flag rather than refusing it. The comments in
-  `components/auth/SignInForm.tsx` and `app/[locale]/(auth)/connexion/page.tsx`
-  that say the boot fails are wrong. Wiring it needs the production test scoped
-  to `VERCEL_ENV` first: the `next` CLI defaults `NODE_ENV` to `production` for
-  every `next start` (unless it is set), the CI boot check and the e2e server
-  included (`docs/backlog.md`, W5). Until then the Vercel env list in
-  `docs/deploy.md` is the only guard.
+- **`lib/env.ts` is the environment contract, and two things run it** (W5):
+  `scripts/check-env.ts` during the Vercel build, and `instrumentation.ts`
+  every time a server starts. `register()` calls `getEnv()` once, gated on
+  `NEXT_RUNTIME === "nodejs"`. **Next does NOT run it during a build**
+  (`NEXT_PHASE=phase-production-build` returns early), so `next build` — and
+  with it `npm run build` and `scripts/ci/build.sh` — still needs no database
+  and no secret. That same fact is why the hook alone was not enough: a scope's
+  VALUES (a 31-character `AUTH_SECRET`, an `AUTH_URL` without its scheme, a
+  forbidden flag) would first be evaluated by the DEPLOYED server, after a
+  green build and, on production, after `prisma migrate deploy` — a live
+  deployment whose pages answer 500, not a failed deploy (the 500s measured
+  under `next start`; on Vercel expected, not observed — "None of the above
+  was observed on Vercel", below). And a pull request's preview only ever
+  evaluates the Preview scope, so Production's values would be met for the
+  first time by production.
+  **So `scripts/vercel-build.sh` refuses first, in this order, before the
+  database is touched**: (1) a `VERCEL_ENV` that is not `production`,
+  `preview` or `development`, unset included; (2) `NEXT_PUBLIC_TEST_HOOKS`;
+  (3) the whole contract — `npx tsx scripts/check-env.ts`, which is
+  `parseEnv(process.env)`, unweakened. Only then (4) `prisma migrate deploy`
+  (production only), `npm run build`, `scripts/bundle-guard.ts`. A violation
+  fails the BUILD with the variable's name (never its value) and nothing is
+  migrated. Vercel's documentation says the production domains move only to a
+  deployment that succeeded, so the previous one should keep serving — that
+  half is documented, NOT observed: none of this had run on Vercel when it was
+  written. `check-env` has ONE caller. It is not in `npm run build` and not in
+  `scripts/ci/build.sh`, because CI builds without a production secret
+  (`migrate-on-deploy.test.ts` keeps it out); `vercel-build-guard.test.ts`
+  executes the script and the preflight for real — its `npx` stub passes that
+  one command through, or a broken preflight would be swallowed green. A
+  MISSING variable stops zod before the cross-field rules, so one refused
+  build may not name the forbidden flag or the absent `AUTH_URL` beside it;
+  `check-env` says so when that can be the case ("the next build may name
+  more").
+  **Step 1 exists because every guard keys off `VERCEL_ENV`** — the hooks
+  refusal, the contract's flag refusal and its production requirements,
+  `bundle-guard`, the migrate gate — and without the variable all of them
+  failed OPEN at once: run with it unset, this script built with
+  `NEXT_PUBLIC_TEST_HOOKS=1` and exited 0, having skipped the migration with
+  one log line (measured in review). Vercel documents `VERCEL_ENV` as present
+  only while the project's "Enable access to System Environment Variables"
+  setting is on; what a build sees with it off was not observed, and step 1 is
+  what makes that not matter. Nothing but `vercel.json`'s `buildCommand` runs
+  that script — a local or CI build is `npm run build` /
+  `bash scripts/ci/build.sh`.
+  **A boot refusal is NOT an exit code** (Next 16.3.6, measured with
+  `next start` — the W5 plan assumed otherwise). `prepareImpl()` awaits
+  `register()`, but `NextNodeServer`'s constructor fires
+  `this.prepare().catch(err => console.error("Failed to prepare server", err))`,
+  so the rejection is logged and swallowed there and `start-server.js`'s
+  `process.exit(1)` is never reached. Next prints "Ready" all the same, the
+  socket stays bound, and for as long as the process lives **every page, route
+  handler and metadata route answers 500** — `/api/health`, `/fr`,
+  `/fr/connexion`, `/robots.txt`, `/sitemap.xml` and `/favicon.ico` were the
+  ones polled — **while files under `/_next/static` and `public/` are still
+  served**: Next's router server answers those itself, before a request
+  reaches the server whose `prepare()` rejected. "Serves nothing" would be one
+  word too many, and the difference is the real reason the hooks flag has to
+  be refused at BUILD time: a boot refusal keeps every page from loading a
+  poisoned bundle and leaves the chunk itself one URL away (on a refused
+  hooks-on build the 4 862-character chunk carrying `__va` answered 200).
+  `scripts/ci/build.sh`'s boot check (curl `/api/health`) is what turns a
+  refusal into a failed step, and `tests/boot/**` samples the status instead
+  of waiting for an exit.
+  **A 500 from `/api/health` is a verdict, never a boot race.** A request that
+  arrives while `register()` is still running is HELD and answered once it
+  settles (`start-server.js` awaits its handlers, `handleRequest` awaits
+  `prepare()`); before the port is bound the connection is refused, and that
+  is the only thing worth retrying. A healthy server never answered 500 on its
+  way up — none in the 2 700 to 3 000 answers each of three servers gave four
+  clients polling from the moment of spawn, and none in review with
+  `register()` held open for four seconds — and the route itself only returns
+  200 or 503.
+  **None of the above was observed on Vercel.** Expect LESS than "everything
+  is down" there: static assets and prerendered routes are normally served
+  from the CDN without invoking a function, so a refused deployment may well
+  go on answering 200 for a page. `/api/health` answering 500 is the
+  diagnostic, the runtime log has the variable's name, and
+  [`docs/deploy.md`](./docs/deploy.md) has the recovery (Instant Rollback).
+  **On a deployment, a passing check prints one line** —
+  `[env] contract enforced (VERCEL_ENV=…)`, once per process. Next loads the
+  hook from its own build output and treats a missing file as "no
+  instrumentation" without a word, so a 200 alone cannot tell "the contract
+  passed" from "the hook never shipped"; the runtime log can. A local or CI
+  server (no `VERCEL_ENV`) prints nothing: the line would be noise in every
+  Playwright run. `tests/unit/deploy/instrumentation.test.ts` holds what the
+  hook itself does (the line on each of the three scopes, silence locally, the
+  rejection, the `NEXT_RUNTIME` guard) — the boot tier cannot stand in for it,
+  because it tests a BUILD.
+  **The three test flags are refused when `VERCEL_ENV` is SET, not when
+  `isProduction`**, and that distinction is what made the wiring possible: the
+  `next` CLI defaults `NODE_ENV` to `production` for every command but `dev`,
+  so the CI boot check, Playwright's web server, Lighthouse and perf all start
+  a production server ON PURPOSE with `ENABLE_TEST_PAGES=1`. `VERCEL_ENV` is
+  set by Vercel and by nothing else. The flags are refused on every value it
+  can hold — a PREVIEW URL is public, and `development` is pinned too — and in
+  every spelling `flag` reads as on (`1 | true | yes`, any case). The converse
+  is the sharp edge: with `VERCEL_ENV` ABSENT the refusal is off, by design
+  for a local production server and by accident for a deployment that has
+  lost the variable. Nothing in `lib/env.ts` can tell those two apart, which
+  is what step 1 of `vercel-build.sh` is for; a production server that is not
+  on Vercel accepts the three flags, and that is the rule, not an oversight.
+  `VERCEL_ENV` itself is an enum that fails CLOSED: `staging` is an
+  `EnvValidationError` (pinned in `tests/unit/db/env.test.ts`), never "not
+  production". Do not widen it — an unknown value read as non-production
+  would drop the `AUTH_URL` and Google requirements without anyone having
+  chosen to. Vercel documents three values for it and puts a Custom
+  Environment's name in `VERCEL_TARGET_ENV`, which nothing here reads; what
+  `VERCEL_ENV` actually holds on such a deployment was not observed (the
+  project has Production and Preview only), so read the first one's build
+  log rather than assuming either way. `AUTH_URL` and the Google pair are
+  unchanged: required when `isProduction`.
+  `NEXT_PUBLIC_TEST_HOOKS` is inlined by the bundler, so no boot check can take
+  it back: **`scripts/vercel-build.sh` exits 1 on it before the contract
+  preflight and before `prisma migrate deploy`** (step 2 — its message says
+  what the flag DOES, and it needs nothing installed), and
+  `scripts/bundle-guard.ts` refuses the same pair again after the compile
+  instead of following the flag
+  (`tests/unit/deploy/bundle-guard-deployment.test.ts` executes it). The two
+  read the flag differently ON PURPOSE: vercel-build.sh takes `1 | true | yes`
+  like `lib/env.ts` does, because it is asking what an operator MEANT;
+  bundle-guard takes `"1"` only, because it is asking what is in the bytes,
+  and `next.config.ts` inlines the literal `"1"` for nothing else — on `true`
+  the hooks are never compiled and the ABSENCE rule is the correct one to run.
+  Consequence for every step that starts a server: the environment has to be
+  complete. **`npm run dev` works with the Google pair empty; `npm run start`
+  does not.** From the README's `.env.local` a `next start` prints "Ready" and
+  then answers 500 for every page, and the reason is only in its log:
+  `EnvValidationError`, `AUTH_GOOGLE_ID is required in production` (measured).
+  A local production server needs a non-empty pair — any value, as `.env.test`
+  has — and `AUTH_URL`; `.env.example` says so beside the pair.
+  `scripts/ci/{build,lighthouse}.sh` call
+  `load_env_contract_defaults` (`scripts/ci/_lib.sh`), which fills unset
+  variables from the committed `.env.test` — **never the three test flags**,
+  which a step sets deliberately or not at all
+  (`tests/unit/deploy/env-contract-defaults.test.ts` runs the function and
+  checks both halves, and pins the wiring below). **`npm run lhci` is
+  `bash scripts/ci/lighthouse.sh`** for that reason: a bare `lhci autorun`
+  starts `npm run start` from whatever the shell holds and takes "Ready" as
+  its cue, so from that `.env.local` it would go on to audit a server that
+  answers 500 (the server's half measured; lhci itself was not run against
+  it). The price is WHICH DATABASE: the defaults include the database URLs,
+  and an exported variable beats every `.env*` file `next start` loads, so a
+  local `npm run lhci` audits a server on `.env.test`'s `_test` database, not
+  `.env.local`'s — export `POSTGRES_URL` and `POSTGRES_URL_NON_POOLING` to
+  point it elsewhere. Arguments after `npm run lhci --` are not forwarded to
+  lhci. Playwright (and so perf) already load `.env.test` in
+  `playwright.config.ts` and need nothing.
+  `tests/boot/env-contract.test.ts` spawns the real server for four cases; see
+  the `boot` project under "Quality gates".
 - **The `/velo/[id]` route** — no `generateStaticParams` and no `loading.tsx`
   under `app/[locale]/velo/[id]/`, and both absences are load-bearing (see
   `.debug/006`). Enumerating `demo` makes every UUID render in Next's on-demand
@@ -601,7 +812,50 @@ PR-only `visual-baseline-guard`.
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
-- Vitest projects `unit | ui | bike3d | integration | security`; coverage
+- **The `boot` Vitest project** (`tests/boot/**`) spawns `next start` against
+  the build ON DISK and asserts the environment contract on a real server, in
+  four cases. `VERCEL_ENV=production ENABLE_TEST_PAGES=1` never answers
+  `/api/health` — three 500s on Next 16.3.6 — and logs the
+  `EnvValidationError` with the variable's name. That same refused server
+  still serves `/tree-drawings.json`: an observation the design leans on, not
+  a requirement, held so it cannot quietly stop being true — it is why the
+  BUILD refuses the hooks. The same build with all three flags on and no
+  `VERCEL_ENV` boots, serves `/api/health` and prints no `[env]` line. And a
+  clean deployment boots and logs
+  `[env] contract enforced (VERCEL_ENV=production)`.
+  **The two cases that must boot take the FIRST answer `/api/health` gives.**
+  A 500 there is a verdict (see the contract above), so it fails the case at
+  once with the server log in the message — about 0.4 s, where the retry loop
+  this replaced polled to a 90 s deadline. Only a refused connection, "the
+  port is not bound yet", is retried; never assert on an exit code, because
+  Next keeps the process alive after `register()` throws.
+  **It tests the build, not the working tree**: it builds nothing itself, so
+  with `getEnv()` removed from `instrumentation.ts` and `.next` left as it was
+  it stays green (`tests/unit/deploy/instrumentation.test.ts` is what fails on
+  the edit). `scripts/ci/build.sh` always builds first and runs it after the
+  boot check — ONE line, the only link between `tests/boot/` and any gate,
+  which `tests/unit/deploy/boot-tier-gate.test.ts` holds in place.
+  `vitest.config.ts` defines the project only when `.next/BUILD_ID` exists
+  (or `--project boot` names it — without a build that fails in the spec's own
+  guard), so `npm test` in a fresh clone never sees
+  it — and it is NOT in `tests/integration/`, where the CI `integration` job's
+  buildless checkout would have made it skip vacuously.
+  **It needs a reachable database**, like `build.sh`'s own boot check one step
+  earlier: without one the two must-boot cases fail in about half a second
+  each on a 503 — the contract accepted the server, the route could not reach
+  its database.
+  **Its child servers read `.env.local`** (and `.env.production.local`,
+  `.env.production`, `.env`) for every variable the spawn environment LACKS:
+  `next start` fills those in, and never overrides one that is defined. So
+  REMOVING a flag from a child's environment does not turn it off in a
+  checkout set up as the README says — `.env.example` ships all three as `1`,
+  and the "clean deployment" case was refused in exactly such a checkout
+  (reproduced in review: green wherever there is no `.env.local` — a fresh
+  worktree, a simulated CI job environment — and red beside the documented
+  `.env.local`; the tier itself had not run on GitHub Actions). That case pins
+  the three to `"0"` instead; a new case that needs a variable off must do the
+  same.
+- Vitest projects `unit | ui | bike3d | integration | security | boot`; coverage
   thresholds (`vitest.config.ts`, never lowered to pass): 80 % overall; 100 % on
   `lib/domain/**`; 100 % statements and branches on `lib/checkup/**`; `lib/**`
   90 % lines / functions / statements and 85 % branches; `components/**` 75 %
@@ -695,7 +949,10 @@ PR-only `visual-baseline-guard`.
   `npx tsx scripts/perf/bundle-budget.ts --json` prints the raw gzip bytes and
   the `nextPin` to write; the pin history in `perf.budgets.json` says why each
   jump happened.
-- **Lighthouse**: `scripts/ci/lighthouse.sh` runs `lhci autorun`, then
+- **Lighthouse**: `scripts/ci/lighthouse.sh` — which is also what
+  `npm run lhci` runs, never a bare `lhci autorun` (see the environment
+  contract: the server lhci starts has to be given a complete environment) —
+  runs `lhci autorun`, then
   `scripts/perf/lighthouse-report.ts` prints every run and the median per URL
   plus the bike-page pin proposal. The rule only tightens and works from the
   worse bike URL's median: performance `max(current, min(0.70, floor(median −

@@ -65,6 +65,31 @@ npm run e2e -- --project=desktop-chromium   # one project; --project is variadic
 npm run e2e:docker                          # the suite in CI's amd64 Linux image
 ```
 
+### A production server on your machine
+
+Every `next start` is a production server, and since W5 it validates its
+environment before it answers (`instrumentation.ts` → `lib/env.ts`). Three
+consequences for a checkout set up from `.env.example`; the reasons are in
+[`CLAUDE.md`](./CLAUDE.md), under "Contracts to respect".
+
+- **`npm run dev` works with `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` empty;
+  `npm run start` does not.** Next prints "Ready" all the same and then answers
+  500 for every page; the reason is only in the server's log
+  (`EnvValidationError`, `AUTH_GOOGLE_ID is required in production`). Give the
+  pair any non-empty value, as `.env.test` does, and keep `AUTH_URL` set.
+- **`bash scripts/ci/build.sh` ends with the `boot` Vitest project**
+  (`tests/boot/**`): four `next start` against the build it has just made,
+  which need the Docker database up, like its own boot check one step earlier.
+  The same project joins `npm test` and `npm run test:coverage` whenever
+  `.next/BUILD_ID` exists, and there it tests whatever build is on disk, not
+  your working tree: `rm -rf .next`, or name the projects you want
+  (`--project=unit`), to run without it.
+- **`npm run lhci` is `bash scripts/ci/lighthouse.sh`**, never a bare
+  `lhci autorun`: the script gives the server lhci starts a complete
+  environment from `.env.test`. That includes the database — the audited
+  server runs on the `_test` database unless your shell exports
+  `POSTGRES_URL` and `POSTGRES_URL_NON_POOLING`.
+
 ## Branches and commits
 
 - Branch from `main`: `feat/decision-tree-help`, `fix/checkup-abandon`,
@@ -95,6 +120,10 @@ npm run e2e:docker                          # the suite in CI's amd64 Linux imag
 - **Playwright** on desktop, Pixel 7, landscape, 320 px wide and with WebGL
   disabled (WebKit runs too, non-blocking). Mobile is not an afterthought here:
   the target user is holding a phone in a garage.
+- **A build that boots.** CI's `build` job starts the production server it has
+  just built — `/api/health` must report `ok` — and then runs `tests/boot/**`,
+  which holds the environment contract on a real server: a deployment carrying
+  a test flag is refused, a clean one boots.
 - **Security tier**: gitleaks, audit-ci, semgrep, trivy and CodeQL, plus
   `tests/security/**` (IDOR, mass assignment, CSRF and origin checks, open
   redirects, rate limits, path traversal, quotas, …).

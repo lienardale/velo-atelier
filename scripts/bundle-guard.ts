@@ -18,7 +18,9 @@
  *      when `NEXT_PUBLIC_TEST_HOOKS === "1"` at build time, so the probe must
  *      be in the bundle when the flag is on and absent when it is not. Both
  *      directions are asserted, because "absent" is only meaningful if we know
- *      the marker would have been found had it been there.
+ *      the marker would have been found had it been there. On a DEPLOYMENT
+ *      (`VERCEL_ENV` set) there is no "on" direction to follow: the flag is
+ *      refused outright — see `main()`.
  *
  * Run after `next build`, wherever the build happens:
  *   - `scripts/ci/build.sh` (CI build job, `npm run ci:local`) — CI builds with
@@ -81,6 +83,40 @@ function* walk(dir: string): Generator<string> {
 }
 
 function main(): void {
+  // On a DEPLOYMENT the hooks direction is not a variable — it is always
+  // "absent". Rule 2 follows the flag, which is right for CI (it builds the
+  // e2e artifact with the flag on and proves the marker is findable) and wrong
+  // for Vercel, where following it would turn "window.__va shipped" into a
+  // PASS. `scripts/vercel-build.sh` already refuses this combination before
+  // the compile; this is the second lock, so the rule holds even if the build
+  // is invoked some other way. VERCEL_ENV is set by Vercel and by nothing
+  // else, so `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash
+  // scripts/ci/build.sh` — the e2e build — is untouched.
+  //
+  // `=== "1"` here against `1 | true | yes` in `scripts/vercel-build.sh` is
+  // deliberate, not a drift (raised in review, 2026-09-30). The two guards
+  // answer different questions. vercel-build.sh asks "did an operator mean to
+  // turn this on?", so it reads the flag the generous way `lib/env.ts` does
+  // and refuses every spelling. This file asks "is `window.__va` in the bytes
+  // I am looking at?", and only `"1"` can put it there: `next.config.ts`
+  // normalises the variable to the literal `"1"`/`"0"` and inlines it, so
+  // `NEXT_PUBLIC_TEST_HOOKS=true` compiles to `"0" === "1"` and the probe is
+  // dropped along with its import. On `true` this branch is therefore skipped
+  // and the ABSENCE rule below runs instead — which is the correct assertion
+  // for that build, and still fails if a hook marker somehow shipped.
+  //
+  // `tests/unit/deploy/bundle-guard-deployment.test.ts` executes this file and
+  // holds all of it: the refusal on preview and production, the `true`
+  // fall-through, and the e2e build left alone.
+  if (process.env.VERCEL_ENV && process.env.NEXT_PUBLIC_TEST_HOOKS === "1") {
+    console.error(
+      `bundle-guard: NEXT_PUBLIC_TEST_HOOKS=1 on a deployment (VERCEL_ENV=${process.env.VERCEL_ENV}).` +
+        ` The test hooks must never be built into a deployed bundle — unset it in the Vercel` +
+        ` environment variables and redeploy (§3.6 AC7).`,
+    );
+    process.exit(1);
+  }
+
   let files: string[];
   try {
     files = [...walk(STATIC_DIR)];
