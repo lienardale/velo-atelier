@@ -74,10 +74,11 @@ export default async function SignInPage({
   const callbackUrl = single(query.callbackUrl);
 
   // `.env.example` and the Playwright web server set this. On Vercel it is
-  // refused at boot — `instrumentation.ts` runs `getEnv()`, and `lib/env.ts`
-  // rejects the flag whenever `VERCEL_ENV` is set (W5). A local `next start`
-  // is NODE_ENV=production too and is deliberately still allowed to have it:
-  // that is how the e2e suite signs in.
+  // refused — `lib/env.ts` rejects the flag whenever `VERCEL_ENV` is set (W5),
+  // at build time (`scripts/check-env.ts`) and again at boot
+  // (`instrumentation.ts`). A local `next start` is NODE_ENV=production too
+  // and is deliberately still allowed to have it: that is how the e2e suite
+  // signs in.
   const demo =
     process.env.NEXT_PUBLIC_DEMO_LOGIN === "1"
       ? { email: DEMO_USER.email, password: DEMO_USER.password }

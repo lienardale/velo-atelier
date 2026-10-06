@@ -3,10 +3,10 @@
  *
  * Since W5 `instrumentation.ts` runs `getEnv()` on every `next start`, and the
  * `next` CLI defaults NODE_ENV to production, so a server started without
- * `AUTH_SECRET` answers 500 to every request. Two steps start one from an
- * environment that was never complete — `build.sh`'s boot check and the
- * `npm run start` behind `lighthouse.sh` — and this function fills the gaps
- * from the committed `.env.test`.
+ * `AUTH_SECRET` answers 500 for every page and route handler. Two steps start
+ * one from an environment that was never complete — `build.sh`'s boot check
+ * and the `npm run start` behind `lighthouse.sh` — and this function fills the
+ * gaps from the committed `.env.test`.
  *
  * It had no test. That is worse than it sounds for one specific reason:
  * **`.env.test` sets all three forbidden flags to `1`**. `ENABLE_TEST_PAGES`
@@ -174,5 +174,48 @@ describe("load_env_contract_defaults", () => {
       },
     );
     expect(stdout.trim()).toBe("OK");
+  });
+});
+
+/**
+ * The helper only helps the commands that go through it.
+ *
+ * `npm run lhci` used to be a bare `lhci autorun`: lhci then started
+ * `npm run start` from whatever the shell held, and from the README's
+ * `.env.local` (Google pair empty) that server is refused by the contract.
+ * Nothing failed fast — Next prints "Ready", which is the pattern lhci waits
+ * for, before answering 500 (the server's side measured in review,
+ * 2026-10-06). CI never saw it: its job calls the script. Read off disk, like
+ * `migrate-on-deploy.test.ts`: this is wiring, and a tidy-up is what undoes it.
+ */
+describe("the commands that start a production server go through it", () => {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- every call site passes a literal repo path
+  const read = (path: string) => readFileSync(join(root, path), "utf8");
+
+  // Each pattern is anchored on a line that RUNS the command: a comment or a
+  // `log_step` banner naming it never matches.
+  const LOAD = /^load_env_contract_defaults\b/m;
+  const LHCI = /^[ \t]*(?:npx --no-install |npx )?lhci autorun\b/m;
+  const BUILD = /^npm run build$/m;
+  const START = /^[ \t]*(?:npx --no-install |npx )?next start\b/m;
+
+  it("`npm run lhci` is scripts/ci/lighthouse.sh, not a bare `lhci autorun`", () => {
+    const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+    expect(pkg.scripts.lhci).toBe("bash scripts/ci/lighthouse.sh");
+  });
+
+  it("lighthouse.sh completes the environment before lhci starts the server", () => {
+    const script = read("scripts/ci/lighthouse.sh");
+    expect(script.search(LOAD)).toBeGreaterThan(-1);
+    expect(script.search(LOAD)).toBeLessThan(script.search(LHCI));
+  });
+
+  it("build.sh completes it AFTER the build and before its boot check", () => {
+    // After the build on purpose: NEXT_PUBLIC_* is inlined by the bundler, so
+    // a value taken from `.env.test` must never be able to reach the bundle.
+    const script = read("scripts/ci/build.sh");
+    expect(script.search(BUILD)).toBeGreaterThan(-1);
+    expect(script.search(BUILD)).toBeLessThan(script.search(LOAD));
+    expect(script.search(LOAD)).toBeLessThan(script.search(START));
   });
 });

@@ -3,10 +3,11 @@
  *
  * `lib/db/log.ts` drops one line from the server log, and it identifies it by
  * two literals: the client method `authAttempt.update` and P2025's wording
- * "required but not found". The event carries no error code, so those two ARE
- * the match — and neither is our string. A Prisma upgrade that renames the
- * target, or rewords the message, would silently turn the filter into a no-op
- * (noise comes back: survivable) or, worse, leave it matching something else.
+ * "required but not found", read on the message's last line. The event carries
+ * no error code, so those two ARE the match — and neither is our string. A
+ * Prisma upgrade that renames the target, rewords the message or moves the
+ * sentence would silently turn the filter into a no-op (noise comes back:
+ * survivable) or, worse, leave it matching something else.
  *
  * Nothing below the integration tier can catch that: the fake database raises
  * the errors we tell it to. So this file drives the real limiter against real
@@ -53,7 +54,7 @@ describe("the Prisma error event lib/db/log.ts filters", () => {
     try {
       // No row for this key yet: the increment misses, the reopen misses, and
       // the limiter creates the row and answers `ok`. Two decisions, no
-      // failure — and, as it stands, two lines in the log.
+      // failure — and, before `lib/db/log.ts`, two lines in the log.
       const verdict = await createPrismaRateLimiter(client).consume(KEY, {
         max: 5,
         windowMs: 60_000,
@@ -69,33 +70,64 @@ describe("the Prisma error event lib/db/log.ts filters", () => {
     ).toBeGreaterThan(0);
     expect(events.map((event) => event.target)).toEqual(events.map(() => "authAttempt.update"));
     expect(events[0].message).toMatch(/required but not found/);
+    // WHERE in the message matters as much as the wording. This tier runs with
+    // NODE_ENV=test, so Prisma's format is `colorless` and each message opens
+    // with the caller's source (observed here: `…/lib/security/rate-limit.ts:91:26`
+    // and `:99:26`, with the three lines above each call). `lib/db/log.ts`
+    // therefore reads the last non-empty line only, and that rests on the
+    // engine's sentence still being that line.
+    for (const event of events) {
+      expect(
+        event.message.trimEnd().split("\n").at(-1),
+        "Prisma no longer ends its message on the engine's sentence — lib/db/log.ts reads " +
+          "only the last non-empty line and would stop recognising the miss",
+      ).toMatch(/required but not found/);
+    }
     expect(events.every(isExpectedNotFoundLog)).toBe(true);
   });
 });
 
 /**
- * The SHARED singleton still reports. This is the wiring, not the rule.
+ * The SHARED singleton: it still reports, and nothing reports the miss. This
+ * is the wiring, not the rule.
  *
  * Everything above uses a client of its own, on purpose — it is asking what
  * Prisma emits, and the singleton's filter would hide the answer. That leaves
- * the singleton itself unexamined, and it is the half with the regression in
- * it: moving from `emit: "stdout"` to `emit: "event"` made our own listener
- * the only thing that prints a Prisma error, so deleting the `$on` — or
- * letting it return early — silences every database failure in production
- * while every test in the repository stays green. (Measured: with the body
- * replaced by `() => {}`, 43 real `[prisma]` lines disappeared from a CI run
- * and all 389 integration tests still passed.)
+ * the singleton itself unexamined, and it is the half with the regressions in
+ * it. There are two, and they point in opposite directions.
  *
- * So this drives the real singleton, both ways, through the log it actually
- * writes. It is deliberately the crudest possible assertion — spy on
- * `console.error`, count the lines — because anything cleverer would be
- * testing a seam rather than the wiring.
+ * It can go QUIET. Moving from `emit: "stdout"` to `emit: "event"` made our
+ * own listener the only thing that prints a Prisma error, so deleting the
+ * `$on` — or letting it return early — silences every database failure in
+ * production while every test in the repository stays green. (Measured: with
+ * the body replaced by `() => {}`, 43 real `[prisma]` lines disappeared from a
+ * local run and all 389 integration tests still passed — "a CI run" in the
+ * commit that recorded it, on a branch that had never run on GitHub Actions.)
+ *
+ * And the NOISE can come back with the listener untouched: put `"error"` back
+ * in the client's `log`, or a `{ emit: "stdout", level: "error" }` beside the
+ * event definition, and Prisma prints the limiter's miss itself again. That
+ * line is not ours — `console.log("prisma:error", message)`, two arguments, no
+ * `[prisma]` prefix — so a test that listens to `console.error` for our prefix
+ * cannot see it, and the first version of the silent test here was exactly
+ * that: it passed with the line this whole change removes back in the log.
+ *
+ * So this drives the real singleton, both ways, through the log the process
+ * actually writes, with one recorder per direction. Speaking is OUR line:
+ * `console.error`, our prefix, counted. Silence is anybody's line: every
+ * console channel, every argument, no prefix. Both stay as crude as they can
+ * be — anything cleverer would be testing a seam rather than the wiring.
  */
 describe("the shared prisma singleton's error listener", () => {
   /** A bike that does not exist. `Bike.id` is a uuid, so this is well-typed and unmatched. */
   const ABSENT_BIKE = "00000000-0000-4000-8000-0000000000ff";
 
-  /** Lines the singleton's listener wrote, in order. */
+  /**
+   * Lines the singleton's LISTENER wrote, in order: `console.error`, our prefix.
+   *
+   * The prefix is the point of the speaking direction (`PRISMA_LOG_PREFIX`): a
+   * match on the message alone would be satisfied by a line Prisma printed.
+   */
   async function prismaLinesDuring(act: () => Promise<void>): Promise<string[]> {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
@@ -109,6 +141,36 @@ describe("the shared prisma singleton's error listener", () => {
         .filter((line) => line.startsWith(PRISMA_LOG_PREFIX));
     } finally {
       spy.mockRestore();
+    }
+  }
+
+  /**
+   * Every line ANYTHING wrote to the console, whoever wrote it and wherever.
+   *
+   * Four channels and no filter, because the line this exists to catch is not
+   * one of ours. Each call is recorded as ALL of its arguments joined: Prisma's
+   * own print passes its tag first and the message second, so a recorder that
+   * read `call[0]` — as the one above rightly does for our single-argument
+   * line — would hold `prisma:error` and never the wording.
+   */
+  async function consoleLinesDuring(act: () => Promise<void>): Promise<string[]> {
+    const lines: string[] = [];
+    const record = (...parts: unknown[]): void => {
+      lines.push(parts.map(String).join(" "));
+    };
+    const spies = [
+      vi.spyOn(console, "log").mockImplementation(record),
+      vi.spyOn(console, "info").mockImplementation(record),
+      vi.spyOn(console, "warn").mockImplementation(record),
+      vi.spyOn(console, "error").mockImplementation(record),
+    ];
+    try {
+      await act();
+      // Same tick as above, for the same reason.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return lines;
+    } finally {
+      for (const spy of spies) spy.mockRestore();
     }
   }
 
@@ -130,15 +192,28 @@ describe("the shared prisma singleton's error listener", () => {
     expect(lines[0]).toContain("required but not found");
   });
 
-  it("stays silent for the rate limiter's expected miss", async () => {
-    // Ruling 3's own subject, measured on the singleton rather than on the
-    // predicate: this is the line that used to appear on every first sign-in.
-    const lines = await prismaLinesDuring(async () => {
-      await expect(
-        prisma.authAttempt.update({ where: { key: KEY }, data: { count: 1 } }),
-      ).rejects.toThrow();
+  it("writes nothing about the rate limiter's expected miss, on any console channel", async () => {
+    // "Drop the known miss, print everything else" — the first half, on the
+    // real path rather than on the predicate: the real limiter, through the
+    // singleton, on a key with no row. Both statements miss — the first test
+    // of this file holds, for this very call on a client that keeps its
+    // events, that Prisma still emits them — and that is the pair of lines
+    // every fresh key used to put in the server log.
+    const lines = await consoleLinesDuring(async () => {
+      const verdict = await createPrismaRateLimiter(prisma).consume(KEY, {
+        max: 5,
+        windowMs: 60_000,
+      });
+      // `beforeEach` left no row for KEY, and `count: 1` says nothing was
+      // incremented: the limiter went through both misses and created the row.
+      expect(verdict).toEqual({ ok: true, retryAfterMs: 0, count: 1 });
     });
 
-    expect(lines).toEqual([]);
+    expect(
+      lines.filter((line) => /required but not found/.test(line)),
+      "the limiter's expected miss is in the server log again — either lib/db/log.ts no longer " +
+        'drops it, or lib/db/prisma.ts lets Prisma print errors itself ("error" or an ' +
+        'emit: "stdout" definition for the error level)',
+    ).toEqual([]);
   });
 });

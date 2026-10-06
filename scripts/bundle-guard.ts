@@ -104,6 +104,10 @@ function main(): void {
   // dropped along with its import. On `true` this branch is therefore skipped
   // and the ABSENCE rule below runs instead — which is the correct assertion
   // for that build, and still fails if a hook marker somehow shipped.
+  //
+  // `tests/unit/deploy/bundle-guard-deployment.test.ts` executes this file and
+  // holds all of it: the refusal on preview and production, the `true`
+  // fall-through, and the e2e build left alone.
   if (process.env.VERCEL_ENV && process.env.NEXT_PUBLIC_TEST_HOOKS === "1") {
     console.error(
       `bundle-guard: NEXT_PUBLIC_TEST_HOOKS=1 on a deployment (VERCEL_ENV=${process.env.VERCEL_ENV}).` +

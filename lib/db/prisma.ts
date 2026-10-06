@@ -1,7 +1,7 @@
 /**
  * The Prisma client singleton.
  *
- * Three things are going on here.
+ * Four things are going on here.
  *
  * 1. **Driver adapter.** Prisma 7 talks to Postgres through `@prisma/adapter-pg`
  *    (node-postgres), which is what lets the same client work on Vercel's
@@ -22,7 +22,13 @@
  *    events taken, `reportPrismaError` is the ONLY thing that prints a Prisma
  *    error anywhere in the app. It is one call rather than a body so it can be
  *    unit-tested, and `tests/integration/prisma-error-log.test.ts` asserts on
- *    THIS singleton that the call is still there.
+ *    THIS singleton that the call is still there — and that Prisma's own print
+ *    has not come back beside it.
+ *
+ *    The listener belongs to the client, and the client outlives a hot reload
+ *    on `globalThis` (point 2), so an edit to `lib/db/log.ts` needs a
+ *    dev-server restart to take effect — shown by re-evaluating both modules
+ *    (same client, same listener), not observed under `next dev` itself.
  *
  * 4. **Lazy construction.** The exported `prisma` is a proxy that builds the
  *    real client on first property access. `next build` imports every route
@@ -55,6 +61,16 @@ function createPrismaClient(): PrismaClient {
   // `never`, so `prisma.$on(…)` off the annotated value does not typecheck at
   // all. The listener is registered here, on the freshly constructed value,
   // where the generic is still inferred from the options.
+  //
+  // `error` is taken as an event and ONLY as an event. The `"error"` shorthand,
+  // or a `{ emit: "stdout", level: "error" }` — instead of this entry or beside
+  // it — makes Prisma print every error itself again, the limiter's expected
+  // miss included: `console.log("prisma:error", message)`, which no listener
+  // of ours is asked about. Beside the event entry it is the quiet mistake:
+  // the listener still runs and still filters, so `tsc`, ESLint, the unit
+  // tests and the "prints a real failure" test all stay green (measured), and
+  // the any-channel test in `tests/integration/prisma-error-log.test.ts` is
+  // what fails — on the two `prisma:error` lines a fresh key writes.
   const log: Prisma.LogDefinition[] = [{ emit: "event", level: "error" }];
   if (process.env.NODE_ENV === "development") log.push({ emit: "stdout", level: "warn" });
 

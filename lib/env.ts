@@ -13,9 +13,15 @@
  *
  * Deliberately **not** validated at module scope: `next build` imports server
  * modules to collect route metadata, and a build should not require a running
- * database or a production secret. `instrumentation.ts`'s `register()` is the
- * one caller, and Next does not run it during a build (W5) — so the boot of a
- * started server is where this fires, and `next build` still needs nothing.
+ * database or a production secret. Two things evaluate it instead (W5):
+ *
+ *   - `instrumentation.ts`'s `register()` calls `getEnv()` when a server
+ *     starts. Next does not run it during a build, so `next build` — and so
+ *     `npm run build` and CI's `scripts/ci/build.sh` — still needs nothing.
+ *   - `scripts/check-env.ts` calls `parseEnv` during the VERCEL build only
+ *     (`scripts/vercel-build.sh`), where the scope's variables are present. A
+ *     wrong scope then fails the build, before the migration, instead of being
+ *     found out by the first request to a deployment that is already live.
  *
  * `NEXT_PUBLIC_*` values are inlined by the bundler at build time, so they are
  * read as literal `process.env.NEXT_PUBLIC_…` members wherever the client
@@ -68,20 +74,22 @@ const baseSchema = z.object({
   /**
    * Set by Vercel only; `undefined` locally and in CI.
    *
-   * KNOWN SHARP EDGE, the same shape as the database-name one below: this
-   * enum became load-bearing in W5, and it fails CLOSED on a value it does
-   * not know. A Vercel **Custom Environment** puts its own name here
-   * (`staging`, …), which would raise `EnvValidationError` at boot and 500
-   * every request — on a deployment carrying none of the forbidden flags,
-   * i.e. for nothing.
+   * This enum became load-bearing in W5, and it fails CLOSED on a value it
+   * does not know: `VERCEL_ENV=staging` is an `EnvValidationError`, at the
+   * Vercel build (`scripts/check-env.ts`) and at boot. That is a decision, and
+   * `tests/unit/db/env.test.ts` pins it. A value this file cannot classify
+   * must not be read as "not production": that reading would drop the
+   * `AUTH_URL` and Google requirements below without anyone having chosen to.
    *
-   * The project has Production + Preview only, so nothing is broken today,
-   * and widening is a decision rather than a tidy-up: an unknown value would
-   * then read as non-production, which skips the `AUTH_URL` and Google
-   * requirements below. It would NOT weaken the flag refusal — that one is
-   * `if (parsed.VERCEL_ENV)`, any value. So: before creating a Custom
-   * Environment, widen this to `z.string().min(1)` deliberately and say so in
-   * `docs/deploy.md`. Do not discover it during a deploy.
+   * What is known about Vercel **Custom Environments**, and what is not:
+   * Vercel's documentation gives `VERCEL_ENV` three possible values —
+   * production, preview, development — and puts a custom environment's name
+   * in a different variable, `VERCEL_TARGET_ENV`, which nothing here reads.
+   * What `VERCEL_ENV` actually holds on a custom-environment deployment was
+   * NOT observed here (the project has Production + Preview only). If it is
+   * one of the three, such a deployment is treated as that scope; if it is
+   * anything else, it is refused, loudly and before it migrates. Either way,
+   * look at the first one's build log rather than assuming.
    */
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
 
@@ -147,10 +155,21 @@ const schema = baseSchema.superRefine((parsed, ctx) => {
   // makes it the only honest signal that separates a deployment from a local
   // production server.
   //
+  // The converse is the sharp edge: with `VERCEL_ENV` ABSENT this refusal is
+  // off, by design for a local server and by accident for a deployment that
+  // has lost the variable (Vercel documents it as present only while the
+  // project exposes its system environment variables). Nothing in this file
+  // can tell those two apart, so `scripts/vercel-build.sh` refuses to build
+  // without a known `VERCEL_ENV`. A production server that is not on Vercel
+  // accepts the three flags — that is what the rule says, not an oversight.
+  //
   // `NEXT_PUBLIC_TEST_HOOKS` is also a BUILD-time flag — the bundler inlines
-  // it, so by the time this runs the bundle is already decided. Refusing it
-  // here keeps a poisoned deployment from serving; `scripts/vercel-build.sh`
-  // is what stops the bundle being built in the first place.
+  // it, so by the time a server starts the bundle is already decided.
+  // Refusing it at boot stops every page and route handler from being
+  // answered, but not the compiled chunks under `/_next/static` from being
+  // fetched (`instrumentation.ts` has the measurement). So the refusal that
+  // matters for this one is the build-time one: `scripts/vercel-build.sh`
+  // stops the bundle being built in the first place.
   if (parsed.VERCEL_ENV) {
     const forbidden: readonly (readonly [string, boolean])[] = [
       ["ENABLE_TEST_PAGES", parsed.ENABLE_TEST_PAGES],

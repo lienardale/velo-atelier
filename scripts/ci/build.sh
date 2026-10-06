@@ -63,11 +63,12 @@ fi
 
 # The boot check starts a real server, so it needs the whole environment
 # contract, not just a database URL: since W5 `instrumentation.ts` runs
-# `getEnv()` before the server takes requests, and the `next` CLI makes every
-# `next start` NODE_ENV=production, so a missing AUTH_SECRET or AUTH_URL now
-# stops the server answering at all (every request 500s) rather than surfacing
-# later and elsewhere. The curl loop below is what turns that into a failed
-# step: there is no exit code to read.
+# `getEnv()` before the server answers its first request, and the `next` CLI
+# makes every `next start` NODE_ENV=production, so a missing AUTH_SECRET or
+# AUTH_URL now makes every page and route handler answer 500 — `/api/health`
+# included — rather than surfacing later and elsewhere. The curl loop below is
+# what turns that into a failed step: there is no exit code to read, and Next
+# prints "Ready" all the same.
 #
 # It used to be "if POSTGRES_URL is unset, load the whole of .env.test", which
 # was all-or-nothing: CI sets POSTGRES_URL in the job's `env:` block, so CI
@@ -131,12 +132,17 @@ cleanup
 BOOT_PID=""
 
 # The boot check above proves this build starts. The `boot` Vitest project
-# proves the OTHER direction — that a poisoned deployment environment serves
-# nothing — by spawning `next start` against this same `.next` and sampling
-# `/api/health` until it is sure. It lives here and not in `tests/integration/`
-# because the CI `integration` job has no build: a spec placed there would skip
-# vacuously and prove nothing. The project is only defined when `.next/BUILD_ID`
-# exists (vitest.config.ts), so `npm test` in a fresh clone never sees it.
+# proves the OTHER direction — that a poisoned deployment environment answers
+# no page and no route handler — by spawning `next start` against this same
+# `.next` and sampling `/api/health`. It lives here and not in
+# `tests/integration/` because the CI `integration` job has no build: a spec
+# placed there would skip vacuously and prove nothing. The project is only
+# defined when `.next/BUILD_ID` exists (vitest.config.ts), so `npm test` in a
+# fresh clone never sees it.
+#
+# THIS LINE IS THE ONLY LINK between `tests/boot/` and any gate: the unit job
+# names its four projects, coverage only merges blobs, and pre-push skips the
+# build. `tests/unit/deploy/boot-tier-gate.test.ts` fails if it goes.
 log_step "boot contract (vitest --project boot)"
 npx --no-install vitest run --project boot
 

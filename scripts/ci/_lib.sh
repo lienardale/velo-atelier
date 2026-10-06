@@ -84,12 +84,18 @@ skip_step() {
 #
 # Why a step needs this at all: `instrumentation.ts` runs `getEnv()` on every
 # `next start` (W5), and the `next` CLI defaults NODE_ENV to production, so a
-# started server with no AUTH_SECRET or no AUTH_URL now answers 500 to every
-# request instead of failing later and elsewhere. Two steps start a server from an environment
-# that was never complete — `build.sh`'s boot check and the `npm run start`
-# that `lighthouse.sh` has lhci run — and `.env.test` is exactly the set of
-# values CI already runs against (gitleaks allowlists the file; nothing in it
-# is a credential).
+# started server with no AUTH_SECRET or no AUTH_URL now answers 500 for every
+# page and route handler instead of failing later and elsewhere. Two steps
+# start a server from an environment that was never complete — `build.sh`'s
+# boot check and the `npm run start` that `lighthouse.sh` has lhci run — and
+# `.env.test` is exactly the set of values CI already runs against (gitleaks
+# allowlists the file; nothing in it is a credential).
+#
+# That includes the DATABASE: a step that had no POSTGRES_URL of its own gets
+# `.env.test`'s, the `_test` database. An exported variable beats every `.env*`
+# file `next start` loads, `.env.local` included — so a local
+# `npm run lhci` audits a server on the `_test` database, not the dev one,
+# unless the shell exports its own POSTGRES_URL / POSTGRES_URL_NON_POOLING.
 #
 # THE THREE TEST FLAGS ARE NEVER TAKEN FROM THE FILE. `ENABLE_TEST_PAGES`,
 # `NEXT_PUBLIC_TEST_HOOKS` and `NEXT_PUBLIC_DEMO_LOGIN` open `/dev/*`, ship

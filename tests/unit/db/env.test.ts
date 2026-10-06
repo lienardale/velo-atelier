@@ -124,6 +124,10 @@ describe("parseEnv", () => {
   it("reads 1 / true / yes as an enabled flag and everything else as off", () => {
     expect(parseEnv(validEnv({ AUTH_TRUST_HOST: "true" })).AUTH_TRUST_HOST).toBe(true);
     expect(parseEnv(validEnv({ AUTH_TRUST_HOST: "1" })).AUTH_TRUST_HOST).toBe(true);
+    // The title named `yes` long before a case tried it (found in review,
+    // 2026-10-06: dropping it from `flag` left every test green).
+    expect(parseEnv(validEnv({ AUTH_TRUST_HOST: "yes" })).AUTH_TRUST_HOST).toBe(true);
+    expect(parseEnv(validEnv({ AUTH_TRUST_HOST: "YES" })).AUTH_TRUST_HOST).toBe(true);
     expect(parseEnv(validEnv({ AUTH_TRUST_HOST: "0" })).AUTH_TRUST_HOST).toBe(false);
     expect(parseEnv(validEnv({ AUTH_TRUST_HOST: "" })).AUTH_TRUST_HOST).toBe(false);
   });
@@ -176,7 +180,17 @@ describe("parseEnv", () => {
       expect(env.isProduction).toBe(false);
     });
 
-    it("reports every problem at once", () => {
+    it("reports every VALUE problem at once (a missing variable stops earlier — see scripts/check-env.ts)", () => {
+      // Two problems of different kinds, and BOTH have to be listed: a value
+      // the schema refuses (a 5-character secret) and a cross-field rule (the
+      // Google id, optional in the schema and required in production). The
+      // title used to say "every problem" while the test looked for the secret
+      // alone, so a schema that stopped at the first one stayed green.
+      //
+      // "Every" stops at a variable the SCHEMA requires being absent, or of
+      // the wrong type: zod then never reaches the cross-field rules, and one
+      // refused build does not name the rest. `scripts/check-env.ts` says so
+      // in the build log; `vercel-build-guard.test.ts` executes that case.
       let error: unknown;
       try {
         parseEnv(prod({ AUTH_GOOGLE_ID: undefined, AUTH_SECRET: "short" }));
@@ -184,7 +198,9 @@ describe("parseEnv", () => {
         error = caught;
       }
       expect(error).toBeInstanceOf(EnvValidationError);
-      expect((error as EnvValidationError).issues.map((i) => i.path)).toContain("AUTH_SECRET");
+      const paths = (error as EnvValidationError).issues.map((i) => i.path);
+      expect(paths).toContain("AUTH_SECRET");
+      expect(paths).toContain("AUTH_GOOGLE_ID");
     });
   });
 
@@ -198,8 +214,9 @@ describe("parseEnv", () => {
    * Lighthouse and perf — all of which start a production build ON PURPOSE
    * with `ENABLE_TEST_PAGES=1`. `VERCEL_ENV` is set by Vercel and by nothing
    * else, so it is the only signal that separates a deployment from a local
-   * production server. Both directions are pinned here, in both scopes,
-   * because a rule with one untested direction is half a rule.
+   * production server. Both directions are pinned here, in every scope
+   * `VERCEL_ENV` can name, because a rule with one untested direction is half
+   * a rule.
    */
   describe("the test flags are scoped to a deployment", () => {
     const FLAGS = [
@@ -240,6 +257,26 @@ describe("parseEnv", () => {
       expect(issueFor(flag, deployed("preview", { [flag]: "1" }))?.message).toMatch(/deployment/);
     });
 
+    it.each(FLAGS)("refuses %s on a DEVELOPMENT deployment too", (flag) => {
+      // The third value VERCEL_ENV can hold. The rule is "on a deployment",
+      // whichever one: an exemption for this scope left every other test green
+      // (found in review, 2026-10-06).
+      expect(issueFor(flag, deployed("development", { [flag]: "1" }))?.message).toMatch(
+        /deployment/,
+      );
+    });
+
+    it.each(["yes", "YES", "true", "True"])(
+      "refuses a flag spelled %s on a deployment, not only 1",
+      (spelling) => {
+        // `scripts/vercel-build.sh` refuses these spellings of the hooks flag at
+        // build time; the contract must not be the more lenient of the two.
+        for (const flag of FLAGS) {
+          expect(issueFor(flag, deployed("preview", { [flag]: spelling }))).toBeDefined();
+        }
+      },
+    );
+
     it.each(FLAGS)("allows %s on a local `next start` (NODE_ENV=production, no VERCEL_ENV)", () => {
       // The combination nothing pinned before W5, and the one every browser
       // tier actually runs in.
@@ -277,6 +314,77 @@ describe("parseEnv", () => {
       expect(() => parseEnv(deployed("preview", { POSTGRES_URL_NON_POOLING: undefined }))).toThrow(
         /POSTGRES_URL_NON_POOLING/,
       );
+    });
+
+    /**
+     * Required means required — in every scope, by exactly these names.
+     *
+     * Since W5 this schema decides whether a deployment builds and boots, and
+     * `docs/deploy.md` calls these four load-bearing. Until this case, the
+     * test above was the whole proof: a SHORT secret and one missing URL.
+     * Making `POSTGRES_URL`, `AUTH_SECRET` or `NEXT_PUBLIC_SITE_URL` optional
+     * left every test green (found in review, 2026-10-06).
+     *
+     * Asserted on the issue's PATH, not on a pattern over the message:
+     * `/POSTGRES_URL/` also matches `POSTGRES_URL_NON_POOLING`.
+     */
+    it.each(["POSTGRES_URL", "POSTGRES_URL_NON_POOLING", "AUTH_SECRET", "NEXT_PUBLIC_SITE_URL"])(
+      "requires %s on a preview and on a production deployment",
+      (key) => {
+        for (const scope of ["preview", "production"]) {
+          // Control: the complete environment raises nothing for this key, so
+          // the issue below is about its absence and nothing else.
+          expect(issueFor(key, deployed(scope)), `${key}, complete ${scope}`).toBeUndefined();
+          expect(
+            issueFor(key, deployed(scope, { [key]: undefined })),
+            `${key} missing on ${scope}`,
+          ).toBeDefined();
+        }
+      },
+    );
+
+    /**
+     * The 32-character floor, AT 32.
+     *
+     * Every "short secret" case in this file uses 5 to 9 characters and the
+     * valid fixture is exactly 32, so nothing stood between them: with the
+     * floor in `lib/env.ts` lowered to 31, or to 17, the unit and security
+     * tiers stayed green (found in review, 2026-10-06). And a 31-character
+     * `AUTH_SECRET` is the first example `scripts/vercel-build.sh` gives of
+     * what its preflight exists to catch.
+     *
+     * On the issue's PATH, like the case above, and in both scopes a real
+     * deployment builds: the floor is not a production-only rule.
+     */
+    it.each(["preview", "production"])(
+      "holds AUTH_SECRET's floor at exactly 32 characters on a %s deployment",
+      (scope) => {
+        expect(
+          issueFor("AUTH_SECRET", deployed(scope, { AUTH_SECRET: "x".repeat(31) })),
+          `31 characters on ${scope}`,
+        ).toBeDefined();
+        // 32 raises nothing at all — not "nothing for AUTH_SECRET": the rest
+        // of `deployed()` is complete, so the whole environment has to parse.
+        expect(
+          () => parseEnv(deployed(scope, { AUTH_SECRET: "x".repeat(32) })),
+          `32 characters on ${scope}`,
+        ).not.toThrow();
+      },
+    );
+
+    it("refuses a VERCEL_ENV it does not know: the enum fails closed", () => {
+      // A decision, not an accident (see the comment on VERCEL_ENV in
+      // lib/env.ts). Read as "any non-empty string", an unknown value would
+      // count as "not production" and silently drop the AUTH_URL and Google
+      // requirements — so it is refused instead, by name.
+      expect(issueFor("VERCEL_ENV", deployed("staging"))).toBeDefined();
+
+      // Vercel documents a custom environment's name as living in
+      // VERCEL_TARGET_ENV, with VERCEL_ENV still one of the three. That shape
+      // parses, as the scope VERCEL_ENV names; nothing reads the other one.
+      // (The documented shape, not one observed on a deployment.)
+      const env = parseEnv(deployed("preview", { VERCEL_TARGET_ENV: "staging" }));
+      expect(env.isProduction).toBe(false);
     });
 
     it("accepts the live Preview scope exactly as docs/deploy.md describes it", () => {

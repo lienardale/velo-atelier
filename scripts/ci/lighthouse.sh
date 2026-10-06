@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Lighthouse CI over the production build.
+# Lighthouse CI over the production build. `npm run lhci` runs this file too:
+# a bare `lhci autorun` starts `npm run start` from whatever the shell holds,
+# and from a README-style `.env.local` (Google pair empty) that server is
+# refused by the environment contract — after printing the "Ready" that lhci
+# takes as its cue, and then answering 500 for every page (the server's side
+# measured in review, 2026-10-06; lhci itself was not run against it).
 #
 # `lighthouserc.cjs` owns the URL list, the assertions and the Chrome flags
 # (SwiftShader, because the demo-bike pages render WebGL). This script points
@@ -41,11 +46,18 @@ fi
 # lhci starts the server itself (`startServerCommand: npm run start`), and since
 # W5 `instrumentation.ts` validates the environment before that server answers.
 # The job's `env:` block carries a database URL and AUTH_SECRET but no AUTH_URL,
-# so without this the audit would fail at boot rather than on a metric. Derive
+# so without this the server would be refused — and nothing would stop lhci
+# there: Next prints "Ready" (lhci's ready pattern) and then answers 500 for
+# every page, so the audit starts against a server that serves none. Derive
 # AUTH_URL from the origin actually being audited — a worktree moves both with
 # LHCI_BASE_URL — and take everything else still missing from `.env.test`.
 # Real environment variables win; the three test flags are never read from the
 # file, so what the page renders is decided by the BUILD, exactly as before.
+#
+# Locally that "everything else" includes the database URLs, so the audited
+# server runs on `.env.test`'s `_test` database unless the shell exports its
+# own (see `load_env_contract_defaults`). `.env.local` is still read by
+# `next start` for whatever remains unset — the three test flags, typically.
 export AUTH_URL="${AUTH_URL:-${LHCI_BASE_URL:-http://localhost:3100}}"
 load_env_contract_defaults
 

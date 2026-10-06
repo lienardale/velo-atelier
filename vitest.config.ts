@@ -84,7 +84,10 @@ function namedProject(argv: readonly string[], name: string): boolean {
  *
  * It spawns `next start` against `.next` and asserts what the environment
  * contract does to a real server: `VERCEL_ENV=production ENABLE_TEST_PAGES=1`
- * serves nothing, the same build without the poison serves `/api/health`. There is
+ * answers 500 for `/api/health` (and every other page and route handler; the
+ * files under `public/` and `/_next/static` are still served), the same build
+ * without the poison answers it 200. It tests the build ON DISK, not the
+ * working tree: a stale `.next` is what it sees. There is
  * nothing to run without a production build, so it is defined only when one is
  * on disk — `npm test` in a fresh clone (and the CI `unit` job, whose checkout
  * has no `.next`) never sees the project at all, which is the point: a spec
@@ -331,9 +334,13 @@ export default defineConfig(async (): Promise<ViteUserConfig> => {
           "lib/db/prisma.ts",
           "auth.ts",
           "proxy.ts",
-          // Three lines calling `getEnv()`; what it decides is covered by
-          // `tests/unit/db/env.test.ts`, and that it runs at all is covered by
-          // the `boot` tier, which measures a child process.
+          // A few lines calling `getEnv()`; what it decides is covered by
+          // `tests/unit/db/env.test.ts`, what the hook itself does by
+          // `tests/unit/deploy/instrumentation.test.ts`, and that the BUILT
+          // hook runs at all by the `boot` tier, which measures a child
+          // process. (No `include` pattern above matches this file, so the
+          // entry changes no number today — identical totals without it,
+          // measured in review — and keeps that true if an include widens.)
           "instrumentation.ts",
           "app/api/auth/**",
           // Generated shadcn primitives (components.json); not edited by hand.
