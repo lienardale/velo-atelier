@@ -12,8 +12,9 @@
 # `renovate-config-validator` ships inside the `renovate` package and is the
 # only reader of `renovate.json` the repository can host itself. It is NOT one
 # of scripts/ci.sh's steps and NOT a required status context: the install pulls
-# the whole of Renovate (minutes on a cold npx cache), which is why the job
-# that calls it is path-filtered to `renovate.json`
+# the whole of Renovate (~350 MB on a cold npx cache; not timed on a runner),
+# which is why the job that calls it is path-filtered — to `renovate.json`, to
+# this script and to its own workflow file
 # (.github/workflows/renovate-config.yml) — and a path-filtered context that
 # never reports would block every other PR for ever (`.debug/016` §2).
 #
@@ -49,22 +50,27 @@ cd "$PROJECT_ROOT"
 # everywhere: if a binary is missing the answer is `npm ci`, not a silent
 # download of some other version from the registry" — and this is the one
 # script that cannot obey the letter of it. The validator IS the whole of
-# Renovate (~350 MB unpacked, minutes to install) for a file that changes a
-# few times a year, so putting it in `devDependencies` would tax every `npm
-# ci` in every job. It is therefore downloaded rather than installed — but at
-# an exact version, because an unpinned `npx` runs whatever the registry
-# served that minute, from outside the lockfile and so invisible to
-# `audit-ci`. A supply-chain hold of the kind `renovate.json` imposes on every
-# real dependency (`minimumReleaseAge`) is worth at least this much here —
-# which is also why the pin below is a release at least SEVEN DAYS old, not
-# the newest one that works. Renovate ships several versions a day (TWENTY-FOUR
+# Renovate (~350 MB on a cold npx cache; not timed on a runner) for one
+# path-filtered job — a file that changes a few times a year, and the pin
+# below, which Renovate is expected to bump about weekly — so putting it in
+# `devDependencies` would tax every `npm ci` in every job. It is therefore
+# downloaded rather than installed — but at an exact version, because an
+# unpinned `npx` runs whatever the registry served that minute, from outside
+# the lockfile and so invisible to `audit-ci`. A supply-chain hold of the kind
+# `renovate.json` imposes on every real dependency (`minimumReleaseAge`) is
+# worth at least this much here — which is also why the pin below is a release
+# at least SEVEN DAYS old, not the newest one that works. Renovate ships several versions a day (TWENTY-FOUR
 # 44.1xx releases across 2026-09-29 and 2026-09-30 — 13 then 11, counted from
 # the registry's own `time` map), so "latest" and "latest when I wrote this" are
 # the same unheld package.
 #
 # Renovate keeps the pin current: renovate.json's second `customManagers`
 # entry matches the line below, so a bump arrives as an ordinary PR — held the
-# same 7 days as everything else, and validated by this very job. Nothing but
+# same 7 days as everything else, and validated by this very job. That last
+# clause was false when it was first written: the bump edits THIS file and no
+# other, and the workflow was path-filtered to `renovate.json` alone, so the
+# job would not have started on it. This script is now one of the workflow's
+# `paths:` (tests/unit/ci/required-checks.test.ts pins the list). Nothing but
 # that regex may be on the line, and no date beside it: Renovate rewrites the
 # version and would leave any comment about it behind, lying.
 RENOVATE_VERSION="44.108.1"
@@ -80,6 +86,12 @@ log_step "renovate-config-validator --no-global $CONFIG (renovate@$RENOVATE_VERS
 
 # `--yes` keeps the download non-interactive on a runner; `--no-global` is
 # what makes this a REPOSITORY config check (see the header).
+#
+# The line stands alone on purpose. Its exit status IS the job's verdict, and
+# `set -e` (in `_lib.sh`) is what carries it out of this script: `|| true`
+# after it, or an `if !` around it, leaves every flag above in place and turns
+# the gate into a green tick. tests/unit/ci/renovate-config.test.ts runs this
+# script against a stand-in `npx` that fails, and expects to fail with it.
 npx --yes --package "renovate@$RENOVATE_VERSION" -- renovate-config-validator --no-global "$CONFIG"
 
 log_ok "$CONFIG is valid Renovate configuration"

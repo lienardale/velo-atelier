@@ -32,8 +32,11 @@ Every row below was read back from the provider after the fact, never assumed.
 | Renovate                | app installed 2026-09-29; its first run rejected `renovate.json` — §4.4                                                                                          |
 
 Still open at the end of W5-T1: the §5 launch checklist, the twelve CodeQL
-alerts ([`backlog.md`](./backlog.md)), and the README's "_(W5)_" live-site line,
-which §5.3 fills at tag time.
+alerts ([`backlog.md`](./backlog.md)), the README's "_(W5)_" live-site line,
+which §5.3 fills at tag time — and **§4.5's bootstrap**: rotate the `preview`
+branch's password, one secret, two variables, the first dispatch. Until the
+maintainer has done it, `migrate-preview` skips green and nothing migrates
+`preview`.
 
 ---
 
@@ -42,19 +45,19 @@ which §5.3 fills at tag time.
 Read this before clicking anything: these are the behaviours the dashboards must
 not contradict.
 
-| Piece                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `vercel.json`                           | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `scripts/vercel-build.sh`               | refuses three things, in this order and **before the database is touched**: a `VERCEL_ENV` that is not `production`, `preview` or `development` (unset included); `NEXT_PUBLIC_TEST_HOOKS`; the whole environment contract (`scripts/check-env.ts`). Then `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/{migrate-on-deploy,vercel-build-guard}.test.ts` pin that wiring and execute the script                                                                                                               |
-| `scripts/check-env.ts`                  | the build-time preflight: `lib/env.ts`'s `parseEnv`, unweakened, on the variables of the scope being built. A violation exits 1 naming the variable (never its value), so the **build** fails and nothing is migrated. `vercel-build.sh` is its one caller — `npm run build` and CI never run it, and still need no secret                                                                                                                                                                                                                                                                             |
-| `instrumentation.ts`                    | the runtime lock: `register()` runs `getEnv()` once per server start, and requests that arrive meanwhile are held until it has settled. On a wrong environment, under `next start`, every page, route handler and metadata route answers 500 and the log names the variable — instead of an `undefined` deep inside Auth.js — while files under `/_next/static` and `public/` are still served (on Vercel: expected, not observed — see below). Next does not run it during a build. It does not exit either: see below. On a deployment a passing check logs `[env] contract enforced (VERCEL_ENV=…)` |
-| `.github/workflows/migrate-preview.yml` | the other half of the line above: `prisma migrate deploy` against the Neon **`preview`** branch, on every push to `main` that touches `prisma/migrations/**` and on `workflow_dispatch --ref main` (no other ref). Reads the secret `NEON_PREVIEW_DIRECT_URL` and the variable `PREVIEW_MIGRATIONS_ENABLED` (§4.5); skips while the secret is absent, fails once the variable says it should not be                                                                                                                                                                                                    |
-| `.github/workflows/renovate-config.yml` | a pinned `renovate-config-validator --no-global renovate.json` (`--no-global` = the REPOSITORY schema, the one the service applies) on every pull request that touches that file, and on `main`. Path-filtered, therefore never a required context (§4.1, §4.4)                                                                                                                                                                                                                                                                                                                                        |
-| `package.json`                          | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `next.config.ts`                        | security headers and a static Content-Security-Policy on every route                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `GET /api/health`                       | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `prisma/seed.ts`                        | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `.vercelignore`                         | keeps `.debug/`, `.claude/`, `docs/`, the screenshot baselines and the perf baselines out of the upload. **`tests/` itself stays**: `next build` type-checks the `*.test.ts(x)` files beside the code, which import `@/tests/_helpers` and `@/tests/_fakes` (see the first-build failure in §2)                                                                                                                                                                                                                                                                                                        |
+| Piece                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vercel.json`                           | `framework: nextjs`, `buildCommand: npm run vercel-build` (overrides the dashboard's Build Command), `regions: ["cdg1"]`, three security headers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `scripts/vercel-build.sh`               | refuses three things, in this order and **before the database is touched**: a `VERCEL_ENV` that is not `production`, `preview` or `development` (unset included); `NEXT_PUBLIC_TEST_HOOKS`; the whole environment contract (`scripts/check-env.ts`). Then `prisma migrate deploy` **only** when `VERCEL_ENV=production`, then `npm run build`, then `scripts/bundle-guard.ts`; `tests/unit/deploy/{migrate-on-deploy,vercel-build-guard}.test.ts` pin that wiring and execute the script                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `scripts/check-env.ts`                  | the build-time preflight: `lib/env.ts`'s `parseEnv`, unweakened, on the variables of the scope being built. A violation exits 1 naming the variable (never its value), so the **build** fails and nothing is migrated. `vercel-build.sh` is its one caller — `npm run build` and CI never run it, and still need no secret                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `instrumentation.ts`                    | the runtime lock: `register()` runs `getEnv()` once per server start, and requests that arrive meanwhile are held until it has settled. On a wrong environment, under `next start`, every page, route handler and metadata route answers 500 and the log names the variable — instead of an `undefined` deep inside Auth.js — while files under `/_next/static` and `public/` are still served (on Vercel: expected, not observed — see below). Next does not run it during a build. It does not exit either: see below. On a deployment a passing check logs `[env] contract enforced (VERCEL_ENV=…)`                                                                                                                                                                                                                                                                                                                                                  |
+| `.github/workflows/migrate-preview.yml` | the one thing that migrates the Neon **`preview`** branch (`scripts/vercel-build.sh` migrates production only): `prisma migrate deploy` on a push to `main` that touches `prisma/migrations/**` — as long as the migration is among the first 300 changed files of that push (GitHub's documentation, not observed: §4.5, "Afterwards") — and on `gh workflow run migrate-preview.yml --ref main`, also the bootstrap. One step reads the secret `NEON_PREVIEW_DIRECT_URL` and the variables `PREVIEW_MIGRATIONS_ENABLED` and `NEON_PREVIEW_ENDPOINT` (§4.5). Green and skipping only before the bootstrap; red on a half-set pair, a host that is not the named endpoint, a pooled host, any ref but `main`, or — after the fact — a run in which Prisma CREATED the database it was pointed at. Never triggered by a pull request and never a required context; a dispatch aimed at a PR's branch leaves a red, non-required check on its head commit |
+| `.github/workflows/renovate-config.yml` | a pinned `renovate-config-validator --no-global renovate.json` (`--no-global` = the REPOSITORY schema, the one the service applies) on a pull request, and on a push to `main`, that touches `renovate.json`, `scripts/ci/renovate-config.sh` or this workflow file — so Renovate's own bump of the pinned validator runs it too. Path-filtered, therefore never a required context (§4.1, §4.4)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `package.json`                          | `engines.node: "24.x"`; `prepare` is `husky \|\| true`, so an install without `.git` never fails; `postinstall` runs `prisma generate`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `next.config.ts`                        | security headers and a static Content-Security-Policy on every route                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `GET /api/health`                       | a real `SELECT 1`: `200 {"ok":true,"db":true}`, or `503 {"ok":false,"db":false}`; never cached                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `prisma/seed.ts`                        | refuses `VERCEL_ENV=production` outright, and any non-local host unless `ALLOW_REMOTE_SEED=1` (`lib/db/guard.ts`), which is never set against Neon: **Neon is never seeded**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `.vercelignore`                         | keeps `.debug/`, `.claude/`, `docs/`, the screenshot baselines and the perf baselines out of the upload. **`tests/` itself stays**: `next build` type-checks the `*.test.ts(x)` files beside the code, which import `@/tests/_helpers` and `@/tests/_fakes` (see the first-build failure in §2)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 **The environment contract is evaluated twice: when Vercel builds a scope, and
 again every time a server starts** (W5). `lib/env.ts` used to be a rule nothing
@@ -285,58 +288,104 @@ Nothing to enable by hand: the init migration
   (`tests/security/seed-guard.test.ts` holds the same cases).
 - After the first production deploy (step 2.1): its build log shows
   `20260911071112_init` and every later migration applied.
-- **And then the same for `preview` — once by hand, then by workflow.**
+- **And then the same for `preview` — by workflow, the first time included.**
   `scripts/vercel-build.sh` runs `prisma migrate deploy` only when
   `VERCEL_ENV=production`, so no preview deployment ever migrates its own
   branch. A `preview` branched from `production` _before_ the first production
   deploy therefore holds no schema at all, and nothing reports it:
   `/api/health` is a bare `SELECT 1`, which an empty database answers happily,
   and `/velo/demo` is code-backed. W5 branched in that order and found
-  `preview` with no `_prisma_migrations` table (`.debug/016` §3). Migrate it
-  once, with the **direct** URL, and assert the host before running:
+  `preview` with no `_prisma_migrations` table (`.debug/016` §3).
 
-  ```bash
-  POSTGRES_URL_NON_POOLING='<preview direct>' npx prisma migrate deploy
-  ```
-
-  That one variable is all the CLI reads: `prisma.config.ts` takes its
-  datasource from `readDatabaseUrls().direct`, and there is deliberately no
-  fallback to the pooled URL. Then check both branches carry the same count:
-  `select count(*) from "_prisma_migrations"`. `/api/health` will never tell
-  you (§2's check passes against an empty database).
-
-  **After the bootstrap it is a workflow, not a memory.**
-  `.github/workflows/migrate-preview.yml` runs that same `migrate deploy`
-  against `preview` on every push to `main` that touches
-  `prisma/migrations/**`, and on demand:
+  `.github/workflows/migrate-preview.yml` is the one thing that migrates it:
+  on a push to `main` that touches `prisma/migrations/**` (with one silent
+  limit on very large pushes: §4.5, "Afterwards"), and on demand —
 
   ```bash
   gh workflow run migrate-preview.yml --ref main
   ```
 
-  `--ref main` is not a convention: the script refuses any other ref, because
-  a dispatch on a feature branch would apply **that branch's unmerged**
+  **That dispatch is the bootstrap too: there is no by-hand migration to do
+  first.** `prisma migrate deploy` creates `_prisma_migrations` on a database
+  that has none and applies everything — `scripts/ci/migrate-preview.sh` was
+  run in review against an empty throwaway local database (2026-10-06): every
+  migration applied, exit 0, and a second run printed
+  `No pending migrations to apply.` This section used to open with a
+  `migrate deploy` typed by hand, the preview branch's connection string
+  inline as `POSTGRES_URL_NON_POOLING='…'`. **Do not do that.** A command
+  line is written whole to the shell's history file, the assignment in front
+  of the command included, and a connection string in a file is no longer a
+  secret. Whether W5's own by-hand migration was typed that way is not on
+  record. What is: the string was handled outside the stores, in a terminal
+  session — `.debug/016` §3 has `prisma migrate deploy` run against the
+  preview branch's direct URL and the string held in a file beside
+  production's. By §4.5's rule that spends it, which is why §4.5 starts with
+  a rotation. The one by-hand form left is §4.5's fallback: marked as such,
+  with the string read from a prompt, and a rotation to pay afterwards.
+
+  The procedure — rotate, one secret, two variables, dispatch, read the run —
+  is **§4.5**, and so is everything the run can say. In short: the job is
+  green and **skips with a message** only while neither the secret nor the
+  switch has ever been set, so nothing about `main` changes until the
+  maintainer starts the bootstrap. From then on every half-finished state is
+  a red run. GitHub hands a step the empty string for a secret that does not
+  exist, so a job that skipped on "no secret" alone would go back to
+  green-and-silent the day the secret was deleted or renamed — the failure
+  this workflow exists to remove, one level up.
+
+  **`--ref main`, and what that rule is worth.** The script refuses any other
+  ref: a dispatch on a feature branch would apply **that branch's unmerged**
   `prisma/migrations/**` to the one database every open PR's preview reads.
+  But a dispatch runs the workflow file and the script _of the ref it names_,
+  so the rule is enforced by that ref's own copy of the script. It stops an
+  accidental `--ref`; it does not bind a branch that edited the script, and
+  GitHub hands that run the repository secret all the same (§4.5, "Who can
+  read the secret").
 
-  It needs one repository secret, `NEON_PREVIEW_DIRECT_URL`, and one
-  repository variable, `PREVIEW_MIGRATIONS_ENABLED=1` (**§4.5**, which also
-  says why the branch's password is rotated first). While the secret is absent
-  the job runs and **skips with a message** rather than failing the push, so
-  nothing about `main` changes until the maintainer adds it — and the variable
-  is what ends that grace period, because GitHub hands a step the empty string
-  for a secret that does not exist, so without it a secret later deleted or
-  renamed would put the job back to green-and-silent. Set both in the same
-  sitting. Resetting `preview` from its parent in the Neon console is still the
-  one-click equivalent of a migration; after such a reset, dispatch the
-  workflow to bring the branch back into step.
+  **Resetting `preview` from its parent is not a migration.** This section
+  used to call it the one-click equivalent of one. It is a copy: per Neon's
+  documentation (read in review, 2026-10-06) a reset replaces the child
+  branch's schema AND data with its parent's — and the parent is
+  `production`, a live site. A reset therefore puts production's rows,
+  accounts and password hashes included, in the one database every pull
+  request's preview deployment reads. That is a decision to take on purpose,
+  never a way to catch up a schema: the dispatch above does that, and copies
+  nothing.
 
-  **What it is not**: a deploy hook. The trigger is the push to `main`, not a
-  successful production deployment, so `preview` can take a migration slightly
-  before production does — and a destructive one reaches every open PR's
-  preview within minutes of landing. Strictly better than a branch with no
-  schema at all, but the real answer is one Neon branch per pull request
-  ([`backlog.md`](./backlog.md)); the alternative trigger, if that waits, is
-  `workflow_run` on a successful production deployment.
+  A reset is also expected to undo the rotation. Per the same documentation a
+  child branch's roles carry the parent's passwords by default, and a child's
+  own passwords survive a reset only when the parent is a _protected_ branch —
+  a paid-plan feature, on a project that is on the Free plan. So after a
+  reset the `preview` role's password should be production's again: the
+  rotated string in the GitHub secret and in Vercel's Preview and Development
+  scopes stops authenticating, and `preview` shares production's password
+  once more. **Expected per Neon's documentation, not observed**: no reset of
+  this branch is on record, and Neon's own page on resets says only that the
+  branch's connection details do not change. The tell would be a dispatched
+  run that goes red on `P1000: Authentication failed`; whoever resets first
+  should write here what happened. After a reset, in this order (§4.5's step
+  numbers): re-rotate the `preview` role's password (1), update the GitHub
+  secret (3) and both Vercel scopes (5), redeploy the open previews (5), then
+  dispatch (6). `NEON_PREVIEW_ENDPOINT` stays as it is if the endpoint keeps
+  its name, which is what "connection details do not change" should mean; if
+  the branch is ever deleted and created again, the variable must follow the
+  new endpoint or the run is red.
+
+  **What it is not**: a deploy hook, nor a database per pull request. The
+  trigger is the push to `main`, not a successful production deployment, so
+  `preview` can take a migration slightly before production does — and a
+  destructive one reaches every open PR's preview within minutes of landing.
+  In the other direction, a pull request that ADDS a migration gets a preview
+  deployment whose code is ahead of the shared schema until it merges:
+  nothing migrates `preview` for it, and dispatching the workflow on its
+  branch is exactly what the script refuses. Strictly better than a branch
+  with no schema at all, but the real answer is one Neon branch per pull
+  request ([`backlog.md`](./backlog.md)). If the trigger is ever to follow
+  the production deployment instead, the event to use is `deployment_status`:
+  Vercel's Git integration is not a workflow, so `workflow_run` has nothing
+  to follow (GitHub's documentation, read in review). Per that documentation
+  the event's `GITHUB_REF` can be empty, which the script's ref guard refuses
+  as it stands. Not tried.
 
 ## 2. Vercel — who: the maintainer (Vercel account)
 
@@ -437,9 +486,17 @@ the custom domain added under Settings → Domains. A change to
 `NEXT_PUBLIC_SITE_URL` or `AUTH_URL` reaches only the builds made after it
 (step 3.4).
 
-`vercel env pull .env.vercel` downloads the Development scope — never into
-`.env.local`, which must keep pointing at the Docker database (`.env.vercel` is
-gitignored).
+**Do not pull the Development scope.** `vercel env pull` writes a scope's
+variables to a file, and that scope holds the `preview` branch's two
+connection strings — the freshly rotated ones, once §4.5's step 5 is done. A
+connection string in a file is spent by §4.5's rule: if the scope is ever
+pulled, delete the file, then rotate the `preview` password again (§4.5,
+step 1), replace the GitHub secret (step 3) and replace both strings in the
+Preview and Development scopes (step 5). Local development needs nothing from
+Vercel: it runs against the Docker database in `.env.local`. This paragraph
+used to give `vercel env pull .env.vercel` as the way to download the scope;
+`.env.vercel` stays in `.gitignore` so that a file pulled by mistake cannot
+also be committed.
 
 **The first production build failed, and why** (W5, 2026-09-29). `.vercelignore`
 excluded `tests/`, so the build machine had the code but not the helpers its
@@ -624,9 +681,9 @@ Configuration option `vulnerabilityAlerts.minimumReleaseAge` should be a string,
 Invalid configuration option: _comment_minimumReleaseAge
 ```
 
-Both were written in W1 and never executed: `renovate.json` is read by Renovate
-and by nothing else, so no local gate, no CI job and no JSON-schema check ever
-looked at it. Renovate's own schema settles both:
+Both were written in W1 and never executed: `renovate.json` was read by
+Renovate and by nothing else, so no local gate, no CI job and no JSON-schema
+check had ever looked at it. Renovate's own schema settles both:
 
 - `minimumReleaseAge` is `{"type": ["string", "null"], "default": null}`, so the
   way to exempt security updates from the 7-day hold is `null`, not `false`.
@@ -638,14 +695,33 @@ looked at it. Renovate's own schema settles both:
 `renovate.json` and exits non-zero on exactly these errors. It is no longer a
 thing to remember —
 [`.github/workflows/renovate-config.yml`](../.github/workflows/renovate-config.yml)
-runs it on every pull request that touches the file and on every push of it to
-`main`, and `bash scripts/ci/renovate-config.sh` is the same command locally
-(it takes a path, so a copy can be checked too). The install pulls the whole
-`renovate` package — minutes on a cold npx cache — which is why the job is
-path-filtered and why, being path-filtered, it is **not** one of the twenty
-required contexts: a required check that does not report on most PRs blocks
-them for ever (§4.1). It is listed in `NON_BLOCKING_CONTEXTS` next to
-`visual-baseline-guard`.
+runs it on every pull request, and every push to `main`, that touches one of
+**three** paths: `renovate.json`, `scripts/ci/renovate-config.sh`, or that
+workflow file itself. `bash scripts/ci/renovate-config.sh` is the same command
+locally (it takes a path, so a copy can be checked too). The install pulls the
+whole `renovate` package — ~350 MB, on a cache that is cold on every runner —
+which is why the job is path-filtered and why, being path-filtered, it is
+**not** one of the twenty required contexts: a required check that does not
+report on most PRs blocks them for ever (§4.1). It is listed in
+`NON_BLOCKING_CONTEXTS` next to `visual-baseline-guard`, and
+`tests/unit/ci/required-checks.test.ts` now holds the rule itself rather than
+the one name: no workflow whose pull-request trigger carries `paths` or
+`paths-ignore` may produce a required context.
+
+**Not required means GitHub will merge past it.** With one maintainer and zero
+required reviews (§4.1), a pull request can be merged while this check is red,
+or while it is still installing. Open it and read it — beginning with the pull
+request that introduced the job, which changes `renovate.json` and is
+therefore its first run on GitHub. That run had not happened when this was
+written: the validator had only ever run on a laptop.
+
+**And green means less than "the service will accept it".** The validator
+checks options and their types against the repository schema. It does not
+resolve the presets named in a top-level `extends`: a misspelt preset there —
+`config:recomended`, one `m` short — is the same class of failure as the one
+above, the service stops, and it should pass here. That is read from the
+pinned version's source in review (44.108.1 resolves presets for
+`packageRules` entries only), not from a run.
 
 **`--no-global`, or the check is weaker than the service.** Handed a
 _filename_, `renovate-config-validator` validates it as a self-hosted
@@ -664,7 +740,11 @@ reads `Validating renovate.json as repo config`. The flag costs nothing and
 keeps the path argument, so an ad-hoc copy is checked the same way.
 `tests/unit/ci/renovate-config.test.ts` fails if it is ever dropped — nothing
 else would notice, because a weakened validator and a working one print the
-same green tick.
+same green tick. The same file holds the validator's **verdict**, which is the
+third way to lose the gate without losing a flag: it runs the script against a
+stand-in `npx` that exits 1 and expects the script to exit 1 with it. Until
+the review of 2026-10-06, `|| true` after the validator line, an `if !` around
+it, or `continue-on-error` on the job each left every test green.
 
 **The validator is pinned, not `@latest`.** `scripts/ci/renovate-config.sh`
 holds `RENOVATE_VERSION` and passes `renovate@<that>` to `npx`. An unpinned
@@ -673,13 +753,37 @@ holds `RENOVATE_VERSION` and passes `renovate@<that>` to `npx`. An unpinned
 holds every real dependency for seven days (`minimumReleaseAge`) that is the
 wrong default, and it contradicts the rule `scripts/ci/lint.sh`'s header
 states. It is downloaded rather than installed only because the package is
-~350 MB for a job that runs a few times a year. The pin is also **at least
-seven days old**, like every other dependency here: Renovate publishes
-several times a day (**twenty-four** `44.1xx` releases across 2026-09-29 and
-2026-09-30 — 13 then 11, counted from the registry's own `time` map), so "the
-newest one that works" is an unheld package by another name. `renovate.json`'s second `customManagers` entry matches that line, so
-the bump arrives as an ordinary Renovate PR — held the same seven days, and
-validated by this very job.
+~350 MB, for one path-filtered job: in `devDependencies` it would tax every
+`npm ci` in every job. The pin is also **at least seven days old**, like every
+other dependency here: Renovate publishes several times a day
+(**twenty-four** `44.1xx` releases across 2026-09-29 and 2026-09-30 — 13 then
+11, counted from the registry's own `time` map), so "the newest one that
+works" is an unheld package by another name.
+
+**Renovate bumps the pin, and this job validates the bump.** `renovate.json`'s
+second `customManagers` entry matches the `RENOVATE_VERSION` line, so a new
+version arrives as an ordinary Renovate PR, held the same seven days. That PR
+edits `scripts/ci/renovate-config.sh` and nothing else — which is why the
+script is one of the workflow's three paths. Filtered on `renovate.json`
+alone, as the job first was, it would not have started on its own bump, and a
+new validator would first have met the committed config on somebody's later,
+unrelated edit of `renovate.json`, where a failure reads as that change's
+fault. (This paragraph said "validated by this very job" while that was false;
+found in review, 2026-10-06. That the job does start on a bump PR is GitHub's
+`paths` rule — a workflow runs when at least one changed path matches — and no
+such PR exists yet, so it is not observed.)
+
+That bump is a recurring cost nobody has seen yet. With several releases a
+day, every Monday run finds a version that has just cleared the seven-day
+hold: **expect a pin-bump pull request about once a week**, and with it this
+job's full cold install. It is not automerged — the patch-automerge rule
+matches on `matchDepTypes`, and a dependency found by a regex manager carries
+none — so it waits for a human, runs the twenty required contexts, and takes
+one of the five `prConcurrentLimit` slots while it is open. All of this is
+inferred in review from Renovate's source and the registry's release dates,
+not observed: the app has not opened one. If the cadence turns out to be
+noise, a `packageRules` entry for `renovate` (a monthly schedule, say) is the
+knob; none is set.
 
 **Its green run is not silent** (renovate 44.108.1, the pinned version, run
 2026-09-30). The committed file validates — `INFO: Config validated
@@ -689,7 +793,12 @@ has been renamed `managerFilePatterns`, whose patterns carry regex delimiters
 (`"/^package\\.json$/"`). A warning is not an error and Renovate still honours
 `fileMatch`, so nothing is broken; but renaming it is a change to
 `renovate.json` and belongs in its own pull request — which this job will then
-validate. And the `npx` install takes several minutes even warm.
+validate. The warning is also most of the log: a green run printed 560 lines
+on 2026-10-06, the migrated config and its diff, between
+`INFO: Validating renovate.json as repo config` and the verdict on the
+next-to-last line. Two `customManagers` entries carry `fileMatch` now, and
+`tests/unit/ci/renovate-config.test.ts` finds the second one by that key, so
+the rename has to move the test with it.
 
 Which is why the script passes `--no-global` and **not** `--strict`. Measured on
 the same pinned version and the same committed file: `--no-global` exits 0,
@@ -699,98 +808,521 @@ still accepts, rather than over a defect — so it stays off until the rename
 lands, and `scripts/ci/renovate-config.sh`'s header says so where somebody
 reaching for the flag will read it.
 
+**The install is slow only when it is cold.** An earlier version of this
+section said it "takes several minutes even warm"; it does not. With the npx
+cache already holding the pinned version, the whole script ran in 3 s, 5.4 s
+and 4 s on three occasions (2026-10-06, on a laptop: in review, after the
+review's fixes, and for this paragraph). Cold, it downloads and unpacks the
+~350 MB (348M measured in the npx cache), and a runner is always cold — how
+long that takes there has not been timed, because the job had not yet run on
+GitHub.
+
 ### 4.5 Actions secrets and variables
 
-One secret and one variable, both for one workflow. Settings → Secrets and
-variables → Actions.
+One secret and two variables, all three for one workflow
+(`.github/workflows/migrate-preview.yml`) and all three read by one step of
+it. None of them existed on 2026-10-06 (read in review). They live under
+Settings → Secrets and variables → Actions; the `gh` commands below write the
+same store.
 
-| Name                         | Kind     | Read by                                 | Value                                                                        |
-| ---------------------------- | -------- | --------------------------------------- | ---------------------------------------------------------------------------- |
-| `NEON_PREVIEW_DIRECT_URL`    | secret   | `.github/workflows/migrate-preview.yml` | the **direct** (unpooled) connection string of the Neon **`preview`** branch |
-| `PREVIEW_MIGRATIONS_ENABLED` | variable | the same workflow                       | `1`, set in the same sitting as the secret                                   |
+| Name                         | Kind     | Value                                                                                                                                                                                                                                     |
+| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEON_PREVIEW_DIRECT_URL`    | secret   | the **direct** (unpooled) connection string of the Neon **`preview`** branch, copied after the rotation below                                                                                                                             |
+| `PREVIEW_MIGRATIONS_ENABLED` | variable | `1`                                                                                                                                                                                                                                       |
+| `NEON_PREVIEW_ENDPOINT`      | variable | `ep-plain-block` — the first label of the preview branch's host, minus its trailing `-<id>`. Not a secret: `.debug/016` §3 already publishes it. Read it from here or from there, never from the panel the string is copied from (step 2) |
 
-**The variable is what ends the bootstrap skip.** GitHub hands a step the
-empty string for a secret that does not exist, so the script cannot tell "not
-set up yet" from "deleted, renamed, or scoped away by an organisation policy".
-It has to skip on the first — a red `main` before the maintainer has had a
-chance to add anything is noise — and it must not skip on the second, or the
-job goes back to green-and-silent while `preview` drifts, which is the exact
-failure it was written to remove. So: with `PREVIEW_MIGRATIONS_ENABLED` unset,
-an empty secret is a SKIP; with it set to `1`, an empty secret is a **failure**
-that names the secret. `1` is the only value that arms it: any other non-empty
-value (`true`, `yes`, `on`) fails the job on the spot rather than reading as
-"enabled" to a human and as "unset" to the comparison. Set it once, with the
-secret, and never clear it unless `preview` is deliberately no longer migrated.
+**The rule everything below serves.** The connection string lives in the Neon
+console, in GitHub's secret store and — for the deployments that use it — in
+Vercel's environment variables. It is never an argument to a command, never
+in a file, never in a log and never in a message. A command line is written
+whole to the shell's history file, and a string that has been in a shell's
+history is not a secret any more. What is on record for this branch's string
+is less specific than that, and enough: in W5 it was handled outside those
+stores, in a terminal session. `.debug/016` §3 records both endpoints queried
+directly, `prisma migrate deploy` run against the preview branch's direct
+URL, and the string held in a file beside production's; it names no command
+line and no history file. By this rule the string is spent, and that is why
+the procedure starts with a rotation.
 
-**Rotate first, paste second.** The preview branch's connection string was used
-by hand from a terminal during the W5 investigation, and again to migrate the
-branch (`.debug/016` §3): a string that has been in a shell's history is not a
-secret any more. In the Neon console, branch `preview` → Roles → reset the
-password, then copy the **new** direct string into the GitHub secret. The same
-rotation has to reach Vercel, whose Preview and Development scopes hold the old
-password in `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` (§2): update them in the
-same sitting. Vercel resolves environment variables when a deployment is
-created, so deployments already built keep the old string until they are
-redeployed.
+**Until that rotation, the preview string carries production's password.**
+Per Neon's documentation a child branch's roles have the parent's passwords by
+default, and `preview` is a child of `production` (read in review; not checked
+against the live project). Two things follow. Rotating `preview` matters more
+than "a preview database" suggests — and it changes nothing on `production`.
+`.debug/016` §3 records both endpoints being queried directly in that session,
+so by this section's own standard production's string was handled by hand
+too; how it was given to the client is not recorded. Whether to rotate
+production's password is the maintainer's decision and is no part of this
+procedure. It has a cost this one does not: the live deployment holds the old
+password, so the site is expected to lose its database from the reset until a
+production deployment has been rebuilt with the new string (step 3.4) — not
+exercised.
 
-Three things the value must not be:
+**The bootstrap — who: the maintainer, in one sitting, in this order.** No
+step puts the connection string on a command line or in a file. Between
+steps 3 and 4 the repository is half set, and a half-set repository is a red
+run if a migration lands on `main` just then (the table further down) — so do
+not stop between them.
 
-- **Not the pooled string** — the one whose host carries `-pooler`. DDL and
-  Prisma's advisory migration lock do not survive a transaction pooler, so
-  `scripts/ci/migrate-preview.sh` refuses a `-pooler` host rather than
-  attempting the migration.
-- **Not production's.** Nothing in the workflow can tell the two endpoints
-  apart, and in the console they differ by which branch is selected above the
-  connection panel. Copy it from the `preview` branch's page.
-- **Not in a file.** It belongs in the GitHub secret store and the Neon console
-  and nowhere else — not `.env.local`, not a comment, not a commit.
+0. **Merge first** — the pull request that carries the workflow. Per GitHub's
+   documentation a `workflow_dispatch` only works once the workflow file is on
+   the default branch. That merge starts no migrate run of its own: it changes
+   nothing under `prisma/migrations/**`.
+1. **Rotate.** Neon console → project `velo-atelier` → branch **`preview`** →
+   Roles → reset the password of the role the app connects as. From this
+   moment every preview deployment already built has lost its database — it
+   holds the old password — until step 5.
+2. **Name the endpoint.** A public value, so a command line is where it
+   belongs:
 
-**Check.** With the secret set:
+   ```bash
+   gh variable set NEON_PREVIEW_ENDPOINT --body ep-plain-block
+   ```
+
+   The value is the first label of the preview branch's host minus its
+   trailing `-<id>`: of `ep-plain-block-<id>.<region>.aws.neon.tech`,
+   `ep-plain-block`. **Take it from this document or from `.debug/016` §3**
+   (the console's branch list should show it too; no console was opened for
+   this change) — **never from the Connection details panel the string is
+   copied from in step 3.** The script's endpoint assertion is worth exactly
+   the independence of its two sides: read off that one panel with the
+   branch selector left on `production`, the secret and the variable agree
+   with each other, and production's endpoint passes.
+
+3. **Store the string.** In the Neon console, with the branch selector on
+   **`preview`**: Connection details → connection pooling **off** → copy the
+   bare `postgresql://…` URL, not the `psql '…'` snippet. Its host starts
+   `ep-plain-block-` and holds no `-pooler`. Then:
+
+   ```bash
+   gh secret set NEON_PREVIEW_DIRECT_URL
+   ```
+
+   Nothing after the name. With no `--body`, `gh` asks for the value in an
+   interactive prompt (its manual, version 2.89.0): paste, Enter. The value is
+   not an argument, so it is not in the shell's history. **Never**
+   `--body '<the string>'`, never `< a-file`, never `-f .env`: each of those
+   is the string on a command line or in a file. The browser form (Secrets tab
+   → New repository secret) does the same without a terminal. `gh secret set`
+   was not run for this change — no agent handles this value — so whether the
+   prompt hides what is pasted was not checked.
+
+4. **Arm the switch**, then read both variables back:
+
+   ```bash
+   gh variable set PREVIEW_MIGRATIONS_ENABLED --body 1
+   gh variable list
+   ```
+
+5. **Vercel.** Project → Settings → Environment Variables, **Preview** and
+   **Development** scopes: replace `POSTGRES_URL` (the pooled string) and
+   `POSTGRES_URL_NON_POOLING` (the direct one) with the rotated-password
+   strings, pasted from the Neon console into the dashboard (§2's table).
+   Then redeploy the preview of every open pull request: Vercel resolves
+   environment variables when a deployment is created, so deployments already
+   built keep the old password.
+6. **Dispatch.**
+
+   ```bash
+   gh workflow run migrate-preview.yml --ref main
+   ```
+
+7. **Read the run** — next. It is the only evidence there is.
+
+No console was opened for this change, and the console paths above are not
+all of one age. Step 5's Vercel path (Settings → Environment Variables) and
+step 3's "Connection details" are the ones this document has given since W5.
+Step 1's Roles → reset-the-password path and step 3's connection-pooling
+toggle were written for this change and have never been checked against the
+Neon console. Whoever does the bootstrap first: correct them here if the
+console says otherwise, as §1 asks of whoever first resets the branch.
+
+**Read the run.** `gh run list` shows a status, not a log — and, straight
+after a dispatch, possibly not this run yet: wait a few seconds before
+listing, or use the URL `gh workflow run` prints (its help text, as the
+review read it on 2.89.0: "The created workflow run URL will be returned if
+available"; not observed, since nothing was dispatched for this change).
 
 ```bash
-gh workflow run migrate-preview.yml --ref main
-gh run list --workflow=migrate-preview.yml -L 1
+gh run list --workflow=migrate-preview.yml -L 1   # the newest run: its id and its status
+gh run watch <run-id>                             # follow it until it completes
+gh run view <run-id> --log                        # the log itself
 ```
 
-The log prints `prisma migrate deploy → ep-plain-block…/neondb` — the first
-two words of the endpoint and the database name, never the rest of the host
-and never the credentials — followed by Prisma's list of applied migrations or
-"No pending migrations to apply". Two words are what tell `preview` from
-`production` apart (`.debug/016` §3 prints exactly that much); the rest of the
-host would only help a stranger address it, and an Actions log on a public
-repository is public, `$GITHUB_STEP_SUMMARY` included.
+A green first dispatch is expected to print these lines, in this order, with
+others between them:
 
-Prisma is the one that has to be held to that, not just the script. Left alone
-it announces its own datasource on the line after the one above —
+```
+:: prisma migrate deploy → ep-plain-block…/neondb
+Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-plain-block…"
+3 migrations found in prisma/migrations
+Applying migration `20260930094543_one_open_build_list_per_bike`
+All migrations have been successfully applied.
+:: prisma migrate deploy exited 0 on ep-plain-block…/neondb
+```
+
+- **`N migrations found in prisma/migrations` is the LOCAL file count** — the
+  migration directories in the commit the run checked out. It says nothing
+  about the database. The pair to read is that line **plus** Prisma's verdict
+  under it: `All migrations have been successfully applied.`, after one
+  `Applying migration` line per migration it applied, or
+  `No pending migrations to apply.` Either verdict under `N migrations found`
+  says the database now holds all N.
+- **On the first dispatch one migration is expected to be applied**,
+  `20260930094543_one_open_build_list_per_bike`: `preview` held two when it
+  was last read (`.debug/016` §3, 2026-09-29) and the tree holds three.
+  `No pending migrations to apply.` on that first run would mean the database
+  already had it, which nothing on record explains — find out why before
+  going on.
+- **`ep-plain-block…` is the first 14 characters of the host**, never the
+  rest of it and never the credentials. That is the endpoint's two words only
+  because both of this project's endpoints are `ep-` + 5 + 5 letters
+  (`ep-plain-block`, `ep-quiet-river`); an endpoint named otherwise is cut
+  inside a word or a few characters into its id (measured in review:
+  `ep-shy-sun-a1b…`), and a host of 14 characters or fewer is printed whole.
+  What follows the slash is the database name the string ends in — `neondb`
+  in every fixture here; the live one was not read. **Read it**: the name is
+  the one part of the destination that nothing asserts ("The database NAME is
+  not asserted", below).
+- **The same Prisma lines are on the run's page**, as a job summary, under
+  one sentence: `` `prisma migrate deploy` exited 0 on `ep-plain-block…/neondb`, the endpoint `NEON_PREVIEW_ENDPOINT` names. ``
+  Only a green run writes one; a red run and the skip write none, and the
+  script itself never says "applied" — Prisma does, or does not.
+
+That block is assembled from runs that were made, not copied from one: the
+script with the real Prisma 7.10.0 against a local database (every line but
+the two about applying, with that database's own host), and the review's run
+on an empty local database for the wording of those two. Nothing has run on
+GitHub or against Neon.
+
+**Then compare the two branches — in the Neon console, never in a terminal.**
+SQL Editor, branch selector on `preview`, then on `production`:
+
+```sql
+select migration_name, finished_at, rolled_back_at
+from "_prisma_migrations" order by started_at;
+```
+
+The same names on both branches, each with a `finished_at` and no
+`rolled_back_at` — three of them after the first dispatch, **if production's
+deployment of #13 migrated** (#13 is the pull request that carried the third
+migration). Nobody has read production's `_prisma_migrations` since
+2026-09-29, when it held two (`.debug/016` §3). If production shows two, that
+is §1's push-before-deploy case — `preview` takes a migration on the push to
+`main`, production when its deployment builds — and the thing to read next is
+production's last build log, not this workflow.
+`select count(*) from "_prisma_migrations"` is the short form `.debug/016` §3
+used; a count can agree where the names would not. From a terminal this would
+need a connection string for each branch, production's included, on a command
+line: the one thing this section exists to prevent. **The console path is not
+verified here**: the query was run against a local database holding the same
+three migrations, and nobody opened the Neon console for this change.
+
+**`/api/health` cannot report a migrated schema.** It runs a bare `SELECT 1`
+and answers 200 on a database with no tables at all — W5's empty `preview`
+answered `{"ok":true,"db":true}` (`.debug/016` §3). A healthy preview
+deployment says its database is reachable and nothing about its schema. The
+run's log and the query above are the evidence; there is no other.
+
+**The secret and the switch: four combinations, one of them green without
+migrating.**
+
+| `NEON_PREVIEW_DIRECT_URL` | `PREVIEW_MIGRATIONS_ENABLED` | The run                                                                                                                                                        |
+| ------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| absent                    | unset                        | **green** — `WARNING SKIP — NEON_PREVIEW_DIRECT_URL is not set`, followed by the bootstrap. The one run that is green without migrating, and only until step 3 |
+| absent                    | `1`                          | **red** — `PREVIEW_MIGRATIONS_ENABLED is 1 but NEON_PREVIEW_DIRECT_URL is empty`: the secret was deleted, renamed or scoped away from the repository           |
+| present                   | unset                        | **red** — `NEON_PREVIEW_DIRECT_URL is set but PREVIEW_MIGRATIONS_ENABLED is not 1`: the bootstrap's grace period was never ended                               |
+| present                   | `1`                          | goes on to the endpoint assertion below and runs `migrate deploy` — green when Prisma exits 0 on a database that already existed (the next two sections)       |
+
+Any other value of the switch — `true`, `yes`, `on`, `0` — is red **whatever
+the secret**: `PREVIEW_MIGRATIONS_ENABLED is set to 'true'; the only value that arms it is 1.`
+The value is echoed like that only when it is a short word — letters and
+digits, eight at most. Anything else is reported by its length
+(`is set to a value of <N> characters, not shown here`): the log is public, a
+variable is a field somebody pastes into, and with the connection string
+pasted there the refusal used to print it whole (measured in review).
+The switch exists because GitHub hands a step the empty string for a secret
+that does not exist, so the script cannot tell "not set up yet" from "deleted,
+renamed or scoped away": it has to skip on the first and must not on the
+second. It used to be read only when the secret was empty, which made the
+sentence this replaces — a typo "fails the job on the spot" — false in the
+one sitting where it mattered: with the secret present, `true`, `0` and an
+unset variable all went on to migrate, green, and said nothing (measured in
+review, 2026-10-06). It is read on every run now, and a secret without it is
+a red run, so the pair cannot be left half set. Never clear it unless
+`preview` is deliberately no longer migrated.
+
+**Which database: the endpoint is asserted, not assumed.** Production lives in
+the same Neon project, one branch selector away in the console, and its
+connection string has exactly this one's shape. So before anything is
+contacted the script compares the secret's host with `NEON_PREVIEW_ENDPOINT`,
+both in lower case. The host must BE the variable, or continue it with `.`,
+or — only when the variable is shaped `ep-<word>-<word>` — continue it with
+`-`. So `ep-plain-block`, `ep-plain-block-<id>` and the whole host all match,
+while `ep` and `ep-plain` match nothing: a prefix both endpoints share cannot
+pass. A mismatch is a red run that prints the first 14 characters of each
+side and nothing else of either:
+
+```
+:: NEON_PREVIEW_DIRECT_URL is not the preview endpoint — `preview` was NOT migrated.
+:: Nothing was contacted.
+::   the secret's host starts:  ep-quiet-river…
+::   NEON_PREVIEW_ENDPOINT says:  ep-plain-block
+```
+
+Both sides are cut to the same 14 characters, so they can come out identical
+— the variable holding the whole direct host and the secret the pooled
+string, or an id that has changed since the variable was set. The message
+then adds that the difference is past the 14th character: the endpoint's id,
+or a `-pooler` only one of them carries. Either way it ends by saying what
+the variable is and where to read it (step 2), which is not the panel the
+string came from.
+
+It fails closed. With the secret present and the variable empty the run is
+red as well — `NEON_PREVIEW_ENDPOINT is empty — refusing to migrate a database nothing has identified.` —
+because an unset variable is exactly what a misspelt variable NAME looks like
+from inside the script. The first version compared the host with nothing:
+handed a production-shaped host it went straight on to `migrate deploy` and
+finished green under a summary that said `preview` (measured in review on a
+`.invalid` host with a stand-in `npx`; no database was involved).
+
+**The database NAME is not asserted — one wrong name is caught afterwards,
+another is not caught at all.** The host is compared with something; the path
+after it is only held to a shape. And Prisma does not need that database to
+exist: `migrate deploy` creates one that is missing, then migrates it.
+Measured on the pinned 7.10.0 against the local test server (2026-10-06), the
+script as it then was and the secret's path changed to a name that did not
+exist — these lines, in this order, with others between them:
+
+```
+:: prisma migrate deploy → localhost/velo_atelier_w5stray41_test
+Datasource "db": PostgreSQL database "velo_atelier_w5stray41_test", schema "public" at "localhost:5432"
+PostgreSQL database velo_atelier_w5stray41_test created at localhost:5432
+3 migrations found in prisma/migrations
+Applying migration `20260911071112_init`
+Applying migration `20260921090547_checkup_symptoms_done_reason`
+Applying migration `20260930094543_one_open_build_list_per_bike`
+All migrations have been successfully applied.
+:: prisma migrate deploy exited 0 on localhost/velo_atelier_w5stray41_test
+```
+
+Exit 0 and a green summary — with the database the previews read untouched,
+which is the green-and-unmigrated shape this workflow exists to remove, one
+typo in a secret away. (On Neon it takes a role with CREATEDB; the review
+read Neon's documentation as giving that to roles created in the console. Not
+observed.) The script cannot refuse this beforehand without a fourth input
+naming the database, so it refuses **afterwards**, on Prisma's own line:
+`preview` never has a database to create, so
+`PostgreSQL database <name> created` in a run's output is a failed run —
+
+```
+:: Prisma CREATED the database '<name>' — the database the previews read was NOT migrated.
+```
+
+— red, with no job summary. What to do then, in this order: correct the
+database name at the end of the secret (step 3 again; the string itself has
+not left the stores, so no rotation), drop the stray database in the Neon
+console — it holds the schema Prisma has just applied and nobody's data; the
+console path was not looked up for this change — and dispatch again.
+
+**What is not caught**: a path naming _another_ database that already exists
+on that endpoint. Prisma creates nothing, migrates it, and the run is green.
+The run's first line, `prisma migrate deploy → ep-plain-block…/<name>`, and
+the same name in the summary are the only tell: read the name on the first
+dispatch and after every change to the secret. A fourth input — a variable
+holding the name, compared before anything is contacted — is what would
+close it; none was added.
+
+**What the value must be.** Each of these is a red run that contacts nothing:
+
+- **The direct string, not the pooled one** — the one whose host carries
+  `-pooler`. DDL and Prisma's advisory migration lock do not survive a
+  transaction pooler:
+  `NEON_PREVIEW_DIRECT_URL is a POOLED Neon endpoint (ep-plain-block…/neondb) — migrations need the DIRECT one.`
+  The script hands the string to Prisma as `POSTGRES_URL_NON_POOLING`, the
+  one variable `prisma.config.ts` reads for a migration
+  (`readDatabaseUrls().direct`); there is deliberately no fallback to the
+  pooled URL.
+- **A bare, well-formed connection URL**: exactly one `@`, a username, a host,
+  and a path that is a database name — a name's shape, that is: which name
+  is checked by nothing before the run (above). Not the `psql '…'` snippet. A
+  password holding `@`, `/`, `?` or `#` must be percent-encoded: unencoded, such a
+  character can move where the URL parser puts the host, and the first
+  version of the script then logged the rest of the password (measured in
+  review). The strings the Neon console issues are expected to pass — its
+  generated passwords were alphanumeric in every example the review found —
+  and a password set by hand may not. The password itself is never decoded
+  or inspected.
+- **No `host` query parameter.** Prisma 7.10.0 dials a `?host=` INSTEAD of the
+  URL's host (measured: the datasource line named one host and the `P1001`
+  another), which would let the endpoint assertion check one name while the
+  migration went to another.
+
+The last two print one line, and nothing from the value:
+`NEON_PREVIEW_DIRECT_URL is not a connection URL with a host`.
+
+Two failures are Prisma's own and come after the script's checks. `P1000`
+(authentication failed) means the password in the secret is not the role's:
+redo steps 1 and 3, and read §1 if `preview` was reset from its parent.
+`P1001` (the server was not reached) on an endpoint that exists may be a
+compute that was asleep: per Neon's Prisma guide, as read in review, an idle
+compute can take longer to wake than Prisma waits. Re-run once before looking
+further. Neither was observed against Neon.
+
+**Who can read the secret.** It is on the `env:` of the ONE step that runs
+`scripts/ci/migrate-preview.sh`, not on the job. The checkout, `setup-node`
+and `npm ci` — which runs the install scripts of ten dependencies and this
+project's own `postinstall` — never have it, and the checkout does not leave
+its token behind either (`persist-credentials: false`);
+`tests/unit/ci/required-checks.test.ts` holds all of that, a `uses:` step
+handed the secret through `with:` included. This is a **narrowing, not an
+isolation**: that step still runs `prisma`, `dotenv` (`prisma.config.ts`
+imports it) and `lib/db/env.ts` with the string in their environment, and
+everything those load.
+
+And **"`main` only" is the script's guard against an accidental `--ref`, not
+GitHub's rule.** A dispatch runs the workflow file and the script of the ref
+it names, so the guard is whatever that ref's copy says it is: it does not
+bind a branch that edited the script or the workflow, and GitHub hands a
+repository secret to that run all the same. Outside Actions the guard says
+nothing at all. (A dispatch aimed at a pull request's branch that still has
+the guard is refused, and leaves a red `migrate-preview` check on that head
+commit — not required, so it blocks nothing.) The upgrade is a **GitHub
+Environment restricted to the `main` branch**, with the secret stored as an
+ENVIRONMENT secret and `environment:` on the job: GitHub then withholds the
+secret from every other ref, whatever that ref's workflow says. It is not set
+up, and it is not a file-only change — the maintainer creates the Environment
+and its branch rule first, the secret moves there
+(`gh secret set NEON_PREVIEW_DIRECT_URL --env <name>`, prompting as above),
+and the workflow, its test and this section change with it. Per GitHub's
+documentation; none of it was tried here.
+
+**Concurrency: never cancelled, never two at once — and only one waiting.**
+`cancel-in-progress: false` on the fixed group `migrate-preview` guarantees
+two things: a run in progress is never cancelled by a newer one, and two runs
+never migrate the one database at the same time. It does not guarantee that
+every queued run happens. Per GitHub's documentation a concurrency group
+holds one run in progress and ONE pending, and a newly queued run takes the
+pending one's place — the replaced run is cancelled, not failed. Between
+pushes to `main` that costs nothing: the survivor checks out the newer commit
+and `migrate deploy` applies everything not yet applied. The corner where it
+does cost: the group carries no ref, so a mistaken `--ref <branch>` dispatch
+can take a pending `main` run's place and then be refused by the script; that
+migration waits for the next push, or for a dispatch on `main`. Read from the
+documentation, not observed here.
+
+The job is also the only one in the repository with a `timeout-minutes` (10),
+because it is the only one whose queue is a database's migrations. Other
+workflows queue their `main` runs too (`ci.yml`, `codeql.yml` and
+`renovate-config.yml` all keep `cancel-in-progress` off on `main`), and a run
+that hangs there delays a CI result; one that hangs here, on a connection or
+on a DDL statement, would block the preview schema for GitHub's six-hour
+default. It does not bound Prisma's wait for its advisory migration lock —
+the pinned engine has a timeout message of its own for that; its length was
+not checked. The cap has a cost that was not reproduced: the same engine
+carries "migrate found failed migrations in the target database, new
+migrations will not be applied", so a run killed part-way through a migration
+may leave every later one refused until `prisma migrate resolve`. That is a
+by-hand command and deserves the fallback's care — the string read from a
+prompt, a rotation afterwards — or a reset of the branch, with what §1 says
+one costs.
+
+**What the log publishes, and why Prisma's output is filtered.** An Actions
+log on a public repository is public, `$GITHUB_STEP_SUMMARY` included, and
+the rest of the host would only help a stranger address the database. But
+Prisma is the one that has to be held to that, not just the script: left
+alone it announces its own datasource on the line after the script's —
 `Datasource "db": PostgreSQL database "neondb", schema "public" at "<host>"`,
 the whole endpoint — and names the host again in a `P1001`. So
-`scripts/ci/migrate-preview.sh` pipes `migrate deploy`'s output (both streams)
-through a literal redaction of that one host, and the lines you see read
-`at "ep-plain-block…"`. Credentials were never the exposure here — Prisma masks
-them, and a failed run says `` `(not available)` `` — the preview **endpoint**
-was, until a W5 review ran the command instead of reading the comment.
+`scripts/ci/migrate-preview.sh` pipes `migrate deploy`'s output (both
+streams) through `sed`: the full host, and — when it is longer than 14
+characters — the host's first label on its own, each replaced by the 14
+characters the script's own line shows. `tee` then keeps that
+already-redacted text for the job summary, so the summary is byte for byte
+what the log shows. Text a server sends is otherwise passed through as it is;
+whether Neon's proxy ever names an endpoint some other way was not observed.
+The password was never printed on any path the review could reach (`P1000`,
+`P1001`, `P1013`, a server-sent `FATAL`, a value that does not parse). The
+ROLE name can be: `P1000` repeats it from the server's message.
 
 Two consequences worth knowing before you edit that script:
 
 - The redaction is a **pipe**, so `set -euo pipefail` (in `scripts/ci/_lib.sh`)
-  is what still fails the job when the migration fails. Remove `pipefail` and a
-  `P1001` exits **0**: a green job that migrated nothing, which is the exact
+  is what still fails the job when the migration fails. Remove `pipefail` and
+  a `P1001` exits **0**: a green job that migrated nothing, which is the exact
   shape §1 added this workflow to remove.
-- `tests/unit/deploy/migrate-on-deploy.test.ts` runs the real command against an
-  unresolvable `.invalid` host to assert both halves. It is the only case in
-  that file that reaches `migrate deploy`; the others stop at a refusal, which
-  is why they could not see this.
+- **The tests execute the script; they do not read it.**
+  `tests/unit/deploy/migrate-on-deploy.test.ts` runs every refusal above, the
+  success path and the job summary against a stand-in `npx` that answers 0 —
+  so a guard that only warns ends in a green "migration" and fails its test —
+  and runs the real `prisma migrate deploy` once, against an unresolvable
+  `.invalid` host, because only Prisma's own output can show that the
+  redaction still matches it. `tests/integration/migrate-preview.test.ts`
+  runs the unmodified script with the real Prisma against the integration
+  tier's `_test` database and expects `No pending migrations to apply.` —
+  and once more into a scratch `_test` database that does not exist, where
+  the real Prisma must print its `created` line and the script must fail on
+  it (the case drops that database again). That second case is what holds
+  Prisma's WORDING: the unit tier's stand-in would go on printing the old
+  line through an upgrade that changed it. The first version's tests stopped
+  at a refusal or at a `P1001`: nothing had ever executed a green run.
 
-Without the secret the
-same run prints `SKIP — NEON_PREVIEW_DIRECT_URL is not set` and exits 0 —
-unless `PREVIEW_MIGRATIONS_ENABLED=1`, which makes it exit 1. Then, as in §1:
-`select count(*) from "_prisma_migrations"` must return the same number on both
-Neon branches.
+**The by-hand fallback — only if Actions cannot run, and it costs a
+rotation.** The dispatch is the way. If GitHub Actions is unavailable and
+`preview` must be migrated now, this is the one by-hand form: it runs the
+same script — endpoint assertion, pooled check and redaction included — and
+reads the string from a prompt, so it is never on a command line and never in
+the history file. Run it from a clean, up-to-date checkout of `main`, after
+`npm ci`: outside Actions the script's ref guard says nothing, it applies
+whatever `prisma/migrations/**` the working tree holds, and its
+`npx --no-install prisma` has nothing to run without `node_modules`.
 
-`--ref main` is the only accepted ref: the script refuses anything else rather
-than applying an unmerged branch's migrations to the shared database. It fails
-instead of using a job-level `if:`, which would report the run as skipped —
-green and quiet, the shape this workflow exists to remove.
+The first line prints nothing and waits: paste the direct string, then
+Enter.
+
+```bash
+read -rs NEON_PREVIEW_DIRECT_URL
+export NEON_PREVIEW_DIRECT_URL
+PREVIEW_MIGRATIONS_ENABLED=1 NEON_PREVIEW_ENDPOINT=ep-plain-block bash scripts/ci/migrate-preview.sh
+unset NEON_PREVIEW_DIRECT_URL
+```
+
+There is no comment inside that block, on purpose. A stock interactive zsh
+does not treat `#` as one (`interactivecomments` is off by default): measured
+with `zsh -f -i` (5.9), a comment trailing the `read` line printed
+`zsh: not an identifier: #` straight after the paste, and a comment on a line
+of its own printed `zsh: command not found: #`. The value was still read in
+both, and never reached a command line — but an error on the line where a
+secret has just been pasted is not something to leave for a first-timer.
+
+Then **rotate again** — steps 1, 3 and 5. The string has left the stores it
+belongs in and sat in a shell's environment, inherited by every process that
+shell started afterwards; by this section's rule it is spent. (The four lines
+were run in zsh 5.9 and bash 3.2 against a local database, the string fed on
+standard input; `read -s` at a real terminal was not exercised.) The command
+this replaces — `migrate deploy` with the string typed inline — is the one
+form that must not come back.
+
+**Afterwards.** A push to `main` that touches `prisma/migrations/**` migrates
+`preview` by itself — **with one limit, and it is a silent one.** Per GitHub's
+documentation, not observed here, a `paths:` filter is evaluated on the first
+300 changed files of a push: when the migration is not among them the
+workflow does not run. Not a red run and not a green one: no run, nothing in
+the list — the quiet failure this workflow was added to remove. The filter
+stays (without it every push to `main` would hand the connection string to a
+run with nothing to migrate), so the rule is the maintainer's:
+
+> After a merge of more than about 300 files that carries a migration, check
+> `gh run list --workflow=migrate-preview.yml`, and dispatch
+> (`gh workflow run migrate-preview.yml --ref main`) if no run started.
+
+It has not happened yet, and it is not far off: the largest merge on `main`
+changed 343 files and carried no migration (W1, `1ce0cd5`); the three that
+did carry one changed 123, 180 and 22 (`git diff --name-only`, 2026-10-06).
+
+Neither `migrate-preview` nor `renovate-config-validator` may ever be added
+to branch protection (§4.1). After a reset of `preview` from its parent: §1,
+"Resetting `preview` from its parent is not a migration".
 
 ---
 

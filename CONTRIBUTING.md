@@ -128,6 +128,28 @@ consequences for a checkout set up from `.env.example`; the reasons are in
   `tests/security/**` (IDOR, mass assignment, CSRF and origin checks, open
   redirects, rate limits, path traversal, quotas, …).
 
+Two more workflows sit outside the twenty required checks, on purpose — beside
+`visual-baseline-guard` (below) and the scheduled `perf.yml` (the reasons are
+in [`CLAUDE.md`](./CLAUDE.md), under "Quality gates"):
+
+- **`renovate-config-validator`** runs only on a pull request, or a push to
+  `main`, that touches `renovate.json`, `scripts/ci/renovate-config.sh` or its
+  own workflow file.
+  It is not required — a path-filtered check that never reports would block
+  every other pull request — so GitHub lets a PR merge with it red. Read it
+  anyway: an invalid `renovate.json` stops Renovate entirely.
+  `bash scripts/ci/renovate-config.sh` runs the same validator locally; its
+  first run downloads the whole of Renovate, about 350 MB.
+- **`migrate-preview` never runs on your pull request.** Every preview
+  deployment shares one database, and that database receives a migration only
+  after the migration has landed on `main`. So **if your PR adds a Prisma
+  migration, its preview deployment runs your code against the old schema
+  until the PR merges** — test the migration locally (`npm run db:setup`, then
+  the integration tier), not on the preview. Dispatching the workflow on your
+  branch is not the way round it: its script refuses any ref but `main`, so
+  that one branch's unmerged migration never reaches the database every other
+  preview reads ([`docs/deploy.md`](./docs/deploy.md) §1).
+
 ## Rules that surprise people
 
 Enforced by ESLint (`eslint.config.mjs`), so `npm run lint` fails on them:

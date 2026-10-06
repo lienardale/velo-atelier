@@ -14,27 +14,70 @@ name: Migrate preview database
 # have thrown `relation "User" does not exist`.
 #
 # So: one writer, once per migration that lands on `main`, plus a manual run
-# for the first time and after a Neon branch reset.
+# for the first time and after a Neon branch reset:
 #
-# This is a `push` / `workflow_dispatch` workflow, never `pull_request`: it
-# reports no status context on a PR and branch protection is untouched
-# (tests/unit/ci/required-checks.test.ts asserts both).
+#   gh workflow run migrate-preview.yml --ref main
+#
+# That dispatch is the bootstrap too. There is no by-hand migration to do
+# first, and none that puts the connection string on a command line.
+#
+# "Once per migration that lands" has a limit, and it is a silent one. Per
+# GitHub's documentation, not observed here, a `paths:` filter is evaluated on
+# the first 300 changed files of a push: when the migration is not among them
+# the workflow does not run. Not red, not green — no run at all, which is the
+# quiet failure this workflow was added to remove. The filter stays: without
+# it every push to `main` would hand the connection string to a run that has
+# nothing to migrate. So the rule is the maintainer's (docs/deploy.md §4.5):
+# after a merge of more than about 300 files that carries a migration, check
+#
+#   gh run list --workflow=migrate-preview.yml
+#
+# and dispatch, as above, if no run started. It has not happened yet: the
+# largest merge on `main` changed 343 files and carried no migration (W1), and
+# the three that did carry one changed 123, 180 and 22.
+#
+# This is a `push` / `workflow_dispatch` workflow, never `pull_request`: no
+# pull request waits for it and branch protection is untouched
+# (tests/unit/ci/required-checks.test.ts asserts both). A dispatch aimed at a
+# PR's branch does leave a `migrate-preview` check on that branch's head commit
+# — refused by the script, red, and not required.
 #
 # `workflow_dispatch` accepts any `--ref`, and a feature branch's unmerged
 # `prisma/migrations/**` must never reach the database every open PR's preview
 # deployment reads — so the script refuses any ref but `refs/heads/main`. That
 # is a hard failure rather than a job-level `if:`, which would report the run
 # as skipped, i.e. quietly.
+#
+# What "main only" is worth: a dispatch runs the workflow file AND the script
+# of the ref it names, so the rule is enforced by the dispatched ref's own copy
+# of scripts/ci/migrate-preview.sh. It stops an accidental `--ref`. It does not
+# bind a branch that edits the script or this file, and the repository secret
+# is handed to that run all the same. A GitHub Environment restricted to `main`
+# and holding the secret is the upgrade that would make it GitHub's rule
+# instead of the script's; it is not set up.
 
 on:
   push:
     branches: [main]
+    # Evaluated on the first 300 changed files of the push, per GitHub's
+    # documentation: see the header for what that costs and what to do.
     paths:
       - prisma/migrations/**
   workflow_dispatch:
 
 # Never cancel a migration in flight, and never run two at once against one
-# database: `cancel-in-progress: false` queues the second push behind the first.
+# database: `cancel-in-progress: false` lets the run in progress finish and
+# holds the next one behind it.
+#
+# ONE next one. Per GitHub's documentation a newly queued run replaces any run
+# already pending in the group, so "the second push waits for the first" is
+# true of two runs and not of three: the middle one is cancelled. Between
+# pushes to `main` that costs nothing — the survivor checks out the newer
+# commit and `migrate deploy` applies everything not yet applied. The corner
+# where it does cost: the group carries no ref, so a mistaken `--ref <branch>`
+# dispatch can take a pending `main` run's place and then be refused by the
+# script, and that migration waits for the next push or a dispatch on `main`.
+# (Read from the documentation, not observed here.)
 concurrency:
   group: migrate-preview
   cancel-in-progress: false
@@ -47,31 +90,34 @@ jobs:
     name: migrate-preview
     runs-on: ubuntu-latest
     # The only job in this repository that sets one, because it is the only one
-    # that takes a LOCK. `migrate deploy` holds Prisma's advisory migration lock,
-    # and `cancel-in-progress: false` above queues every later migration behind
-    # the current run — so a run wedged on that lock would, at GitHub's 6-hour
-    # default, block the preview branch's migrations for most of a working day.
-    # Ten minutes is far above a real run (install plus two migrations) and far
-    # below the damage.
+    # that writes to a database other runs are waiting on: a run that hangs —
+    # on a connection, or on a DDL statement that never returns — holds the
+    # concurrency group above, and at GitHub's 6-hour default that is the
+    # preview branch's migrations blocked for most of a working day. Ten
+    # minutes is far above a real run (an install and a `migrate deploy`) and
+    # far below the damage. (Prisma's own wait for its advisory migration lock
+    # is not what this bounds: the pinned engine carries the message "Timed out
+    # trying to acquire a postgres advisory lock", so that wait has a timeout
+    # of its own — its length was not checked.) The cap has a cost, not
+    # reproduced here: the same engine carries "migrate found failed migrations
+    # in the target database, new migrations will not be applied", so a run
+    # killed part-way through a migration can leave every later one refused
+    # until `prisma migrate resolve`.
     timeout-minutes: 10
     permissions:
       contents: read
     env:
-      # The repository secret holds the DIRECT (unpooled) connection string of
-      # the Neon `preview` branch. It does not exist until the maintainer adds
-      # it — after rotating that branch's password (docs/deploy.md §4.5) — and
-      # the script then skips with a message rather than failing the push.
-      NEON_PREVIEW_DIRECT_URL: ${{ secrets.NEON_PREVIEW_DIRECT_URL }}
-      # …and the repository VARIABLE, set to "1" in the same sitting, is what
-      # ends that grace period. GitHub hands a step the empty string for a
-      # secret that does not exist, so without this switch a secret later
-      # deleted, renamed or scoped away would put the job straight back to
-      # green-and-silent — the very failure shape being fixed, one level up.
-      # With it on, an empty secret is a red run (scripts/ci/migrate-preview.sh).
-      PREVIEW_MIGRATIONS_ENABLED: ${{ vars.PREVIEW_MIGRATIONS_ENABLED }}
+      # Nothing but this at job level. The connection string and the two
+      # variables the script reads are on the LAST step alone — see there.
       HUSKY: "0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Nothing after the checkout talks to GitHub, so the token is not
+          # left configured in the working tree for `npm ci`'s lifecycle
+          # scripts to find (perf.yml sets the same on three of its
+          # checkouts).
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
@@ -79,5 +125,46 @@ jobs:
       # `migrate deploy` must be THIS repository's pinned Prisma (7.10.0), not
       # whatever `npx prisma` would fetch from the registry, and prisma.config.ts
       # imports dotenv and lib/db/env.ts.
+      #
+      # Lifecycle scripts stay ON here, unlike perf.yml's write-token jobs:
+      # `prisma` and `@prisma/engines` both carry an install script, and whether
+      # `migrate deploy` still finds its schema engine without them was not
+      # verified. That is why the secret is not in this step's environment.
       - run: npm ci --no-audit --no-fund --prefer-offline
       - run: bash scripts/ci/migrate-preview.sh
+        env:
+          # THE SECRET IS STEP-LEVEL. It used to sit in the job's `env:`, which
+          # exports it to every step: the two actions above and `npm ci`,
+          # i.e. the install scripts of every dependency that has one
+          # (ten in package-lock.json at the time of the review) plus this
+          # project's own `postinstall`. Only this step needs it.
+          #
+          # That is a narrowing and not an isolation: this step still runs
+          # `prisma` and `dotenv` (prisma.config.ts imports it) and lib/db/env.ts
+          # with the connection string in their environment, and everything
+          # those load.
+          #
+          # The secret holds the DIRECT (unpooled) connection string of the Neon
+          # `preview` branch. It does not exist until the maintainer adds it —
+          # after rotating that branch's password (docs/deploy.md §4.5) — and
+          # until then the script skips with a message rather than failing the
+          # push.
+          NEON_PREVIEW_DIRECT_URL: ${{ secrets.NEON_PREVIEW_DIRECT_URL }}
+          # …and the repository VARIABLE, set to "1" in the same sitting, is what
+          # ends that grace period. GitHub hands a step the empty string for a
+          # secret that does not exist, so without this switch a secret later
+          # deleted, renamed or scoped away would put the job straight back to
+          # green-and-silent — the very failure shape being fixed, one level up.
+          # With it on, an empty secret is a red run; and a secret WITHOUT it is
+          # a red run too, so the pair cannot be half set.
+          PREVIEW_MIGRATIONS_ENABLED: ${{ vars.PREVIEW_MIGRATIONS_ENABLED }}
+          # Which database the secret must point at: the name of the preview
+          # branch's endpoint, without its id (`ep-plain-block`, already
+          # published in `.debug/016` §3 — a variable, not a secret). Production
+          # is in the same Neon project and its string has the same shape; the
+          # script compares the host with this BEFORE it contacts anything, and
+          # refuses when it is empty. The database NAME has no such variable:
+          # a path naming a database that does not exist makes Prisma create
+          # it, and the script fails that run afterwards, on Prisma's own
+          # `created` line.
+          NEON_PREVIEW_ENDPOINT: ${{ vars.NEON_PREVIEW_ENDPOINT }}

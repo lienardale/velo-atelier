@@ -1,8 +1,8 @@
 name: Renovate config
 
-# `renovate.json` is read by Renovate and by nothing else. No ESLint rule, no
-# `tsc`, no CI job and no schema check in this repository ever parsed it — the
-# `$schema` line at its top is honoured by editors, not by any gate. So the
+# `renovate.json` was read by Renovate and by nothing else. No ESLint rule, no
+# `tsc`, no CI job and no schema check in this repository had ever parsed it —
+# the `$schema` line at its top is honoured by editors, not by any gate. So the
 # file's first reader was the Renovate app itself, in W5, six days after it was
 # written: it rejected the config, opened "Action Required: Fix Renovate
 # Configuration" and stopped EVERY PR, dependency dashboard included
@@ -17,9 +17,11 @@ name: Renovate config
 # config and are rejected in a repository one. Its own workflow rather than a
 # job of ci.yml, for two reasons:
 #
-#   - The install pulls the whole of Renovate — minutes on a cold npx cache —
-#     for a file that changes a few times a year. `paths:` keeps it off every
-#     other PR.
+#   - The install pulls the whole of Renovate — ~350 MB on a cold npx cache
+#     (not timed on a runner), which on a runner is every run — for a file
+#     that changes a few times a year and a validator pin Renovate is expected
+#     to bump about weekly. `paths:` keeps it off every PR that touches none
+#     of the three files below.
 #   - `paths:` is only safe OUTSIDE ci.yml. Every ci.yml job runs on every pull
 #     request because a required context that does not report blocks the merge
 #     for ever, and a skipped MATRIX job reports the literal
@@ -29,14 +31,33 @@ name: Renovate config
 # The job's `name:` is the status context, `renovate-config-validator`, listed
 # in NON_BLOCKING_CONTEXTS (tests/unit/ci/required-checks.test.ts).
 
+# Three paths, not one. `renovate.json` is the file under test — and the other
+# two are the test. The pinned validator version lives in the script
+# (`RENOVATE_VERSION`), and `renovate.json`'s second `customManagers` entry has
+# Renovate bump it by pull request; that PR edits the script and nothing else.
+# Filtered on `renovate.json` alone — as this was first written — the job would
+# not start on that PR (GitHub's rule: a workflow runs when at least one
+# changed path matches; no such PR exists yet, so not observed). A new
+# validator would then first meet the committed config on somebody's later,
+# unrelated edit of `renovate.json`, where a failure reads as that change's
+# fault. The script's own comment said the bump was "validated by this very
+# job", and a test pinned the path list that made it false (found in review,
+# 2026-10-06). The workflow file is listed for the same reason: an edit to
+# this job would otherwise merge without having run.
+#
+# Still path-filtered, so still never required.
 on:
   pull_request:
     paths:
       - renovate.json
+      - scripts/ci/renovate-config.sh
+      - .github/workflows/renovate-config.yml
   push:
     branches: [main]
     paths:
       - renovate.json
+      - scripts/ci/renovate-config.sh
+      - .github/workflows/renovate-config.yml
 
 concurrency:
   group: renovate-config-${{ github.ref }}
@@ -57,8 +78,8 @@ jobs:
         with:
           node-version-file: .nvmrc
       # No `npm ci`: the validator is not a dependency of this project and must
-      # not become one — it is the whole of Renovate, ~350 MB, for a file that
-      # changes a few times a year. The script downloads it with
+      # not become one — it is the whole of Renovate, ~350 MB, for one JSON
+      # file. The script downloads it with
       # `npx --yes --package renovate@<RENOVATE_VERSION>`: pinned, never
       # `@latest`, because a package fetched outside package-lock.json is a
       # package `audit-ci` never sees and the 7-day hold never held.

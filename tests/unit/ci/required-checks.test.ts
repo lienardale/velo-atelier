@@ -17,8 +17,9 @@
  *     (visual-baseline-guard.yml); it does not run on most PRs, and a required
  *     context that never reports blocks the merge forever.
  *   - `renovate-config-validator` — path-filtered the same way
- *     (renovate-config.yml, `renovate.json` only), and for the same reason it
- *     must never be required.
+ *     (renovate-config.yml: `renovate.json`, the validator script and the
+ *     workflow file itself), and for the same reason it must never be
+ *     required.
  */
 import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -61,7 +62,12 @@ const CI_WORKFLOW = path.join(WORKFLOW_DIR, "ci.yml");
 const CODEQL_WORKFLOW = path.join(WORKFLOW_DIR, "codeql.yml");
 const GUARD_WORKFLOW = path.join(WORKFLOW_DIR, "visual-baseline-guard.yml");
 const RENOVATE_WORKFLOW = path.join(WORKFLOW_DIR, "renovate-config.yml");
-/** Not a PR workflow: push + workflow_dispatch, so it reports on no pull request. */
+/**
+ * Not a PR workflow: push + workflow_dispatch. Never triggered by a pull
+ * request and never a required context — which is not "it reports nothing on
+ * a PR": a dispatch aimed at a PR's branch leaves a red, non-required check on
+ * that branch's head commit.
+ */
 const MIGRATE_WORKFLOW = path.join(WORKFLOW_DIR, "migrate-preview.yml");
 
 /** Every workflow that reports a status context on a pull request. */
@@ -72,11 +78,20 @@ interface MatrixInclude {
   optional?: boolean;
 }
 
+interface WorkflowStep {
+  run?: string;
+  uses?: string;
+  name?: string;
+  env?: Record<string, string>;
+  with?: Record<string, unknown>;
+}
+
 interface WorkflowJob {
   name?: string;
   env?: Record<string, string>;
+  permissions?: Record<string, string>;
   "timeout-minutes"?: number;
-  steps?: { run?: string; uses?: string; name?: string }[];
+  steps?: WorkflowStep[];
   strategy?: {
     matrix?: Record<string, unknown> & { include?: MatrixInclude[] };
   };
@@ -93,6 +108,9 @@ interface Workflow {
    * invisible to the one test whose job is to notice an unlisted workflow.
    */
   on?: Record<string, unknown> | string[] | string;
+  env?: Record<string, string>;
+  concurrency?: unknown;
+  permissions?: Record<string, string>;
   jobs: Record<string, WorkflowJob>;
 }
 
@@ -303,6 +321,49 @@ describe("required status checks", () => {
     expect(reports("jobs: {}")).toBe(false);
   });
 
+  it("no path-filtered workflow produces a required context", () => {
+    // The rule the two by-name exclusions above are instances of, held as a
+    // rule. GitHub leaves the checks of a workflow skipped by path filtering
+    // "Pending", and a pull request that requires one of them can never merge
+    // (its documentation says so in those words). Until this test the rule was
+    // only ever asserted for a NAME: swapping `nvmrc-check` and
+    // `visual-baseline-guard` between the two lists above — still 20 required,
+    // one of them now path-filtered — left every test in this file green
+    // (measured in review, 2026-10-06), and so did `paths-ignore` on ci.yml.
+    //
+    // `paths` and `paths-ignore` only. A `branches:` filter is not the same
+    // hazard: codeql.yml's `branches: [main]` is where protection applies.
+    const required = new Set<string>(REQUIRED_CHECKS);
+    const filtered = PR_WORKFLOWS.filter((file) => {
+      const triggers = triggerMap(loadWorkflow(file));
+      return PR_EVENTS.some((event) => {
+        // eslint-disable-next-line security/detect-object-injection -- `event` is one of the two PR_EVENTS literals.
+        const trigger = triggers[event];
+        return (
+          trigger !== null &&
+          typeof trigger === "object" &&
+          ("paths" in trigger || "paths-ignore" in trigger)
+        );
+      });
+    });
+    // A guard on the guard: with nothing recognised as filtered, the loop
+    // below would assert nothing at all.
+    expect(filtered.map((file) => path.basename(file)).sort()).toEqual([
+      "renovate-config.yml",
+      "visual-baseline-guard.yml",
+    ]);
+    for (const file of filtered) {
+      const blocking = Object.entries(loadWorkflow(file).jobs)
+        .flatMap(([jobId, job]) => contextsOf(jobId, job))
+        .map(({ context }) => context)
+        .filter((context) => required.has(context));
+      expect(
+        blocking,
+        `${path.basename(file)} is path-filtered and reports a required context`,
+      ).toEqual([]);
+    }
+  });
+
   it("no other workflow reports a required context", () => {
     // A workflow_dispatch run on a PR's branch reports its checks on the PR's
     // head commit, so a job named like a required context races the real one
@@ -426,23 +487,53 @@ describe("visual-baseline-guard.yml", () => {
 });
 
 /**
- * `renovate.json` is read by Renovate and by nothing else — no ESLint rule, no
- * `tsc`, no CI job, and the `$schema` line is honoured by editors only. The
+ * `renovate.json` was read by Renovate and by nothing else — no ESLint rule,
+ * no `tsc`, no CI job, and the `$schema` line is honoured by editors only. The
  * file's first reader was the service, which rejected it and opened no PR at
  * all (`.debug/016` §4). `renovate-config-validator` is the one reader the
- * repository can host itself; the install is slow, so the job is path-filtered
- * — and therefore must never be a required context.
+ * repository can host itself, and this workflow is now the second thing that
+ * reads the file. The install is the whole of Renovate — ~350 MB on a cold npx
+ * cache (not timed on a runner) — so the job is path-filtered, and therefore
+ * must never be a required context.
  */
 describe("renovate-config.yml", () => {
   const workflow = loadWorkflow(RENOVATE_WORKFLOW);
 
-  it("runs on pull requests and on main, only when renovate.json changes", () => {
+  /**
+   * The file under test, and the two files that ARE the test.
+   *
+   * This list was `["renovate.json"]`, and the assertion below pinned it there
+   * — while `scripts/ci/renovate-config.sh` promised that Renovate's bump of
+   * the pinned validator would be "validated by this very job". That bump
+   * edits the script and nothing else, so under GitHub's `paths` rule (a
+   * workflow runs when at least one changed path matches) the job would not
+   * have started on it: the test held the hole open. The same goes for an
+   * edit to the workflow file itself.
+   */
+  const VALIDATED_PATHS = [
+    "renovate.json",
+    "scripts/ci/renovate-config.sh",
+    ".github/workflows/renovate-config.yml",
+  ];
+
+  it("runs on pull requests and on main, when the config or its validator changes", () => {
     expect([...Object.keys(triggerMap(workflow))].sort()).toEqual(["pull_request", "push"]);
     const pullRequest = triggerMap(workflow).pull_request as { paths?: string[] };
     const push = triggerMap(workflow).push as { branches?: string[]; paths?: string[] };
-    expect(pullRequest.paths).toEqual(["renovate.json"]);
+    expect(pullRequest.paths).toEqual(VALIDATED_PATHS);
     expect(push.branches).toEqual(["main"]);
-    expect(push.paths).toEqual(["renovate.json"]);
+    expect(push.paths).toEqual(VALIDATED_PATHS);
+  });
+
+  it("lists paths that exist, its own included", () => {
+    // A `paths:` entry is free text. One that names a file since renamed
+    // matches nothing and says nothing, which is the failure this list was
+    // widened to remove.
+    for (const entry of VALIDATED_PATHS) {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- each entry is one of the three literals above.
+      expect(existsSync(path.join(process.cwd(), entry)), entry).toBe(true);
+    }
+    expect(VALIDATED_PATHS).toContain(path.relative(process.cwd(), RENOVATE_WORKFLOW));
   });
 
   it("is one non-blocking job whose body is the validator script", () => {
@@ -461,14 +552,39 @@ describe("renovate-config.yml", () => {
     expect(runs).toEqual(["bash scripts/ci/renovate-config.sh"]);
     expect(inlinedSteps(workflow)).toEqual([]);
   });
+
+  it("lets nothing excuse the validator: no `if`, no `continue-on-error`, on the job or on a step", () => {
+    // The validator's verdict is the job's verdict only while the job and its
+    // step run, and are allowed to fail. `tests/unit/ci/renovate-config.test.ts`
+    // held that on the file's TEXT, with `/^\s+if:/m` — which sees `if:` on a
+    // line of its own and not as the first key of a step. `- if: false` on the
+    // validator step left every test in both files green (measured in review,
+    // 2026-10-06): a job that is green because it validated nothing. Parsed,
+    // the spelling stops mattering.
+    const jobs = Object.entries(workflow.jobs);
+    expect(jobs.map(([jobId]) => jobId)).toEqual(["renovate-config-validator"]);
+    for (const [jobId, job] of jobs) {
+      expect(Object.keys(job), jobId).not.toContain("if");
+      expect(Object.keys(job), jobId).not.toContain("continue-on-error");
+      const steps = job.steps ?? [];
+      // A guard on the guard: with no step read, the loop asserts nothing.
+      expect(steps).toHaveLength(3);
+      for (const [index, step] of steps.entries()) {
+        expect(Object.keys(step), `${jobId}, step ${index + 1}`).not.toContain("if");
+        expect(Object.keys(step), `${jobId}, step ${index + 1}`).not.toContain("continue-on-error");
+      }
+    }
+  });
 });
 
 /**
  * `scripts/vercel-build.sh` migrates only on `VERCEL_ENV=production`, so nothing
  * ever migrated the shared Neon `preview` branch: W5 found it with no
  * `_prisma_migrations` table, six days after it was created (`.debug/016` §3).
- * This workflow is the one writer. It runs on a push to `main` and by hand, so
- * it reports on no pull request and branch protection never waits for it.
+ * This workflow is the one writer. It runs on a push to `main` and by hand:
+ * never triggered by a pull request and never a required context, so branch
+ * protection never waits for it. (A dispatch aimed at a PR's branch still
+ * leaves a red, non-required check on that branch's head commit.)
  */
 describe("migrate-preview.yml", () => {
   const workflow = loadWorkflow(MIGRATE_WORKFLOW);
@@ -480,11 +596,16 @@ describe("migrate-preview.yml", () => {
     expect(push.paths).toEqual(["prisma/migrations/**"]);
   });
 
-  it("reports no pull-request context", () => {
+  it("is never triggered by a pull request, and never a required context", () => {
+    // No `pull_request` trigger, so no pull request ever waits for it. (A
+    // `workflow_dispatch` aimed at a PR's branch does leave a `migrate-preview`
+    // check on that branch's head commit: refused by the script, red, and — the
+    // point of the last line — named like nothing branch protection requires.)
     expect(PR_WORKFLOWS).not.toContain(MIGRATE_WORKFLOW);
     expect(triggerMap(workflow)).not.toHaveProperty("pull_request");
     const contexts = allContexts().map((c) => c.context);
     expect(contexts).not.toContain("migrate-preview");
+    expect(REQUIRED_CHECKS).not.toContain("migrate-preview");
   });
 
   it("fails loudly", () => {
@@ -492,14 +613,43 @@ describe("migrate-preview.yml", () => {
     // anywhere in this file would make the preview branch drift silently again,
     // which is the whole failure being fixed.
     expect(readFileSync(MIGRATE_WORKFLOW, "utf8")).not.toContain("continue-on-error");
+    // …and so would a job-level `if:`. The workflow's header rejects one by
+    // name — a skipped run is a quiet run — and the script fails instead; with
+    // `if: github.ref == 'refs/heads/main'` on the job every test here stayed
+    // green (measured in review, 2026-10-06).
+    expect(workflow.jobs["migrate-preview"]).not.toHaveProperty("if");
   });
 
-  it("cannot hold the migration lock for GitHub's six-hour default", () => {
-    // The one job here that takes a lock, so the one job that bounds its own
-    // runtime. `migrate deploy` holds Prisma's advisory migration lock and
-    // `cancel-in-progress: false` queues the next push behind this run, so a
-    // wedged run blocks the preview branch's migrations until the timeout —
-    // which, unset, is six hours.
+  it("never cancels a migration in flight, and never runs two at once", () => {
+    // Stated in the workflow, in CLAUDE.md and in a comment of this file, and
+    // read by no test: `cancel-in-progress: true`, the whole block deleted and
+    // a per-run group each left the suite green (measured in review,
+    // 2026-10-06). The parsed value, not the text — the boolean `false`, where
+    // a quoted "false" or an expression would be something else — and the
+    // group as one fixed string, with no ref and no run id in it: one database,
+    // one queue.
+    expect(workflow.concurrency).toEqual({ group: "migrate-preview", "cancel-in-progress": false });
+  });
+
+  it("holds a read-only token, at both levels", () => {
+    // The job writes to a database, never to the repository. The repository's
+    // default workflow token was read-only when the review looked (`gh api
+    // …/actions/permissions/workflow`, 2026-10-06), so this is the second lock
+    // and not the only one — which is exactly why nothing would have noticed
+    // it going: with both blocks deleted every test stayed green.
+    expect(workflow.permissions).toEqual({ contents: "read" });
+    expect(workflow.jobs["migrate-preview"].permissions).toEqual({ contents: "read" });
+  });
+
+  it("cannot block the preview branch's migrations for GitHub's six-hour default", () => {
+    // The one job here that bounds its own runtime, because it is the one job
+    // whose queue is a database's migrations. Other workflows queue their
+    // `main` runs too (ci.yml, codeql.yml and renovate-config.yml all set
+    // `cancel-in-progress` to false on `main`), and a hung run there delays a
+    // CI result. Here `cancel-in-progress: false` keeps the group above
+    // occupied for as long as this run lasts, so one that hangs — on a
+    // connection, on a DDL statement — blocks the preview SCHEMA until the
+    // timeout, which, unset, is six hours.
     const job = workflow.jobs["migrate-preview"];
     const timeout = job["timeout-minutes"];
     expect(timeout).toBeGreaterThan(0);
@@ -517,15 +667,90 @@ describe("migrate-preview.yml", () => {
     expect(inlinedSteps(workflow)).toEqual([]);
   });
 
-  it("hands the script the secret AND the switch that ends its grace period", () => {
-    // GitHub gives a step the empty string for a secret that does not exist,
-    // so the script cannot tell "not set up yet" from "deleted, renamed or
-    // scoped away" — and while it skips on both, a secret that disappears
-    // after the bootstrap puts the job back to green-and-silent, which is the
-    // failure shape this workflow exists to remove. The repository VARIABLE is
-    // the discriminator: with it set, an empty secret is a red run.
-    const env = workflow.jobs["migrate-preview"]?.env ?? {};
-    expect(env.NEON_PREVIEW_DIRECT_URL).toBe("${{ secrets.NEON_PREVIEW_DIRECT_URL }}");
-    expect(env.PREVIEW_MIGRATIONS_ENABLED).toBe("${{ vars.PREVIEW_MIGRATIONS_ENABLED }}");
+  const MIGRATE_STEP = "bash scripts/ci/migrate-preview.sh";
+  const isMigrateStep = (step: WorkflowStep): boolean => step.run?.trim() === MIGRATE_STEP;
+
+  it("hands the migrate step the secret, the switch and the endpoint it must match", () => {
+    // Three names, and each one is a refusal the script cannot make without it.
+    //
+    // The secret. GitHub gives a step the empty string for one that does not
+    // exist, so the script cannot tell "not set up yet" from "deleted, renamed
+    // or scoped away" — and while it skips on both, a secret that disappears
+    // after the bootstrap puts the job back to green-and-silent, the failure
+    // shape this workflow exists to remove. The switch (a repository VARIABLE)
+    // is the discriminator: with it set, an empty secret is a red run.
+    //
+    // The endpoint (a VARIABLE too: `.debug/016` §3 already publishes the
+    // name). Production is in the same Neon project and its connection string
+    // has the same shape; nothing but this tells the script which of the two
+    // the secret holds.
+    //
+    // `toEqual`, not three `toBe`s: a FOURTH name on the step that holds the
+    // connection string is a change somebody should have to make here too.
+    //
+    // And the WHOLE step, not its `env` alone. This compared `migrate[0].env`,
+    // and "fails loudly" above looks for an `if:` on the JOB — so a step-level
+    // `if:` on this very step, as its first key or its second, left every
+    // test green (measured in review, 2026-10-06). That is quieter than the
+    // job-level one the file already forbids: the job is GREEN, its last step
+    // skipped, and nothing was migrated. Two keys, so anything else that can
+    // change what this step does or whether it counts — `if`,
+    // `continue-on-error`, `shell`, `working-directory` — fails here.
+    const steps = workflow.jobs["migrate-preview"].steps ?? [];
+    const migrate = steps.filter(isMigrateStep);
+    expect(migrate).toHaveLength(1);
+    expect(migrate[0]).toEqual({
+      run: MIGRATE_STEP,
+      env: {
+        NEON_PREVIEW_DIRECT_URL: "${{ secrets.NEON_PREVIEW_DIRECT_URL }}",
+        PREVIEW_MIGRATIONS_ENABLED: "${{ vars.PREVIEW_MIGRATIONS_ENABLED }}",
+        NEON_PREVIEW_ENDPOINT: "${{ vars.NEON_PREVIEW_ENDPOINT }}",
+      },
+    });
+  });
+
+  it("keeps the secret out of every other step, the install first of all", () => {
+    // This test used to REQUIRE the opposite. It read the job-level `env:` for
+    // the secret, so the placement that exports a database credential to the
+    // checkout and setup-node actions and to `npm ci` — every dependency's
+    // install script, and this project's `postinstall` — was the only one that
+    // passed, and moving it to the one step that needs it failed the suite
+    // (measured in review, 2026-10-06).
+    //
+    // So: take the migrate step out, and nothing left in the file may mention
+    // a secret at all — not the workflow's `env:`, not the job's, not another
+    // step's `env:`, `with:` or `run:`. A `uses:` step handed the connection
+    // string through `with:` was invisible to the old assertion too.
+    const parsed = loadWorkflow(MIGRATE_WORKFLOW);
+    const job = parsed.jobs["migrate-preview"];
+    const before = job.steps?.length ?? 0;
+    job.steps = (job.steps ?? []).filter((step) => !isMigrateStep(step));
+    expect(job.steps).toHaveLength(before - 1);
+
+    // The WORD, not one spelling of it. `not.toContain("secrets.")` matched
+    // `secrets.NAME` and the literal name below, and neither of the two other
+    // ways an expression reaches the store: `${{ toJSON(secrets) }}` — every
+    // secret the repository has — and `${{ secrets[format('NEON_{0}', …)] }}`,
+    // each on the `npm ci` step, each green (measured in review, 2026-10-06).
+    // The parser has already dropped the comments, so the word can only be
+    // in something that runs.
+    const everythingElse = JSON.stringify(parsed);
+    expect(everythingElse).not.toMatch(/\bsecrets\b/);
+    expect(everythingElse).not.toContain("NEON_PREVIEW_DIRECT_URL");
+
+    // And by name, so the two levels a tidy-up would reach for first fail with
+    // a sentence rather than a diff of JSON.
+    expect(parsed.env, "workflow-level env").toBeUndefined();
+    expect(job.env, "job-level env").toEqual({ HUSKY: "0" });
+  });
+
+  it("does not leave the checkout token behind for the install", () => {
+    // Nothing after the checkout talks to GitHub, and `npm ci` runs lifecycle
+    // scripts here (the workflow says why `--ignore-scripts` was not taken).
+    const checkout = (workflow.jobs["migrate-preview"].steps ?? []).filter((step) =>
+      step.uses?.startsWith("actions/checkout@"),
+    );
+    expect(checkout).toHaveLength(1);
+    expect(checkout[0].with).toEqual({ "persist-credentials": false });
   });
 });
