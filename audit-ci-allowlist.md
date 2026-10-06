@@ -22,19 +22,29 @@ this branch”). On it `npm audit` finds **11** advisories — 0 critical, 9 hig
 were live earlier the same day and are now fixed rather than tolerated; see
 “Advisories that arrived while the branch was open” below.
 
+Re-recorded on 2026-10-06, same Node and npm, after the four advisories under
+“The four advisories of 2026-10-05” were answered and with the `braces` entry
+(#13) in the array: `npm audit` finds **19** vulnerable
+packages — 0 critical, 17 high, 2 moderate — under **six** advisory ids, and the
+six are exactly the array. The count rose from 11 because `braces` marks the
+whole glob chain above it; the number of ids is the figure to watch.
+
 ## Pinned through `overrides` instead of allow-listed
 
-These five are **fixed**, not tolerated. Each parent's declared range excludes
-the patched version, so npm needs the override to reach it; each was proved by
-a green `bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
+These six are **fixed**, not tolerated. For the first five the parent's
+declared range excludes the patched version, so npm needs the override to reach
+it. The sixth is a different shape — it removes a package that has no patched
+version at all — and its note is the last one below. Each was proved by a green
+`bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
 
-| Override            | Resolves to | Replaces       | Fixes                                    | Reached through                                                            |
-| ------------------- | ----------- | -------------- | ---------------------------------------- | -------------------------------------------------------------------------- |
-| `toml: ^4.2.0`      | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`   |
-| `uuid: ^11.1.1`     | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                      | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                      |
-| `tmp: ^0.2.7`       | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6 | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                      |
-| `mysql2: 3.23.1`    | 3.23.1      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3 | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only) |
-| `basic-ftp: ^6.2.1` | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                      | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`          |
+| Override                        | Resolves to | Replaces       | Fixes                                                               | Reached through                                                                                                                                   |
+| ------------------------------- | ----------- | -------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `toml: ^4.2.0`                  | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j                            | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
+| `uuid: ^11.1.1`                 | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                                                 | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
+| `tmp: ^0.2.7`                   | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                            | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
+| `mysql2: 3.23.1`                | 3.23.1      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                            | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
+| `basic-ftp: ^6.2.1`             | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                                                 | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
+| `js-yaml@^3 > argparse: ^2.0.1` | 2.0.1       | 1.0.10         | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile) | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
 
 Compatibility notes, because an override is a version its parent never tested:
 
@@ -71,8 +81,8 @@ Compatibility notes, because an override is a version its parent never tested:
   naming rather than discovering later.
 - `basic-ftp@6` is a major its parent never declared: `get-uri@6.0.5` asks for
   `^5.0.2`, and so does the newest `get-uri` (8.0.1 — `^5.3.1`), so no upstream
-  has adopted 6.x yet. It is also the only one of the five whose behaviour was
-  checked directly rather than read. `get-uri/dist/ftp.js` is the single
+  has adopted 6.x yet. It was also the only one of the first five whose
+  behaviour was checked directly rather than read. `get-uri/dist/ftp.js` is the single
   consumer and touches six things: `new Client()`, `access`, `lastMod`,
   `list()` → `entry.name` / `entry.modifiedAt`, `downloadTo` and `close`, plus
   `err.code === 550`. All six exist on 6.2.1, the packaging is unchanged (CJS,
@@ -83,6 +93,74 @@ Compatibility notes, because an override is a version its parent never tested:
   eagerly, so load order matters and `require('proxy-agent')` was run against
   the resolved tree. What would change the answer: a `get-uri` that declares
   `^6` (then the override can go), or a `basic-ftp@7`.
+- `argparse@2` under `js-yaml@3` is the one override here where **the
+  vulnerable package is not the one overridden**, and the one that is
+  **scoped**. `sprintf-js` has no patched release — GHSA-hp3w-g68c-fv3c covers
+  `<= 1.1.3` and 1.1.3 is the latest — so there is nothing to pin it to. What
+  can be removed is its only parent in the lockfile: `argparse@1.0.10` is the
+  single package that declares `sprintf-js` (`~1.0.2`), `argparse@2` has no
+  dependencies at all, and `js-yaml@3.15.2`, the newest 3.x, still asks for
+  `argparse: ^1.0.7`. The override swaps that edge. No new version enters
+  the tree: `argparse@2.0.1` was already installed twice, nested under the two
+  `js-yaml@4.3.2` copies (`@eslint/eslintrc`, `cosmiconfig`), and the three now
+  share one top-level copy with the same integrity hash — 1901 lockfile entries
+  become 1898. One flag does change on the surviving entry: it is licensed
+  `Python-2.0` (1.0.10 was `MIT`) and carries no `dev` flag, where both copies
+  it replaces were `dev: true`. No gate here reads licences, and no trace names
+  the package. **2.0.1 and not 2.0.0**, although 2.0.0 is the lowest release
+  that drops `sprintf-js`: both `js-yaml@4.3.2` copies declare `^2.0.1`, so
+  2.0.0 would add a third `argparse` version instead of reusing the one
+  installed. It is six years old (2020-08-28), so the 7-day hold is not in
+  play. `^2.0.1` cannot reach the 3.0.x line through npm, but **Renovate reads
+  an override as a dependency** and would propose `^3.0.0` — its dashboard
+  already proposes `toml` 5 and `uuid` 14 for the entries above — so
+  `renovate.json` holds this one below 3: a v3 override would put a second
+  `argparse` version back beside the 2.0.1 that `js-yaml@4` needs.
+  **It is not the only edge npm rewrites, though.** A ranged key with no `.`
+  entry also replaces the range of every edge _to_ `js-yaml` that intersects
+  `^3` with `^3` itself: `npm explain js-yaml@3.15.2` prints
+  `overridden js-yaml@"^3" (was "^3.13.1")` for both `gray-matter` and
+  `@lhci/utils`. Today that changes nothing — 3.15.2 is the newest 3.x under
+  either range. The day a package arrives that pins an older 3.x exactly, it
+  is handed the hoisted 3.15.2 instead of its own copy, with no gate going
+  red. The un-ranged key, `"js-yaml": { "argparse": "^2.0.1" }`, resolves to
+  the byte-identical lockfile without that rewrite, at the price of also
+  holding `argparse` at `^2.0.1` under any later `js-yaml` major. Neither side
+  effect bites today; the ranged key was kept because its hypothetical hands a
+  package a newer release of the major it asked for, and the other's hands
+  one an older major.
+  **Why scoped, when the other five are not.** `CLAUDE.md` says to scope an
+  override the day two parents need different majors, and here they do by
+  construction: `js-yaml@4` declares `argparse ^2`, `js-yaml@3` declares `^1`,
+  and this entry exists to overrule the second. The unscoped form resolves to
+  the identical lockfile today. They differ on the day another package arrives
+  that really runs `argparse@1`: unscoped, it would silently be handed the v2
+  compatibility shim; scoped, `sprintf-js` comes back, the `audit` job goes
+  red, and somebody decides. The second is the failure this file prefers.
+  Exactly one file of `js-yaml@3` reaches the swapped package:
+  `js-yaml/bin/js-yaml.js`, the command-line tool. `js-yaml/index.js` and
+  `lib/**` never require it, so `gray-matter/lib/engines.js` (`yaml.safeLoad`,
+  `yaml.safeDump`) and `@lhci/utils/src/lighthouserc.js` run the same 3.15.2
+  code as before. Nothing here runs that CLI — no script, workflow, hook or
+  dependency spawns `js-yaml` (`jju`, under `audit-ci`, mentions it twice — a
+  `Makefile` target and a comment in `index.js` that quotes a `postinstall`
+  line — and neither is a lifecycle script: its `package.json` declares only
+  `test` and `lint`). It was run anyway, on both majors:
+  against 2.0.1 the 3.15.2 CLI parses a file and stdin to byte-identical
+  output, `-c`, `-t` and `-j` included, and keeps its exit codes (0, 1 on a
+  YAML error, 2 on a bad flag); argparse 2 carries a v1 compatibility layer
+  and says so in eight `DeprecationWarning`s on stderr. **One thing does
+  break: `js-yaml --version` prints nothing at all instead of `3.15.2`** (the
+  legacy `version` shim in `argparse.js` reads a property the constructor
+  never sets). `--help` differs in capitalisation, and on a bad flag the usage
+  line moves from stdout to stderr with a reworded message (exit code still
+  2). That is the whole cost, on a binary nothing calls. What would change the
+  answer: all three consumers leaving `js-yaml@3` —
+  `@content-collections/core` (0.15.3 already has; the pin here is 0.15.2),
+  `mdx-bundler` and `@lhci/utils` — then the override goes, and nothing will
+  flag that it can; or an `argparse@1` release that drops `sprintf-js`. A
+  patched `sprintf-js` alone would **not** change it: the fix would be a 1.1.x
+  release, and `argparse@1`'s `~1.0.2` cannot reach one.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
   it is the one gate that exercises `uuid` and `tmp`. The three call sites above
   were read against the resolved tree and the APIs they use still exist, so the
@@ -94,7 +172,10 @@ Seven more advisories across four packages (`brace-expansion` ×3,
 `shadcn`, `ajv`, `@content-collections/core`) whose declared ranges already
 admit the patched releases: those needed no override, only a lockfile bump
 (`npm update brace-expansion ip-address fast-uri`, then
-`npm update serialize-javascript`).
+`npm update serialize-javascript`). Three more were answered the same way on
+2026-10-06 — `source-map-js`, `proxy-addr` and `compression`
+(`npm update source-map-js proxy-addr compression`) — and are recorded under
+“The four advisories of 2026-10-05” below.
 
 ## Prisma CLI chain — dev-only, never bundled
 
@@ -136,9 +217,17 @@ puppeteer-core > @puppeteer/browsers > extract-zip@2.0.1`. **There is no
 - **GHSA-x5fp-wj9c-mxmx** and **GHSA-4mjr-xmp4-gh2g** — `qs` array-limit bypass
   and `isBuffer` DoS. Paths: `@lhci/cli > express@4.22.2 > qs@6.15.3` and
   `shadcn > @modelcontextprotocol/sdk > express@5.2.1 > qs@6.15.3`. Neither
-  Express is ever reachable: the first is the ephemeral LHCI report server bound
-  to localhost during a CI job, the second only starts under `shadcn mcp`, which
-  nothing in this repository runs. `express@4.22.2` declares `qs: "~6.15.1"`,
+  Express ever listens here (corrected 2026-10-06 — this sentence used to say
+  the first was a report server bound to localhost during the CI job, and the
+  second started under `shadcn mcp`; neither was true). The first is LHCI's
+  static fallback server, `@lhci/cli/src/collect/fallback-server.js`, which
+  `collect.js` constructs only when `collect.staticDistDir` is set:
+  `lighthouserc.cjs` sets `url` and `startServerCommand` instead, so
+  `lhci autorun` loads the module and never calls `express()`. The second belongs to
+  the MCP SDK's HTTP transports, and `shadcn` imports only
+  `server/index.js`, `server/stdio.js` and `types.js` from that SDK, none of
+  which loads Express — not even under `shadcn mcp`, which nothing in this
+  repository runs anyway. `express@4.22.2` declares `qs: "~6.15.1"`,
   which stops one minor short of the `6.16.0` fix; `express@5.2.1` declares
   `^6.14.0` and would take it, but both hoist to the one top-level `qs@6.15.3`,
   so an unscoped override hands LHCI's Express a minor it never shipped with.
@@ -253,6 +342,219 @@ declares `^7.0.5`, which already admits the patched **7.1.2** (published
 2026-09-23, 8 days old), so a plain `npm update serialize-javascript` reached
 it — no override, no allow-list entry, one line of lockfile. A fix that costs
 nothing is not worth a justification paragraph explaining why it was skipped.
+
+## The four advisories of 2026-10-05
+
+Four ids entered the feed within twenty minutes of each other late on
+2026-10-05, after the branch above had merged. The next push to `main`
+(2026-10-06 09:32Z) failed `audit` on all four and `trivy` on one, so nothing
+could merge. (`audit` had already failed the push before it, 2026-10-04 17:03Z,
+on `braces`; that allow-list entry landed in the 2026-10-06 push itself, so on
+`main` the job has been red since 2026-10-04 and these four are why it stayed
+red. `trivy` is the one that turned red.) They were answered together on
+2026-10-06, and **none is allow-listed**.
+
+| In the feed (UTC) | Advisory            | Severity | Package         | Answer                                                              |
+| ----------------- | ------------------- | -------- | --------------- | ------------------------------------------------------------------- |
+| 2026-10-05 23:28  | GHSA-vc2v-76pw-4v95 | high     | `compression`   | `npm update` — in range, no override                                |
+| 2026-10-05 23:30  | GHSA-jqcg-44mw-7w3h | critical | `proxy-addr`    | `npm update` — in range, no override                                |
+| 2026-10-05 23:31  | GHSA-68fv-2mgg-jv7q | high     | `source-map-js` | `npm update` — in range; the release was **6 days old** (see below) |
+| 2026-10-05 23:47  | GHSA-hp3w-g68c-fv3c | moderate | `sprintf-js`    | scoped `overrides`: `argparse` 1.0.10 → 2.0.1 under `js-yaml@3`     |
+
+“In the feed” is GitHub's review time (`github_reviewed_at`), the event that
+makes `npm audit` and Dependabot fire. All four had been public as CVEs before
+that evening (NVD: `compression` 2026-09-11, `proxy-addr` 2026-09-15,
+`source-map-js` 2026-09-18, `sprintf-js` 2026-09-24); no gate here saw any of
+them until the review.
+
+The lockfile moves in **seven entries** and nothing else: `compression` 1.8.1 →
+1.8.2, `proxy-addr` 2.0.7 → 2.0.8, `source-map-js` 1.2.1 → 1.2.2, `argparse`
+1.0.10 → 2.0.1, and three removals — `sprintf-js@1.0.3` and the two nested
+`argparse@2.0.1` copies the top-level one now replaces. Each resolved version
+and integrity hash was asserted against the registry before any gate ran,
+because `npm update` takes the newest release a range admits at the moment it
+runs: today lowest-that-clears and newest are the same version for all three.
+On the result `npx audit-ci --config audit-ci.json` passes and
+`bash scripts/ci/trivy.sh` is clean. The exposure paragraphs below were measured
+on a production build: none of its 32 `.nft.json` traces names
+`source-map-js`, `postcss`, `proxy-addr`, `express`, `compression`, `@lhci`,
+`gray-matter`, `js-yaml`, `argparse` or `sprintf-js` from `node_modules/`.
+
+### `source-map-js` — fixed in range, by a release still inside the hold
+
+**GHSA-68fv-2mgg-jv7q** / CVE-2026-93749 (high, CVSS v4 8.7): an indexed source
+map whose section carries a huge `offset.line` blocks the event loop once its
+mappings are copied into a `SourceMapGenerator`. Range `>= 1.0.0, < 1.2.2`;
+first patched **1.2.2**, which is also the newest release. It is the one that
+fails two gates: `audit`, and `trivy` (HIGH, fix available).
+
+One copy in the tree, and all five packages that declare it ask for `^1.2.1`:
+`postcss@8.5.23` (under `next`), `postcss@8.5.28` (under
+`@tailwindcss/postcss`), `@tailwindcss/node`, `css-tree` (under `jsdom`) and
+`magicast` (under `@vitest/coverage-v8`). Every range admits 1.2.2, so no
+override is needed.
+
+**Exposure here: build-time only, on our own stylesheets.** The lockfile gives
+the package no `dev` flag, because `next` — a `dependencies` entry — declares
+`postcss`; that is why Trivy reports it. As with the Prisma chain, the scope
+flag is not the argument; the bundle is. Outside `.next/cache` the package
+appears in exactly one place, `.next/build/chunks/`, Turbopack's build-time
+PostCSS worker, which no trace references. In `next/dist`,
+`require("postcss")` occurs only under `build/webpack/**` and in compiled
+PostCSS plugins, nothing under `server/`. And PostCSS hands a map to
+`SourceMapConsumer` only when a stylesheet carries a `sourceMappingURL`
+comment: `styles/globals.css`, `styles/print.css` and Tailwind's own CSS carry
+none. No request, no guide, nothing a visitor writes reaches it. It is fixed
+all the same: a release its parents already accept exists.
+
+**The hold, and whose decision it was.** 1.2.2 is the first patched release
+_and_ the only one, so no aged release clears the advisory:
+
+| Release   | Published            | Age on 2026-10-06 11:06Z | Clears the advisory         | Clears the 7-day hold          |
+| --------- | -------------------- | ------------------------ | --------------------------- | ------------------------------ |
+| 1.2.1     | 2024-09-08T16:22:55Z | 2 years                  | no (last vulnerable)        | yes                            |
+| **1.2.2** | 2026-09-30T14:08:09Z | **5 d 21 h**             | yes (first patched, latest) | **no** until 2026-10-07T14:08Z |
+
+The lockfile entry was committed 27 hours inside the hold. Whether it reached
+`main` inside it is a different fact, and this file does not pre-write it: the
+date of the merge that brought this section, set against 2026-10-07T14:08Z,
+says which, and a merge before that moment was the maintainer's explicit
+decision, asked for on the pull request — never the branch's.
+`CLAUDE.md` is plain that the waiver “is not a licence to skip the hold when
+nothing is delayed”. Both sides, because the next reader should not have to
+reconstruct them:
+
+- _What the hold protects here._ A hijacked release would run in every build,
+  including the Vercel production build that has just applied the migrations
+  and holds the database URLs. And by the exposure paragraph above, no
+  _security_ response was being delayed: the vulnerable function is fed
+  nothing. What waiting delays is the merge queue — `audit` and `trivy` red on
+  `main`, and with them every other change, for one more day.
+- _What was checked in place of those 27 hours._ All 18 files of the installed
+  package are byte-identical to the upstream tag `v1.2.2` (commit `0a1d334`,
+  which is also the `gitHead` the registry records), and that tag is four
+  commits past 1.2.1: the fix (`source-map-consumer.js`,
+  `source-map-generator.js`, `source-node.js`), a CSP fallback in
+  `quick-sort.js`, the changelog and the version bump. Same npm publisher as
+  1.2.1, no dependencies, no install script. So what was installed is the
+  reviewed source, which is the thing the hold exists to make likely.
+- _The timeline, in one yardstick._ CVE public 2026-09-18; fix commit and
+  release 2026-09-30, within the hour of each other; GitHub's review
+  2026-10-05. The release is a response to a public CVE, not a version that
+  appeared behind an advisory.
+
+None of this is a precedent. A release that cannot be compared with its source
+file by file should wait out the hold, and so should one whose advisory leaves
+no gate red.
+
+**What the bump does not reach.** `magicast@0.5.4` declares `source-map-js` but
+never imports it: its `dist/builders-*.js` carries its own inlined copy,
+`SourceMapConsumer` included. No scanner sees that copy and no override can
+move it. It is dev-only — coverage, and the Prisma CLI's config loader — and
+reads this repository's own files.
+
+### `proxy-addr` — fixed in range
+
+**GHSA-jqcg-44mw-7w3h** / CVE-2026-90711 (critical), `>= 1.1.0, < 2.0.8`: a
+trust subnet written as an IPv4-mapped IPv6 address with a short prefix
+compiles to a predicate that matches every IPv4 client, so Express believes
+whatever `X-Forwarded-For` says. One copy, under both dev-only Express
+servers: `express@4.22.2` under `@lhci/cli` (declares `~2.0.7`) and
+`express@5.2.1` under `shadcn > @modelcontextprotocol/sdk` (`^2.0.7`). Both
+admit **2.0.8**,
+the first patched release and the only one above 2.0.7, published 2026-09-15 —
+21 days old, so the hold was never in question. `forwarded` and `ipaddr.js`
+are exact pins in 2.0.7 and 2.0.8 alike and do not move.
+
+Exposure was nil before the bump, and that is written down so the word
+“critical” is not misread later. The bug needs a configured trust subnet and a
+listening Express; this repository has neither (the `qs` paragraph above says
+why neither Express ever listens), nothing under `@lhci/` sets `trust proxy`,
+and the site's own `clientIp()` (`lib/security/ip.ts`) reads its headers by
+hand. Compatibility: the diff is 32 added lines inside `trustSingle` /
+`trustMulti`; the exports and the `compile([])` path Express takes while
+`trust proxy` is unset are untouched, and the call sites it adds are all for
+`ipaddr.js` methods 2.0.7 already uses — no new `ipaddr.js` API.
+
+### `compression` — fixed in range
+
+**GHSA-vc2v-76pw-4v95** / CVE-2026-87776 (high), `< 1.8.2`: when a client
+disconnects before a compressed response finishes, the zlib stream made for it
+is never destroyed. One copy, one parent: `@lhci/cli` declares `^1.7.4`, which
+admits **1.8.2**, the first patched release and the only one above 1.8.1,
+published 2026-09-11 — 24 days old when the advisory went public. It adds one
+dependency, `destroy: 1.2.0`, the exact copy already installed for Express's
+`send`; nothing else moves.
+
+Exposure: its single consumer is the same never-constructed LHCI fallback
+server (`fallback-server.js` requires it on line 11 and mounts it on line 30),
+so `lhci autorun` loads the module and never calls it.
+
+**Not the same artifact:** `next` ships its own precompiled copy at
+`next/dist/compiled/compression`, which `npm audit` cannot see and this update
+does not touch. It is an older build (no brotli branch), and Next guards the
+same leak itself: `server/lib/router-server.js` releases the compression stream
+on a `close` that arrives before the response has finished. No trace of the
+production build lists `next/dist/compiled/compression`, though
+`next-server.js.nft.json` does list `router-server.js`; whether Vercel's
+runtime ever serves through that path was not observed on the deployment.
+
+**Not proved by a local run, for both Express-side packages:** `npm run lhci`.
+`lhci autorun` is the one command here that loads `proxy-addr@2.0.8` and
+`compression@1.8.2`; the `lighthouse` job on the PR settles it.
+
+### `sprintf-js` — removed, not tolerated
+
+**GHSA-hp3w-g68c-fv3c** / CVE-2026-97058 (moderate): `sprintf-js` hands an
+unbounded precision to `toFixed`, so a format string the caller controls
+(`%.200f`) throws an uncaught `RangeError`. Range `<= 1.1.3`, **no patched
+release**. Upstream: issue `alexei/sprintf.js#237` (2026-09-16) and a
+third-party fix, PR `#238` (2026-09-29), are both open and unanswered; the last
+commit on the default branch is from 2023-09-11.
+
+The chain is `js-yaml@3.15.2 > argparse@1.0.10 > sprintf-js@1.0.3`, and
+`js-yaml@3` is reached three ways: through `gray-matter` under
+`@content-collections/core`, through `mdx-bundler > gray-matter` under
+`@content-collections/mdx`, and through `@lhci/cli > @lhci/utils`. **The first
+two are hard dependencies of two `dependencies` entries**, one of which
+(`@content-collections/mdx`) does ship a file to the server. That is what made
+this a decision rather than one more line in the dev-tool lists above.
+
+Exposure is nil, and it was measured rather than argued. `argparse@1` is
+loaded only by the `js-yaml` command-line tool, and nothing runs that tool;
+the only format strings it would hand `sprintf` are literals in `argparse` and
+in `js-yaml`'s own bin. From this whole chain the build ships one file,
+`@content-collections/mdx/dist/react/server.js`, which imports React and
+nothing else. (A plain `grep content-collections` over the traces does return
+two, `/acheter` and `/velo/[id]/liste`: both list this repository's own
+`content-collections.ts` as an inert traced source file, and none of its
+imports is traced.)
+
+So it met the rule at the top of this file — build-time only, no fixed release
+— and could have been allow-listed. It was **not**, by the rule that decided
+`basic-ftp` — last resort, not first move — and for two reasons of its own: an
+entry would have been the first one under a shipped `dependencies` entry, and
+permanent in practice, since the upstream that has to ship the fix
+has merged nothing in three years. Removing the package costs one flag of a
+binary nobody calls (the compatibility note under the overrides table), adds
+no version the tree did not already hold, and turns a quarterly re-read into a
+gate that fails if `argparse@1` ever comes back.
+
+**The override removes the only copy npm can see, not every copy on disk.**
+`@prisma/query-plan-executor@7.2.0` (`prisma > @prisma/dev`, `devOptional`)
+bundles `tedious` and, inside it, `sprintf-js@1.1.3` — also in range. It is not
+a lockfile package, so no scanner reports it and no override can move it. It
+formats `tedious`'s own literal strings on a SQL Server connection; this
+project is PostgreSQL only, never runs `prisma dev`, and no trace names it.
+
+Two other fixes were tried in a scratch copy and declined.
+`@content-collections/core@0.15.3` is what `npm audit` itself proposes: it
+clears one path of three, `sprintf-js` stays through `mdx-bundler` and
+`@lhci/utils` (both at their latest release), and it brings `js-yaml@5.4.3`,
+published 2026-10-05, the evening before. Overriding `js-yaml` to `^4` does remove
+`sprintf-js`, and breaks a library instead of a binary: `gray-matter@4.0.3`'s
+default engine and `@lhci/utils` both call `yaml.safeLoad`, which 4.x keeps
+only as a function that throws.
 
 ## Removed from the array (2026-09-30)
 
