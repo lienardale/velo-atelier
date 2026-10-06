@@ -31,20 +31,23 @@ whole glob chain above it; the number of ids is the figure to watch.
 
 ## Pinned through `overrides` instead of allow-listed
 
-These six are **fixed**, not tolerated. For the first five the parent's
+These seven are **fixed**, not tolerated. For the first five the parent's
 declared range excludes the patched version, so npm needs the override to reach
-it. The sixth is a different shape — it removes a package that has no patched
-version at all — and its note is the last one below. Each was proved by a green
+it. The last two are different shapes, each with its own note below: `argparse`
+removes a package that has no patched version at all, and
+`@modelcontextprotocol/sdk` pins a version its parent's range already admits,
+because the newest release that range admits was one day old. Each was proved by a green
 `bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
 
-| Override                        | Resolves to | Replaces       | Fixes                                                               | Reached through                                                                                                                                   |
-| ------------------------------- | ----------- | -------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `toml: ^4.2.0`                  | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j                            | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
-| `uuid: ^11.1.1`                 | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                                                 | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
-| `tmp: ^0.2.7`                   | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                            | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
-| `mysql2: 3.23.1`                | 3.23.1      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                            | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
-| `basic-ftp: ^6.2.1`             | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                                                 | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
-| `js-yaml@^3 > argparse: ^2.0.1` | 2.0.1       | 1.0.10         | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile) | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
+| Override                            | Resolves to | Replaces       | Fixes                                                               | Reached through                                                                                                                                   |
+| ----------------------------------- | ----------- | -------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `toml: ^4.2.0`                      | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j                            | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
+| `uuid: ^11.1.1`                     | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                                                 | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
+| `tmp: ^0.2.7`                       | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                            | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
+| `mysql2: 3.23.1`                    | 3.23.1      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                            | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
+| `basic-ftp: ^6.2.1`                 | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                                                 | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
+| `js-yaml@^3 > argparse: ^2.0.1`     | 2.0.1       | 1.0.10         | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile) | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
+| `@modelcontextprotocol/sdk: 1.31.0` | 1.31.0      | 1.30.0         | GHSA-6qxp-vccf-f47h                                                 | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
 
 Compatibility notes, because an override is a version its parent never tested:
 
@@ -161,6 +164,19 @@ Compatibility notes, because an override is a version its parent never tested:
   flag that it can; or an `argparse@1` release that drops `sprintf-js`. A
   patched `sprintf-js` alone would **not** change it: the fix would be a 1.1.x
   release, and `argparse@1`'s `~1.0.2` cannot reach one.
+- `@modelcontextprotocol/sdk` is pinned **exactly**, at 1.31.0, for the reason
+  `mysql2` is. `shadcn@4.21.0` declares `^1.26.0`, which already admits the
+  first patched release — so by the rule above this needed no override, only
+  `npm update`. But `npm update` takes the NEWEST release a range admits, and
+  on 2026-10-06 that was 1.32.1, published the day before; 1.32.0 was four days
+  old. 1.31.0 is the lowest release that clears GHSA-6qxp-vccf-f47h and was
+  7 d 22 h old, past the 7-day hold on its own, so the pin is what makes the
+  lockfile say 1.31.0 rather than whatever the registry holds that minute. One
+  lockfile entry moves, and 1.31.0 declares the same seventeen dependencies as
+  1.30.0. `npx shadcn --version` was run against it. The pin can go the day
+  `shadcn`'s own floor reaches 1.31, or be raised when Renovate proposes a
+  release that has aged through the hold — `shadcn@4.21.3`, the newest, still
+  declares `^1.26.0`.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
   it is the one gate that exercises `uuid` and `tmp`. The three call sites above
   were read against the resolved tree and the APIs they use still exist, so the
@@ -555,6 +571,66 @@ published 2026-10-05, the evening before. Overriding `js-yaml` to `^4` does remo
 `sprintf-js`, and breaks a library instead of a binary: `gray-matter@4.0.3`'s
 default engine and `@lhci/utils` both call `yaml.safeLoad`, which 4.x keeps
 only as a function that throws.
+
+## Two more on 2026-10-06, the day the four above were fixed
+
+The fix for the four advisories above merged at 15:54Z, and the push it made
+failed `audit` anyway — on an id that had not existed when its last pull-request
+run passed. A second arrived while that one was being fixed. Neither is
+allow-listed.
+
+| In the feed (UTC) | Advisory            | Severity | Package                     | Answer                                                     |
+| ----------------- | ------------------- | -------- | --------------------------- | ---------------------------------------------------------- |
+| 2026-10-06 13:43  | GHSA-wq5f-xc86-pv6w | high     | `sharp`                     | `npm update` — in range, no override                       |
+| 2026-10-06 15:35  | GHSA-6qxp-vccf-f47h | high     | `@modelcontextprotocol/sdk` | `overrides`, pinned exactly at the lowest clearing release |
+
+**The gate flapped while the second one arrived, and that is worth knowing.**
+Between 17:00Z and 17:10Z `npx audit-ci --config audit-ci.json` was run six
+times on one unchanged tree: two runs failed and four passed. The one failure
+whose path was read named GHSA-6qxp-vccf-f47h; the same command passed on
+either side of it. The registry's advisory endpoint does not serve a new id to every request at
+once. So on a day advisories are landing, one green `audit` run is not a
+verdict — run it again before believing it, and expect a required check to
+disagree with a local run made a minute earlier.
+
+### `sharp` — fixed in range, and this one ships
+
+**GHSA-wq5f-xc86-pv6w** (high, CVSS 8.9): a memory-safety bug in librsvg,
+which `sharp`'s prebuilt binaries bundle; the advisory rates it possible remote
+code execution on glibc Linux when an SVG is decoded. Range `< 0.35.5`, first
+patched **0.35.5**, which is also the newest release — published 2026-09-27, so
+nine days old and clear of the 7-day hold with no waiver.
+
+`sharp` is not a dependency of this repository: `next@16.3.6` declares it as an
+optional dependency, `^0.35.4`, for its image optimizer. That range admits
+0.35.5, so `npm update sharp` reached it with no override. **27 lockfile
+entries move and nothing else**: `sharp` and its 26 `@img/*` platform packages
+(`sharp-*` 0.35.4 → 0.35.5, `sharp-libvips-*` 1.3.3 → 1.3.4). On the installed
+tree `sharp.versions.rsvg` reports 2.63.2, the librsvg release the advisory
+names as fixed, and `sharp` still encodes a PNG.
+
+Unlike everything else recorded in this file, **this package is deployed**:
+`next-server.js.nft.json` and the page traces of a production build list
+`node_modules/sharp/`. That is why it was fixed without an exposure argument.
+What is known, for the record: no file under `app/`, `components/` or `lib/`
+imports `next/image`; `next.config.ts` allows one remote host
+(`lh3.googleusercontent.com`) and does not set `dangerouslyAllowSVG`. Whether a
+request could still make the optimizer hand an SVG to librsvg was **not**
+established, and with a patched release in range it did not need to be.
+
+### `@modelcontextprotocol/sdk` — pinned at the lowest release that clears it
+
+**GHSA-6qxp-vccf-f47h** / CVE-2026-104850 (high): the SDK's OAuth client let an
+MCP server choose which authorization server received the client's stored
+credentials. Range `>= 1.12.0, < 1.31.0`; first patched **1.31.0**. One copy,
+dev-only: `shadcn@4.21.0 > @modelcontextprotocol/sdk@1.30.0`.
+
+The compatibility note under the overrides table says why this is an exact pin
+and not a plain `npm update`: the range admits the patch, and also two newer
+releases still inside the hold. Exposure here was nil before the bump: the bug
+needs the SDK's OAuth client over HTTP, and `shadcn` imports only
+`server/index.js`, `server/stdio.js` and `types.js` from the SDK; nothing in
+this repository runs `shadcn mcp` at all.
 
 ## Removed from the array (2026-09-30)
 
