@@ -30,7 +30,8 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 **`overrides` in `package.json` is the security fix; the audit allowlist is the
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
-`basic-ftp` today — and its GHSA id is then **removed** from `audit-ci.json`,
+`basic-ftp` today, plus the scoped `argparse` entry described below — and its
+GHSA id is then **removed** from `audit-ci.json`,
 so a regression fails the `audit` job instead of passing it silently. Every
 override is an untested version for its parent, so each one carries a
 compatibility note and a green `bash scripts/ci.sh` + `npm run build` in
@@ -51,11 +52,26 @@ vulnerable; an unscoped one also covers a second parent arriving later, which
 is the direction that matters for a security pin. Scope one the day two parents
 need different majors.
 
+**The sixth override is that day, and a different shape:**
+`"js-yaml@^3": { "argparse": "^2.0.1" }` pins a package that is not vulnerable
+in order to remove one that is. `sprintf-js` (GHSA-hp3w-g68c-fv3c) has no
+patched release, its only parent in the lockfile is `argparse@1`, and
+`argparse@1` is required by nothing but `js-yaml@3`'s command-line tool, which
+nothing here runs — so the edge is swapped for the dependency-free `argparse@2`
+that `js-yaml@4` already installs. It is scoped because the two `js-yaml`
+majors do need different `argparse` majors, and because of what each form does
+the day another `argparse@1` consumer arrives: unscoped, that package silently
+gets the v2 shim; scoped, `sprintf-js` returns and `audit` goes red. Reach for
+this shape only when the swapped package is provably not loaded by its parent's
+library code — the proof, and the one flag of the CLI it costs, are in
+[`audit-ci-allowlist.md`](./audit-ci-allowlist.md).
+
 **A shipped direct dependency is bumped — never overridden, never
 allow-listed.** `overrides` exists for a transitive whose parent pins it too
 low, and the allowlist for a transitive **under** a dev tool that cannot reach
 a request. Every id in the array today is one of those: `deepmerge-ts` under
-`prisma`, `extract-zip` and `qs` under `@lhci/cli`. No entry is on a direct
+`prisma`, `extract-zip` and `qs` under `@lhci/cli`, and `braces` under three
+dev-tool glob chains. No entry is on a direct
 dependency of any kind, and whether a direct `devDependency` could itself be
 allow-listed has never come up here — do not read one out of this rule. A
 `dependencies` entry has neither excuse: it ships, and this repository owns
