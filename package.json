@@ -125,6 +125,7 @@
     "tmp": "^0.2.7",
     "mysql2": "3.23.1",
     "basic-ftp": "^6.2.1",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "js-yaml@^3": {
       "argparse": "^2.0.1"
     }

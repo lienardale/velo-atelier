@@ -30,14 +30,18 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 **`overrides` in `package.json` is the security fix; the audit allowlist is the
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
-`basic-ftp` today, plus the scoped `argparse` entry described below — and its
+`basic-ftp` today, plus the scoped `argparse` entry and the exact
+`@modelcontextprotocol/sdk` pin described below — and its
 GHSA id is then **removed** from `audit-ci.json`,
 so a regression fails the `audit` job instead of passing it silently. Every
 override is an untested version for its parent, so each one carries a
 compatibility note and a green `bash scripts/ci.sh` + `npm run build` in
 [`audit-ci-allowlist.md`](./audit-ci-allowlist.md), which also justifies every
 id that stays. A dependency whose parent already admits the patched release
-needs no override, only `npm update <pkg>`. The five are written **unscoped**
+needs no override, only `npm update <pkg>` — **unless the newest release that
+range admits is inside the 7-day hold**: `npm update` takes the newest, so the
+lowest clearing release is then pinned exactly (`mysql2`, and
+`@modelcontextprotocol/sdk` at 1.31.0 while 1.32.1 was a day old). The first five are written **unscoped**
 (`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose — and the
 reason is what the unscoped form _did_, not what the tree already looked like.
 `main` resolved two of them TWICE: `uuid@8.3.2` beside
@@ -52,7 +56,7 @@ vulnerable; an unscoped one also covers a second parent arriving later, which
 is the direction that matters for a security pin. Scope one the day two parents
 need different majors.
 
-**The sixth override is that day, and a different shape:**
+**The scoped override is that day, and a different shape:**
 `"js-yaml@^3": { "argparse": "^2.0.1" }` pins a package that is not vulnerable
 in order to remove one that is. `sprintf-js` (GHSA-hp3w-g68c-fv3c) has no
 patched release, its only parent in the lockfile is `argparse@1`, and
