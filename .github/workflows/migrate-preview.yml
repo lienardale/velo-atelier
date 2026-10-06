@@ -1,0 +1,83 @@
+name: Migrate preview database
+
+# Who migrates the shared Neon `preview` branch. Nobody did, until this.
+#
+# `scripts/vercel-build.sh` runs `prisma migrate deploy` only when
+# `VERCEL_ENV=production`, so that a preview deployment never rewrites the
+# schema under every other open PR (they all share one Neon branch;
+# tests/unit/deploy/migrate-on-deploy.test.ts pins it). The consequence nobody
+# had drawn is that then NOTHING ever migrates `preview`: W5 branched it from
+# an empty `production`, migrated production later and alone, and six days on
+# the preview branch had no `_prisma_migrations` table at all — while
+# `/api/health` (a bare `SELECT 1`) and `/velo/demo` (code-backed) answered 200
+# throughout (`.debug/016` §3). A preview's first real query, at sign-in, would
+# have thrown `relation "User" does not exist`.
+#
+# So: one writer, once per migration that lands on `main`, plus a manual run
+# for the first time and after a Neon branch reset.
+#
+# This is a `push` / `workflow_dispatch` workflow, never `pull_request`: it
+# reports no status context on a PR and branch protection is untouched
+# (tests/unit/ci/required-checks.test.ts asserts both).
+#
+# `workflow_dispatch` accepts any `--ref`, and a feature branch's unmerged
+# `prisma/migrations/**` must never reach the database every open PR's preview
+# deployment reads — so the script refuses any ref but `refs/heads/main`. That
+# is a hard failure rather than a job-level `if:`, which would report the run
+# as skipped, i.e. quietly.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - prisma/migrations/**
+  workflow_dispatch:
+
+# Never cancel a migration in flight, and never run two at once against one
+# database: `cancel-in-progress: false` queues the second push behind the first.
+concurrency:
+  group: migrate-preview
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-preview:
+    name: migrate-preview
+    runs-on: ubuntu-latest
+    # The only job in this repository that sets one, because it is the only one
+    # that takes a LOCK. `migrate deploy` holds Prisma's advisory migration lock,
+    # and `cancel-in-progress: false` above queues every later migration behind
+    # the current run — so a run wedged on that lock would, at GitHub's 6-hour
+    # default, block the preview branch's migrations for most of a working day.
+    # Ten minutes is far above a real run (install plus two migrations) and far
+    # below the damage.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      # The repository secret holds the DIRECT (unpooled) connection string of
+      # the Neon `preview` branch. It does not exist until the maintainer adds
+      # it — after rotating that branch's password (docs/deploy.md §4.5) — and
+      # the script then skips with a message rather than failing the push.
+      NEON_PREVIEW_DIRECT_URL: ${{ secrets.NEON_PREVIEW_DIRECT_URL }}
+      # …and the repository VARIABLE, set to "1" in the same sitting, is what
+      # ends that grace period. GitHub hands a step the empty string for a
+      # secret that does not exist, so without this switch a secret later
+      # deleted, renamed or scoped away would put the job straight back to
+      # green-and-silent — the very failure shape being fixed, one level up.
+      # With it on, an empty secret is a red run (scripts/ci/migrate-preview.sh).
+      PREVIEW_MIGRATIONS_ENABLED: ${{ vars.PREVIEW_MIGRATIONS_ENABLED }}
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # `migrate deploy` must be THIS repository's pinned Prisma (7.10.0), not
+      # whatever `npx prisma` would fetch from the registry, and prisma.config.ts
+      # imports dotenv and lib/db/env.ts.
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - run: bash scripts/ci/migrate-preview.sh

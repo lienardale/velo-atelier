@@ -124,7 +124,7 @@ something this tree needs — and when you do, record the skipped hold in
 | Auth       | Auth.js **v5** (beta)                                | Credentials + Google, JWT sessions                                                |
 | Validation | zod **4**                                            | classic `zod` server/test-side, `zod/mini` in bundled code                        |
 | Tests      | Vitest **4.1**, Playwright **1.63.0**, Lighthouse CI | coverage gate 80 %                                                                |
-| Hosting    | Vercel (`cdg1`) + Neon Postgres                      | migrations run only when `VERCEL_ENV=production`                                  |
+| Hosting    | Vercel (`cdg1`) + Neon Postgres                      | `vercel-build.sh` migrates production; `migrate-preview.yml` the `preview` branch |
 
 ---
 
@@ -807,8 +807,10 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
 
 Every gate but CodeQL is a `scripts/ci/*.sh` script that runs the same way
 locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
-Lighthouse), which need a production build and run on their own, and the
-PR-only `visual-baseline-guard`.
+Lighthouse), which need a production build and run on their own, and the three
+workflows that sit outside the PR gate set: `visual-baseline-guard`,
+`renovate-config-validator` and `migrate-preview` (the last is not a gate at
+all — it deploys).
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
@@ -911,6 +913,77 @@ PR-only `visual-baseline-guard`.
   workflow (`opened|synchronize|reopened|labeled|unlabeled`, paths
   `tests/e2e/__screenshots__/**`): it fails a baseline change without the label,
   re-runs when the label changes, and is never a required check.
+- **Two path-filtered workflows, neither of them a required context.**
+  `renovate-config.yml` runs `renovate-config-validator`
+  (`scripts/ci/renovate-config.sh`, which also takes a path) on a pull request
+  that changes `renovate.json` and on a push of it to `main`: the file has no
+  other reader here — not ESLint, not `tsc`, not `$schema` — and an invalid one
+  stops Renovate dead, with no PRs and not even a dependency dashboard
+  (`.debug/016` §4). It passes **`--no-global`**, and must: handed a filename
+  the validator applies the self-hosted GLOBAL schema, which is WIDER than the
+  repository schema the service applies — `baseDir` and `redisUrl` pass as a
+  global config and are refused in a repository one — so without the flag the
+  gate is quietly weaker than the thing it stands in for. That validator is
+  also **pinned** (`RENOVATE_VERSION`, kept current by a `customManagers` entry
+  in `renovate.json`, which is why nothing but the regex may share that line):
+  it is downloaded by `npx` rather than installed, because it is the whole
+  ~350 MB of Renovate for a job that runs a few times a year — but never
+  `@latest`, which would run whatever the registry served that minute, outside
+  the lockfile, invisible to `audit-ci` and never held the seven days
+  `minimumReleaseAge` holds everything else (Renovate ships several releases a
+  day, so the pin is a version at least that old).
+  `tests/unit/ci/renovate-config.test.ts` holds both facts: a weakened
+  validator and a working one print the same green tick.
+  `migrate-preview.yml` runs `prisma migrate deploy`
+  (`scripts/ci/migrate-preview.sh`) against the shared Neon `preview` branch on
+  a push to `main` touching `prisma/migrations/**`, and on `workflow_dispatch`:
+  `scripts/vercel-build.sh` migrates only when `VERCEL_ENV=production`, so
+  nothing else ever migrates `preview` and W5 found it with no
+  `_prisma_migrations` table at all (`.debug/016` §3). It refuses any ref but
+  `refs/heads/main` (a dispatch on a feature branch would apply THAT branch's
+  unmerged migrations to the database every open PR reads), refuses a `-pooler`
+  host (an advisory migration lock does not survive a transaction pooler),
+  refuses a URL with no host (`foo:bar` parses, and would have the log name a
+  database nothing contacted), and logs the first two words of the endpoint
+  and the database name and no more —
+  an Actions log on a public repository is public, `$GITHUB_STEP_SUMMARY`
+  included. **Truncating the script's own line is not what achieves that**, and
+  on its own it achieved nothing: `migrate deploy` prints
+  `Datasource "db": … at "<the whole host>"` on the very next line and repeats
+  the host in a P1001, so its output (both streams) is piped through a literal
+  redaction of that one host — dots escaped, and the probe refuses a hostname
+  outside `[A-Za-z0-9.-]` so the `sed` program cannot be anything but a literal
+  match. `pipefail`, set in `scripts/ci/_lib.sh`, is then load-bearing: it is
+  what still reds a failed migration through that pipe, and a run with the pipe
+  and without it is green on P1001. Which is why
+  `tests/unit/deploy/migrate-on-deploy.test.ts` runs the real command against an
+  unresolvable `.invalid` host (RFC 2606) and asserts on THAT output: every
+  earlier assertion about this log was made on a run that stopped at a refusal
+  and never reached Prisma. It **skips with a message** while `NEON_PREVIEW_DIRECT_URL` is
+  absent, because a missing secret must not redden `main`; but GitHub hands a
+  step the empty string for a secret that does not exist, so the repository
+  **variable** `PREVIEW_MIGRATIONS_ENABLED=1`, set in the same sitting as the
+  secret, turns that skip into a failure for ever after — otherwise a secret
+  later deleted, renamed or scoped away puts the job straight back to
+  green-and-silent, one level up from the drift being fixed (`docs/deploy.md`
+  §1, §4.5). It is also the only job in the repository with a
+  `timeout-minutes`, because it is the only one that takes a LOCK: `migrate
+deploy` holds Prisma's advisory migration lock and `cancel-in-progress: false`
+  queues the next push behind the current run, so an unbounded wedged run would
+  block the preview branch's migrations for GitHub's six-hour default.
+  Neither workflow may ever join `REQUIRED_CHECKS`: every `ci.yml`
+  job runs on every PR precisely because a path-filtered required context never
+  reports on most of them and blocks the merge for ever (`.debug/016` §2,
+  PR #8). `tests/unit/ci/required-checks.test.ts` parses both files, holds
+  `renovate-config-validator` in `NON_BLOCKING_CONTEXTS`, asserts that
+  `migrate-preview` reports no pull-request context, and — a `run:` being a
+  string nothing resolves — **stats every `scripts/…` path any workflow
+  names**, since deleting one used to leave every test green.
+  `tests/unit/deploy/migrate-on-deploy.test.ts` EXECUTES `migrate-preview.sh`
+  against a fake environment for each case it must refuse — plus the one case
+  above that reaches Prisma, which is what makes any claim about this job's
+  published log testable at all; a grep would pass against a script that never
+  branched on the variable at all.
 - **`mobile-webkit` is non-blocking, but read.** `continue-on-error` carries its
   reason next to the key in `ci.yml`. Its `@webgl` specs do run (WebGL without a
   GPU). Two WebKit behaviours a Chromium run never shows (`.debug/015`):
