@@ -23,8 +23,8 @@ were live earlier the same day and are now fixed rather than tolerated; see
 “Advisories that arrived while the branch was open” below.
 
 Re-recorded on 2026-10-06, same Node and npm, after the four advisories under
-“Advisories that turned `main` red on 2026-10-05” were answered and with the
-`braces` entry of 2026-10-04 in the array: `npm audit` finds **19** vulnerable
+“The four advisories of 2026-10-05” were answered and with the `braces` entry
+(#13) in the array: `npm audit` finds **19** vulnerable
 packages — 0 critical, 17 high, 2 moderate — under **six** advisory ids, and the
 six are exactly the array. The count rose from 11 because `braces` marks the
 whole glob chain above it; the number of ids is the figure to watch.
@@ -100,15 +100,35 @@ Compatibility notes, because an override is a version its parent never tested:
   can be removed is its only parent in the lockfile: `argparse@1.0.10` is the
   single package that declares `sprintf-js` (`~1.0.2`), `argparse@2` has no
   dependencies at all, and `js-yaml@3.15.2`, the newest 3.x, still asks for
-  `argparse: ^1.0.7`. The override swaps that one edge. No new version enters
+  `argparse: ^1.0.7`. The override swaps that edge. No new version enters
   the tree: `argparse@2.0.1` was already installed twice, nested under the two
   `js-yaml@4.3.2` copies (`@eslint/eslintrc`, `cosmiconfig`), and the three now
   share one top-level copy with the same integrity hash — 1901 lockfile entries
-  become 1898. **2.0.1 and not 2.0.0**, although 2.0.0 is the lowest release
+  become 1898. One flag does change on the surviving entry: it is licensed
+  `Python-2.0` (1.0.10 was `MIT`) and carries no `dev` flag, where both copies
+  it replaces were `dev: true`. No gate here reads licences, and no trace names
+  the package. **2.0.1 and not 2.0.0**, although 2.0.0 is the lowest release
   that drops `sprintf-js`: both `js-yaml@4.3.2` copies declare `^2.0.1`, so
   2.0.0 would add a third `argparse` version instead of reusing the one
   installed. It is six years old (2020-08-28), so the 7-day hold is not in
-  play, and `^2.0.1` cannot reach the 3.0.x line.
+  play. `^2.0.1` cannot reach the 3.0.x line through npm, but **Renovate reads
+  an override as a dependency** and would propose `^3.0.0` — its dashboard
+  already proposes `toml` 5 and `uuid` 14 for the entries above — so
+  `renovate.json` holds this one below 3: a v3 override would put a second
+  `argparse` version back beside the 2.0.1 that `js-yaml@4` needs.
+  **It is not the only edge npm rewrites, though.** A ranged key with no `.`
+  entry also replaces the range of every edge _to_ `js-yaml` that intersects
+  `^3` with `^3` itself: `npm explain js-yaml@3.15.2` prints
+  `overridden js-yaml@"^3" (was "^3.13.1")` for both `gray-matter` and
+  `@lhci/utils`. Today that changes nothing — 3.15.2 is the newest 3.x under
+  either range. The day a package arrives that pins an older 3.x exactly, it
+  is handed the hoisted 3.15.2 instead of its own copy, with no gate going
+  red. The un-ranged key, `"js-yaml": { "argparse": "^2.0.1" }`, resolves to
+  the byte-identical lockfile without that rewrite, at the price of also
+  holding `argparse` at `^2.0.1` under any later `js-yaml` major. Neither side
+  effect bites today; the ranged key was kept because its hypothetical hands a
+  package a newer release of the major it asked for, and the other's hands
+  one an older major.
   **Why scoped, when the other five are not.** `CLAUDE.md` says to scope an
   override the day two parents need different majors, and here they do by
   construction: `js-yaml@4` declares `argparse ^2`, `js-yaml@3` declares `^1`,
@@ -122,18 +142,23 @@ Compatibility notes, because an override is a version its parent never tested:
   `lib/**` never require it, so `gray-matter/lib/engines.js` (`yaml.safeLoad`,
   `yaml.safeDump`) and `@lhci/utils/src/lighthouserc.js` run the same 3.15.2
   code as before. Nothing here runs that CLI — no script, workflow, hook or
-  dependency spawns `js-yaml` (the one mention, a `Makefile` target inside
-  `jju`, is not a lifecycle script). It was run anyway, on both majors:
+  dependency spawns `js-yaml` (`jju`, under `audit-ci`, mentions it twice — a
+  `Makefile` target and a comment in `index.js` that quotes a `postinstall`
+  line — and neither is a lifecycle script: its `package.json` declares only
+  `test` and `lint`). It was run anyway, on both majors:
   against 2.0.1 the 3.15.2 CLI parses a file and stdin to byte-identical
   output, `-c`, `-t` and `-j` included, and keeps its exit codes (0, 1 on a
   YAML error, 2 on a bad flag); argparse 2 carries a v1 compatibility layer
   and says so in eight `DeprecationWarning`s on stderr. **One thing does
   break: `js-yaml --version` prints nothing at all instead of `3.15.2`** (the
   legacy `version` shim in `argparse.js` reads a property the constructor
-  never sets), and `--help` differs in capitalisation. That is the whole cost,
-  on a binary nothing calls. What would change the answer: `mdx-bundler` and
-  `@lhci/utils` leaving `js-yaml@3` (then the override goes, and nothing will
-  flag that it can), or an `argparse@1` release that drops `sprintf-js`. A
+  never sets). `--help` differs in capitalisation, and on a bad flag the usage
+  line moves from stdout to stderr with a reworded message (exit code still
+  2). That is the whole cost, on a binary nothing calls. What would change the
+  answer: all three consumers leaving `js-yaml@3` —
+  `@content-collections/core` (0.15.3 already has; the pin here is 0.15.2),
+  `mdx-bundler` and `@lhci/utils` — then the override goes, and nothing will
+  flag that it can; or an `argparse@1` release that drops `sprintf-js`. A
   patched `sprintf-js` alone would **not** change it: the fix would be a 1.1.x
   release, and `argparse@1`'s `~1.0.2` cannot reach one.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
@@ -150,7 +175,7 @@ admit the patched releases: those needed no override, only a lockfile bump
 `npm update serialize-javascript`). Three more were answered the same way on
 2026-10-06 — `source-map-js`, `proxy-addr` and `compression`
 (`npm update source-map-js proxy-addr compression`) — and are recorded under
-“Advisories that turned `main` red on 2026-10-05” below.
+“The four advisories of 2026-10-05” below.
 
 ## Prisma CLI chain — dev-only, never bundled
 
@@ -318,25 +343,29 @@ declares `^7.0.5`, which already admits the patched **7.1.2** (published
 it — no override, no allow-list entry, one line of lockfile. A fix that costs
 nothing is not worth a justification paragraph explaining why it was skipped.
 
-## Advisories that turned `main` red on 2026-10-05
+## The four advisories of 2026-10-05
 
 Four ids entered the feed within twenty minutes of each other late on
 2026-10-05, after the branch above had merged. The next push to `main`
 (2026-10-06 09:32Z) failed `audit` on all four and `trivy` on one, so nothing
-could merge. They were answered together on 2026-10-06, and **none is
-allow-listed**.
+could merge. (`audit` had already failed the push before it, 2026-10-04 17:03Z,
+on `braces`; that allow-list entry landed in the 2026-10-06 push itself, so on
+`main` the job has been red since 2026-10-04 and these four are why it stayed
+red. `trivy` is the one that turned red.) They were answered together on
+2026-10-06, and **none is allow-listed**.
 
 | In the feed (UTC) | Advisory            | Severity | Package         | Answer                                                              |
 | ----------------- | ------------------- | -------- | --------------- | ------------------------------------------------------------------- |
 | 2026-10-05 23:28  | GHSA-vc2v-76pw-4v95 | high     | `compression`   | `npm update` — in range, no override                                |
 | 2026-10-05 23:30  | GHSA-jqcg-44mw-7w3h | critical | `proxy-addr`    | `npm update` — in range, no override                                |
-| 2026-10-05 23:31  | GHSA-68fv-2mgg-jv7q | high     | `source-map-js` | `npm update` — in range, **inside the 7-day hold** (recorded below) |
+| 2026-10-05 23:31  | GHSA-68fv-2mgg-jv7q | high     | `source-map-js` | `npm update` — in range; the release was **6 days old** (see below) |
 | 2026-10-05 23:47  | GHSA-hp3w-g68c-fv3c | moderate | `sprintf-js`    | scoped `overrides`: `argparse` 1.0.10 → 2.0.1 under `js-yaml@3`     |
 
 “In the feed” is GitHub's review time (`github_reviewed_at`), the event that
-makes `npm audit` and Dependabot fire. `source-map-js` and `sprintf-js` had
-been public as CVEs since 2026-09-18 and 2026-09-24; no gate here saw either
-until that evening.
+makes `npm audit` and Dependabot fire. All four had been public as CVEs before
+that evening (NVD: `compression` 2026-09-11, `proxy-addr` 2026-09-15,
+`source-map-js` 2026-09-18, `sprintf-js` 2026-09-24); no gate here saw any of
+them until the review.
 
 The lockfile moves in **seven entries** and nothing else: `compression` 1.8.1 →
 1.8.2, `proxy-addr` 2.0.7 → 2.0.8, `source-map-js` 1.2.1 → 1.2.2, `argparse`
@@ -351,7 +380,7 @@ on a production build: none of its 32 `.nft.json` traces names
 `source-map-js`, `postcss`, `proxy-addr`, `express`, `compression`, `@lhci`,
 `gray-matter`, `js-yaml`, `argparse` or `sprintf-js` from `node_modules/`.
 
-### `source-map-js` — fixed in range, and the hold was skipped
+### `source-map-js` — fixed in range, by a release still inside the hold
 
 **GHSA-68fv-2mgg-jv7q** / CVE-2026-93749 (high, CVSS v4 8.7): an indexed source
 map whose section carries a huge `offset.line` blocks the event loop once its
@@ -378,23 +407,29 @@ comment: `styles/globals.css`, `styles/print.css` and Tailwind's own CSS carry
 none. No request, no guide, nothing a visitor writes reaches it. It is fixed
 all the same: a release its parents already accept exists.
 
-**The hold was skipped, and this is the record of it.** 1.2.2 is the first
-patched release _and_ the only one, so no aged release clears the advisory:
+**The hold, and whose decision it was.** 1.2.2 is the first patched release
+_and_ the only one, so no aged release clears the advisory:
 
 | Release   | Published            | Age on 2026-10-06 11:06Z | Clears the advisory         | Clears the 7-day hold          |
 | --------- | -------------------- | ------------------------ | --------------------------- | ------------------------------ |
 | 1.2.1     | 2024-09-08T16:22:55Z | 2 years                  | no (last vulnerable)        | yes                            |
 | **1.2.2** | 2026-09-30T14:08:09Z | **5 d 21 h**             | yes (first patched, latest) | **no** until 2026-10-07T14:08Z |
 
-It was taken 27 hours early. Both sides of that, because the next reader should
-not have to reconstruct them:
+The lockfile entry was committed 27 hours inside the hold. Whether it reached
+`main` inside it is a different fact, and this file does not pre-write it: the
+date of the merge that brought this section, set against 2026-10-07T14:08Z,
+says which, and a merge before that moment was the maintainer's explicit
+decision, asked for on the pull request — never the branch's.
+`CLAUDE.md` is plain that the waiver “is not a licence to skip the hold when
+nothing is delayed”. Both sides, because the next reader should not have to
+reconstruct them:
 
 - _What the hold protects here._ A hijacked release would run in every build,
   including the Vercel production build that has just applied the migrations
   and holds the database URLs. And by the exposure paragraph above, no
   _security_ response was being delayed: the vulnerable function is fed
-  nothing. What waiting would have delayed is the merge queue — `audit` and
-  `trivy` red on `main`, and with them every other change, for one more day.
+  nothing. What waiting delays is the merge queue — `audit` and `trivy` red on
+  `main`, and with them every other change, for one more day.
 - _What was checked in place of those 27 hours._ All 18 files of the installed
   package are byte-identical to the upstream tag `v1.2.2` (commit `0a1d334`,
   which is also the `gitHead` the registry records), and that tag is four
@@ -408,11 +443,9 @@ not have to reconstruct them:
   2026-10-05. The release is a response to a public CVE, not a version that
   appeared behind an advisory.
 
-The maintainer's instruction for this step was to unblock `main` with the
-lowest release that clears each advisory; the hold itself was not ruled on
-separately, so this paragraph is a decision to review, not a precedent. A
-release that cannot be compared with its source file by file should wait out
-the hold.
+None of this is a precedent. A release that cannot be compared with its source
+file by file should wait out the hold, and so should one whose advisory leaves
+no gate red.
 
 **What the bump does not reach.** `magicast@0.5.4` declares `source-map-js` but
 never imports it: its `dist/builders-*.js` carries its own inlined copy,
@@ -440,7 +473,7 @@ why neither Express ever listens), nothing under `@lhci/` sets `trust proxy`,
 and the site's own `clientIp()` (`lib/security/ip.ts`) reads its headers by
 hand. Compatibility: the diff is 32 added lines inside `trustSingle` /
 `trustMulti`; the exports and the `compile([])` path Express takes while
-`trust proxy` is unset are untouched, and it adds call sites for two
+`trust proxy` is unset are untouched, and the call sites it adds are all for
 `ipaddr.js` methods 2.0.7 already uses — no new `ipaddr.js` API.
 
 ### `compression` — fixed in range
@@ -498,9 +531,10 @@ two, `/acheter` and `/velo/[id]/liste`: both list this repository's own
 imports is traced.)
 
 So it met the rule at the top of this file — build-time only, no fixed release
-— and could have been allow-listed. It was **not**, for the reason `basic-ftp`
-was not: an entry would have been the first one under a shipped `dependencies`
-entry, and permanent in practice, since the upstream that has to ship the fix
+— and could have been allow-listed. It was **not**, by the rule that decided
+`basic-ftp` — last resort, not first move — and for two reasons of its own: an
+entry would have been the first one under a shipped `dependencies` entry, and
+permanent in practice, since the upstream that has to ship the fix
 has merged nothing in three years. Removing the package costs one flag of a
 binary nobody calls (the compatibility note under the overrides table), adds
 no version the tree did not already hold, and turns a quarterly re-read into a

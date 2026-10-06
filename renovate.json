@@ -115,6 +115,13 @@
       "minimumReleaseAge": "7 days"
     },
     {
+      "description": "argparse is an override, not a dependency: \"js-yaml@^3\": { \"argparse\": \"^2.0.1\" } exists only to drop sprintf-js (GHSA-hp3w-g68c-fv3c) by reusing the 2.0.1 copy js-yaml@4 already installs. A v3 override would add a second argparse version and put an untested major under js-yaml@3. See audit-ci-allowlist.md.",
+      "matchPackageNames": ["argparse"],
+      "matchDepTypes": ["overrides"],
+      "allowedVersions": "<3",
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Type definitions are low risk — automerge them on a branch.",
       "matchPackageNames": ["@types/**"],
       "groupName": "type definitions",

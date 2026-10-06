@@ -64,7 +64,12 @@ the day another `argparse@1` consumer arrives: unscoped, that package silently
 gets the v2 shim; scoped, `sprintf-js` returns and `audit` goes red. Reach for
 this shape only when the swapped package is provably not loaded by its parent's
 library code — the proof, and the one flag of the CLI it costs, are in
-[`audit-ci-allowlist.md`](./audit-ci-allowlist.md).
+[`audit-ci-allowlist.md`](./audit-ci-allowlist.md), with the two things a
+scoped key does that are easy to miss: a ranged key (`js-yaml@^3`) also
+rewrites every `js-yaml` range that intersects it to `^3`, and **Renovate reads
+an override as a dependency** — it would have proposed `argparse` 3, so
+`renovate.json` caps it below 3. An override that must not float needs its cap
+there in the same commit.
 
 **A shipped direct dependency is bumped — never overridden, never
 allow-listed.** `overrides` exists for a transitive whose parent pins it too
