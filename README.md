@@ -150,7 +150,7 @@ Vercel (`scripts/check-env.ts`) :
 | [`docs/bike3d-perf.md`](./docs/bike3d-perf.md)         | la performance 3D et la vérification sur un vrai appareil            |
 | [`docs/illustrations.md`](./docs/illustrations.md)     | dessiner une illustration, pour un guide ou pour l'arbre de décision |
 | [`docs/retailers.md`](./docs/retailers.md)             | les liens vers les boutiques et leur vérification à la main          |
-| [`docs/deploy.md`](./docs/deploy.md)                   | la mise en ligne (W5) : Neon, Vercel, Google, protection de `main`   |
+| [`docs/deploy.md`](./docs/deploy.md)                   | la mise en ligne (W5) : Neon, Vercel, Google, réglages GitHub        |
 | [`docs/qa/google-oauth.md`](./docs/qa/google-oauth.md) | la recette manuelle de « Continuer avec Google »                     |
 | [`docs/backlog.md`](./docs/backlog.md)                 | ce qui est volontairement reporté : W5, puis après le MVP            |
 | [`content/README.md`](./content/README.md)             | écrire un guide : slugs, gabarit, règles du contrôle                 |
@@ -330,7 +330,7 @@ Vercel build (`scripts/check-env.ts`):
 | [`docs/bike3d-perf.md`](./docs/bike3d-perf.md)         | 3D performance and the real-device check                         |
 | [`docs/illustrations.md`](./docs/illustrations.md)     | drawing an illustration, for a guide or for the decision tree    |
 | [`docs/retailers.md`](./docs/retailers.md)             | the retailer links and how they are verified by hand             |
-| [`docs/deploy.md`](./docs/deploy.md)                   | going live (W5): Neon, Vercel, Google, protecting `main`         |
+| [`docs/deploy.md`](./docs/deploy.md)                   | going live (W5): Neon, Vercel, Google, the GitHub settings       |
 | [`docs/qa/google-oauth.md`](./docs/qa/google-oauth.md) | the manual QA of "Continue with Google"                          |
 | [`docs/backlog.md`](./docs/backlog.md)                 | what is deliberately deferred: W5, then post-MVP                 |
 | [`content/README.md`](./content/README.md)             | writing a guide: slugs, template, the content check's rules      |

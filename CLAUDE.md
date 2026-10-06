@@ -124,7 +124,7 @@ something this tree needs — and when you do, record the skipped hold in
 | Auth       | Auth.js **v5** (beta)                                | Credentials + Google, JWT sessions                                                |
 | Validation | zod **4**                                            | classic `zod` server/test-side, `zod/mini` in bundled code                        |
 | Tests      | Vitest **4.1**, Playwright **1.63.0**, Lighthouse CI | coverage gate 80 %                                                                |
-| Hosting    | Vercel (`cdg1`) + Neon Postgres                      | migrations run only when `VERCEL_ENV=production`                                  |
+| Hosting    | Vercel (`cdg1`) + Neon Postgres                      | `vercel-build.sh` migrates production; `migrate-preview.yml` the `preview` branch |
 
 ---
 
@@ -807,8 +807,10 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
 
 Every gate but CodeQL is a `scripts/ci/*.sh` script that runs the same way
 locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
-Lighthouse), which need a production build and run on their own, and the
-PR-only `visual-baseline-guard`.
+Lighthouse), which need a production build and run on their own, and the three
+workflows that sit outside the PR gate set: `visual-baseline-guard`,
+`renovate-config-validator` and `migrate-preview` (the last is not a gate at
+all — it deploys).
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
@@ -911,6 +913,195 @@ PR-only `visual-baseline-guard`.
   workflow (`opened|synchronize|reopened|labeled|unlabeled`, paths
   `tests/e2e/__screenshots__/**`): it fails a baseline change without the label,
   re-runs when the label changes, and is never a required check.
+- **Two path-filtered workflows, neither of them a required context.**
+  `renovate-config.yml` runs `renovate-config-validator`
+  (`scripts/ci/renovate-config.sh`, which also takes a path) on a pull request,
+  and on a push to `main`, that touches any of THREE paths: `renovate.json`,
+  that script, and the workflow file itself. Nothing else here reads
+  `renovate.json` against Renovate's schema — not ESLint, not `tsc`, not
+  `$schema`; Prettier formats it and one unit test parses it as JSON — and an
+  invalid one stops Renovate dead, with no PRs and not even a dependency
+  dashboard (`.debug/016` §4). The other two paths are the test of the test:
+  the validator's version is pinned IN the script and Renovate bumps it by a
+  pull request that edits the script alone, so filtered on `renovate.json`
+  only — as the job first was, under a comment that said "validated by this
+  very job" — it would not have started on its own bump. Expect that bump, and
+  its cold install, about weekly (inferred in review from Renovate's source
+  and release cadence; no such PR exists yet). It passes **`--no-global`**,
+  and must: handed a filename the validator applies the self-hosted GLOBAL
+  schema, which is WIDER than the repository schema the service applies —
+  `baseDir` and `redisUrl` pass as a global config and are refused in a
+  repository one — so without the flag the gate is quietly weaker than the
+  thing it stands in for. That validator is also **pinned**
+  (`RENOVATE_VERSION`, kept current by a `customManagers` entry in
+  `renovate.json`, which is why nothing but the regex may share that line): it
+  is downloaded by `npx` rather than installed, because it is the whole
+  ~350 MB of Renovate for one path-filtered job — but never `@latest`, which
+  would run whatever the registry served that minute, outside the lockfile,
+  invisible to `audit-ci` and never held the seven days `minimumReleaseAge`
+  holds everything else (Renovate ships several releases a day, so the pin is
+  a version at least that old). `tests/unit/ci/renovate-config.test.ts` holds
+  THREE facts — the flag, the pin and the VERDICT: it runs the script against
+  a stand-in `npx` that exits 1 and expects the script to exit 1 with it,
+  because `|| true` after the validator, an `if !` around it, or
+  `continue-on-error` on the job each left every test green. A weakened
+  validator and a working one print the same green tick. **A test that puts a
+  stand-in `npx` on `PATH` spawns the script with an empty `HOME`**:
+  `scripts/ci/_lib.sh` runs `nvm use` when `$HOME/.nvm/nvm.sh` exists, nvm
+  then puts its own `bin` first, and the real `npx` wins (measured) — which
+  for this script is a unit test downloading all of Renovate. **And every
+  spawn of that script goes through the stand-in**, the case that expects the
+  script to stop BEFORE `npx` included: it asserts the stand-in's marker
+  ABSENT, so a regressed guard reaches a three-line shell script and never the
+  real `npx` (the missing-file case used to run with the inherited
+  environment). And green is not the service's acceptance: the validator does
+  not resolve top-level `extends` presets (read from 44.108.1's source, not
+  from a run), and since the context is not required GitHub merges past a red
+  one.
+  `migrate-preview.yml` runs `prisma migrate deploy`
+  (`scripts/ci/migrate-preview.sh`) against the shared Neon `preview` branch on
+  a push to `main` touching `prisma/migrations/**`, and on `workflow_dispatch`
+  — which is also the bootstrap. `scripts/vercel-build.sh` migrates only when
+  `VERCEL_ENV=production`, so nothing else ever migrates `preview` and W5
+  found it with no `_prisma_migrations` table at all (`.debug/016` §3).
+  **That push trigger has a silent limit**: per GitHub's documentation, not
+  observed, a `paths:` filter is evaluated on the first 300 changed files of
+  a push, and a migration outside them starts NO run — not red, not green.
+  The filter stays (without it every push to `main` hands the connection
+  string to a run with nothing to migrate), so after a merge of more than
+  about 300 files that carries a migration, check
+  `gh run list --workflow=migrate-preview.yml` and dispatch if no run
+  started. The largest merge so far changed 343 files and carried none.
+  **No documented command takes the connection string as an argument, and none
+  may**: a command line is a line of the shell's history file. The
+  maintainer's procedure is `docs/deploy.md` §4.5; the one by-hand form left
+  reads the string from a prompt and costs a rotation.
+  **Its inputs are one secret and two variables, on the `env:` of the migrate
+  STEP and nowhere else**: `NEON_PREVIEW_DIRECT_URL` (secret),
+  `PREVIEW_MIGRATIONS_ENABLED` (`1`) and `NEON_PREVIEW_ENDPOINT` (the first
+  label of the preview host minus its trailing `-<id>` — public, `.debug/016`
+  §3 prints it; read it from there or from `docs/deploy.md` §4.5, never from
+  the panel the string is copied from, where a wrong branch selector agrees
+  with itself). The job's own `env:` is `HUSKY` alone, so the checkout,
+  `setup-node` and `npm ci` — ten dependencies' install scripts and this
+  project's `postinstall` — never hold the string, and the checkout keeps no
+  token (`persist-credentials: false`). A narrowing, not an isolation: that
+  step still runs `prisma`, `dotenv` and `lib/db/env.ts` with it. `npm ci` keeps
+  its lifecycle scripts, unlike the `--ignore-scripts` install in `perf.yml`:
+  whether `migrate deploy` finds its schema engine without them was not
+  verified.
+  **The script refuses, in this order and before anything is contacted**: any
+  ref but `refs/heads/main` (a dispatch on a feature branch would apply THAT
+  branch's unmerged migrations to the database every open PR reads); a switch
+  value other than `1`, whatever the secret; an empty secret once the switch
+  is `1`; a secret WITHOUT the switch; an empty or malformed
+  `NEON_PREVIEW_ENDPOINT` (it fails closed); a value that is not a well-formed
+  connection URL — exactly one `@`, a username, a hostname within
+  `[A-Za-z0-9.-]`, a path that is a bare database name, no `host` query
+  parameter (Prisma 7.10.0 dials `?host=` instead of the URL's host) — all
+  answered by ONE generic line that prints nothing from the value; a host that
+  is not the named endpoint (production is in the same Neon project, one
+  branch selector away, and the first version migrated a production-shaped
+  host green under a summary that said `preview`); and a `-pooler` host (an
+  advisory migration lock does not survive a transaction pooler). Two of
+  those orders decide an answer and are each held by a case: the ref guard
+  comes before the bootstrap's skip (a dispatch on a feature ref with nothing
+  set up is red, not a green skip), and the endpoint before the pooled check
+  (production's POOLED string is "not the preview endpoint", never "fetch the
+  DIRECT one"). The refusals echo nothing they have not cut or held to a
+  charset: a mistyped switch is printed only when it is letters and digits,
+  eight at most, otherwise by its length — a variable is a field somebody
+  pastes a connection string into — and when both sides of an endpoint
+  mismatch are cut to the same 14 characters the message says the difference
+  is past them.
+  **One refusal comes AFTER the run: Prisma must not have CREATED the
+  database.** The endpoint is asserted; the database NAME is not, and
+  `migrate deploy` creates a database that is missing. On 7.10.0, against the
+  local test server, a path naming one that did not exist printed
+  `PostgreSQL database <name> created at <host>:<port>`, applied every
+  migration to it and exited 0 — green, with the database the previews read
+  untouched. `preview` never has a database to create, so the script greps
+  Prisma's (already redacted) output for that line and exits 1, with no
+  summary. The match is Prisma's wording, which is why
+  `tests/integration/migrate-preview.test.ts` has the real Prisma create a
+  scratch `_test` database (and drops it): a stand-in would go on printing
+  the old line through an upgrade that reworded it. **Not caught**: a path
+  naming ANOTHER database that already exists on the endpoint — migrated,
+  green; the `→ <host>/<name>` line is the only tell, and a fourth input
+  naming the database is the fix nobody has made.
+  **Exactly one path is green without running `migrate deploy`**: no secret
+  AND no switch, the bootstrap's skip. Every other green run is Prisma
+  exiting 0 on the endpoint asserted, on a database that already existed —
+  the one the secret's path names. GitHub hands a step the empty string for a
+  secret that does not exist, so the switch is what stops that skip coming
+  back the day the secret is deleted or renamed — and it is read on EVERY
+  run: read only when the secret was empty, as it first was, a typo or a
+  forgotten variable was green and silent with the secret present.
+  **"`main` only" is the dispatched ref's own copy of the script**: it stops
+  an accidental `--ref`, not a branch that edits the script; GitHub hands that
+  run the repository secret all the same; outside Actions the guard says
+  nothing. A GitHub Environment restricted to `main` is the upgrade, and it is
+  not set up.
+  **The log is public, `$GITHUB_STEP_SUMMARY` included**, so it shows the
+  first 14 CHARACTERS of the host and the database name and no more — the
+  endpoint's two words only because both endpoints are `ep-` + 5 + 5 letters.
+  Truncating the script's own line is not what achieves that, and on its own
+  it achieved nothing: `migrate deploy` prints
+  `Datasource "db": … at "<the whole host>"` on the very next line and repeats
+  the host in a P1001, so its output (both streams) is piped through `sed` —
+  the full host and, when it is longer than 14 characters, its first label on
+  its own, dots escaped; the hostname charset above is what keeps that
+  program a literal match — and then through `tee`, which keeps the redacted
+  text for the summary. The summary is written only on exit 0 and is Prisma's
+  own words under one factual sentence: the script never says "applied".
+  `pipefail`, set in `scripts/ci/_lib.sh`, is load-bearing through both
+  filters: it is what still reds a failed migration, and a run with the pipe
+  and without it is green on P1001.
+  **Its concurrency block holds one run in progress and ONE pending.**
+  `cancel-in-progress: false` on one fixed group means never cancelled in
+  flight and never two at once; per GitHub's documentation a newly queued run
+  replaces the pending one. Harmless between pushes to `main`, since
+  `migrate deploy` applies everything not yet applied; a mistaken `--ref`
+  dispatch can displace a pending `main` run (read from the documentation,
+  not observed). It is also the only job in the repository with a
+  `timeout-minutes`, because it is the only one whose queue is a database's
+  migrations: other workflows queue their `main` runs too, and a hung run
+  there delays a CI result, where one hung here on a connection or a DDL
+  statement would block the preview SCHEMA for GitHub's six-hour default
+  (Prisma's advisory-lock wait has a timeout of its own and is not what this
+  bounds).
+  Neither workflow may ever join `REQUIRED_CHECKS`: every `ci.yml`
+  job runs on every PR precisely because a path-filtered required context never
+  reports on most of them and blocks the merge for ever (`.debug/016` §2,
+  PR #8). `tests/unit/ci/required-checks.test.ts` parses both files, holds
+  `renovate-config-validator` in `NON_BLOCKING_CONTEXTS` and the RULE behind
+  it (no workflow whose pull-request trigger carries `paths` or `paths-ignore`
+  produces a required context), and asserts on the PARSED YAML that neither
+  the validator's job nor any of its steps carries `if` or
+  `continue-on-error` (a text pattern did not see `- if: false`). For
+  `migrate-preview` it asserts that the workflow is never triggered by a pull
+  request and never a required context — a dispatch aimed at a PR's branch
+  still leaves a red, non-required check on its head commit — that the job
+  has no `if:`, that its migrate step is EXACTLY `run` + `env` (a step-level
+  `if:` is a green job that migrated nothing; `continue-on-error`, `shell`
+  and `working-directory` fail it too), that it keeps its concurrency block
+  and its read-only token, and that nothing else in the file holds the word
+  `secrets` at all (`toJSON(secrets)` and `secrets[…]` got past a search for
+  `secrets.`), and — a `run:` being a string nothing resolves — **stats every
+  `scripts/…` path any workflow names**, since deleting one used to leave
+  every test green. `tests/unit/deploy/migrate-on-deploy.test.ts` EXECUTES
+  `migrate-preview.sh` for every refusal above and for the success path,
+  against a stand-in `npx` that answers 0: a guard that merely warns then ends
+  in a green "migration" and fails its test (the first version's ref and
+  pooled tests stayed green with the guard's `exit 1` deleted, because a later
+  step supplied the exit code). One case runs the real `prisma migrate deploy`
+  against an unresolvable `.invalid` host (RFC 2606), because only Prisma's
+  own output can show that the redaction still matches it; and
+  `tests/integration/migrate-preview.test.ts` runs the unmodified script with
+  the real Prisma against the tier's `_test` database — the one green run with
+  nothing stubbed — and into a scratch database that does not exist, the one
+  red run Prisma itself calls a success. A grep would pass against a script
+  that never branched on the variable at all.
 - **`mobile-webkit` is non-blocking, but read.** `continue-on-error` carries its
   reason next to the key in `ci.yml`. Its `@webgl` specs do run (WebGL without a
   GPU). Two WebKit behaviours a Chromium run never shows (`.debug/015`):

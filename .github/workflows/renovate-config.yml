@@ -1,0 +1,86 @@
+name: Renovate config
+
+# `renovate.json` was read by Renovate and by nothing else. No ESLint rule, no
+# `tsc`, no CI job and no schema check in this repository had ever parsed it —
+# the `$schema` line at its top is honoured by editors, not by any gate. So the
+# file's first reader was the Renovate app itself, in W5, six days after it was
+# written: it rejected the config, opened "Action Required: Fix Renovate
+# Configuration" and stopped EVERY PR, dependency dashboard included
+# (`.debug/016` §4). A broken Renovate config does not look broken; it looks
+# like a quiet week.
+#
+# `renovate-config-validator` ships inside the `renovate` package and reads the
+# file with Renovate's own schema — as a REPOSITORY config, which is the schema
+# the service applies, and only because `scripts/ci/renovate-config.sh` passes
+# `--no-global`. Handed a filename the validator defaults to the self-hosted
+# GLOBAL schema, which is wider: `baseDir` and `redisUrl` pass as a global
+# config and are rejected in a repository one. Its own workflow rather than a
+# job of ci.yml, for two reasons:
+#
+#   - The install pulls the whole of Renovate — ~350 MB on a cold npx cache
+#     (not timed on a runner), which on a runner is every run — for a file
+#     that changes a few times a year and a validator pin Renovate is expected
+#     to bump about weekly. `paths:` keeps it off every PR that touches none
+#     of the three files below.
+#   - `paths:` is only safe OUTSIDE ci.yml. Every ci.yml job runs on every pull
+#     request because a required context that does not report blocks the merge
+#     for ever, and a skipped MATRIX job reports the literal
+#     `e2e (${{ matrix.project }})` instead of its five names (`.debug/016` §2,
+#     PR #8). This job is path-filtered, therefore it must never be required.
+#
+# The job's `name:` is the status context, `renovate-config-validator`, listed
+# in NON_BLOCKING_CONTEXTS (tests/unit/ci/required-checks.test.ts).
+
+# Three paths, not one. `renovate.json` is the file under test — and the other
+# two are the test. The pinned validator version lives in the script
+# (`RENOVATE_VERSION`), and `renovate.json`'s second `customManagers` entry has
+# Renovate bump it by pull request; that PR edits the script and nothing else.
+# Filtered on `renovate.json` alone — as this was first written — the job would
+# not start on that PR (GitHub's rule: a workflow runs when at least one
+# changed path matches; no such PR exists yet, so not observed). A new
+# validator would then first meet the committed config on somebody's later,
+# unrelated edit of `renovate.json`, where a failure reads as that change's
+# fault. The script's own comment said the bump was "validated by this very
+# job", and a test pinned the path list that made it false (found in review,
+# 2026-10-06). The workflow file is listed for the same reason: an edit to
+# this job would otherwise merge without having run.
+#
+# Still path-filtered, so still never required.
+on:
+  pull_request:
+    paths:
+      - renovate.json
+      - scripts/ci/renovate-config.sh
+      - .github/workflows/renovate-config.yml
+  push:
+    branches: [main]
+    paths:
+      - renovate.json
+      - scripts/ci/renovate-config.sh
+      - .github/workflows/renovate-config.yml
+
+concurrency:
+  group: renovate-config-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  renovate-config-validator:
+    name: renovate-config-validator
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      # No `npm ci`: the validator is not a dependency of this project and must
+      # not become one — it is the whole of Renovate, ~350 MB, for one JSON
+      # file. The script downloads it with
+      # `npx --yes --package renovate@<RENOVATE_VERSION>`: pinned, never
+      # `@latest`, because a package fetched outside package-lock.json is a
+      # package `audit-ci` never sees and the 7-day hold never held.
+      - run: bash scripts/ci/renovate-config.sh

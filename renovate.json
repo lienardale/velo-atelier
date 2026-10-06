@@ -29,6 +29,14 @@
       ],
       "datasourceTemplate": "npm",
       "depNameTemplate": "@playwright/test"
+    },
+    {
+      "description": "Keep the renovate-config-validator pinned in scripts/ci/renovate-config.sh current. That script downloads Renovate with npx rather than installing it — the package is ~350 MB, for one path-filtered job — so the version sits outside package-lock.json and nothing else here would ever bump it. The script is in that job's path filter, so that the bump's own pull request runs it. Unpinned it would be whatever the registry served that minute, which is exactly the supply-chain hold minimumReleaseAge exists to prevent.",
+      "customType": "regex",
+      "fileMatch": ["^scripts/ci/renovate-config\\.sh$"],
+      "matchStrings": ["RENOVATE_VERSION=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "renovate"
     }
   ],
   "packageRules": [
