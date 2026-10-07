@@ -11,8 +11,32 @@
 #
 # Hence the nvm line below: it runs before `set -u` so a missing ~/.nvm is a
 # no-op rather than an error, and it is skipped entirely on a runner.
-# shellcheck disable=SC1091
-[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh" && nvm use --silent 24
+#
+# It is ALSO skipped when a Node of the right major is already on PATH, which
+# is every `npm run <script>` started on Node 24 — npm is running on that Node.
+# (Under another major it still reaches for nvm, and the failure described
+# here is unchanged there.) That is not an optimisation. Under `npm run`, npm
+# exports `npm_config_prefix`, and nvm refuses to work beside it whenever the
+# prefix is not literally under $NVM_DIR: "nvm is not compatible with the
+# "npm_config_prefix" environment variable". That is the case on a machine
+# whose ~/.nvm is a symlink to another volume. Refusing, it also takes node and
+# npx OFF the PATH, so the step died a few lines later with
+# `npx: command not found` (exit 127). Measured
+# 2026-10-06: `npm run ci:local` and `npm run lhci` both failed that way while
+# `bash scripts/ci.sh` passed and `bash scripts/ci/lighthouse.sh` ran through to
+# its own verdict (`.debug/017` §5.1). `tests/unit/deploy/lib-nvm.test.ts`
+# holds both directions.
+#
+# `--no-use` because a sourced file inherits the caller's positional
+# parameters: without an argument of its own, nvm.sh would read whatever the
+# step script was called with (`--install` and `--no-use` mean something to
+# it). The version is chosen by the explicit `nvm use` instead.
+node_major="$(command -v node >/dev/null 2>&1 && node -p 'process.versions.node.split(".")[0]' 2>/dev/null)"
+if [ "$node_major" != "24" ]; then
+  # shellcheck disable=SC1091
+  [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh" --no-use && nvm use --silent 24
+fi
+unset node_major
 
 set -euo pipefail
 

@@ -5,10 +5,14 @@ and **what would have to be true** to pick it up. Nothing here blocks the MVP.
 
 Two sections:
 
-- **W5 — launch**: what the launch wave has to settle before `v0.1.0`
-  ([`deploy.md`](./deploy.md) is its step-by-step).
-- **Post-MVP**: everything after launch. W5-T2 turns the entries marked
-  _(W5-T2 opens an issue)_ into the first GitHub issues (§8.6).
+- **W5 — launch**: what the launch wave had to settle before `v0.1.0`
+  ([`deploy.md`](./deploy.md) is its step-by-step). All six entries are
+  settled in the repository — one, the `preview` migration, still waits for
+  its first run on the provider; the section stays, one dated paragraph per
+  entry, because `deploy.md` §5.1 points at it.
+- **Post-MVP**: everything after launch. W5-T2 turned the eight entries that
+  were marked _(W5-T2 opens an issue)_ into the first GitHub issues on
+  2026-10-06 (§8.6): #18 to #25, label `post-mvp`, each linked from its entry.
 
 W4 closed ten entries — the forgotten symptom and `doneReason`, `?item=`, the
 brand tier, IPv6 buckets, the `/velo`/`/compte` namespaces, the nightly Perf
@@ -16,154 +20,97 @@ artifact, the WebKit verdict bar, the reduced-motion frame count, e2e-docker's
 database and the missing local WebKit — and re-scoped the others it owned,
 each with its reason below; `.debug/012` has the table.
 
+W5 settled its own six, the last on 2026-10-06 — the environment contract, the
+`renovate.json` validator, the `preview` migration, the limiter's P2025, the
+build-list lifecycle and the twelve CodeQL alerts — and the paragraphs under
+"W5 — launch" say what closed each. One is done in the repository and not yet
+on the provider: the `preview` migration is a workflow whose first run still
+waits for the maintainer. What that work found and did not fix is under
+Post-MVP, in the entries whose reason reads "_Why deferred_ (W5)";
+`.debug/017` has the measurements.
+
 ---
 
 ## W5 — launch
 
-### Nothing enforces the production environment contract
+Six entries, the last of them settled on 2026-10-06 (times UTC); one, the
+`preview` migration, still waits for its first run. Each paragraph says what
+closed the entry and where to read about it. The entries' own text is in this file's
+history (`git log -p -- docs/backlog.md`); the measurements are in
+`.debug/017`.
 
-`lib/env.ts` states the production rules — `AUTH_URL` and the Google pair
-required; `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS` and
-`NEXT_PUBLIC_DEMO_LOGIN` refused — and `tests/unit/db/env.test.ts` proves
-`parseEnv` applies them. But nothing outside that test calls `getEnv()`, so no
-server ever evaluates them. Two comments say otherwise:
-`components/auth/SignInForm.tsx` ("`lib/env.ts` fails the boot if it is") and
-`app/[locale]/(auth)/connexion/page.tsx` ("`lib/env.ts` refuses to boot a
-production server that has it"). `scripts/bundle-guard.ts`, which
-`scripts/vercel-build.sh` runs, does not close the gap either: it asserts that
-`window.__va` is present exactly when `NEXT_PUBLIC_TEST_HOOKS=1`, so a
-production build made with the flag on passes it.
-
-_Why W5_: found while writing `docs/deploy.md` (W4-T4); it was never a
-deliberate deferral. Until it is fixed, `deploy.md` step 2 — the three flags in
-no Vercel scope — is the only guard.
-
-_To pick up_: validate once when the server starts — Next 16's
-`instrumentation.ts` `register()` runs once before a server takes requests
-(`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/instrumentation.md`).
-Not as the rule stands, though: `computeIsProduction()` treats any
-`NODE_ENV=production` server without `VERCEL_ENV` as production, and the `next`
-CLI defaults `NODE_ENV` to `production` for every command but `dev` — so that is
-every `next start`, including the CI boot check in `scripts/ci/build.sh`
-(`ENABLE_TEST_PAGES=1`) and the Playwright web server (`ENABLE_TEST_PAGES=1`,
-`NEXT_PUBLIC_DEMO_LOGIN=1`). Scope the refused flags to `VERCEL_ENV`, have
-`scripts/vercel-build.sh` refuse `NEXT_PUBLIC_TEST_HOOKS=1` when `VERCEL_ENV` is
-set, then correct the two comments.
-
-### Nothing in the repository reads `renovate.json`
-
-Renovate's first run on the installed app rejected the committed config and
-stopped every PR until it was fixed (`.debug/016` §4): a `false` where the
-schema wants `string | null`, and an invented `_comment_*` key. Both had been
-in the file since W1. No gate here parses it — the `$schema` line is honoured
-by editors, not by CI — so its first reader was the service, in production.
-
-_Why W5_: the same class as `.vercelignore` (`.debug/016` §1). A file whose only
-reader is a third party is untested however green the pipeline is, and this one
-fails closed: the symptom is no dependency PRs at all, which is silent.
-
-_To pick up_: `renovate-config-validator` ships inside the `renovate` package
-and reads the file directly —
-`npx --yes --package renovate -- renovate-config-validator renovate.json`. It is
-a slow install for a file that changes rarely, so scope the job to
-`paths: renovate.json` on pull requests. Note §4.1 of
-[`deploy.md`](./deploy.md): a path-filtered job must **not** become a required
-context, or every PR that leaves the file alone waits for a status that never
-reports.
-
-### A Neon branch that is not `production` is never migrated
-
-`scripts/vercel-build.sh` runs `prisma migrate deploy` only when
-`VERCEL_ENV=production`, so the shared `preview` branch gets its schema only if
-somebody applies it by hand. W5 found it with no `_prisma_migrations` table at
-all, and neither `/api/health` (a bare `SELECT 1`) nor `/velo/demo` (code-backed)
-noticed (`.debug/016` §3). Migrating it once fixed today; nothing stops it
-drifting again at the next migration.
-
-_Why W5_: it is a launch-time fact, not a defect in the code — the preview skip
-is deliberate (§2 of [`deploy.md`](./deploy.md)).
-
-_To pick up_: with the per-PR Neon branches entry below, which removes the
-shared branch entirely. Until then, either add a step that migrates `preview`
-when a migration lands on `main`, or give `/api/health` an optional deeper probe
-(one `count` on a real table) that a preview smoke test can call — the current
-endpoint is by design cheap enough to run per request, so a deeper check has to
-be a separate path, not a change to this one.
-
-### The rate limiter logs a P2025 on every normal first attempt
-
-`lib/security/rate-limit.ts` decides on the row returned by each request's own
-conditional `UPDATE … WHERE` (that atomicity is the point — see `.debug/003`), and
-swallows the P2025 when no row matched. But `lib/db/prisma.ts` sets
-`log: ["error"]`, so the Prisma client logs it _before_ our code handles it: CI's
-e2e output is full of "An operation failed because it depends on one or more
-records that were required but not found." on a completely normal path. Harmless,
-but it makes a real error indistinguishable from an expected one in production
-logs. Fix by moving to `{ emit: "event", level: "error" }` and dropping P2025
-from the known conditional-update call sites — not by reintroducing a read.
-
-_Why W5_: production logs are read for the first time at launch (§9.5). Fix it
-before, or expect this line on every first attempt of a rate-limit window.
-
-### An account's build list shows only its newest checkup's lines
-
-Every finished checkup creates its own `BuildList`, `/liste` shows the bike's
-newest OPEN list, and nothing ever writes `BuildList` `DONE` or `ARCHIVED`.
-Three consequences for an account, all live since W4 made each checkup a run of
-its own (`.debug/013`):
-
-- a line a LATER checkup closed (`doneReason: 'recheck-ok'`, written on the
-  OLDER list) is never on screen, so "Marqué fait par un contrôle" is never
-  shown to an account in the natural flow;
-- the open lines of an older list drop out of view as soon as a newer checkup
-  finishes — after an all-OK recheck the list page is empty;
-- the quotas are enforced literally (W4 ruling: 10 lists/bike), so a bike that
-  has finished 10 checkups can finish no other one (`TOO_MANY`).
-
-A guest keeps one list per bike (`va:buildlist:<ref>`) and has none of this.
-
-_Why W5_: a product decision, not a bug fix — and one a regular user reaches
-after ten checkups. The W4 ruling took §4.2 (c) literally on purpose.
-
-_To pick up_: choose the lifecycle, then implement it once on the server:
-one list per bike like the guest (carry open lines forward), or archive the
-previous list when a newer one is created and cap non-archived lists, or show
-the newest non-empty list. Each changes what `tests/e2e/checkup-quota.spec.ts`
-asserts.
-
-### Twelve CodeQL alerts have been open on `main` since W2–W3
-
-CodeQL's PR check fails only on NEW alerts, so the ones already on `main` never
-turned a check red, and nobody triaged them. W4 fixed the two it found vacuous
-(`js/invalid-prototype-value`, #11 and #14, closed by the merge: a literal
-`__proto__: "x"` sets no key, so those tests never held the poison key they
-were about). Twelve remain:
-
-- **#10 `js/user-controlled-bypass` (high), `app/api/session-expired/route.ts:50`.**
-  Assessed a false positive in W4. The flagged condition clears the session
-  cookies only when `auth()` rejects the visitor's OWN session. A third-party
-  page that navigates a signed-in visitor there sends a valid cookie and clears
-  nothing, as the route's header explains.
-- **Build scripts:** `js/clear-text-logging` (high) ×3 in
-  `scripts/gen-common-passwords.ts`, which logs entries of a public
-  common-password list, and `js/file-system-race` (high) ×2 in
-  `scripts/gen-illustration-placeholders.ts`. Both scripts run only on a
-  maintainer's machine.
-- **Tests:**
-  - `js/incomplete-sanitization` (high), `tests/security/session-rewrite.test.ts:86`;
-  - `js/incomplete-url-substring-sanitization` (high),
-    `components/shop/OutboundLink.test.tsx:163`;
-  - `js/identity-replacement` (medium), `tests/e2e/auth-login.spec.ts:132`;
-  - `js/superfluous-trailing-arguments` (warning) ×3.
-
-_Why W5_: a launch should start from zero open alerts, or from every remaining
-one dismissed with a written reason. A dismissal changes the repository's
-security record, so it is the maintainer's call, not an agent's.
-
-_To pick up_: fix what is cheap (the two scripts, the trailing arguments), and
-dismiss the rest as false positive or used-in-tests with the reason above. Then
-confirm `gh api repos/lienardale/velo-atelier/code-scanning/alerts?state=open`
-is empty.
+- **Nothing enforces the production environment contract** — done 2026-10-06,
+  PR #16 (`a754257`). The entry's "To pick up", as written: `instrumentation.ts`
+  calls `getEnv()` at every server start, the three test flags are refused
+  whenever `VERCEL_ENV` is set, `scripts/vercel-build.sh` refuses
+  `NEXT_PUBLIC_TEST_HOOKS`, and the two comments are corrected. Beyond it:
+  `scripts/check-env.ts`, a preflight that `scripts/vercel-build.sh` runs
+  before `prisma migrate deploy` — Next does not run `register()` during a
+  build, so without it a scope's values were first evaluated by the deployed
+  server, after the production migration — and a build that refuses an absent
+  or unknown `VERCEL_ENV`. Seen on Vercel the same day, on a preview and on
+  production: `check-env: environment contract satisfied` in the build log,
+  `[env] contract enforced (VERCEL_ENV=…)` in the runtime log, and a 200 from
+  `/api/health`. Not seen anywhere: a refused build. Read `CLAUDE.md`
+  ("`lib/env.ts` is the environment contract, and two things run it") and
+  [`deploy.md`](./deploy.md) §2; what was written down rather than changed is
+  "The environment contract's sharp edges" below.
+- **Nothing in the repository reads `renovate.json`** — done 2026-10-06, PR #17
+  (`863cd0c`). `.github/workflows/renovate-config.yml` runs
+  `scripts/ci/renovate-config.sh` — the package's own
+  `renovate-config-validator --no-global renovate.json`, pinned at renovate
+  44.108.1 — on a pull request, and on a push to `main`, that touches
+  `renovate.json`, the script or the workflow file. Path-filtered, so never a
+  required context. Its first run, on PR #17 itself: pass, 41 s; its second,
+  on that merge's push to `main`: pass, 44 s. Read [`deploy.md`](./deploy.md)
+  §4.4.
+- **A Neon branch that is not `production` is never migrated** — the workflow
+  is done (2026-10-06, PR #17, `863cd0c`); **its first run is not.**
+  `.github/workflows/migrate-preview.yml` runs `prisma migrate deploy` against
+  `preview` (`scripts/ci/migrate-preview.sh`) on a push to `main` that touches
+  `prisma/migrations/**`, and on `gh workflow run migrate-preview.yml --ref main`.
+  It needs the maintainer's secret `NEON_PREVIEW_DIRECT_URL` and variables
+  `NEON_PREVIEW_ENDPOINT` and `PREVIEW_MIGRATIONS_ENABLED`
+  ([`deploy.md`](./deploy.md) §4.5's bootstrap). When this was written
+  (2026-10-07 13:13Z) none of the three existed and the workflow had never
+  run — `gh secret list`, `gh variable list` and
+  `gh run list --workflow=migrate-preview.yml` each returned an empty list —
+  so nothing migrates `preview` yet. The merge of #17 started no run, as
+  designed: it changed nothing under `prisma/migrations/**`. The entry's other
+  option, a deeper health probe, was not taken: `/api/health` is still a bare
+  `SELECT 1` and cannot report a migrated schema, so the run's log and §4.5's
+  query are the only evidence. What the workflow does not refuse is
+  "`migrate-preview`'s remaining edges, and the Renovate validator's" below.
+- **The rate limiter logs a P2025 on every normal first attempt** — done
+  2026-10-06, PR #16 (`a754257`). Prisma's `error` log is an event now
+  (`lib/db/prisma.ts`), and the listener (`lib/db/log.ts`) drops the limiter's
+  expected miss and prints everything else; `lib/security/rate-limit.ts` is
+  unchanged, and no read came back. Counted on PostgreSQL while fixing it: two
+  P2025s per fresh key, one per expired window, up to six on a first sign-in —
+  not one per first attempt, as this entry had it. Read `CLAUDE.md` ("Errors
+  are EVENTS, not stdout"); what the listener still prints verbatim is "A
+  Prisma validation error's log line carries the call's arguments" below.
+- **An account's build list shows only its newest checkup's lines** — done
+  2026-10-06, PR #13 (`4917696`), by ruling: one OPEN build list per bike, the
+  guest's semantics. `finishCheckupAction` merges into the bike's newest OPEN
+  list and creates one only when the bike has none (migration
+  `20260930094543_one_open_build_list_per_bike`), so a line a later checkup
+  closes is closed on the list on screen, earlier open lines stay, and a bike
+  with an open list is never refused for `listsPerBike`
+  (`tests/e2e/checkup-twelfth-run.spec.ts`). No data migration: a bike that
+  held several OPEN lists keeps them and uses the newest, and whether any bike
+  on production does had not been queried when this was written. What it left
+  is "Nothing closes a build list" below. Read `CLAUDE.md` ("One OPEN build
+  list per bike").
+- **Twelve CodeQL alerts have been open on `main` since W2–W3** — done. PR #12
+  (`13ba328`, 2026-10-04) fixed eight in code: the five in the two generator
+  scripts and the three `js/superfluous-trailing-arguments`. The other four —
+  alert 10 as a false positive; alerts 9, 12 and 3 as used in tests — were
+  dismissed on 2026-10-06 (16:00:32Z–16:00:35Z), on the maintainer's
+  instruction, each with the comment written in `audit-ci-allowlist.md`
+  ("Alerts dismissed on GitHub, and why").
+  `gh api "repos/lienardale/velo-atelier/code-scanning/alerts?state=open" --jq length`
+  → `0`, that day and again on 2026-10-07.
 
 ---
 
@@ -173,7 +120,7 @@ is empty.
 
 #### Password reset by email
 
-_(W5-T2 opens an issue)_
+_Issue: [#18](https://github.com/lienardale/velo-atelier/issues/18)_
 
 There is no mailer in the MVP, so the only password paths are
 `changePasswordAction` (signed in, knows the current password) and
@@ -225,7 +172,7 @@ sign-out, which also signs out every other device — or database sessions.
 
 #### Nonce-based Content-Security-Policy
 
-_(W5-T2 opens an issue)_
+_Issue: [#19](https://github.com/lienardale/velo-atelier/issues/19)_
 
 `next.config.ts` ships a **static** CSP with `script-src 'self' 'unsafe-inline'`.
 A nonce-based policy requires generating the nonce in `proxy.ts` and reading it
@@ -239,7 +186,7 @@ otherwise-static routes, and measure the LCP cost before committing.
 
 #### Upstash (or any shared store) for rate limiting
 
-_(W5-T2 opens an issue)_
+_Issue: [#20](https://github.com/lienardale/velo-atelier/issues/20)_
 
 Rate limits live in Postgres: `lib/security/rate-limit.ts` keeps its counters in
 the `AuthAttempt` table, one conditional statement per attempt.
@@ -302,11 +249,97 @@ row. Optionally add `@@unique([bikeId, startedAt])` on `Checkup` (today
 same run could then no longer create two rows (see "Two in-progress runs" under
 Product surface).
 
+#### The preview database secret is a repository secret
+
+`NEON_PREVIEW_DIRECT_URL`, which one step of
+`.github/workflows/migrate-preview.yml` reads, is the only `secrets.*`
+reference in any workflow here, and [`deploy.md`](./deploy.md) §4.5 sets it up
+as a repository secret. "`main` only" is therefore the script's rule, not
+GitHub's: `scripts/ci/migrate-preview.sh` refuses any ref but
+`refs/heads/main`, but a `workflow_dispatch` runs the workflow file and the
+script of the ref it names, and GitHub hands a repository secret to that run
+all the same. The guard stops an accidental `--ref`; it does not bind a branch
+that edits the script.
+
+_Why deferred_ (W5): by decision of the review of PR #17. It is not a
+file-only change — the maintainer creates the Environment and its branch rule
+first — and the secret did not exist yet when the workflow merged.
+
+_To pick up_: with the bootstrap, or after it. A GitHub Environment restricted
+to `main`, the secret stored there as an environment secret, `environment:` on
+the job; the workflow, `tests/unit/ci/required-checks.test.ts` and `deploy.md`
+§4.5 ("Who can read the secret") change with it. Per GitHub's documentation;
+none of it was tried here.
+
+#### Whether to rotate production's database password
+
+A decision owed, not a task. Per Neon's documentation (read in review, not
+checked against the live project) a child branch's roles have the parent's
+passwords by default, and `preview` is a child of `production`: until
+`preview` is rotated ([`deploy.md`](./deploy.md) §4.5, step 1) its connection
+string carries production's password. `.debug/016` §3 records both endpoints
+being queried by hand in the W5 session, so by §4.5's own rule — a string
+handled outside the Neon console, GitHub's secret store and Vercel's variables
+is spent — production's was handled by hand too; how it was given to the
+client is not recorded. Rotating `preview` changes nothing on `production`.
+
+_Why deferred_ (W5): it is the maintainer's decision, and it costs what the
+preview rotation does not. The live deployment holds the old password, so the
+site is expected to lose its database from the reset until a production
+deployment has been rebuilt with the new strings (not exercised).
+
+_To pick up_: decide, and write the answer in `deploy.md` §4.5 either way. If
+yes: reset the role's password on the `production` branch, replace the two
+strings in Vercel's Production scope and redeploy production — the
+bootstrap's steps 1 and 5 on the other branch, not exercised — at a quiet
+hour, and read `/api/health` once the new deployment is live.
+
+#### `sslmode=require` in the Neon strings will change meaning
+
+On each cold start production's runtime log carries a warning from `pg`: the
+SSL modes `prefer`, `require` and `verify-ca` are treated as `verify-full`
+today and will adopt libpq's weaker semantics in pg-connection-string v3 /
+pg v9; it suggests writing `sslmode=verify-full` explicitly (seen 2026-10-06
+19:29Z, region `cdg1`, unrelated to the change being deployed). So the Neon
+strings in Vercel say `sslmode=require` — inferred from the warning: the
+strings were not read.
+
+_Why deferred_ (W5): by the warning's own account nothing is weaker today, and
+the fix is an edit to connection strings in a dashboard, which no agent makes.
+
+_To pick up_: before the `pg` major that changes it, write
+`sslmode=verify-full` in the strings — Vercel's scopes and, once it exists,
+the `NEON_PREVIEW_DIRECT_URL` secret. Check first, on a preview: that the
+strings do say `require`; that `prisma migrate deploy` accepts `verify-full`
+(it hands the direct string to Prisma's schema engine, not to `pg`, and
+nothing here has tried that value there); and that
+`scripts/ci/migrate-preview.sh` still accepts the string (every string it has
+been run with says `sslmode=require`). Then read a cold start's log: the
+warning should be gone.
+
+#### A Prisma validation error's log line carries the call's arguments
+
+`lib/db/log.ts` prints `event.message` verbatim, and for a
+`PrismaClientValidationError` Prisma's message includes the call's arguments.
+Measured in review on 2026-10-06 with canary values, in production's format: a
+`user.create` with an unknown field logged the e-mail address and the password
+hash. Not a regression — the same text went to stdout before W5 — but it now
+passes one choke point, `reportPrismaError`.
+
+_Why deferred_ (W5): unchanged behaviour, written down rather than changed
+(`CLAUDE.md`, the header of `lib/db/log.ts`). The line goes to the server's
+own log, and nothing in the repository forwards logs anywhere else.
+
+_To pick up_: before any log drain or error tracker is added, decide whether
+`reportPrismaError` redacts a validation error — the target and the engine's
+last line only, for instance — and pin the choice in
+`tests/unit/db/log.test.ts`.
+
 ### Content and search
 
 #### Search index
 
-_(W5-T2 opens an issue)_
+_Issue: [#21](https://github.com/lienardale/velo-atelier/issues/21)_
 
 `/guides` filters client-side by kind, system and the visitor's bike
 (`lib/content/filter.ts`); there is no text search. A real index (build-time
@@ -315,7 +348,7 @@ flakiness for no MVP requirement.
 
 #### Glossary
 
-_(W5-T2 opens an issue)_
+_Issue: [#22](https://github.com/lienardale/velo-atelier/issues/22)_
 
 Cross-linking jargon inside MDX needs a term registry and a hover card; the
 guides currently define terms inline on first use.
@@ -369,6 +402,26 @@ typed (`.debug/015` §2, §9). The e2e specs wait until React owns the field.
 _To pick up_: read the field's DOM value into state on mount; re-seed only the
 fields the visitor has not touched.
 
+#### The guides list is built twice, and a card clicked during the swap does nothing
+
+`/guides` wraps `GuideFilters` — a client component that calls
+`useSearchParams()` — in a `<Suspense>` whose fallback is the same grid of
+cards. On a prerendered route the HTML holds the fallback and React builds the
+boundary again on the client instead of hydrating it (`.debug/011`, the
+decision tree's old problem). A click that lands while the first grid is being
+replaced is lost: in the emulated Linux container
+`tests/e2e/guides-filter.spec.ts` "a card opens its guide" failed 3 times in 12
+on 2026-10-07, the URL still `/guides` ten seconds after the click
+(`.debug/017` §5.7). The host and CI's native runners are too fast to show it.
+
+_Why deferred_ (W5): found by the launch checklist. It costs a second tap on a
+slow device and loses no data, and the fix is a change to a page.
+
+_To pick up_: what `.debug/011` did for the tree — read the query through a
+`useSyncExternalStore` with an empty server snapshot so the list is hydrated,
+and keep only a `null`-rendering `useSearchParams` consumer inside the
+boundary. The e2e test above, repeated in the container, is the proof.
+
 #### The checkup's tool-list rows are centred with ragged offsets
 
 `tap-target` sets `justify-content: center` on a full-width label, so the
@@ -385,9 +438,27 @@ the 50-checkup quota. And on a bike already at 50, a new run's first autosave is
 refused `TOO_MANY` while the wizard shows only the generic "could not be saved"
 chip, until "Créer ma liste" names the limit.
 
-_To pick up_: with the list lifecycle (W5 above) — abandon the older
-`IN_PROGRESS` run on the first save of a new one (§4.2 b), and surface
-`TOO_MANY` on the first refused save.
+_To pick up_: on its own now — the list lifecycle it was waiting for is
+settled (W5 above: one OPEN list per bike), and nothing writes `ABANDONED`
+yet. Abandon the older `IN_PROGRESS` run on the first save of a new one
+(§4.2 b), and surface `TOO_MANY` on the first refused save.
+
+#### Nothing closes a build list
+
+`BuildListStatus` has `OPEN`, `DONE` and `ARCHIVED`, and nothing under `app/`
+or `lib/` writes the last two. Since W5 a bike has one OPEN list that every
+checkup merges into, so the 10-lists quota is counted only on the path that
+would create a list — reachable only by a bike whose lists something closed,
+which today is nothing: `tests/security/quotas.test.ts` seeds `DONE` rows to
+reach it.
+
+_Why deferred_ (W5): the ruling was the guest's semantics, one list per bike.
+Nothing in the UI closes or archives a list, and an action nothing calls is
+attack surface without a user (the §4.4 entry above).
+
+_To pick up_: a reason to start a fresh list. The UI first, then the action
+behind it with its row in `tests/security/csrf-and-actions.test.ts` — and,
+with it, what `listsPerBike` is for.
 
 #### CSV export of a build list
 
@@ -409,7 +480,7 @@ Writing them responsibly needs photography and a safety review.
 
 #### Affiliate programmes
 
-_(W5-T2 opens an issue)_
+_Issue: [#23](https://github.com/lienardale/velo-atelier/issues/23)_
 
 Retailer links are plain outbound URLs with no affiliate id and no click
 tracking (`lib/shop/outbound.ts`), and `/acheter` says so to the visitor
@@ -497,8 +568,25 @@ through SwiftShader: a trace shows first paint waiting 1.75 s in
 keep WebGL on SwiftShader and raster the page on the CPU (locally, cold FCP
 4.4–9.7 s → 1.6–2.1 s) — but it changes what every Lighthouse number means.
 
-_To pick up_: a maintainer decision on the methodology, then re-pin every URL
-from new nightlies.
+Locally that software raster competes with everything else for the CPU, and
+the bike pages sit at their LCP ceiling. `.debug/014` §4 measured 3 004–3 027 ms
+at a load average of 4, before the ceiling was pinned to 3 000 ms from CI's
+nightly (2 252–2 341 ms there). Two local runs of
+`bash scripts/ci/lighthouse.sh` on the build of `2a311e5` (the tree merged as
+`863cd0c`) then exited 1 on exactly those two assertions, with every other
+assertion passing: run 1, 2026-10-06 20:11–20:21Z, load average 4.5 → 5.5 —
+`/fr/velo/demo` median 3 101 ms, `/en/bike/demo` 3 073 ms; run 2, started
+about 20:23Z that day and finished after the machine had slept, load average
+2.3 → 2.1 — 3 062 ms and 3 003 ms. CI's `lighthouse` context was green on
+every pull request of 2026-10-06. The threshold was not changed, and the two
+runs are recorded as data for the maintainer's ruling, not as a regression
+and not as noise (`.debug/017` §5.2).
+
+_To pick up_: the maintainer's ruling on the two local runs above and a
+decision on the methodology, then re-pin every URL from new nightlies. Until
+then a local run that fails on the two bike-page LCP assertions alone is read
+against CI's `lighthouse` job before it is called a regression: the pins come
+from a nightly's five-run medians, never a laptop's.
 
 #### Soft-timing noise on the `perf` job
 
@@ -514,14 +602,14 @@ report it — the ladder does not move.
 
 #### Neon preview branches per pull request
 
-_(W5-T2 opens an issue)_
+_Issue: [#24](https://github.com/lienardale/velo-atelier/issues/24)_
 
 Preview deployments share a single `preview` Neon branch. Per-PR branches need a
 create/destroy hook and a quota conversation.
 
 #### A compose `seed` profile
 
-_(W5-T2 opens an issue)_
+_Issue: [#25](https://github.com/lienardale/velo-atelier/issues/25)_
 
 Docker provides Postgres and nothing else: migrations and the seed run from the
 host (`npm run db:setup` → `scripts/db/local.sh --seed`).
@@ -598,3 +686,171 @@ AC5's tap is not reliably verified on `mobile-narrow`.
 
 _To pick up_: pick a pose the solver guarantees is hittable at 320 px, and make
 the skip a failure.
+
+#### `migrate-preview`'s remaining edges, and the Renovate validator's
+
+What the review of PR #17 listed and left, by decision. The workflow had not
+run once when this was written (W5 above).
+
+- The bootstrap SKIP — no secret, no switch — is a green run with no
+  `::warning::` annotation and no job-summary line.
+- The database NAME in the secret is not asserted in advance. A name that does
+  not exist is caught after the fact (Prisma creates the database, and the
+  script fails the run on that line); one that does exist on the preview
+  endpoint is migrated, green.
+- `hostaddr` and `port` query parameters are not refused (`host` is; Prisma
+  7.10.0 ignored `hostaddr` when it was tried, `port` was not tried).
+- The log cuts the host at its first 14 characters, not on `ep-<word>-<word>`:
+  it shows the endpoint's two words only because both endpoints here are
+  `ep-` + 5 + 5 letters.
+- `tests/unit/ci/required-checks.test.ts`'s "pins Node through .nvmrc
+  everywhere" reads `ci.yml` only. The two new workflows do use
+  `node-version-file: .nvmrc`, and nothing asserts it.
+- A `paths:` filter looks at the first 300 changed files of a push (GitHub's
+  documentation, not observed): a migration past them starts no run at all.
+- No `packageRules` entry sets a cadence for Renovate's own bump of
+  `RENOVATE_VERSION` in `scripts/ci/renovate-config.sh`: expected about weekly
+  and not automerged — inferred from the config, not observed.
+- `renovate.json` still spells `customManagers[].fileMatch`, which Renovate
+  has renamed `managerFilePatterns`. The validator warns
+  `Config migration necessary` and exits 0; `--strict` would exit 1 on that
+  warning, so it stays off until the rename lands (the header of
+  `scripts/ci/renovate-config.sh`).
+
+_Why deferred_ (W5): each is narrower than the three blockers that review did
+fix (the secret at job level, nothing telling production's string from
+preview's, guard tests that could not fail), and the workflow had not run
+once when they were listed.
+
+_To pick up_: after the first real runs. An annotation and a summary line on
+the SKIP; the database name asserted the way the endpoint is; `hostaddr` and
+`port` refused by the URL probe; for the 300 files, the maintainer's rule in
+[`deploy.md`](./deploy.md) §4.5 ("Afterwards") until a merge that large
+carries a migration; a `packageRules` entry for `renovate` if the bump proves
+to be noise; the `managerFilePatterns` rename, then `--strict`. Per-PR Neon
+branches (above) remove the shared branch and most of this list with it — and
+the one thing no workflow can fix on a shared branch: a pull request that adds
+a migration previews against the old schema until it merges.
+
+#### Renovate reads an `overrides` entry as a dependency
+
+Renovate's Dependency Dashboard (issue #11) proposes updates for entries of
+`package.json`'s `overrides`. Read on 2026-10-06: `toml` to ^5.0.0, `uuid` to
+^14.0.0 and `mysql2` to 3.24.4. Read on 2026-10-07: those three under
+"Awaiting Schedule" (`mysql2` now 3.24.5), and two more under "Pending Status
+Checks" — `@modelcontextprotocol/sdk` to 1.32.1, the release #15's exact pin
+at 1.31.0 was written to hold back, and a lockfile update of `basic-ftp` to
+6.2.2. An override here is a security pin whose version was checked against
+its parent, call site by call site (`audit-ci-allowlist.md`); a bump is an
+untested version for that parent. Only `argparse` is capped (`renovate.json`:
+`matchDepTypes: ["overrides"]`, below 3).
+
+_Why deferred_ (W5): found while clearing the advisories of 2026-10-05 and
+2026-10-06 and not fixed there — the rule to write covers every override at
+once, and is not part of an advisory response.
+
+_To pick up_: before any of them becomes a pull request — expected at a
+scheduled run (`renovate.json`: Mondays before 5am, Europe/Paris), not
+observed. One `packageRules` entry on `matchDepTypes: ["overrides"]`, the
+shape the `argparse` cap already has, that either disables updates for
+overrides or holds each below the major its compatibility note covers. The
+`renovate-config-validator` job checks the file; the dashboard shows whether
+the proposals went away. An override then moves by hand, with its note, when
+its advisory or its parent does.
+
+#### The `audit` gate goes red on `main` after a green pull request
+
+`audit` fetches advisories live, by design. It went red on `main` three times
+between 2026-10-04 and 2026-10-06: on `braces` (run 37219094191), on four ids
+at once (run 37443674634, with `trivy` red on one of them), and on `sharp`
+(run 37491401212). That last advisory was published at 13:43:57Z on
+2026-10-06, six seconds after PR #14's last `audit` job had started (it passed
+at 13:44:42Z) — so a pull request can be green on every required context and
+still turn `main` red at its merge. The gate also flaps while an advisory
+arrives: on one unchanged tree `npx audit-ci --config audit-ci.json` failed 2
+runs of 6 within ten minutes (17:00Z–17:10Z that day, 85 to 95 minutes after
+GHSA-6qxp-vccf-f47h was published at 15:35:44Z) — the registry does not serve
+a new id to every request at once.
+
+_Why deferred_ (W5): the gate is doing what it is for, and nothing here
+loosens it. What it costs is a red `main` that no pull request caused, and a
+job whose verdict can depend on the minute it ran.
+
+_To pick up_: two options, neither decided — a scheduled `audit` run that
+opens an issue, so that a new advisory is met by a cron before it is met by
+the next merge; and re-running the `audit` job once before reading it on a
+day advisories are landing. Neither changes the rule: fix first, allow-list
+last (`audit-ci-allowlist.md`).
+
+#### The environment contract's sharp edges
+
+Four things PR #16 wrote down rather than changed:
+
+- `lib/env.ts` requires `POSTGRES_URL` and `POSTGRES_URL_NON_POOLING` by those
+  names; `lib/db/env.ts`, which resolves the connections, also accepts Neon's
+  `DATABASE_URL` and `DATABASE_URL_UNPOOLED`. A deployment configured with
+  Neon's names only would connect and still be refused.
+- The contract anchors `^postgres(ql)?://` on the raw value; `lib/db/env.ts`
+  trims first. A URL with a leading space is refused by one and would connect
+  through the other.
+- A MISSING variable stops zod before the cross-field rules, so one refused
+  build may not be the last: `check-env` says "the next build may name more".
+- Nothing has shown a refused build on Vercel — nor what a refused deployment
+  serves there, `VERCEL_ENV` with the system-variables setting off, a Custom
+  Environment, or Instant Rollback. Only the passing path was seen, on
+  2026-10-06, on a preview and on production.
+
+_Why deferred_ (W5): `parseEnv` was left as it was, by ruling. The Vercel
+project sets the `POSTGRES_*` names, so nothing is broken today, and
+reconciling the two modules is a decision, not a tidy-up (the comment on
+`POSTGRES_URL` in `lib/env.ts`). The Vercel half needs a deployment broken on
+purpose.
+
+_To pick up_: decide which module is right about names and trimming, and
+change both in one commit, with `tests/unit/db/env.test.ts`. And the first
+time a build is refused on Vercel, write into [`deploy.md`](./deploy.md) what
+happened to the previous production deployment: that it keeps serving is
+Vercel's documentation, not an observation.
+
+#### A local production server needs the Google pair, and `npm run lhci` forwards no arguments
+
+Since PR #16 `npm run start` from the README's `.env.local` — Google pair
+empty — is refused: Next prints "Ready", then every page answers 500, with
+`AUTH_GOOGLE_ID is required in production` in the log (measured 2026-10-06).
+`npm run dev` is unaffected. `npm run lhci` is `bash scripts/ci/lighthouse.sh`
+for that reason, and arguments after `npm run lhci --` are no longer
+forwarded. Auditing production therefore took a scratch config on 2026-10-06:
+a `lighthouserc.cjs` that `require`s the repository's and drops
+`startServerCommand`, run with `npx lhci collect --config=<that file>`.
+`LHCI_BASE_URL=https://…` would have started a local server as well: the
+config derives that server's port from the same variable ("80" for an https
+URL with no port).
+
+_Why deferred_ (W5): the first is the contract as written — a `next start`
+with no `VERCEL_ENV` is a production server — and the README and
+`CONTRIBUTING.md` say so. Forwarding the arguments was the one item of the
+review's second pass that was not applied.
+
+_To pick up_: forward `"$@"` to `lhci autorun` in `scripts/ci/lighthouse.sh`,
+and give `lighthouserc.cjs` a way to audit a remote origin without starting a
+server, so that [`deploy.md`](./deploy.md) §5.2's production audit is one
+command. For `npm run start`: only once somebody needs a local production
+server without Google credentials — then the question is whether the pair is
+required of a deployment (`VERCEL_ENV`) or of every production server.
+
+#### `tests/unit/content/check.test.ts` is load-sensitive
+
+The file calls `makeRoot` — a fresh recursive copy of `messages/`,
+`components/illustrations/` and, in all but three calls, `content/` — from 26
+places, one of them inside the loop over the eight known-bad fixtures, under
+the unit project's default 5 s timeout. It timed out once in a pre-push run on
+2026-10-06, at a machine load of 17, and passed 33/33 alone in 8 s. The same
+file against the same 5 s is in `.debug/009` and `.debug/010`, and the same
+shape on other files in `.debug/014` §7.
+
+_Why deferred_ (W5): this time it failed only under load, on one machine, and
+passed alone. The timeout was left where it is.
+
+_To pick up_: a shared fixture root — copy the corpus once per file, as
+`cleanRoot` already does for the fixture tests' control, and have each test
+write only what it mutates — rather than a longer timeout.

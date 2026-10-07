@@ -668,6 +668,11 @@ comment is what a reader finds months later next to a closed alert.
 
 ### CodeQL — four alerts stay open after this branch fixes eight
 
+**Run on 2026-10-06 (16:00Z)**: the four commands below, by the agent on the
+maintainer's explicit instruction (`.debug/017` §1), after which
+`gh api "repos/lienardale/velo-atelier/code-scanning/alerts?state=open" --jq length`
+returned `0`.
+
 | #   | Rule                                       | Where                                       | Reason           |
 | --- | ------------------------------------------ | ------------------------------------------- | ---------------- |
 | 10  | `js/user-controlled-bypass`                | `app/api/session-expired/route.ts:50`       | `false positive` |
