@@ -571,18 +571,20 @@ keep WebGL on SwiftShader and raster the page on the CPU (locally, cold FCP
 Locally that software raster competes with everything else for the CPU, and
 the bike pages sit at their LCP ceiling. `.debug/014` §4 measured 3 004–3 027 ms
 at a load average of 4, before the ceiling was pinned to 3 000 ms from CI's
-nightly (2 252–2 341 ms there). Two local runs of
+nightly (2 252–2 341 ms there). Three local runs of
 `bash scripts/ci/lighthouse.sh` on the build of `2a311e5` (the tree merged as
 `863cd0c`) then exited 1 on exactly those two assertions, with every other
 assertion passing: run 1, 2026-10-06 20:11–20:21Z, load average 4.5 → 5.5 —
 `/fr/velo/demo` median 3 101 ms, `/en/bike/demo` 3 073 ms; run 2, started
 about 20:23Z that day and finished after the machine had slept, load average
-2.3 → 2.1 — 3 062 ms and 3 003 ms. CI's `lighthouse` context was green on
-every pull request of 2026-10-06. The threshold was not changed, and the two
-runs are recorded as data for the maintainer's ruling, not as a regression
-and not as noise (`.debug/017` §5.2).
+2.3 → 2.1 — 3 062 ms and 3 003 ms; run 3, 2026-10-07 14:15–14:25Z as
+`npm run lhci`, load average 5.3 → 3.5 — 3 048 ms and 3 045 ms. CI's
+`lighthouse` context was green on every pull request of 2026-10-06. The
+threshold was not changed, and the three runs are recorded as data for the
+maintainer's ruling, not as a regression and not as noise (`.debug/017`
+§5.2).
 
-_To pick up_: the maintainer's ruling on the two local runs above and a
+_To pick up_: the maintainer's ruling on the three local runs above and a
 decision on the methodology, then re-pin every URL from new nightlies. Until
 then a local run that fails on the two bike-page LCP assertions alone is read
 against CI's `lighthouse` job before it is called a regression: the pins come

@@ -55,17 +55,16 @@ happened when it ended**:
   **not fixed, and live on production**: the guest's bike and its to-fix list
   are imported into the account, the checkup is not. Awaiting the maintainer's
   ruling: fix before the tag, or tag first and open an issue.
-- **A ruling on the local Lighthouse CI result** — §5.2, item 2. Two local
-  runs, both exit 1 on the same two bike-page LCP assertions, while CI's
+- **A ruling on the local Lighthouse CI result** — §5.2, item 2. Three local
+  runs, all exit 1 on the same two bike-page LCP assertions, while CI's
   `lighthouse` context was green on every pull request of 2026-10-06. Recorded
   as data, awaiting the maintainer's ruling; the threshold was not changed.
 - **The `v0.1.0` tag and its release** — §5.3.
 
-All six wait for the maintainer. They are not all that §5 still holds: three
+All six wait for the maintainer. They are not all that §5 still holds: two
 things were not run in the closing session and have **no result on record** —
-the real phone and the `perf-verified` label (§5.2, item 3), the two
-deliberate failures (item 4), and `npm run lhci` end to end, through npm,
-after the `_lib.sh` fix (item 2). What W5-T1 left open and is closed since:
+the real phone and the `perf-verified` label (§5.2, item 3), and the two
+deliberate failures (item 4). What W5-T1 left open and is closed since:
 the twelve CodeQL alerts (the row above) and the README's "_(W5)_" live-site
 line (it carries the address now). The §5 items that were run have their
 results beside them.
@@ -1584,18 +1583,20 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      during the swap is lost — and `docs/backlog.md` has the entry.
    - **Lighthouse CI — awaiting a ruling.** As
      `bash scripts/ci/lighthouse.sh` (8 URLs × 3 runs, the CI GL flags), run
-     twice on the build of `2a311e5` (the tree merged as `863cd0c`), on the
-     maintainer's Mac: **exit 1 both times**, on the same two assertions —
-     the bike pages' LCP against the 3000 ms ceiling. Every other assertion
-     passed in both runs.
+     three times on the maintainer's Mac — twice on the build of `2a311e5`
+     (the tree merged as `863cd0c`), once through `npm run lhci` on the build
+     of the close-out change: **exit 1 each time**, on the same two
+     assertions — the bike pages' LCP against the 3000 ms ceiling. Every
+     other assertion passed in all three.
 
-     | Run | When (UTC)                                                                            | Load average, start → end | `/fr/velo/demo` LCP median | `/en/bike/demo` LCP median | Ceiling | Exit |
-     | --- | ------------------------------------------------------------------------------------- | ------------------------- | -------------------------- | -------------------------- | ------- | ---- |
-     | 1   | 2026-10-06 20:11–20:21                                                                | 4.5 → 5.5                 | 3101 ms (3.4 % over)       | 3073 ms (2.4 % over)       | 3000 ms | 1    |
-     | 2   | started 2026-10-06 about 20:23; finished after the machine slept; reported 2026-10-07 | 2.3 → 2.1                 | 3062 ms (2.1 % over)       | 3003 ms (0.1 % over)       | 3000 ms | 1    |
+     | Run | When (UTC)                                                                               | Load average, start → end | `/fr/velo/demo` LCP median | `/en/bike/demo` LCP median | Ceiling | Exit |
+     | --- | ---------------------------------------------------------------------------------------- | ------------------------- | -------------------------- | -------------------------- | ------- | ---- |
+     | 1   | 2026-10-06 20:11–20:21                                                                   | 4.5 → 5.5                 | 3101 ms (3.4 % over)       | 3073 ms (2.4 % over)       | 3000 ms | 1    |
+     | 2   | started 2026-10-06 about 20:23; finished after the machine slept; reported 2026-10-07    | 2.3 → 2.1                 | 3062 ms (2.1 % over)       | 3003 ms (0.1 % over)       | 3000 ms | 1    |
+     | 3   | 2026-10-07 14:15–14:25, as `npm run lhci`, on the build `npm run ci:local` had just made | 5.3 → 3.5                 | 3048 ms (1.6 % over)       | 3045 ms (1.5 % over)       | 3000 ms | 1    |
 
      Run 2 spanned a machine sleep, so its wall-clock time means nothing; its
-     medians are what the script printed. The medians of both runs:
+     medians are what the script printed. Run 3 was made as `npm run lhci`, on the build `npm run ci:local` had just produced (no test hooks, which is why its bike pages weigh 557,082 B of script against 566,377 B in runs 1 and 2); its medians: `/fr` 0.96 (LCP 2284), `/en` 0.96 (2192), `/fr/velo/demo` 0.84 (3048, TBT 221), `/en/bike/demo` 0.85 (3045, TBT 209), `/fr/guides/check-brakes-disc` 0.97 (2039), `/en/guides/check-brakes-disc` 0.96 (2268), `/fr/connexion` 0.97 (2085), `/fr/acheter` 0.96 (2239). The medians of runs 1 and 2:
 
      | URL                            | Run 1: performance | Run 1: LCP (ms) | Run 2: performance | Run 2: LCP (ms) |
      | ------------------------------ | ------------------ | --------------- | ------------------ | --------------- |
@@ -1637,8 +1638,9 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      with `npx: command not found`. Then the whole of it, 2026-10-07, on the
      tree of that change: `npm run ci:local` → **12/12 PASS in 190 s**
      (3552 tests; the `boot` tier 4/4), through npm from first step to last.
-     `npm run lhci` end to end, through npm, after that fix: **no result on
-     record**.
+     And `npm run lhci`, 2026-10-07 14:15Z–14:25Z: it ran end to end through
+     npm — no `npx: command not found` — and exited 1 on its own verdict, the
+     same two bike-page assertions (run 3 in the table above).
    - **perf** — `npx playwright test --project=perf --project=perf-mobile --workers=1`:
      12 passed (2.9 min), 20:10Z, on `2a311e5`.
    - One flake, for the record: `tests/unit/content/check.test.ts` timed out

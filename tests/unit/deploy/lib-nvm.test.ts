@@ -25,6 +25,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -142,7 +143,7 @@ describe("scripts/ci/_lib.sh and nvm", () => {
         env: { HOME: home, PATH: tools } as unknown as NodeJS.ProcessEnv,
       },
     );
-    const sourcedWith = execFileSync("/bin/cat", [marker], { encoding: "utf8" }).trim();
+    const sourcedWith = readFileSync(marker, "utf8").trim();
     expect(sourcedWith).toBe("--no-use");
   });
 });
