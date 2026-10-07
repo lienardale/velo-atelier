@@ -131,7 +131,7 @@ something this tree needs — and when you do, record the skipped hold in
 ## Commands
 
 ```bash
-npm run dev            # tree drawings, then Turbopack dev server on :3000
+npm run dev            # tree drawings, content:generate (lib/content/generated), then Turbopack dev server on :3000
 npm run build          # tree drawings, content:generate (structural check + lib/content/generated), next build
 npm run start          # next start: a PRODUCTION server — refused (500s, EnvValidationError in its log) while
                        # AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET are empty, as .env.example ships them (dev is fine)
@@ -448,8 +448,8 @@ docs/                contributor and operator docs — every one is linked from 
   forbidden flag) would first be evaluated by the DEPLOYED server, after a
   green build and, on production, after `prisma migrate deploy` — a live
   deployment whose pages answer 500, not a failed deploy (the 500s measured
-  under `next start`; on Vercel expected, not observed — "None of the above
-  was observed on Vercel", below). And a pull request's preview only ever
+  under `next start`; on Vercel expected, not observed — "No refusal has been
+  observed on Vercel", below). And a pull request's preview only ever
   evaluates the Preview scope, so Production's values would be met for the
   first time by production.
   **So `scripts/vercel-build.sh` refuses first, in this order, before the
@@ -461,8 +461,10 @@ docs/                contributor and operator docs — every one is linked from 
   fails the BUILD with the variable's name (never its value) and nothing is
   migrated. Vercel's documentation says the production domains move only to a
   deployment that succeeded, so the previous one should keep serving — that
-  half is documented, NOT observed: none of this had run on Vercel when it was
-  written. `check-env` has ONE caller. It is not in `npm run build` and not in
+  half is documented, NOT observed: the preflight has run on Vercel since
+  (2026-10-06, a preview build and a production build, both satisfied), and
+  no build has been refused there. `check-env` has ONE caller. It is not in
+  `npm run build` and not in
   `scripts/ci/build.sh`, because CI builds without a production secret
   (`migrate-on-deploy.test.ts` keeps it out); `vercel-build-guard.test.ts`
   executes the script and the preflight for real — its `npx` stub passes that
@@ -510,8 +512,14 @@ docs/                contributor and operator docs — every one is linked from 
   clients polling from the moment of spawn, and none in review with
   `register()` held open for four seconds — and the route itself only returns
   200 or 503.
-  **None of the above was observed on Vercel.** Expect LESS than "everything
-  is down" there: static assets and prerendered routes are normally served
+  **No refusal has been observed on Vercel — only the passing path**, on
+  2026-10-06: the preview `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f` and production's
+  `dpl_8fUtvWonaB42YUxGCwha8aBsmn8F` each showed the preflight's
+  `check-env: environment contract satisfied (…)` in the build log, the `[env]`
+  line below in the runtime log (one per function cold start) and a 200 from
+  `/api/health` (`docs/deploy.md` §2, "Read on Vercel"). Of a refusal, expect
+  LESS than "everything is down" there:
+  static assets and prerendered routes are normally served
   from the CDN without invoking a function, so a refused deployment may well
   go on answering 200 for a page. `/api/health` answering 500 is the
   diagnostic, the runtime log has the variable's name, and
@@ -780,6 +788,13 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   on CI: `prisma/seed.ts` importing `lib/content/generated/*` took down
   typecheck, integration and build at the W2 integration. To check a gate
   honestly, delete the tree first (`rm -rf lib/content/generated`) and run it.
+  **Since W5 `npm run dev` generates the content tree too**
+  (`npm run drawings && npm run content:generate && next dev`): a clean clone
+  is the same fresh checkout one step earlier, and on one the README's quick
+  start answered 500 on the first checkup page, then on every route, until
+  the tree existed (2026-10-07, `.debug/017` §5.6) —
+  `tests/unit/deploy/dev-script.test.ts` holds `dev` and `build` to generating
+  it before `next`.
 - **A generator never decides whether to touch someone else's file by asking
   first.** `scripts/gen-illustration-placeholders.ts` writes a placeholder with
   the exclusive `wx` flag (catching `EEXIST`) and reads the barrel and the
@@ -810,7 +825,16 @@ locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
 Lighthouse), which need a production build and run on their own, and the three
 workflows that sit outside the PR gate set: `visual-baseline-guard`,
 `renovate-config-validator` and `migrate-preview` (the last is not a gate at
-all — it deploys).
+all — it deploys). `scripts/ci/_lib.sh`, which every step sources first, no
+longer sources nvm when a Node of the right major (24) is already on `PATH` —
+as it is under an `npm run <script>` started on Node 24 — because under
+`npm run` npm exports
+`npm_config_prefix`, nvm refuses to work beside a prefix that is not under
+`$NVM_DIR` (the case when `~/.nvm` is a symlink to another volume) and, in
+refusing, takes node and npx off `PATH`: `npm run ci:local` and `npm run lhci`
+exited 127 (`npx: command not found`) that way on 2026-10-06, while the same
+scripts called with `bash` ran (`.debug/017`;
+`tests/unit/deploy/lib-nvm.test.ts` holds both directions).
 
 - ESLint + Prettier, `tsc --noEmit`, content validation. `npm run content:check`
   runs `--strict` (the corpus-level ★ rules) since the W2-T4 guides landed.
@@ -947,7 +971,8 @@ all — it deploys).
   `continue-on-error` on the job each left every test green. A weakened
   validator and a working one print the same green tick. **A test that puts a
   stand-in `npx` on `PATH` spawns the script with an empty `HOME`**:
-  `scripts/ci/_lib.sh` runs `nvm use` when `$HOME/.nvm/nvm.sh` exists, nvm
+  `scripts/ci/_lib.sh` runs `nvm use` when `$HOME/.nvm/nvm.sh` exists and no
+  Node 24 is already on `PATH` (a stub-only `PATH` has none), nvm
   then puts its own `bin` first, and the real `npx` wins (measured) — which
   for this script is a unit test downloading all of Renovate. **And every
   spawn of that script goes through the stand-in**, the case that expects the

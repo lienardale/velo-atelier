@@ -20,23 +20,55 @@ maintainer clicks and pastes secrets.
 
 Every row below was read back from the provider after the fact, never assumed.
 
-| What                    | Result                                                                                                                                                           |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Production host         | `https://velo-atelier.vercel.app` — the Vercel-assigned domain; no custom domain yet                                                                             |
-| Neon project            | `velo-atelier` (`aged-bird-87792451`), AWS `eu-central-1` (Frankfurt), Postgres **16**, Free plan, 6 h history retention — created 2026-09-23                    |
-| Neon branches           | `production` (default) and its child `preview` — see §1.2: the default branch is **not** called `main`                                                           |
-| Vercel project          | `lienardales-projects/velo-atelier`, region `cdg1`, production branch `main` — created 2026-09-29                                                                |
-| First production deploy | 2026-09-29, after one failure (`.vercelignore`, see §2). Migrations `20260911071112_init` and `20260921090547_checkup_symptoms_done_reason` applied at 08:11:43Z |
-| Google OAuth client     | `velo-atelier production` (Web application), created 2026-09-29 — §3                                                                                             |
-| Branch protection       | applied 2026-09-29: 20 contexts, `enforce_admins`, linear history, 0 reviews — §4.1                                                                              |
-| Renovate                | app installed 2026-09-29; its first run rejected `renovate.json` — §4.4                                                                                          |
+| What                                         | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production host                              | `https://velo-atelier.vercel.app` — the Vercel-assigned domain; no custom domain yet                                                                                                                                                                                                                                                                                                                                                                                             |
+| Neon project                                 | `velo-atelier` (`aged-bird-87792451`), AWS `eu-central-1` (Frankfurt), Postgres **16**, Free plan, 6 h history retention — created 2026-09-23                                                                                                                                                                                                                                                                                                                                    |
+| Neon branches                                | `production` (default) and its child `preview` — see §1.2: the default branch is **not** called `main`                                                                                                                                                                                                                                                                                                                                                                           |
+| Vercel project                               | `lienardales-projects/velo-atelier`, region `cdg1`, production branch `main` — created 2026-09-29                                                                                                                                                                                                                                                                                                                                                                                |
+| First production deploy                      | 2026-09-29, after one failure (`.vercelignore`, see §2). Migrations `20260911071112_init` and `20260921090547_checkup_symptoms_done_reason` applied at 08:11:43Z                                                                                                                                                                                                                                                                                                                 |
+| Google OAuth client                          | `velo-atelier production` (Web application), created 2026-09-29 — §3                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Branch protection                            | applied 2026-09-29: 20 contexts, `enforce_admins`, linear history, 0 reviews — §4.1                                                                                                                                                                                                                                                                                                                                                                                              |
+| Renovate                                     | app installed 2026-09-29; its first run rejected `renovate.json` — §4.4                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Environment contract, first preview build    | 2026-10-06, `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f` (#16, commit `d57a8dc`): build log `check-env: environment contract satisfied (VERCEL_ENV=preview, isProduction=false).`, then `▶ skipping prisma migrate deploy (VERCEL_ENV=preview)`; runtime log `[env] contract enforced (VERCEL_ENV=preview)` on the first request (17:56Z); `/api/health` 200 — §2, "Read on Vercel"                                                                                                        |
+| Environment contract, first production build | 2026-10-06, `dpl_8fUtvWonaB42YUxGCwha8aBsmn8F` (`main` @ `a754257`, #16 merged 19:27:49Z): build log 19:28:08Z `check-env: environment contract satisfied (VERCEL_ENV=production, isProduction=true).`, 19:28:13Z `No pending migrations to apply.` under `3 migrations found`, 19:28:53Z `✓ no test hooks — 0 hit(s)`; runtime log (`cdg1`, 19:29Z) `[env] contract enforced (VERCEL_ENV=production)`; `/api/health` 200. No dashboard change was needed — §2, "Read on Vercel" |
+| The two workflows                            | #17 merged 2026-10-06 20:21:34Z (`863cd0c`). `main`'s CI for that commit: all green. `renovate-config-validator`: first run on that pull request — pass, 41 s; second run on the push to `main` (run 37525838928) — pass, 44 s — §4.4. `migrate-preview`: the merge started no run, as designed, and the workflow had still not run on 2026-10-07 (13:10Z) — §4.5                                                                                                                |
+| Advisory fixes                               | 2026-10-06, after `audit` had turned `main` red: #14 (`e985af1`, merged 15:54:16Z) — `compression` 1.8.2, `proxy-addr` 2.0.8, `source-map-js` 1.2.2, `sprintf-js` removed by a scoped override; #15 (`d0acb87`, merged 17:39:28Z) — `sharp` 0.35.5, `@modelcontextprotocol/sdk` pinned to 1.31.0. `main`'s CI for `d0acb87`: all green; `npm audit` on that tree: 19 vulnerable packages, six ids, all allow-listed ([`audit-ci-allowlist.md`](../audit-ci-allowlist.md))        |
+| CodeQL                                       | **0 open alerts**, 2026-10-06: `gh api "repos/lienardale/velo-atelier/code-scanning/alerts?state=open" --jq length` → `0`. The four alerts that stayed open after pull request #12 — alerts 10, 9, 12 and 3 — were dismissed that day (16:00:32Z–16:00:35Z) on the maintainer's instruction, with the comments written in [`audit-ci-allowlist.md`](../audit-ci-allowlist.md)                                                                                                    |
 
-Still open at the end of W5-T1: the §5 launch checklist, the twelve CodeQL
-alerts ([`backlog.md`](./backlog.md)), the README's "_(W5)_" live-site line,
-which §5.3 fills at tag time — and **§4.5's bootstrap**: rotate the `preview`
-branch's password, one secret, two variables, the first dispatch. Until the
-maintainer has done it, `migrate-preview` skips green and nothing migrates
-`preview`.
+**Still open when W5's documents were closed.** The record they were closed
+from covers 2026-10-06 and 2026-10-07, and **none of the following had
+happened when it ended**:
+
+- **§4.5's bootstrap and the first `migrate-preview` run** — rotate the
+  `preview` branch's password, one secret, two variables, the first dispatch.
+  Until the maintainer has done it, `migrate-preview` skips green and nothing
+  migrates `preview`; no Actions secret, no Actions variable and no run of
+  that workflow existed on 2026-10-07 (read at 13:10Z).
+- **One query in the Neon console, on `production`**: bikes holding more than
+  one `OPEN` build list.
+- **The manual production checks** of §5.2, item 5: a real sign-up with a
+  strong password; Google sign-in ([`qa/google-oauth.md`](./qa/google-oauth.md),
+  all seven sections); a preview URL signing in with e-mail + password.
+- **A ruling on the guest import, which drops the guest's checkup** — §5.2,
+  item 1, finding 2. Found on 2026-10-07 by the walk from a clean clone,
+  **not fixed, and live on production**: the guest's bike and its to-fix list
+  are imported into the account, the checkup is not. Awaiting the maintainer's
+  ruling: fix before the tag, or tag first and open an issue.
+- **A ruling on the local Lighthouse CI result** — §5.2, item 2. Two local
+  runs, both exit 1 on the same two bike-page LCP assertions, while CI's
+  `lighthouse` context was green on every pull request of 2026-10-06. Recorded
+  as data, awaiting the maintainer's ruling; the threshold was not changed.
+- **The `v0.1.0` tag and its release** — §5.3.
+
+All six wait for the maintainer. They are not all that §5 still holds: three
+things were not run in the closing session and have **no result on record** —
+the real phone and the `perf-verified` label (§5.2, item 3), the two
+deliberate failures (item 4), and `npm run lhci` end to end, through npm,
+after the `_lib.sh` fix (item 2). What W5-T1 left open and is closed since:
+the twelve CodeQL alerts (the row above) and the README's "_(W5)_" live-site
+line (it carries the address now). The §5 items that were run have their
+results beside them.
 
 ---
 
@@ -67,8 +99,12 @@ any of the three test flags — `ENABLE_TEST_PAGES`, `NEXT_PUBLIC_TEST_HOOKS`,
 `NEXT_PUBLIC_DEMO_LOGIN` — stops a deployment instead of shipping. Seven things
 to know about the shape of that guard. Everything said to be measured was
 measured locally, on the installed Next 16.3.6 with `next start`, on
-2026-10-06; **nothing below was observed on Vercel**, and each place where that
-matters says so.
+2026-10-06. **On Vercel, only the PASSING path has been observed** — the same
+day, on the preview `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f` and on production's
+`dpl_8fUtvWonaB42YUxGCwha8aBsmn8F` (§2, "Read on Vercel"). **Nothing else
+has been**: not a refused build, not what a refused deployment serves, not
+`VERCEL_ENV` with the system-variables setting off, not a Custom Environment,
+not Instant Rollback — and each place where that matters says so.
 
 - **A wrong scope fails the BUILD, before anything is migrated.** Next does not
   run `register()` during a build, so the boot hook alone would first meet a
@@ -98,8 +134,10 @@ matters says so.
   Vercel's documentation says the production domains follow success — "When a
   production deployment succeeds, Vercel updates your production domains to
   point to the new deployment" — so a failed build should leave the previous
-  deployment serving. **That half is documented, not observed**: this script
-  had never run on Vercel when this was written.
+  deployment serving. **That half is documented, not observed**: the script
+  has run on Vercel since this was written (2026-10-06, a preview build and a
+  production build, both satisfied — §2, "Read on Vercel"), and no build has
+  been refused there.
   One refused build may not be the last. A variable that is MISSING stops the
   validation before the cross-field rules (the three flags; `AUTH_URL` and the
   Google pair in production), and `check-env` then adds that "the next build
@@ -153,12 +191,16 @@ matters says so.
   advisory. The contract is stricter than "it works": Auth.js accepts any
   non-empty secret and the contract wants 32 characters; the database URLs
   must start with `postgres://` or `postgresql://`, with no leading
-  whitespace. So **the first build of each scope under this guard is the first
-  time that scope's VALUES are checked** — for Production, that is the first
-  production build after this lands. A value the contract refuses fails that
-  build (and, as far as Vercel's documentation goes, leaves the current
-  deployment serving); fix it in the scope the message names and redeploy. Do
-  not relax the contract to get a build through.
+  whitespace. So **the first build of each scope under this guard is the
+  first time that scope's VALUES are checked**. For Preview and for
+  Production that build happened on 2026-10-06, and both were satisfied with
+  no dashboard change needed: Preview's on
+  `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f`, Production's on
+  `dpl_8fUtvWonaB42YUxGCwha8aBsmn8F` (§2, "Read on Vercel"). A value the
+  contract refuses fails its build (and, as far as Vercel's documentation
+  goes, leaves the current deployment serving); fix it in the scope the
+  message names and redeploy. Do not relax the contract to get a build
+  through.
 - **What a refusal at BOOT looks like.** Not a crash, and not an exit code:
   `NextNodeServer`'s constructor fires
   `this.prepare().catch(err => console.error("Failed to prepare server", err))`,
@@ -191,9 +233,15 @@ matters says so.
   on answering 200 for a page, and "the home page loads" proves nothing either
   way. (202 of those 205 sit behind `proxy.ts`, which by Next's source awaits
   the same hook before it runs; whether that turns them into 500s on Vercel
-  was not observed either.) **The safe diagnostic is `/api/health`**: a route
-  handler, never cached, that answers 200 or 503 by itself — so a **500 there
-  is not the route's own answer**. Read the runtime log: `EnvValidationError`
+  was not observed either. One thing was seen since, on the PASSING path
+  only: on production, 2026-10-06, the first request to `/fr` logged the
+  `[env]` line, as the first requests to `/api/health` and `/fr/connexion`
+  did — so that request for a prerendered page did invoke a function that ran
+  the hook (which function logged it was not recorded). What such a request is
+  answered when the hook refuses is the part still not observed.) **The safe
+  diagnostic is `/api/health`**: a route handler, never cached, that answers
+  200 or 503 by itself — so a **500 there is not the route's own answer**.
+  Read the runtime log: `EnvValidationError`
   there is the contract refusing the server, and the line under it names the
   variable. Any other error there is some other failure of the function: only
   one direction was measured — a refused `next start` answers 500 — not that
@@ -248,13 +296,25 @@ matters says so.
     `[env] contract enforced (VERCEL_ENV=preview)`** (`…=production` on
     production). `instrumentation.ts` prints it once per process, after the
     contract passed, only when `VERCEL_ENV` is set, with the value the server
-    saw: it proves the hook ran. One line per `next start` was measured; on
-    Vercel that should mean one per function instance, which was not observed
-    — look for at least one.
+    saw: it proves the hook ran. One line per `next start` was measured
+    locally. On Vercel it was one per function cold start (2026-10-06):
+    production logged it on the first request to each of `/api/health`, `/fr`
+    and `/fr/connexion`, the preview on its first request — so look for at
+    least one, not for exactly one.
 
   The build log's `▶ environment contract (VERCEL_ENV=preview)` followed by
   `check-env: environment contract satisfied (VERCEL_ENV=preview, isProduction=false).`
   proves the BUILD saw the variable, and nothing about the running server.
+
+  **Both checks were made for the first time on 2026-10-06**, on the preview
+  of the pull request that carried the contract (#16,
+  `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f`): `/api/health` answered 200
+  `{"ok":true,"db":true}`, `/fr/connexion` answered 200, and the runtime log
+  carried `[env] contract enforced (VERCEL_ENV=preview)` on the first request
+  (a cold start, `GET /api/health`, 17:56Z). That preview holds no Google
+  pair, so its booting is the first check passing on a real deployment:
+  `VERCEL_ENV` reaches the running server. The build log carried the two
+  lines above as well.
 
 `tests/boot/env-contract.test.ts` (the `boot` Vitest project, run by
 `scripts/ci/build.sh` after the build) spawns the real thing, four times: a
@@ -530,11 +590,51 @@ reads, stay out.
 - The runtime logs of the preview carry
   `[env] contract enforced (VERCEL_ENV=preview)`, and production's
   `[env] contract enforced (VERCEL_ENV=production)`: the boot hook shipped and
-  ran. **This line and the two `check-env` lines above have never been seen on
-  Vercel** — the first build and the first preview after W5's contract lands
-  are where they are read for the first time; write the result here.
+  ran. This line and the two `check-env` lines above were read on Vercel for
+  the first time on 2026-10-06 — the result is below.
 - The production build log's bundle-guard step prints `✓ no test hooks`: the
   bundle has no `window.__va`.
+
+**Read on Vercel, 2026-10-06** — the first preview and the first production
+build under W5's contract, each item of the list above. Times are UTC.
+
+- **Preview** `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f` (#16, commit `d57a8dc`).
+  Build log, in this order: `▶ environment contract (VERCEL_ENV=preview)`,
+  `check-env: environment contract satisfied (VERCEL_ENV=preview, isProduction=false).`,
+  `▶ skipping prisma migrate deploy (VERCEL_ENV=preview)`. Runtime log, on
+  the first request (a cold start, `GET /api/health`, 17:56Z):
+  `[env] contract enforced (VERCEL_ENV=preview)`. `/api/health` answered 200
+  `{"ok":true,"db":true}` and `/fr/connexion` 200.
+- **Production** `dpl_8fUtvWonaB42YUxGCwha8aBsmn8F` (`main` @ `a754257`).
+  Build log:
+
+  ```
+  19:28:08Z  ▶ environment contract (VERCEL_ENV=production)
+  19:28:08Z  check-env: environment contract satisfied (VERCEL_ENV=production, isProduction=true).
+  19:28:08Z  ▶ prisma migrate deploy (VERCEL_ENV=production)
+  19:28:11Z  3 migrations found in prisma/migrations
+  19:28:13Z  No pending migrations to apply.
+  19:28:53Z  ✓ no test hooks — 0 hit(s)
+  19:28:54Z  Build Completed in /vercel/output [54s]
+  ```
+
+  Runtime log, region `cdg1`, 19:29Z:
+  `[env] contract enforced (VERCEL_ENV=production)` on the first request to
+  each of `/api/health`, `/fr` and `/fr/connexion` — one line per function
+  cold start. `/api/health` answered 200 `{"ok":true,"db":true}`; `/fr`,
+  `/en`, `/fr/connexion`, `/en/guides/check-brakes-disc`, `/fr/velo/demo` and
+  `/robots.txt` answered 200. No dashboard change was needed.
+
+**Still not observed on Vercel, anywhere**: a refused build (a contract
+violation); what a refused deployment serves; `VERCEL_ENV` with the
+system-variables setting off; a Custom Environment; Instant Rollback.
+
+**Also in that production runtime log, and nothing to do with the contract**:
+on each cold start `pg` warns that the SSL modes `prefer`, `require` and
+`verify-ca` are treated as `verify-full` today and will take libpq's weaker
+semantics in pg-connection-string v3 / pg v9, and suggests an explicit
+`sslmode=verify-full`. So the Neon strings in Vercel carry `sslmode=require`
+— inferred from the warning; the strings were not read.
 
 ## 3. Google OAuth — who: the maintainer (Google Cloud account)
 
@@ -710,10 +810,11 @@ the one name: no workflow whose pull-request trigger carries `paths` or
 
 **Not required means GitHub will merge past it.** With one maintainer and zero
 required reviews (§4.1), a pull request can be merged while this check is red,
-or while it is still installing. Open it and read it — beginning with the pull
-request that introduced the job, which changes `renovate.json` and is
-therefore its first run on GitHub. That run had not happened when this was
-written: the validator had only ever run on a laptop.
+or while it is still installing. Open it and read it. Its first run on GitHub
+was on the pull request that introduced the job (#17, which changes
+`renovate.json`), on 2026-10-06: **pass, in 41 s**. It ran again on that
+merge's push to `main` (run 37525838928): pass, the job from 20:21:41Z to
+20:22:25Z, 44 s. Before that the validator had only ever run on a laptop.
 
 **And green means less than "the service will accept it".** The validator
 checks options and their types against the repository schema. It does not
@@ -776,7 +877,8 @@ such PR exists yet, so it is not observed.)
 That bump is a recurring cost nobody has seen yet. With several releases a
 day, every Monday run finds a version that has just cleared the seven-day
 hold: **expect a pin-bump pull request about once a week**, and with it this
-job's full cold install. It is not automerged — the patch-automerge rule
+job's full cold install (41 s and 44 s for the whole check on the two runner
+runs there are: below). It is not automerged — the patch-automerge rule
 matches on `matchDepTypes`, and a dependency found by a regex manager carries
 none — so it waits for a human, runs the twenty required contexts, and takes
 one of the five `prConcurrentLimit` slots while it is open. All of this is
@@ -808,20 +910,25 @@ still accepts, rather than over a defect — so it stays off until the rename
 lands, and `scripts/ci/renovate-config.sh`'s header says so where somebody
 reaching for the flag will read it.
 
-**The install is slow only when it is cold.** An earlier version of this
-section said it "takes several minutes even warm"; it does not. With the npx
-cache already holding the pinned version, the whole script ran in 3 s, 5.4 s
-and 4 s on three occasions (2026-10-06, on a laptop: in review, after the
-review's fixes, and for this paragraph). Cold, it downloads and unpacks the
-~350 MB (348M measured in the npx cache), and a runner is always cold — how
-long that takes there has not been timed, because the job had not yet run on
-GitHub.
+**The install is slow only when it is cold — and cold, on a runner, was not
+minutes either.** An earlier version of this section said it "takes several
+minutes even warm"; it does not. With the npx cache already holding the
+pinned version, the whole script ran in 3 s, 5.4 s and 4 s on three occasions
+(2026-10-06, on a laptop: in review, after the review's fixes, and for this
+paragraph). Cold, it downloads and unpacks the ~350 MB (348M measured in the
+npx cache), and a runner is always cold: the job's first run on a GitHub
+runner (#17, 2026-10-06) reported **pass in 41 s**, and its second, on the
+push to `main` the same day (run 37525838928), passed with its job running
+from 20:21:41Z to 20:22:25Z: 44 s. Each is the check as GitHub timed it, the
+install included; the install on its own was not timed. Two timed runs, so
+two figures and not a range.
 
 ### 4.5 Actions secrets and variables
 
 One secret and two variables, all three for one workflow
 (`.github/workflows/migrate-preview.yml`) and all three read by one step of
-it. None of them existed on 2026-10-06 (read in review). They live under
+it. None of them existed on 2026-10-06 (read in review), nor on 2026-10-07
+(read again at 13:10Z, with no run of the workflow either). They live under
 Settings → Secrets and variables → Actions; the `gh` commands below write the
 same store.
 
@@ -866,8 +973,10 @@ not stop between them.
 
 0. **Merge first** — the pull request that carries the workflow. Per GitHub's
    documentation a `workflow_dispatch` only works once the workflow file is on
-   the default branch. That merge starts no migrate run of its own: it changes
-   nothing under `prisma/migrations/**`.
+   the default branch. **This step is done**: #17 merged on 2026-10-06 at
+   20:21:34Z (`863cd0c`). That merge started no migrate run of its own, as
+   designed and as observed: it changed nothing under `prisma/migrations/**`.
+   Steps 1 to 7 had not been started when the record ended.
 1. **Rotate.** Neon console → project `velo-atelier` → branch **`preview`** →
    Roles → reset the password of the role the app connects as. From this
    moment every preview deployment already built has lost its database — it
@@ -992,8 +1101,9 @@ All migrations have been successfully applied.
 That block is assembled from runs that were made, not copied from one: the
 script with the real Prisma 7.10.0 against a local database (every line but
 the two about applying, with that database's own host), and the review's run
-on an empty local database for the wording of those two. Nothing has run on
-GitHub or against Neon.
+on an empty local database for the wording of those two. This workflow has
+not run on GitHub or against Neon: #17's merge started no run (2026-10-06),
+and its first one is the dispatch above.
 
 **Then compare the two branches — in the Neon console, never in a terminal.**
 SQL Editor, branch selector on `preview`, then on `production`:
@@ -1007,7 +1117,12 @@ The same names on both branches, each with a `finished_at` and no
 `rolled_back_at` — three of them after the first dispatch, **if production's
 deployment of #13 migrated** (#13 is the pull request that carried the third
 migration). Nobody has read production's `_prisma_migrations` since
-2026-09-29, when it held two (`.debug/016` §3). If production shows two, that
+2026-09-29, when it held two (`.debug/016` §3). A build log has spoken since:
+production's build of 2026-10-06 (`dpl_8fUtvWonaB42YUxGCwha8aBsmn8F`, §2,
+"Read on Vercel") printed `3 migrations found in prisma/migrations` and
+`No pending migrations to apply.`, which by the reading rule above says
+production held all three by then. The table itself is still unread, and
+when #13's migration was applied is not on record. If production shows two, that
 is §1's push-before-deploy case — `preview` takes a migration on the push to
 `main`, production when its deployment builds — and the thing to read next is
 production's last build log, not this workflow.
@@ -1328,14 +1443,22 @@ to branch protection (§4.1). After a reset of `preview` from its parent: §1,
 
 ## 5. Launch checklist (W5-T2) — who: the maintainer, with an agent for the local gates
 
+Results are written beside the item they answer, each with its date; times
+are UTC. **Pending** marks what was still to do when the record ended
+(2026-10-07) and says what it needs: nothing marked pending has happened.
+**No result on record** means exactly that: what this section was filled
+from holds neither a result for the item nor a decision to skip it.
+**Awaiting a ruling** marks a result that IS on record and that the
+maintainer has not ruled on: it is neither accepted nor fixed.
+
 ### 5.1 Before tagging
 
-| Gate                                             | Command or place                                                                                                | Expected                                                                                                                            |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| No decision-tree drawing left a placeholder      | `npx vitest run tests/unit/domain/schema.test.ts`                                                               | green                                                                                                                               |
-| Every ★ guide is `status: full`                  | `npx vitest run --project integration tests/integration/content/coverage.test.ts` (Docker up, `_test` database) | green (`FULL_SLUGS`, `tests/fixtures/content-manifest.ts`)                                                                          |
-| A `verifiedAt` for every retailer (both locales) | `lib/domain/data/retailers.ts`, checklist in [`retailers.md`](./retailers.md)                                   | all three `2026-09-21` (the verification log in `retailers.md`); re-run the checklist before launch if `retailers.ts` changed since |
-| The W5 items of the backlog                      | [`backlog.md`](./backlog.md), "W5 — launch"                                                                     | each one done, or re-scoped with a written reason                                                                                   |
+| Gate                                             | Command or place                                                                                                | Expected                                                                                                                            | Result                                                                                                                                                                                               |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No decision-tree drawing left a placeholder      | `npx vitest run tests/unit/domain/schema.test.ts`                                                               | green                                                                                                                               | 2026-10-06 20:02Z, on #17's branch head (`2a311e5`), whose tree is the one merged as `863cd0c` at 20:21:34Z: **49 passed** (run as `npx vitest run --project unit tests/unit/domain/schema.test.ts`) |
+| Every ★ guide is `status: full`                  | `npx vitest run --project integration tests/integration/content/coverage.test.ts` (Docker up, `_test` database) | green (`FULL_SLUGS`, `tests/fixtures/content-manifest.ts`)                                                                          | 2026-10-06: **61 passed** (Docker up, `_test` database)                                                                                                                                              |
+| A `verifiedAt` for every retailer (both locales) | `lib/domain/data/retailers.ts`, checklist in [`retailers.md`](./retailers.md)                                   | all three `2026-09-21` (the verification log in `retailers.md`); re-run the checklist before launch if `retailers.ts` changed since | 2026-10-06: `retailers.ts` has no commit since 2026-09-21 (`6a9b563`) and its three `verifiedAt` read `2026-09-21` — nothing to re-run                                                               |
+| The W5 items of the backlog                      | [`backlog.md`](./backlog.md), "W5 — launch"                                                                     | each one done, or re-scoped with a written reason                                                                                   | curated in the change that closed W5's documents — read the section for what became of each entry                                                                                                    |
 
 ### 5.2 The §9 verification
 
@@ -1345,6 +1468,73 @@ to branch protection (§4.1). After a reset of `preview` from its parent: §1,
    KO, finish, open the list, refine the chain, follow the Alltricks link (a new
    tab), enter an inseam on `/velo/<id>/reglages`; then the same as a guest, from
    `/` with "Je ne sais pas" everywhere, through sign-up and `/import`.
+   Since the change that closed W5's documents, the quick start's
+   `npm run dev` also generates the content tree (`lib/content/generated/`)
+   before it starts the server — finding 1 below is why.
+
+   **Result, 2026-10-07** — walked in a browser, by an agent the closing
+   session delegated to, from `git clone --depth 1` of `main` @ `863cd0c` in
+   a scratch directory. Two findings: one fixed, one **open**.
+   - **The quick start.** `npm ci`: exit 0, 52 s, 1697 packages;
+     `cp .env.example .env.local`. **One deliberate deviation**:
+     `npm run db:setup` was not run, because it runs `docker compose up` and
+     the project's Postgres container was already running, and shared.
+     Instead a dedicated database, `velo_atelier_walk`, was created on that
+     server and only the database name was changed in `.env.local`; then
+     `npx prisma migrate deploy` (3 migrations applied:
+     `20260911071112_init`, `20260921090547_checkup_symptoms_done_reason`,
+     `20260930094543_one_open_build_list_per_bike`) and `npm run db:seed`
+     (`✓ seed complete — users=2 bikes=4 checkups=1 lists=1`). `npm run dev`
+     started clean (`✓ Ready in 425ms`, `GET /fr 200`). `npm run db:setup`
+     itself is therefore not covered by this result.
+   - **Finding 1 — fixed in the change that closed W5's documents: the quick
+     start left the checkup route broken.** `npm run dev` was
+     `npm run drawings && next dev`, and nothing in the quick start generated
+     the gitignored `lib/content/generated/`. The first checkup page
+     (`/fr/velo/<id>/controle?parts=chain%2Cbrake-caliper-rear`) answered 500
+     — `Module not found: Can't resolve '@/lib/content/generated/reason-keys'`
+     — and after that one request the dev server answered 500 on every route
+     probed, until `npm run content:generate` was run in the clone; it
+     recovered without a restart. Production builds are unaffected:
+     `npm run build` generates the tree. **`npm run dev` now generates it
+     too** — `npm run drawings && npm run content:generate && next dev`, about
+     1.2 s more — and `tests/unit/deploy/dev-script.test.ts` holds it.
+   - **Finding 2 — OPEN: not fixed, awaiting the maintainer's ruling** (fix
+     before the tag, or tag first and open an issue). **The guest import
+     drops the guest's checkup, and this is live on production.** What is
+     imported: the bike (listed in "Mes vélos") and its to-fix list, with the
+     same 3 lines. What is not: the checkup. After the walk's import the
+     database held no `Checkup` row for the imported bike, its
+     `BuildList.checkupId` was NULL, its 3 list lines had no `checkupItemId`,
+     and all 36 of its `BikePartState` rows were `UNKNOWN`. Read in the
+     source: `lib/guest/schema.ts` requires `steps` in the stored checkup,
+     and the wizard stores one without (`toStored`, `lib/checkup/storage.ts`),
+     so the state does not parse and is skipped. The tests are green because
+     their fixtures hand-write a checkup with `steps` (`.debug/017` §5.6).
+   - **Journey A** (signed in as `DEMO_USER`) — all seven steps passed: the
+     demo sign-in; three bikes in "Mes vélos" and the gravel bike's viewer;
+     the chain selected by a real click on the 3D canvas and from the parts
+     list; a partial checkup on the chain and the rear caliper (4 steps, the
+     chain KO, recap "3 ok · 1 à reprendre · 0 passées"); the list with the
+     chain line, and a refinement that survives a reload; the Alltricks link
+     (`target="_blank"`, `rel="noopener noreferrer nofollow"` — read off its
+     attributes, not clicked); an inseam of 82 cm on `/reglages` giving
+     "72,4 cm", which survives a reload. The checkup and everything after it
+     passed only once `content:generate` had been run (finding 1).
+   - **Journey B** (guest) — the decision tree with "Je ne sais pas" at each
+     of 12 questions, to `/fr/velo/local`: passed. A partial checkup with two
+     KO, to a guest list of 3 lines: passed. Sign-up with a throwaway
+     `…@example.com` account: passed. `/fr/import`: the bike passed, the list
+     passed, **the checkup failed** (finding 2). **Not verified**: the 3D
+     view of the imported bike — the browser pane stopped compositing
+     mid-walk, an environment problem and not the application's.
+   - Console and server errors: all from finding 1's episode (83 "Module not
+     found", 19 responses 500); none after `content:generate`; every server
+     action returned 200.
+   - Six more observations from the walk — seen first-hand, not checked
+     against the plan — are recorded in `.debug/017` §5.6 for the
+     maintainer's ruling.
+
 2. **All gates** — `bash scripts/ci.sh` prints its PASS table;
    `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh && npm run e2e:docker`;
    `npm run lhci`; `npx playwright test --project=perf --project=perf-mobile`.
@@ -1365,17 +1555,116 @@ to branch protection (§4.1). After a reset of `preview` from its parent: §1,
    `lighthouse assertions passed` line is. Arguments after `npm run lhci --`
    are not forwarded to lhci: the script passes none on. `build.sh` ends with
    the `boot` Vitest project,
-   which needs that same database up. (`npm run lhci` was not run end to end
-   for this change — its wiring is pinned by
-   `tests/unit/deploy/env-contract-defaults.test.ts`; CI's `lighthouse` job is
-   where the whole script runs.)
+   which needs that same database up.
+
+   **Results, 2026-10-06** (and, where it says so, 2026-10-07).
+   - **`bash scripts/ci.sh`** — 12/12 in 149 s (3487 tests) on #16's branch,
+     whose tree is `main` @ `a754257`; 12/12 in 151 s (3545 tests) on #17's,
+     whose tree is `main` @ `863cd0c`. The `boot` tier: 4/4, on #16's.
+   - **e2e**, against a build made with the e2e flags, on #16's branch:
+     `desktop-chromium` 431 passed / 65 skipped (4.0 min); the mobile projects
+     are under item 3. #17, merged after it, changed no application file —
+     workflows, `scripts/ci/`, tests, `renovate.json` and documents
+     (`git diff --stat a754257 863cd0c`). Those runs were on the HOST (macOS);
+     the Linux matrix itself ran in CI on each of the day's pull requests
+     (item 4).
+   - **`npm run e2e:docker` — one test awaits a ruling.** 2026-10-07,
+     13:13Z–13:58Z, the amd64 CI image emulated on Apple Silicon,
+     `--project=desktop-chromium --project=mobile-chromium` (the two that hold
+     visual baselines), on the build of `2a311e5`: **924 passed, 3 failed,
+     1 flaky, 64 skipped** in 44.8 min. All 20 `@snapshot` comparisons passed.
+     The three failures and the flaky one are a single test in both languages
+     and both projects, `tests/e2e/guides-filter.spec.ts` "a card opens its
+     guide": after the click, `toHaveURL` timed out with the URL still
+     `/fr/guides`. Run again on its own with `--repeat-each=3 --retries=0`:
+     **9 passed (about 3 s each), 3 failed** out of 12. The same test passed on
+     the host that day and in CI's native Linux matrix on all five pull
+     requests. It is not treated as noise: `.debug/017` §5.7 has the cause read
+     in the source — the guides list is rendered twice, and a click that lands
+     during the swap is lost — and `docs/backlog.md` has the entry.
+   - **Lighthouse CI — awaiting a ruling.** As
+     `bash scripts/ci/lighthouse.sh` (8 URLs × 3 runs, the CI GL flags), run
+     twice on the build of `2a311e5` (the tree merged as `863cd0c`), on the
+     maintainer's Mac: **exit 1 both times**, on the same two assertions —
+     the bike pages' LCP against the 3000 ms ceiling. Every other assertion
+     passed in both runs.
+
+     | Run | When (UTC)                                                                            | Load average, start → end | `/fr/velo/demo` LCP median | `/en/bike/demo` LCP median | Ceiling | Exit |
+     | --- | ------------------------------------------------------------------------------------- | ------------------------- | -------------------------- | -------------------------- | ------- | ---- |
+     | 1   | 2026-10-06 20:11–20:21                                                                | 4.5 → 5.5                 | 3101 ms (3.4 % over)       | 3073 ms (2.4 % over)       | 3000 ms | 1    |
+     | 2   | started 2026-10-06 about 20:23; finished after the machine slept; reported 2026-10-07 | 2.3 → 2.1                 | 3062 ms (2.1 % over)       | 3003 ms (0.1 % over)       | 3000 ms | 1    |
+
+     Run 2 spanned a machine sleep, so its wall-clock time means nothing; its
+     medians are what the script printed. The medians of both runs:
+
+     | URL                            | Run 1: performance | Run 1: LCP (ms) | Run 2: performance | Run 2: LCP (ms) |
+     | ------------------------------ | ------------------ | --------------- | ------------------ | --------------- |
+     | `/fr`                          | 0.96               | 2272            | 0.96               | 2261            |
+     | `/en`                          | 0.96               | 2253            | 0.96               | 2216            |
+     | `/fr/velo/demo`                | 0.86               | **3101**        | 0.86               | **3062**        |
+     | `/en/bike/demo`                | 0.86               | **3073**        | 0.87               | **3003**        |
+     | `/fr/guides/check-brakes-disc` | 0.97               | 2118            | 0.97               | 2095            |
+     | `/en/guides/check-brakes-disc` | 0.96               | 2217            | 0.97               | 2119            |
+     | `/fr/connexion`                | 0.97               | 2158            | 0.97               | 2043            |
+     | `/fr/acheter`                  | 0.95               | 2352            | 0.96               | 2209            |
+
+     TBT medians on the two bike pages: 152 and 143 ms in run 1, 141 and
+     137 ms in run 2; the other URLs' TBT is not recorded. **The threshold was
+     not changed**, and CI's `lighthouse` context — the gate — was green on
+     every pull request of 2026-10-06. [`CLAUDE.md`](../CLAUDE.md) takes a
+     local lhci number from an idle machine only ("Local lhci only on an idle
+     machine"); the two load averages are in the table. This is recorded as
+     data for the maintainer's ruling — not as a regression, and not as
+     noise.
+
+   - **`npm run lhci` and `npm run ci:local` exited 127**
+     (`npx: command not found`) on the machine these were run on, while the
+     same scripts called with `bash` ran — which is how CI and the git hooks
+     call them. Under `npm run`, npm exports `npm_config_prefix`;
+     `scripts/ci/_lib.sh` sourced `~/.nvm/nvm.sh` whenever that file existed;
+     nvm printed
+     `nvm is not compatible with the "npm_config_prefix" environment variable`
+     and took node off `PATH` (that machine's nvm directory is a symlink to
+     another volume). `ci:local` was affected before that day; `lhci` became
+     affected when #16 routed it through the script. Fixed in the change
+     that closed W5's documents: `_lib.sh` no longer sources nvm when a Node
+     of the right major is already on `PATH` — as it is under an `npm run`
+     started on Node 24; under another major it still sources nvm, and the
+     old failure is unchanged there (`.debug/017` §5.1;
+     `tests/unit/deploy/lib-nvm.test.ts`). **Re-run after the fix**, on the
+     machine that showed it: `STEPS="nvmrc" npm run ci:local` →
+     `✓ PASS nvmrc` / `:: ci:local passed`, where the same command had died
+     with `npx: command not found`. Then the whole of it, 2026-10-07, on the
+     tree of that change: `npm run ci:local` → **12/12 PASS in 190 s**
+     (3552 tests; the `boot` tier 4/4), through npm from first step to last.
+     `npm run lhci` end to end, through npm, after that fix: **no result on
+     record**.
+   - **perf** — `npx playwright test --project=perf --project=perf-mobile --workers=1`:
+     12 passed (2.9 min), 20:10Z, on `2a311e5`.
+   - One flake, for the record: `tests/unit/content/check.test.ts` timed out
+     once in a pre-push run at machine load 17, while another build was
+     running, and passed 33/33 alone in 8 s — the load-sensitive 5 s timeout
+     #10 and #12 already describe.
+
 3. **Mobile** —
    `npx playwright test --project=mobile-chromium --project=mobile-landscape --project=mobile-narrow --project=no-webgl`,
    then a real phone for the `perf-verified` label
    ([`bike3d-perf.md`](./bike3d-perf.md)).
+
+   **Results, 2026-10-06** (the build of item 2, #16's branch):
+   `mobile-chromium` + `no-webgl` 874 passed / 59 skipped (6.5 min);
+   `mobile-landscape` + `mobile-narrow` 548 passed / 24 skipped (7.6 min).
+   The real phone and the `perf-verified` label: **no result on record**.
+
 4. **CI on a PR** — the twenty required checks green; a deliberately failing
    unit test turns `coverage (80%)` red; a `tests/e2e/__screenshots__` change
    without the `visual-baseline` label fails `visual-baseline-guard`.
+
+   **Results, 2026-10-06**: each of the five pull requests merged that day
+   (#13 to #17) landed with the twenty required contexts green. The two
+   deliberate failures — a red `coverage (80%)`, an unlabelled baseline
+   change: **no result on record**.
+
 5. **Production** — the build log contains
    `check-env: environment contract satisfied (VERCEL_ENV=production, isProduction=true).`
    and `migrate deploy`; `/api/health` answers 200; the runtime logs carry
@@ -1383,19 +1672,63 @@ to branch protection (§4.1). After a reset of `preview` from its parent: §1,
    on `/fr`, `/en` and `/en/guides/check-brakes-disc`; sign up with a real
    e-mail and a strong password; Google sign-in completes; a preview deployment
    builds without migrating and signs in with a password.
-   **The Lighthouse invocation against production is unverified — confirm it
-   before trusting a number.** §9.5 gives
-   `npx lhci autorun --collect.url=https://<prod-domain>/fr`. That calls lhci
-   directly, so it bypasses `scripts/ci/lighthouse.sh` (`npm run lhci` forwards
-   no arguments and cannot be used for this), and `lighthouserc.cjs` still has
-   lhci start a local `npm run start` from the shell's environment — a server
-   the contract now refuses from the README's `.env.local`, after printing the
-   "Ready" lhci waits for. That should not matter if lhci really audits the
-   remote URL, and that is the thing to confirm, in the reports it leaves under
-   `.lighthouseci/`: the audited URL must be the production host, not
-   `localhost`. Do not reach for `LHCI_BASE_URL=https://<prod-domain>` untried
-   either: `lighthouserc.cjs` derives the local server's port from that same
-   variable (`port || "80"`).
+
+   **Results, 2026-10-06** — production `dpl_8fUtvWonaB42YUxGCwha8aBsmn8F`
+   (`main` @ `a754257`); the log lines themselves are in §2, "Read on Vercel".
+
+   | Check                                                  | Result                                                                                                                                                                                                           |
+   | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | The build log's `check-env` line, and `migrate deploy` | read: `check-env: environment contract satisfied (VERCEL_ENV=production, isProduction=true).` and `▶ prisma migrate deploy (VERCEL_ENV=production)` at 19:28:08Z, `No pending migrations to apply.` at 19:28:13Z |
+   | `/api/health` answers 200                              | 200, `{"ok":true,"db":true}`                                                                                                                                                                                     |
+   | The runtime logs carry the `[env]` line                | read, region `cdg1`, 19:29Z                                                                                                                                                                                      |
+   | Lighthouse mobile ≥ 0.85 on the three URLs             | **0.93, 0.93 and 0.96** — medians of three runs, 20:06Z; the table is below                                                                                                                                      |
+   | Sign up with a real e-mail and a strong password       | **Pending — the maintainer.** Needs a person, on production, with a real address                                                                                                                                 |
+   | Google sign-in completes                               | **Pending — the maintainer.** [`qa/google-oauth.md`](./qa/google-oauth.md), all seven sections, on production                                                                                                    |
+   | A preview deployment builds without migrating…         | read on the preview `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f` (#16): `▶ skipping prisma migrate deploy (VERCEL_ENV=preview)`                                                                                            |
+   | …and signs in with a password                          | **Pending — the maintainer.** E-mail + password on a preview URL                                                                                                                                                 |
+
+   **Production Lighthouse, 2026-10-06 20:06Z** — Lighthouse 12.6.1,
+   Chrome 154, mobile form factor, three runs per URL:
+
+   | URL                            | performance (3 runs) | median | LCP ms (3 runs)    | TBT ms (3 runs) | CLS | accessibility / best-practices / SEO |
+   | ------------------------------ | -------------------- | ------ | ------------------ | --------------- | --- | ------------------------------------ |
+   | `/fr`                          | 0.90 / 0.93 / 0.93   | 0.93   | 2855 / 2604 / 2610 | 33 / 30 / 29    | 0   | 1.00 / 1.00 / 1.00                   |
+   | `/en`                          | 0.93 / 0.93 / 0.93   | 0.93   | 2646 / 2590 / 2572 | 29 / 29 / 28    | 0   | 1.00 / 1.00 / 1.00                   |
+   | `/en/guides/check-brakes-disc` | 0.96 / 0.96 / 0.96   | 0.96   | 2321 / 2273 / 2286 | 30 / 29 / 26    | 0   | 1.00 / 1.00 / 1.00                   |
+
+   All three are at or above 0.85, which is what §9.5 asks. `lhci collect`
+   asserts nothing, so one comparison is made here by hand rather than left
+   out: `lighthouserc.cjs` holds content pages to an LCP of 2500 ms — in CI,
+   against a server on the runner itself, with no network in between — and
+   against that number the `/fr` and `/en` medians here (2610 and 2590 ms)
+   are over and the guide's (2286 ms) is under. That ceiling is not this
+   item's criterion, and no threshold was touched.
+
+   **How it was run.** With the repository's own collect settings — applied
+   throttling included — and **no local server**: a scratch
+   `lighthouserc.cjs`, not committed, that `require`s the repository's and
+   drops `ci.collect.startServerCommand`, handed to lhci as
+
+   ```bash
+   npx lhci collect --config=<that file>
+   ```
+
+   No `next` process existed during the run and lhci's log had no "server"
+   line; both were checked. How the three production URLs were given to it —
+   in that file or on the command line — is not recorded.
+
+   **Do not use `lhci autorun` for this** — not
+   `npx lhci autorun --collect.url=https://<prod-domain>/fr`, the form this
+   section used to quote from §9.5, and not the same with
+   `LHCI_BASE_URL=https://<prod-domain>` in front. That one WOULD start a
+   local server: `lighthouserc.cjs` derives `PORT` from the variable — `"80"`
+   for an https URL with no port — and its `startServerCommand` is
+   `npm run start -- -p ${PORT}`, so lhci would run `npm run start -- -p 80`
+   on the machine before it audited anything. With the variable unset the
+   same file gives `-p 3100`: the command is in the configuration either way,
+   which is why the scratch file drops it. (Read from the configuration:
+   neither form was run.) `npm run lhci` cannot be used for this either: it
+   forwards no arguments.
 
 ### 5.3 Then
 
@@ -1403,7 +1736,35 @@ to branch protection (§4.1). After a reset of `preview` from its parent: §1,
   _(W5-T2 opens an issue)_ — password reset by e-mail, nonce CSP, search,
   glossary, Neon preview branches, Upstash, affiliate programmes, the compose
   `seed` profile.
+
+  **Done, 2026-10-06**: eight issues, each titled with its entry's heading,
+  its body the entry's text verbatim, labelled `post-mvp` (a label created
+  for them); in `backlog.md` each entry now carries its issue's link where
+  the mark was —
+  [#18](https://github.com/lienardale/velo-atelier/issues/18) Password reset
+  by email,
+  [#19](https://github.com/lienardale/velo-atelier/issues/19) Nonce-based
+  Content-Security-Policy,
+  [#20](https://github.com/lienardale/velo-atelier/issues/20) Upstash (or any
+  shared store) for rate limiting,
+  [#21](https://github.com/lienardale/velo-atelier/issues/21) Search index,
+  [#22](https://github.com/lienardale/velo-atelier/issues/22) Glossary,
+  [#23](https://github.com/lienardale/velo-atelier/issues/23) Affiliate
+  programmes,
+  [#24](https://github.com/lienardale/velo-atelier/issues/24) Neon preview
+  branches per pull request,
+  [#25](https://github.com/lienardale/velo-atelier/issues/25) A compose `seed`
+  profile.
+
 - Tag the release from `main`: `git tag -a v0.1.0 -m "vélo-atelier 0.1.0"` then
   `git push origin v0.1.0` (the maintainer).
+
+  **Pending — the maintainer.** Neither the tag nor the release existed when
+  the record ended (2026-10-07). The ruling on §5.2 item 1's finding 2 — fix
+  before the tag, or tag first and open an issue — is to be made before it.
+
 - Write the production domain into the README (both languages) in place of
   "_(W5)_".
+
+  **Done** in the change that closed W5's documents: both lines carry
+  `https://velo-atelier.vercel.app`.

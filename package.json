@@ -8,7 +8,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "npm run drawings && next dev",
+    "dev": "npm run drawings && npm run content:generate && next dev",
     "build": "npm run drawings && npm run content:generate && next build",
     "drawings": "tsx scripts/gen-tree-drawings.ts",
     "drawings:check": "tsx scripts/gen-tree-drawings.ts --check",

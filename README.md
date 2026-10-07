@@ -24,8 +24,8 @@ qui apprend à contrôler, réparer, nettoyer et régler son propre vélo.
    fonctionne sans compte (`localStorage`) ; une fois connecté, un bandeau sur
    « Mes vélos » propose d'importer ce vélo dans le compte (`/import`).
 
-> Site en ligne : _(W5)_ — l'adresse sera publiée au premier déploiement, décrit
-> dans [`docs/deploy.md`](./docs/deploy.md).
+> Site en ligne : <https://velo-atelier.vercel.app> — la mise en ligne est
+> décrite dans [`docs/deploy.md`](./docs/deploy.md).
 
 ### Démarrage rapide
 
@@ -113,19 +113,19 @@ Vercel (`scripts/check-env.ts`) :
 
 ### Commandes
 
-| Commande                                | Ce qu'elle fait                                                                    |
-| --------------------------------------- | ---------------------------------------------------------------------------------- |
-| `npm run dev`                           | dessins de l'arbre, puis serveur de développement Turbopack sur le port 3000       |
-| `npm run build`                         | dessins de l'arbre, contrôle du contenu, puis build de production                  |
-| `npm run start`                         | sert ce build en production ; refusé tant que la paire Google est vide (ci-dessus) |
-| `npm run lint` / `npm run format:check` | ESLint / Prettier                                                                  |
-| `npm run typecheck`                     | génère le client Prisma et le contenu, puis `tsc --noEmit`                         |
-| `npm run content:check`                 | valide `content/**` (règles structurelles et règles du corpus, `--strict`)         |
-| `npm run content:new <kind>-<slug>`     | crée un guide dans les deux langues (voir [`CONTRIBUTING.md`](./CONTRIBUTING.md))  |
-| `npm run db:up` / `db:down`             | démarre / arrête le Postgres Docker                                                |
-| `npm run db:seed`                       | recharge le jeu de démonstration (idempotent)                                      |
-| `npm run db:reset`                      | détruit le volume, puis migrations et seed depuis zéro                             |
-| `npm run ci:local`                      | `scripts/ci.sh` : le miroir local de la CI (le hook `pre-push` le lance aussi)     |
+| Commande                                | Ce qu'elle fait                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `npm run dev`                           | dessins de l'arbre, contrôle du contenu, puis serveur de développement Turbopack sur le port 3000 |
+| `npm run build`                         | dessins de l'arbre, contrôle du contenu, puis build de production                                 |
+| `npm run start`                         | sert ce build en production ; refusé tant que la paire Google est vide (ci-dessus)                |
+| `npm run lint` / `npm run format:check` | ESLint / Prettier                                                                                 |
+| `npm run typecheck`                     | génère le client Prisma et le contenu, puis `tsc --noEmit`                                        |
+| `npm run content:check`                 | valide `content/**` (règles structurelles et règles du corpus, `--strict`)                        |
+| `npm run content:new <kind>-<slug>`     | crée un guide dans les deux langues (voir [`CONTRIBUTING.md`](./CONTRIBUTING.md))                 |
+| `npm run db:up` / `db:down`             | démarre / arrête le Postgres Docker                                                               |
+| `npm run db:seed`                       | recharge le jeu de démonstration (idempotent)                                                     |
+| `npm run db:reset`                      | détruit le volume, puis migrations et seed depuis zéro                                            |
+| `npm run ci:local`                      | `scripts/ci.sh` : le miroir local de la CI (le hook `pre-push` le lance aussi)                    |
 
 ### Tests
 
@@ -205,8 +205,8 @@ that teaches you to inspect, repair, clean and adjust your own bike.
    without an account (`localStorage`); once signed in, a banner on "My bikes"
    offers to import that bike into the account (`/import`).
 
-> Live site: _(W5)_ — the address is published on the first deploy, described in
-> [`docs/deploy.md`](./docs/deploy.md).
+> Live site: <https://velo-atelier.vercel.app> — how it is deployed is described
+> in [`docs/deploy.md`](./docs/deploy.md).
 
 ### Quick start
 
@@ -295,7 +295,7 @@ Vercel build (`scripts/check-env.ts`):
 
 | Command                                 | What it does                                                                    |
 | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `npm run dev`                           | tree drawings, then the Turbopack dev server on port 3000                       |
+| `npm run dev`                           | tree drawings, content check, then the Turbopack dev server on port 3000        |
 | `npm run build`                         | tree drawings, content check, then the production build                         |
 | `npm run start`                         | serves that build in production; refused while the Google pair is empty (above) |
 | `npm run lint` / `npm run format:check` | ESLint / Prettier                                                               |
