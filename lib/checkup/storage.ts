@@ -102,7 +102,16 @@ const ScopeSchema = z.union([
   }),
 ]);
 
-/** Exported for the guest import (W3-T3), which reads the same key. */
+/**
+ * THE shape of `va:checkup:<ref>` — the only definition of it.
+ *
+ * The guest import (W3-T3) reads the same key, and until 2026-10-07 it read it
+ * with a schema of its own that still required the `steps` this module stopped
+ * writing in W3: a checkup stored by the wizard could not parse there, so it
+ * was not imported (`.debug/017` §5.6). It now goes through
+ * {@link peekStoredCheckup}, so a change to this schema is a change to what the
+ * import reads, by construction.
+ */
 export const StoredCheckupSchema = z.object({
   version: z.literal(CHECKUP_STATE_VERSION),
   id: z.uuid(),
@@ -230,6 +239,45 @@ function parseJson(raw: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/** What {@link peekStoredCheckup} found under `va:checkup:<ref>`. */
+export type StoredCheckupPeek =
+  /** No value — or no storage to hold one. */
+  | { status: "absent" }
+  /** A value this build cannot read, or a storage that refused the read. */
+  | { status: "unreadable" }
+  | { status: "stored"; stored: StoredCheckup };
+
+/**
+ * The checkup stored for `ref`, read WITHOUT touching it.
+ *
+ * {@link readStoredCheckup} is the wizard's read: a value it cannot parse is of
+ * no use to it, so it removes it. The guest import must not do that — a checkup
+ * it could not read is one it did not import, and deleting it would be the
+ * data loss `.debug/017` §5.6 records. So this one only looks, and says which
+ * of three things it saw; what happens to the key afterwards is the caller's
+ * decision, taken once the server has answered.
+ *
+ * A read that THROWS is `unreadable`, not `absent`: nothing proves the key is
+ * empty, and `absent` is the answer on which a caller says nothing to the
+ * visitor.
+ */
+export function peekStoredCheckup(
+  ref: GuestBikeRef,
+  storage: KeyValueStorage | null = defaultStorage(),
+): StoredCheckupPeek {
+  if (storage === null) return { status: "absent" };
+  let raw: string | null;
+  try {
+    raw = storage.getItem(checkupKey(ref));
+  } catch {
+    return { status: "unreadable" };
+  }
+  if (raw === null) return { status: "absent" };
+  const parsed = StoredCheckupSchema.safeParse(parseJson(raw));
+  if (!parsed.success) return { status: "unreadable" };
+  return { status: "stored", stored: parsed.data as StoredCheckup };
 }
 
 /** The checkup stored for `ref`, or `null`. An unreadable value is removed. */

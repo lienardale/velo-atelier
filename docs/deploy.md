@@ -55,6 +55,10 @@ happened when it ended**:
   **not fixed, and live on production**: the guest's bike and its to-fix list
   are imported into the account, the checkup is not. Awaiting the maintainer's
   ruling: fix before the tag, or tag first and open an issue.
+  **Since: ruled on 2026-10-07 — fix before the tag — and fixed by
+  2026-10-08** (§5.2, item 1). What still waits on this line is the fix's
+  deployment and a re-run of the import on production, which had not happened
+  when this was written.
 - **A ruling on the local Lighthouse CI result** — §5.2, item 2. Three local
   runs, all exit 1 on the same two bike-page LCP assertions, while CI's
   `lighthouse` context was green on every pull request of 2026-10-06. Recorded
@@ -1473,7 +1477,10 @@ maintainer has not ruled on: it is neither accepted nor fixed.
 
    **Result, 2026-10-07** — walked in a browser, by an agent the closing
    session delegated to, from `git clone --depth 1` of `main` @ `863cd0c` in
-   a scratch directory. Two findings: one fixed, one **open**.
+   a scratch directory. Two findings, both fixed since: finding 1 in the
+   change that closed W5's documents, finding 2 by 2026-10-08, after the
+   ruling of 2026-10-07 — and finding 2's fix had **not been run on
+   production** when this was written.
    - **The quick start.** `npm ci`: exit 0, 52 s, 1697 packages;
      `cp .env.example .env.local`. **One deliberate deviation**:
      `npm run db:setup` was not run, because it runs `docker compose up` and
@@ -1498,18 +1505,37 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      `npm run build` generates the tree. **`npm run dev` now generates it
      too** — `npm run drawings && npm run content:generate && next dev`, about
      1.2 s more — and `tests/unit/deploy/dev-script.test.ts` holds it.
-   - **Finding 2 — OPEN: not fixed, awaiting the maintainer's ruling** (fix
-     before the tag, or tag first and open an issue). **The guest import
-     drops the guest's checkup, and this is live on production.** What is
-     imported: the bike (listed in "Mes vélos") and its to-fix list, with the
-     same 3 lines. What is not: the checkup. After the walk's import the
-     database held no `Checkup` row for the imported bike, its
-     `BuildList.checkupId` was NULL, its 3 list lines had no `checkupItemId`,
-     and all 36 of its `BikePartState` rows were `UNKNOWN`. Read in the
-     source: `lib/guest/schema.ts` requires `steps` in the stored checkup,
-     and the wizard stores one without (`toStored`, `lib/checkup/storage.ts`),
-     so the state does not parse and is skipped. The tests are green because
-     their fixtures hand-write a checkup with `steps` (`.debug/017` §5.6).
+   - **Finding 2 — fixed by the change that carries this line (ruled on
+     2026-10-07: fix before the tag; finished on 2026-10-08): the guest import
+     dropped the guest's checkup.** As found on 2026-10-07, and still what
+     production does until that change is deployed: the bike (listed in "Mes
+     vélos") and its to-fix list, with the same 3 lines, are imported; the
+     checkup is not. After the walk's import the database held no `Checkup`
+     row for the imported bike, its `BuildList.checkupId` was NULL, its 3 list
+     lines had no `checkupItemId`, and all 36 of its `BikePartState` rows were
+     `UNKNOWN`. Read in the source: `lib/guest/schema.ts` required `steps` in
+     the stored checkup, and the wizard stores one without (`toStored`,
+     `lib/checkup/storage.ts`), so the state did not parse and was skipped —
+     and the page then cleared it from the browser. The tests were green
+     because their fixtures hand-wrote a checkup with `steps`.
+     **The fix**: the import reads the key with the wizard's own schema and
+     removes nothing; the payload carries the answers, and the server re-plans
+     the bike's checkup and keeps the ones its plan asks; a finished checkup
+     is written with its items, the part states it implies, and the links from
+     the list (`BuildList.checkupId`, each derived line's `checkupItemId`), in
+     one transaction with the bike; and the browser forgets its checkup only
+     when the server's answer says it is in the account — otherwise it stays,
+     and the visitor is told. Details, the choices made and the tests:
+     `.debug/017` §5.6.
+     **Not re-run on production.** Journey B's import (B4) had not been walked
+     again on `velo-atelier.vercel.app` when this was written, and the change
+     was not deployed. What ran, on 2026-10-08, is
+     `tests/e2e/guest-import.spec.ts`, in French and English, on
+     `desktop-chromium` and `mobile-chromium`: a production build served
+     locally against a `_test` database, reading the imported rows from
+     Postgres — one of its tests answers the checkup in the real wizard before
+     signing up, which is B2 to B4 as a test. After the deploy: repeat B2 to
+     B4 on production, and look for a `Checkup` row on the imported bike.
    - **Journey A** (signed in as `DEMO_USER`) — all seven steps passed: the
      demo sign-in; three bikes in "Mes vélos" and the gravel bike's viewer;
      the chain selected by a real click on the 3D canvas and from the parts

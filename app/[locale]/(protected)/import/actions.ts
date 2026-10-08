@@ -16,7 +16,10 @@
  *   3. **Shape.** `GuestStateSchema` is a `strictObject` all the way down, so an
  *      `id`, a `userId` or a `spec` smuggled into a bike is `VALIDATION`, not a
  *      column (§4.7 mass assignment). The caps live in the schema too: blowing
- *      one is a refusal, never a hundred rows.
+ *      one is a refusal, never a hundred rows. A checkup is its ANSWERS, keyed
+ *      by step key: which part and which guide each one is about is not in the
+ *      payload at all — the plan is recomputed from the bike (§5.4), and an
+ *      answer to a question that plan does not ask is dropped, not stored.
  *   4. **Rate limit.** `guest-import:<userId>`, 3 an hour. An import is
  *      something a person does once per device; three is a generous allowance
  *      for a flaky connection and a low ceiling for a script.
@@ -24,6 +27,11 @@
  * The limiter is consumed AFTER the payload has been found valid, so a client
  * bug that sends nonsense cannot spend the visitor's three real attempts, and
  * before any write, which is what the bucket is there to protect.
+ *
+ * The answer says, per bike, what became of each checkup — `imported`,
+ * `already-imported`, or `skipped` with a reason — because the browser clears
+ * `va:checkup:local` on that answer and on nothing else
+ * (`settleGuestImport`, `lib/guest/schema.ts`).
  *
  * Only async functions are exported: a `"use server"` module that exports a
  * schema fails at request time with `found object` while `tsc` and `next build`
@@ -35,9 +43,15 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, rateLimited, type ActionResult } from "@/lib/actions/result";
 import { withUser } from "@/lib/actions/with-user";
 import { rateLimitKey } from "@/lib/auth/tokens";
+import { planForBuild } from "@/lib/content/checkup-plan";
 import { prisma } from "@/lib/db/prisma";
-import { importGuestState, type GuestImportSummary } from "@/lib/guest/import";
-import { isEmptyGuestState, parseGuestState, withinGuestPayloadBudget } from "@/lib/guest/schema";
+import { importGuestState } from "@/lib/guest/import";
+import {
+  isEmptyGuestState,
+  parseGuestState,
+  withinGuestPayloadBudget,
+  type GuestImportSummary,
+} from "@/lib/guest/schema";
 import { createPrismaRateLimiter, RATE_LIMITS } from "@/lib/security/rate-limit";
 
 export const importGuestStateAction = withUser(
@@ -63,7 +77,9 @@ export const importGuestStateAction = withUser(
     );
     if (!verdict.ok) return rateLimited(verdict.retryAfterMs);
 
-    const result = await importGuestState(prisma, user.id, parsed.state);
+    // `planForBuild` is the plan `controle/actions.ts` computes for a saved
+    // bike: the import keeps the answers that plan asks, and nothing else.
+    const result = await importGuestState(prisma, user.id, parsed.state, { plan: planForBuild });
     if (!result.ok) return result;
 
     revalidatePath("/[locale]/(protected)/mes-velos", "page");

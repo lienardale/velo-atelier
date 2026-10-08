@@ -15,10 +15,20 @@
  *   nothing stored   → `/mes-velos`, with no notice: an empty import is not an
  *                      error, it is a visitor who has no guest bike on this
  *                      device (§6.2).
- *   imported         → the guest keys are cleared, a toast says what happened,
- *                      and the bike opens at `/velo/<uuid>`.
+ *   imported         → a toast says what happened and the bike opens at
+ *                      `/velo/<uuid>`. The keys this browser may forget are the
+ *                      ones `settleGuestImport` names, and no other: the bike
+ *                      and the list, and the checkup ONLY when the server said
+ *                      it is in the account (or there was none to import).
  *   refused          → the keys are KEPT and the reason is shown with a retry.
  *                      Clearing storage after a failure would lose the bike.
+ *
+ * **A checkup that was not imported is said, and stays.** Unreadable in this
+ * browser, nothing the server could keep, or a bike that was already in the
+ * account: the toast carries a second sentence naming which, in the visitor's
+ * language, and stays up long enough to be read. Until 2026-10-07 this
+ * component cleared all three keys after any successful import — including the
+ * checkup the importer had silently skipped (`.debug/017` §5.6).
  *
  * `lib/guest/schema` is imported on demand rather than at module scope: it
  * pulls the part catalogue in (through `readLocalBike`), and there is no reason
@@ -38,6 +48,9 @@ import { importGuestStateAction } from "./actions";
 
 type Phase = "running" | "failed";
 
+/** How long the toast stays when it has to say a checkup was NOT imported (sonner's default is 4 s). */
+const CHECKUP_KEPT_TOAST_MS = 20_000;
+
 export function GuestImport(): React.JSX.Element {
   const t = useTranslations("account");
   const tErrors = useTranslations("errors");
@@ -51,36 +64,54 @@ export function GuestImport(): React.JSX.Element {
     setCode(null);
 
     const guest = await import("@/lib/guest/schema");
-    const state = guest.collectGuestState({
+    // Reading removes nothing: a checkup this browser cannot read is still
+    // there afterwards, whatever the server answers.
+    const collection = guest.collectGuestState({
       bikeName: t("import.bikeName"),
       listName: t("import.listName"),
     });
 
-    if (guest.isEmptyGuestState(state)) {
+    if (guest.isEmptyGuestState(collection.state)) {
       router.replace({ pathname: "/mes-velos" });
       return;
     }
 
-    const result = await importGuestStateAction(state);
+    const result = await importGuestStateAction(collection.state);
     if (!result.ok) {
       setCode(result.code);
       setPhase("failed");
       return;
     }
 
-    // Only now: a browser whose bike is in the account no longer needs its copy,
-    // and keeping it would offer the import again for ever.
-    guest.clearGuestState();
+    // Only now, and only what the answer allows: a browser whose bike is in the
+    // account no longer needs its copy — keeping it would offer the import
+    // again for ever — but a checkup the server did not confirm is NOT its to
+    // delete.
+    const settlement = guest.settleGuestImport(collection, result.data);
+    guest.clearGuestKeys(settlement.clear);
 
     const { bikeId, imported } = result.data;
     if (bikeId === null) {
       router.replace({ pathname: "/mes-velos" });
       return;
     }
+
+    const title = imported === 0 ? t("import.alreadyDone") : t("import.done");
+    const kept =
+      settlement.checkup.status === "skipped"
+        ? {
+            unreadable: t("import.checkupKept.unreadable"),
+            "nothing-kept": t("import.checkupKept.nothingKept"),
+            "bike-already-imported": t("import.checkupKept.bikeAlreadyImported"),
+            unconfirmed: t("import.checkupKept.unconfirmed"),
+          }[settlement.checkup.reason]
+        : null;
     // Imported here, not at module scope: a static import would put sonner in
     // this route's first-load JS (see components/ui-ext/Notices.tsx).
     void import("sonner").then(({ toast }) =>
-      toast(imported === 0 ? t("import.alreadyDone") : t("import.done")),
+      kept === null
+        ? toast(title)
+        : toast(title, { description: kept, duration: CHECKUP_KEPT_TOAST_MS }),
     );
     router.replace({ pathname: "/velo/[id]", params: { id: bikeId } });
   }, [router, t]);
