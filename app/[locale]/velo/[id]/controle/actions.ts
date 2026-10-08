@@ -74,7 +74,7 @@ import { fail, ok, type ActionResult } from "@/lib/actions/result";
 import { withUser, type ActionUser } from "@/lib/actions/with-user";
 import { deriveBike, QUOTAS, withinQuota } from "@/lib/bike/rules";
 import { deriveBuildList, recheckedLines, statusByPart } from "@/lib/checkup/build-list";
-import { planCheckup, type PlannableGuide } from "@/lib/checkup/plan";
+import { answeredItems } from "@/lib/checkup/items";
 import { fromStored, type StoredCheckup, type StoredCheckupSummary } from "@/lib/checkup/storage";
 import {
   CHECKUP_ANSWERS,
@@ -83,7 +83,7 @@ import {
   type CheckupScope,
   type CheckupState,
 } from "@/lib/checkup/types";
-import { GUIDES } from "@/lib/content/collection";
+import { planForBuild } from "@/lib/content/checkup-plan";
 import { CONTENT_VERSION } from "@/lib/content/generated/version";
 import { REASON_KEYS } from "@/lib/content/generated/reason-keys";
 import { GUIDE_STEP_KEYS } from "@/lib/content/generated/slugs";
@@ -172,13 +172,10 @@ async function planFor(
   if (row === null) return null;
 
   const derived = deriveBike(row.answers as Answers, asParts(row.parts));
-  // The French corpus: both locales carry the same steps, and a plan's keys are
-  // locale-independent, so the plan a visitor gets does not depend on the
-  // language they read it in.
-  const guides = GUIDES.filter(
-    (guide) => guide.locale === routing.defaultLocale,
-  ) as unknown as PlannableGuide[];
-  return { steps: planCheckup({ spec: derived.spec, parts: derived.parts }, scope, guides) };
+  // `planForBuild` is the plan every server-side write uses — the guest import
+  // too (`lib/content/checkup-plan.ts`): the French corpus, whose keys are the
+  // same in both languages.
+  return { steps: planForBuild({ spec: derived.spec, parts: derived.parts }, scope) };
 }
 
 function asParts(value: unknown): BikePart[] | undefined {
@@ -292,26 +289,13 @@ function tooMany(quota: keyof typeof QUOTA_KEYS): ActionResult<never> {
  * call and fails on one that is not.
  */
 async function writeItems(checkupId: string, userId: string, state: CheckupState): Promise<void> {
-  const answered = state.steps.flatMap((step) => {
-    const result = Object.hasOwn(state.answers, step.key) ? state.answers[step.key] : undefined;
-    if (result === undefined) return [];
-    return [
-      {
-        stepKey: step.key,
-        partId: step.partIds[0],
-        guideSlug: step.guideSlug,
-        // eslint-disable-next-line security/detect-object-injection -- `result` is a CheckupAnswer literal
-        result: TO_PRISMA[result],
-        notes: Object.hasOwn(state.notes, step.key) ? state.notes[step.key] : null,
-        // Only a KO has a symptom, and `acceptedState` has already dropped any
-        // the re-planned step does not offer.
-        reasonKeys:
-          result === "ko" && Object.hasOwn(state.symptoms, step.key)
-            ? [...state.symptoms[step.key]]
-            : [],
-      },
-    ];
-  });
+  // `answeredItems` is the one definition of a row (`lib/checkup/items.ts`),
+  // shared with the guest import: only a KO has a symptom, and `acceptedState`
+  // has already dropped any the re-planned step does not offer.
+  const answered = answeredItems(state).map((item) => ({
+    ...item,
+    result: TO_PRISMA[item.result],
+  }));
 
   const owned = { checkup: { bike: { userId } } };
   await prisma.checkupItem.deleteMany({

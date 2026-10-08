@@ -19,6 +19,7 @@ import {
   fromStored,
   guestRefOf,
   localStorageStore,
+  peekStoredCheckup,
   readGuestBuildList,
   readStoredCheckup,
   toStored,
@@ -180,6 +181,47 @@ describe("readStoredCheckup / writeStoredCheckup", () => {
     });
     expect(readStoredCheckup("demo")).toBeNull();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("peekStoredCheckup — the read that removes nothing", () => {
+  it("returns what readStoredCheckup returns for a checkup the wizard wrote", () => {
+    const storage = memoryStorage();
+    writeStoredCheckup("local", toStored(answered()), storage);
+    const peek = peekStoredCheckup("local", storage);
+    expect(peek).toEqual({ status: "stored", stored: readStoredCheckup("local", storage) });
+    expect(peek.status === "stored" && peek.stored).not.toHaveProperty("steps");
+  });
+
+  it("says absent when the key holds nothing, or there is no storage at all", () => {
+    expect(peekStoredCheckup("local", memoryStorage())).toEqual({ status: "absent" });
+    expect(peekStoredCheckup("local", null)).toEqual({ status: "absent" });
+    // The default is the window's storage: none on the server.
+    expect(peekStoredCheckup("local")).toEqual({ status: "absent" });
+  });
+
+  it("says unreadable for a value that does not parse — and LEAVES it", () => {
+    // The guest import reads through this. `readStoredCheckup` removes such a
+    // value, which is right for the wizard and would be data loss here: a
+    // checkup the import could not read is one it did not import.
+    for (const raw of ["{oops", JSON.stringify({ version: 1, id: "not-a-uuid" })]) {
+      const storage = memoryStorage();
+      storage.map.set("va:checkup:local", raw);
+      expect(peekStoredCheckup("local", storage)).toEqual({ status: "unreadable" });
+      expect(storage.map.get("va:checkup:local")).toBe(raw);
+
+      // The same value, through the wizard's read: gone.
+      expect(readStoredCheckup("local", storage)).toBeNull();
+      expect(storage.map.has("va:checkup:local")).toBe(false);
+    }
+  });
+
+  it("says unreadable, not absent, when the browser refuses the read", () => {
+    // Nothing proves the key is empty, and "absent" is the answer on which
+    // the import tells the visitor nothing.
+    expect(peekStoredCheckup("local", memoryStorage({ read: true }))).toEqual({
+      status: "unreadable",
+    });
   });
 });
 

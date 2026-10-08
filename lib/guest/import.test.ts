@@ -4,77 +4,131 @@
  * The fake is driven by `prisma/schema.prisma` itself, so the constraints that
  * carry this feature — `@@unique([userId, guestLocalId])`, the unique
  * `Checkup.guestKey`, `@@unique([buildListId, partId, action])` — behave here
- * the way they behave in Postgres. `tests/integration/guest-import.test.ts` is
- * where the real database confirms it.
+ * the way they behave in Postgres, and so does a transaction that fails half
+ * way. `tests/integration/guest-import.test.ts` is where the real database
+ * confirms it.
  *
- * What is proven here: the row shapes, the derivation rules, the idempotency,
- * the clamps, and what happens to the items the corpus has moved under.
+ * What is proven here: the row shapes, that the SERVER decides what a checkup's
+ * answers are about (the plan, never the payload), the links a finished checkup
+ * owns on the list, the part states, the idempotency, the clamps, and what the
+ * summary tells the browser about each checkup.
+ *
+ * Every checkup below is a real one: `tests/_helpers/guest-work.ts` plans the
+ * bike, runs the reducer, stores `toStored(state)` under the real key and
+ * collects it back. Until 2026-10-07 these fixtures were hand-written items
+ * with a part and a guide chosen by the test — a shape the collector could
+ * never produce from what the wizard stores (`.debug/017` §5.6). A case that
+ * needs a payload no browser sends starts from a collected one and breaks
+ * exactly one thing.
  */
+/* eslint-disable security/detect-object-injection -- step keys the test spells out, into its own fixtures */
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { fakeDb } from "@/tests/_fakes/prisma";
 import { deriveBike, QUOTAS } from "@/lib/bike/rules";
+import type { CheckupState } from "@/lib/checkup/types";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
 import { validateBuild } from "@/lib/domain/engine/validate-build";
+import type { BikeBuild } from "@/lib/domain/schema/part";
+import {
+  guestRun,
+  guestWork,
+  partsScope,
+  planFromDisk,
+  type GuestVerdict,
+} from "@/tests/_helpers/guest-work";
 
-import { guestCheckupKey, importGuestState } from "./import";
-import { GUEST_STATE_VERSION, type GuestBike, type GuestState } from "./schema";
+import { guestCheckupKey, importGuestState, type GuestImportStore } from "./import";
+import {
+  GUEST_CAPS,
+  GUEST_STATE_VERSION,
+  type GuestBike,
+  type GuestBuildList,
+  type GuestCheckup,
+  type GuestState,
+} from "./schema";
 
 const NOW = Date.parse("2026-09-15T12:00:00.000Z");
 const now = () => NOW;
+const deps = { plan: planFromDisk, now };
 
-const ANSWERS = BIKE_PRESETS["gravel-1x11"] as Record<string, string>;
 const DERIVED = deriveBike(BIKE_PRESETS["gravel-1x11"]);
 const LOCAL_ID = "11111111-2222-4333-8444-555555555555";
 const CHECKUP_ID = "3f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a90";
 /** A second checkup, patterned rather than random: gitleaks reads a high-entropy uuid literal as a key. */
 const OLDER_CHECKUP_ID = "00000000-0000-4000-8000-0000000000c1";
 
-function guestBike(patch: Partial<GuestBike> = {}): GuestBike {
-  return {
-    localId: LOCAL_ID,
-    name: "Mon vélo",
-    answers: ANSWERS,
-    parts: DERIVED.parts,
+const CHAIN = "check-drivetrain#chain-wear";
+const CASSETTE = "check-drivetrain#cassette-teeth";
+const PAD_WEAR = "check-brakes-disc#pad-wear";
+const ALIGNMENT = "check-brakes-disc#caliper-alignment";
+const HOSE = "check-brakes-disc#hose-leak";
+
+const STARTED_AT = "2026-09-14T08:00:00.000Z";
+const COMPLETED_AT = "2026-09-14T08:20:00.000Z";
+
+interface RunOptions {
+  id?: string;
+  parts?: string[];
+  verdicts: Record<string, GuestVerdict>;
+  startedAt?: string;
+  /** `null` leaves the checkup in progress. */
+  completedAt?: string | null;
+}
+
+/** A wizard run over this bike's real plan. */
+function run(build: BikeBuild, options: RunOptions): CheckupState {
+  return guestRun({
+    id: options.id ?? CHECKUP_ID,
+    build,
+    scope: options.parts === undefined ? { kind: "full" } : partsScope(...options.parts),
+    verdicts: options.verdicts,
+    startedAt: options.startedAt ?? STARTED_AT,
+    ...(options.completedAt === null ? {} : { completedAt: options.completedAt ?? COMPLETED_AT }),
+  });
+}
+
+/** The guest bike as `/import` would send it, with the checkup and list the wizard left. */
+function collected(checkup?: RunOptions, patch: Partial<GuestBike> = {}): GuestBike {
+  const work = guestWork({
+    answers: BIKE_PRESETS["gravel-1x11"],
+    bikeId: LOCAL_ID,
     fit: { saddleHeightMm: 742 },
     updatedAt: "2026-09-14T09:00:00.000Z",
-    checkups: [],
-    lists: [],
-    ...patch,
-  };
+    ...(checkup === undefined ? {} : { checkup: (build) => run(build, checkup) }),
+  });
+  const [bike] = (JSON.parse(JSON.stringify(work.collect().state)) as GuestState).bikes;
+  return { ...bike, ...patch };
+}
+
+/** One checkup of a payload — what `collected(run).checkups[0]` is. */
+function checkupOf(options: RunOptions): GuestCheckup {
+  const [checkup] = collected(options).checkups;
+  if (checkup === undefined) throw new Error("the collector read no checkup");
+  return checkup;
 }
 
 function state(...bikes: GuestBike[]): GuestState {
   return { version: GUEST_STATE_VERSION, bikes };
 }
 
-const COMPLETED_CHECKUP = {
-  guestKey: CHECKUP_ID,
-  scope: "parts" as const,
-  startedAt: "2026-09-14T08:00:00.000Z",
-  completedAt: "2026-09-14T08:20:00.000Z",
-  items: [
-    {
-      stepKey: "check-drivetrain#chain-wear",
-      partId: "chain",
-      guideSlug: "check-drivetrain",
-      result: "ko" as const,
-      notes: "élongation 0,8 %",
-    },
-    {
-      stepKey: "check-drivetrain#cassette-teeth",
-      partId: "cassette",
-      guideSlug: "check-drivetrain",
-      result: "ok" as const,
-    },
-    {
-      stepKey: "check-wheels-tires#tire-wear",
-      partId: "tire-front",
-      guideSlug: "check-wheels-tires",
-      result: "skipped" as const,
-    },
-  ],
+/** The chain is worn, the cassette is fine: one KO with its symptom and a note, one OK. */
+const CHAIN_AND_CASSETTE: RunOptions = {
+  parts: ["chain", "cassette"],
+  verdicts: {
+    [CHAIN]: { ko: ["chain-elongation"], notes: "élongation 0,8 %" },
+    [CASSETTE]: "ok",
+  },
 };
+
+type Row = Record<string, unknown>;
+const rows = (model: string) => fakeDb.rows(model) as Row[];
+const partStates = () =>
+  new Map(
+    (
+      rows("BikePartState") as { partId: string; status: string; lastServicedAt: Date | null }[]
+    ).map((row) => [row.partId, row]),
+  );
 
 let userId: string;
 
@@ -90,29 +144,37 @@ beforeEach(async () => {
 
 describe("a bike", () => {
   it("is created with derived answers, spec and parts, and one part state each", async () => {
-    const result = await importGuestState(fakeDb.client, userId, state(guestBike()), { now });
+    const result = await importGuestState(fakeDb.client, userId, state(collected()), deps);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
     expect(result.data).toMatchObject({ imported: 1, skipped: 0 });
-    const [row] = fakeDb.rows("Bike") as Record<string, unknown>[];
+    const [row] = rows("Bike");
     expect(row.userId).toBe(userId);
     expect(row.guestLocalId).toBe(LOCAL_ID);
     expect(row.name).toBe("Mon vélo");
     expect(row.answers).toEqual(DERIVED.answers);
     expect(row.spec).toEqual(DERIVED.spec);
     expect(validateBuild({ spec: row.spec, parts: row.parts }).ok).toBe(true);
-    expect(fakeDb.rows("BikePartState")).toHaveLength(DERIVED.parts.length);
+    expect(rows("BikePartState")).toHaveLength(DERIVED.parts.length);
     expect(row.fit).toEqual({ saddleHeightMm: 742 });
+    // The id the summary names is the row's — generated here, not by the database.
+    expect(result.data.bikeId).toBe(row.id);
+    expect(result.data.bikes).toEqual([{ localId: LOCAL_ID, bikeId: row.id, checkups: [] }]);
   });
 
   it("keeps the owner's attribute edits", async () => {
     const edited = DERIVED.parts.map((part) =>
       part.partId === "chainring" ? { ...part, attributes: { teeth: 42 } } : part,
     );
-    await importGuestState(fakeDb.client, userId, state(guestBike({ parts: edited })), { now });
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { parts: edited })),
+      deps,
+    );
 
-    const [row] = fakeDb.rows("Bike") as {
+    const [row] = rows("Bike") as {
       parts: { partId: string; attributes: Record<string, unknown> }[];
     }[];
     expect(row.parts.find((part) => part.partId === "chainring")?.attributes.teeth).toBe(42);
@@ -127,9 +189,14 @@ describe("a bike", () => {
         ? { ...part, attributes: { teeth: 42, "not-an-attribute": "x" } }
         : part,
     );
-    await importGuestState(fakeDb.client, userId, state(guestBike({ parts: edited })), { now });
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { parts: edited })),
+      deps,
+    );
 
-    const [row] = fakeDb.rows("Bike") as { parts: unknown[] }[];
+    const [row] = rows("Bike") as { parts: unknown[] }[];
     expect(row.parts).toEqual(DERIVED.parts);
   });
 
@@ -137,11 +204,11 @@ describe("a bike", () => {
     const result = await importGuestState(
       fakeDb.client,
       userId,
-      state(guestBike({ parts: [{ partId: "__proto__", attributes: {} }] })),
-      { now },
+      state(collected(undefined, { parts: [{ partId: "__proto__", attributes: {} }] })),
+      deps,
     );
     expect(result.ok).toBe(true);
-    const [row] = fakeDb.rows("Bike") as { parts: unknown[] }[];
+    const [row] = rows("Bike") as { parts: unknown[] }[];
     expect(row.parts).toEqual(DERIVED.parts);
   });
 
@@ -149,246 +216,765 @@ describe("a bike", () => {
     await importGuestState(
       fakeDb.client,
       userId,
-      state(guestBike({ fit: { saddleHeightMm: 742, nope: 1, reachMm: 99_999 } })),
-      { now },
+      state(collected(undefined, { fit: { saddleHeightMm: 742, nope: 1, reachMm: 99_999 } })),
+      deps,
     );
-    const [row] = fakeDb.rows("Bike") as Record<string, unknown>[];
-    expect(row.fit).toEqual({ saddleHeightMm: 742 });
+    expect(rows("Bike")[0].fit).toEqual({ saddleHeightMm: 742 });
   });
 
   it("stores no fit at all when nothing survives", async () => {
-    await importGuestState(fakeDb.client, userId, state(guestBike({ fit: { nope: 1 } })), { now });
-    expect((fakeDb.rows("Bike")[0] as Record<string, unknown>).fit).toBeNull();
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { fit: { nope: 1 } })),
+      deps,
+    );
+    expect(rows("Bike")[0].fit).toBeNull();
   });
 
   it("never stores a date the visitor's clock put in the future (§4.7)", async () => {
-    const ahead = guestBike({ updatedAt: "2087-01-01T00:00:00.000Z" });
-    await importGuestState(fakeDb.client, userId, state(ahead), { now });
-    const [row] = fakeDb.rows("Bike") as { updatedAt: Date }[];
+    const ahead = collected(undefined, { updatedAt: "2087-01-01T00:00:00.000Z" });
+    await importGuestState(fakeDb.client, userId, state(ahead), deps);
+    const [row] = rows("Bike") as { updatedAt: Date }[];
     expect(row.updatedAt.getTime()).toBe(NOW);
+  });
+});
+
+describe("a checkup: the server re-plans (§5.4)", () => {
+  it("becomes a Checkup and one CheckupItem per answered planned step", async () => {
+    const result = await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(CHAIN_AND_CASSETTE)),
+      deps,
+    );
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+
+    const [bike] = rows("Bike");
+    const [checkup] = rows("Checkup");
+    expect(checkup.bikeId).toBe(bike.id);
+    expect(checkup.guestKey).toBe(guestCheckupKey(userId, CHECKUP_ID));
+    expect(checkup.scope).toBe("PARTIAL");
+    expect(checkup.status).toBe("COMPLETED");
+    expect((checkup.startedAt as Date).toISOString()).toBe(STARTED_AT);
+    expect((checkup.completedAt as Date).toISOString()).toBe(COMPLETED_AT);
+
+    // The columns `writeItems` writes — and the part and the guide come from
+    // the PLAN: the payload named neither.
+    const items = rows("CheckupItem").map((item) => ({
+      checkupId: item.checkupId,
+      stepKey: item.stepKey,
+      partId: item.partId,
+      guideSlug: item.guideSlug,
+      result: item.result,
+      notes: item.notes,
+      reasonKeys: item.reasonKeys,
+    }));
+    expect(items).toEqual([
+      {
+        checkupId: checkup.id,
+        stepKey: CHAIN,
+        partId: "chain",
+        guideSlug: "check-drivetrain",
+        result: "KO",
+        notes: "élongation 0,8 %",
+        reasonKeys: ["chain-elongation"],
+      },
+      {
+        checkupId: checkup.id,
+        stepKey: CASSETTE,
+        partId: "cassette",
+        guideSlug: "check-drivetrain",
+        result: "OK",
+        notes: null,
+        reasonKeys: [],
+      },
+    ]);
+  });
+
+  it("asks the planner for THIS bike's plan and the checkup's own scope", async () => {
+    const seen: { parts: number; scope: unknown }[] = [];
+    await importGuestState(fakeDb.client, userId, state(collected(CHAIN_AND_CASSETTE)), {
+      now,
+      plan: (build, scope) => {
+        seen.push({ parts: build.parts.length, scope });
+        expect(build.spec).toEqual(DERIVED.spec);
+        return planFromDisk(build, scope);
+      },
+    });
+    expect(seen).toEqual([
+      { parts: DERIVED.parts.length, scope: { kind: "parts", partIds: ["chain", "cassette"] } },
+    ]);
+  });
+
+  it("drops an answer whose key is not in the plan, and keeps the rest", async () => {
+    const checkup = checkupOf(CHAIN_AND_CASSETTE);
+    // A real question of a real guide — for a bike with RIM brakes. And one no
+    // guide has ever asked.
+    checkup.answers["check-brakes-rim#pad-wear"] = "ko";
+    checkup.notes["check-brakes-rim#pad-wear"] = "inventé";
+    checkup.answers["check-drivetrain#not-a-step"] = "ko";
+
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup] })),
+      deps,
+    );
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([CHAIN, CASSETTE]);
+  });
+
+  it("drops a symptom the step does not offer", async () => {
+    const checkup = checkupOf(CHAIN_AND_CASSETTE);
+    // `pad-worn` is a real reason — of the brake-pad question.
+    checkup.symptoms[CHAIN] = ["pad-worn", "chain-elongation", "not-a-reason"];
+    // A symptom on a step answered OK is not a symptom at all.
+    checkup.symptoms[CASSETTE] = ["cassette-worn"];
+
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup] })),
+      deps,
+    );
+    const byKey = new Map(rows("CheckupItem").map((item) => [item.stepKey, item.reasonKeys]));
+    expect(byKey.get(CHAIN)).toEqual(["chain-elongation"]);
+    expect(byKey.get(CASSETTE)).toEqual([]);
+  });
+
+  it("writes NO row for a checkup none of whose answers the plan asks, and says so", async () => {
+    const checkup = checkupOf(CHAIN_AND_CASSETTE);
+    checkup.answers = { "check-brakes-rim#pad-wear": "ko" };
+    checkup.symptoms = {};
+    checkup.notes = {};
+
+    const result = await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup] })),
+      deps,
+    );
+    expect(result.ok && result.data.bikes[0]).toMatchObject({
+      localId: LOCAL_ID,
+      checkups: [{ guestKey: CHECKUP_ID, status: "skipped", reason: "nothing-kept" }],
+    });
+    // The bike is imported all the same; the checkup stays the browser's.
+    expect(rows("Bike")).toHaveLength(1);
+    expect(rows("Checkup")).toEqual([]);
+    expect(rows("CheckupItem")).toEqual([]);
+  });
+
+  it("writes no row for a scope that names no part of this bike", async () => {
+    const checkup = checkupOf(CHAIN_AND_CASSETTE);
+    checkup.scope = { kind: "parts", partIds: ["part-from-2019"] };
+    const result = await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup] })),
+      deps,
+    );
+    expect(result.ok && result.data.bikes[0].checkups[0]).toMatchObject({
+      status: "skipped",
+      reason: "nothing-kept",
+    });
+    expect(rows("Checkup")).toEqual([]);
+  });
+
+  it("is IN_PROGRESS while it has no end, and FULL when it is about the whole bike", async () => {
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected({ verdicts: { [CHAIN]: "ok" }, completedAt: null })),
+      deps,
+    );
+    const [checkup] = rows("Checkup");
+    expect(checkup.status).toBe("IN_PROGRESS");
+    expect(checkup.scope).toBe("FULL");
+    expect(checkup.completedAt).toBeNull();
+    expect(rows("CheckupItem")).toHaveLength(1);
+  });
+
+  it("stays COMPLETED when the corpus has grown a question since it was finished", async () => {
+    // The visitor finished this checkup; the plan the server computes TODAY
+    // asks one question more. `reconcile` would call that "in progress again"
+    // — the import does not: a finished checkup is history, for the wizard
+    // (`isFinished`) and for an account's own rows alike.
+    const grown: typeof planFromDisk = (build, scope) => {
+      const plan = planFromDisk(build, scope);
+      return [...plan, { ...plan[0], key: "check-drivetrain#added-since", stepId: "added-since" }];
+    };
+    const bike = collected(CHAIN_AND_CASSETTE);
+    await importGuestState(fakeDb.client, userId, state(bike), { plan: grown, now });
+
+    const [row] = rows("Checkup") as { id: string; status: string; completedAt: Date }[];
+    expect(row.status).toBe("COMPLETED");
+    expect(row.completedAt.toISOString()).toBe(COMPLETED_AT);
+    // Rows for what was answered, and none for the question nobody was asked.
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([CHAIN, CASSETTE]);
+    // Finished, so it does what a finished checkup does (§4.2 b).
+    expect(partStates().get("chain")?.status).toBe("BROKEN");
+    expect(partStates().get("cassette")?.status).toBe("OK");
+    expect(rows("BuildList")[0].checkupId).toBe(row.id);
+  });
+
+  it("is IN_PROGRESS without a completedAt, even with every question answered", async () => {
+    // On the summary, "Créer ma liste" not pressed yet: answering the last
+    // question is not finishing.
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(
+        collected({
+          parts: ["chain", "cassette"],
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] }, [CASSETTE]: "ok" },
+          completedAt: null,
+        }),
+      ),
+      deps,
+    );
+    const [row] = rows("Checkup");
+    expect(row.status).toBe("IN_PROGRESS");
+    expect(row.completedAt).toBeNull();
+    expect(rows("CheckupItem")).toHaveLength(2);
+    // …and so no part is declared broken or fine on the strength of it.
+    expect(new Set([...partStates().values()].map((part) => part.status))).toEqual(
+      new Set(["UNKNOWN"]),
+    );
+  });
+
+  it("keeps a past startedAt to the millisecond — it is how the account recognises the run", async () => {
+    const startedAt = "2026-09-14T08:00:00.123Z";
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected({ ...CHAIN_AND_CASSETTE, startedAt })),
+      deps,
+    );
+    const [checkup] = rows("Checkup") as { startedAt: Date }[];
+    expect(checkup.startedAt.toISOString()).toBe(startedAt);
+  });
+
+  it("clamps both ends, and never finishes before it started", async () => {
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(
+        collected({
+          ...CHAIN_AND_CASSETTE,
+          startedAt: "2087-01-01T00:00:00.000Z",
+          completedAt: "2000-01-01T00:00:00.000Z",
+        }),
+      ),
+      deps,
+    );
+    const [checkup] = rows("Checkup") as { startedAt: Date; completedAt: Date }[];
+    expect(checkup.startedAt.getTime()).toBe(NOW);
+    expect(checkup.completedAt.getTime()).toBe(NOW);
+  });
+
+  it("falls back to now for a date it cannot parse at all", async () => {
+    const checkup = checkupOf({ ...CHAIN_AND_CASSETTE, completedAt: null });
+    checkup.startedAt = "bientôt";
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup] })),
+      deps,
+    );
+    const [row] = rows("Checkup") as { startedAt: Date }[];
+    expect(row.startedAt.getTime()).toBe(NOW);
+  });
+
+  it("writes one checkup for a guestKey the payload repeats, and reports it once", async () => {
+    const checkup = checkupOf(CHAIN_AND_CASSETTE);
+    const again = { ...checkup, answers: { [CHAIN]: "ok" as const, [CASSETTE]: "ok" as const } };
+    const result = await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup, again] })),
+      deps,
+    );
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    expect(rows("Checkup")).toHaveLength(1);
+    // The first one won: the chain is the KO it said.
+    expect(rows("CheckupItem").find((item) => item.stepKey === CHAIN)?.result).toBe("KO");
+  });
+
+  it("cannot bring more checkups than a bike may hold", () => {
+    expect(GUEST_CAPS.checkupsPerBike).toBeLessThanOrEqual(QUOTAS.checkupsPerBike);
+  });
+});
+
+describe("part states (§4.2 b)", () => {
+  it("a finished checkup leaves its parts BROKEN or serviced, and a skipped one alone", async () => {
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(
+        collected({
+          parts: ["chain", "cassette", "brake-caliper-rear"],
+          verdicts: {
+            [CHAIN]: "skipped",
+            [CASSETTE]: "ok",
+            [PAD_WEAR]: { ko: ["pad-worn"] },
+            [ALIGNMENT]: "ok",
+            [HOSE]: "ok",
+          },
+        }),
+      ),
+      deps,
+    );
+    const states = partStates();
+    expect(rows("Checkup")[0].status).toBe("COMPLETED");
+
+    expect(states.get("cassette")?.status).toBe("OK");
+    expect(states.get("cassette")?.lastServicedAt?.toISOString()).toBe(COMPLETED_AT);
+    // SKIPPED says nothing about the part.
+    expect(states.get("chain")?.status).toBe("UNKNOWN");
+    expect(states.get("chain")?.lastServicedAt).toBeNull();
+    // KO → BROKEN, with no service date.
+    expect(states.get("brake-caliper-front")?.status).toBe("BROKEN");
+    expect(states.get("brake-caliper-front")?.lastServicedAt).toBeNull();
+  });
+
+  it("gives a status to the part each ITEM names — the step's first — and to no other", async () => {
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(
+        collected({
+          parts: ["brake-caliper-rear"],
+          verdicts: { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok", [HOSE]: "ok" },
+        }),
+      ),
+      deps,
+    );
+    // Every one of these three questions reports on several parts…
+    const plan = planFromDisk(DERIVED, partsScope("brake-caliper-rear"));
+    expect(plan.map((step) => step.partIds)).toEqual([
+      ["brake-caliper-front", "brake-caliper-rear"],
+      ["brake-caliper-front", "brake-caliper-rear"],
+      ["brake-lever-front", "brake-lever-rear", "brake-caliper-front", "brake-caliper-rear"],
+    ]);
+    // …and each row names the first of them, which is the part that is written.
+    expect(rows("CheckupItem").map((item) => item.partId)).toEqual([
+      "brake-caliper-front",
+      "brake-caliper-front",
+      "brake-lever-front",
+    ]);
+    const states = partStates();
+    expect(states.get("brake-caliper-front")?.status).toBe("OK");
+    expect(states.get("brake-lever-front")?.status).toBe("OK");
+    // Reported on, but named by no row: nothing in the database says how it is.
+    expect(states.get("brake-caliper-rear")?.status).toBe("UNKNOWN");
+    expect(states.get("brake-lever-rear")?.status).toBe("UNKNOWN");
+    // And a part the payload could not have named at all, since it names none.
+    const written = [...states.values()].filter((row) => row.status !== "UNKNOWN");
+    expect(written.map((row) => row.partId).sort()).toEqual([
+      "brake-caliper-front",
+      "brake-lever-front",
+    ]);
+  });
+
+  it("never lets an OK undo a KO on the same part within one checkup", async () => {
+    // Worn pads, a well-aligned caliper: both rows name the front caliper, the
+    // OK comes later in the plan, and the caliper is still not fine.
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(
+        collected({
+          parts: ["brake-caliper-rear"],
+          verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] }, [ALIGNMENT]: "ok", [HOSE]: "ok" },
+        }),
+      ),
+      deps,
+    );
+    expect(partStates().get("brake-caliper-front")).toMatchObject({
+      status: "BROKEN",
+      lastServicedAt: null,
+    });
+  });
+
+  it("lets the most recently finished checkup stand on a part", async () => {
+    const older = checkupOf({
+      id: OLDER_CHECKUP_ID,
+      parts: ["chain"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+      completedAt: "2026-09-01T08:00:00.000Z",
+    });
+    const newer = checkupOf({ parts: ["chain"], verdicts: { [CHAIN]: "ok" } });
+    // Given newest-first, as a history page would hold them.
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [newer, older] })),
+      deps,
+    );
+    expect(rows("Checkup")).toHaveLength(2);
+    expect(partStates().get("chain")?.status).toBe("OK");
+  });
+
+  it("leaves the parts alone while the checkup is unfinished", async () => {
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(
+        collected({
+          parts: ["chain", "cassette"],
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+          completedAt: null,
+        }),
+      ),
+      deps,
+    );
+    expect(new Set([...partStates().values()].map((row) => row.status))).toEqual(
+      new Set(["UNKNOWN"]),
+    );
+  });
+});
+
+describe("the list's links (§4.2 b)", () => {
+  /** A line the visitor has on their list that no checkup derived. */
+  const HAND_LINE = {
+    partId: "saddle",
+    action: "adjust" as const,
+    reasonKey: "saddle-height",
+    done: true,
+    sortOrder: 7,
+  };
+
+  it("links a finished checkup to the list, and each line it derives to its item", async () => {
+    const bike = collected(CHAIN_AND_CASSETTE);
+    // What the wizard wrote: the one line the KO derives.
+    expect(bike.lists).toHaveLength(1);
+    expect(bike.lists[0].items.map((item) => `${item.action}|${item.partId}`)).toEqual([
+      "replace|chain",
+    ]);
+    bike.lists[0].items.push(HAND_LINE);
+
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+
+    const [checkup] = rows("Checkup");
+    const [list] = rows("BuildList");
+    expect(list.checkupId).toBe(checkup.id);
+
+    const chainItem = rows("CheckupItem").find((item) => item.stepKey === CHAIN);
+    const lines = new Map(rows("BuildListItem").map((line) => [line.partId, line]));
+    expect(lines.get("chain")?.checkupItemId).toBe(chainItem?.id);
+    // Not derived by the checkup: the visitor's own line, unlinked and untouched.
+    expect(lines.get("saddle")).toMatchObject({ checkupItemId: null, done: true, sortOrder: 7 });
+  });
+
+  it("links by (action, partId): another action on the same part is not this checkup's", async () => {
+    const bike = collected(CHAIN_AND_CASSETTE);
+    // `clean chain` IS a consequence of the chain question — of the symptom the
+    // visitor did not tick. The checkup derives `replace chain` only.
+    bike.lists[0].items.push({
+      partId: "chain",
+      action: "clean",
+      reasonKey: "chain-dirty",
+      done: false,
+      sortOrder: 1,
+    });
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+
+    const byAction = new Map(rows("BuildListItem").map((line) => [line.action, line]));
+    expect(byAction.get("REPLACE")?.checkupItemId).not.toBeNull();
+    expect(byAction.get("CLEAN")?.checkupItemId).toBeNull();
+  });
+
+  it("links every consequence of a KO given without a symptom to that step's item", async () => {
+    // A verdict given and then left: the step's whole `ko[]` lands (§5.4), and
+    // both lines are this step's.
+    const bike = collected({ parts: ["chain"], verdicts: { [CHAIN]: "ko" } });
+    expect(bike.lists[0].items.map((item) => item.action).sort()).toEqual(["clean", "replace"]);
+
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    const [item] = rows("CheckupItem");
+    expect(rows("BuildListItem").map((line) => line.checkupItemId)).toEqual([item.id, item.id]);
+  });
+
+  it("links NOTHING for a checkup in progress: it has not written to the list yet", async () => {
+    // The list an earlier, finished run left; then a new run, one question in,
+    // that finds the same chain worn. Finishing is what links (§4.2 b) — on the
+    // account, `finishCheckupAction` will.
+    const finished = collected({ parts: ["chain"], verdicts: { [CHAIN]: "ko" } });
+    const running = checkupOf({
+      id: OLDER_CHECKUP_ID,
+      parts: ["chain", "cassette"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+      completedAt: null,
+    });
+
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state({ ...finished, checkups: [running] }),
+      deps,
+    );
+    expect(rows("Checkup")[0].status).toBe("IN_PROGRESS");
+    expect(rows("CheckupItem")).toHaveLength(1);
+    expect(rows("BuildList")[0].checkupId).toBeNull();
+    expect(rows("BuildListItem").length).toBeGreaterThan(0);
+    expect(rows("BuildListItem").every((line) => line.checkupItemId === null)).toBe(true);
+  });
+
+  it("names the checkup that finished LAST when the payload carries several", async () => {
+    const older = checkupOf({
+      id: OLDER_CHECKUP_ID,
+      parts: ["chain"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+      completedAt: "2026-09-01T08:00:00.000Z",
+    });
+    const bike = collected({ parts: ["chain"], verdicts: { [CHAIN]: { ko: ["chain-dirty"] } } });
+    bike.checkups.push(older);
+    // Both lines are on the list; only the newer checkup's finding is its own.
+    bike.lists[0].items.push({
+      partId: "chain",
+      action: "replace",
+      reasonKey: "chain-elongation",
+      done: false,
+      sortOrder: 1,
+    });
+
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    const newer = rows("Checkup").find(
+      (row) => row.guestKey === guestCheckupKey(userId, CHECKUP_ID),
+    );
+    expect(rows("BuildList")[0].checkupId).toBe(newer?.id);
+    const newerItem = rows("CheckupItem").find((item) => item.checkupId === newer?.id);
+    const byAction = new Map(rows("BuildListItem").map((line) => [line.action, line]));
+    expect(byAction.get("CLEAN")?.checkupItemId).toBe(newerItem?.id);
+    expect(byAction.get("REPLACE")?.checkupItemId).toBeNull();
+  });
+
+  it("leaves a list with no checkup behind it unlinked", async () => {
+    const [list] = collected(CHAIN_AND_CASSETTE).lists;
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { lists: [list] })),
+      deps,
+    );
+    expect(rows("BuildList")[0].checkupId).toBeNull();
+    expect(rows("BuildListItem")[0].checkupItemId).toBeNull();
   });
 });
 
 describe("importing twice", () => {
   it("skips a bike this account already imported, and writes nothing", async () => {
-    const first = await importGuestState(fakeDb.client, userId, state(guestBike()), { now });
+    const first = await importGuestState(fakeDb.client, userId, state(collected()), deps);
     expect(first.ok && first.data.imported).toBe(1);
-    const before = fakeDb.rows("Bike")[0] as Record<string, unknown>;
+    const before = rows("Bike")[0];
+    fakeDb.resetCalls();
 
     // The laptop's copy: same guest bike, older, with a checkup the phone never had.
-    const stale = guestBike({
+    const stale = collected(CHAIN_AND_CASSETTE, {
       name: "Autre nom",
       updatedAt: "2026-01-01T00:00:00.000Z",
-      checkups: [COMPLETED_CHECKUP],
     });
-    const second = await importGuestState(fakeDb.client, userId, state(stale), { now });
+    const second = await importGuestState(fakeDb.client, userId, state(stale), deps);
 
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(second.data).toMatchObject({ imported: 0, skipped: 1, bikeId: before.id });
     expect(second.data.bikes[0].skipped).toBe("already-imported");
-    expect(fakeDb.rows("Bike")).toHaveLength(1);
-    expect(fakeDb.rows("Bike")[0]).toEqual(before);
-    expect(fakeDb.rows("Checkup")).toHaveLength(0);
+    // The checkup was NOT imported, and the summary says so: the browser keeps it.
+    expect(second.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" },
+    ]);
+    expect(rows("Bike")).toEqual([before]);
+    expect(rows("Checkup")).toEqual([]);
+    expect(rows("BuildList")).toEqual([]);
+    // Reads only.
+    expect(fakeDb.calls.map((call) => call.op).sort()).toEqual(["count", "findFirst", "findMany"]);
   });
 
-  it("lets another account import the same browser's bike", async () => {
+  it("never produces a second Checkup, and tells the browser the account has it", async () => {
+    const bike = collected(CHAIN_AND_CASSETTE);
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    const before = { checkups: rows("Checkup"), items: rows("CheckupItem") };
+
+    const again = await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(again.ok && again.data.bikes[0]).toMatchObject({
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "already-imported" }],
+    });
+    expect(rows("Checkup")).toEqual(before.checkups);
+    expect(rows("CheckupItem")).toEqual(before.items);
+    expect(rows("BuildList")).toHaveLength(1);
+  });
+
+  it("does not write again a checkup the account already holds under ANOTHER bike", async () => {
+    // The same browser, a new guest bike, and the wizard's checkup still under
+    // the key with its old id. `Checkup.guestKey` is unique: a second insert
+    // would abort the whole bike.
+    await importGuestState(fakeDb.client, userId, state(collected(CHAIN_AND_CASSETTE)), deps);
+
+    const other = collected(CHAIN_AND_CASSETTE, {
+      localId: "22222222-2222-4333-8444-555555555555",
+    });
+    const result = await importGuestState(fakeDb.client, userId, state(other), deps);
+    expect(result.ok && result.data).toMatchObject({ imported: 1, skipped: 0 });
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "already-imported" },
+    ]);
+    expect(rows("Bike")).toHaveLength(2);
+    expect(rows("Checkup")).toHaveLength(1);
+    // Its list came with it, linked to nothing: the checkup is the other bike's.
+    const lists = rows("BuildList");
+    expect(lists).toHaveLength(2);
+    expect(lists[1].checkupId).toBeNull();
+  });
+
+  it("lets another account import the same browser's bike, checkup included", async () => {
     const other = (await fakeDb.seed("User", { email: "autre@velo-atelier.test" })) as {
       id: string;
     };
-    await importGuestState(
-      fakeDb.client,
-      userId,
-      state(guestBike({ checkups: [COMPLETED_CHECKUP] })),
-      { now },
-    );
-    const second = await importGuestState(
-      fakeDb.client,
-      other.id,
-      state(guestBike({ checkups: [COMPLETED_CHECKUP] })),
-      { now },
-    );
+    const bike = collected(CHAIN_AND_CASSETTE);
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    const second = await importGuestState(fakeDb.client, other.id, state(bike), deps);
 
     expect(second.ok && second.data.imported).toBe(1);
-    expect(fakeDb.rows("Bike")).toHaveLength(2);
+    expect(second.ok && second.data.bikes[0].checkups[0].status).toBe("imported");
+    expect(rows("Bike")).toHaveLength(2);
     // The globally unique `Checkup.guestKey` is scoped by user, or this second
     // import would have collided on a row it cannot see.
-    expect((fakeDb.rows("Checkup") as { guestKey: string }[]).map((row) => row.guestKey)).toEqual([
+    expect(rows("Checkup").map((row) => row.guestKey)).toEqual([
       guestCheckupKey(userId, CHECKUP_ID),
       guestCheckupKey(other.id, CHECKUP_ID),
     ]);
   });
 
-  it("reports what the winner wrote when two devices race", async () => {
-    // A row created between the ownership read and the create: exactly what the
-    // unique constraint is there to catch.
-    const racer = { ...guestBike(), localId: LOCAL_ID };
-    await fakeDb.seed("Bike", {
-      userId,
-      name: "Posé par l'autre appareil",
-      answers: DERIVED.answers,
-      spec: DERIVED.spec,
-      parts: DERIVED.parts,
-      guestLocalId: LOCAL_ID,
-    });
+  /**
+   * A store whose FIRST ownership read misses: the other device has not
+   * committed yet. Everything else is the fake's own.
+   */
+  function racing(): GuestImportStore {
+    let first = true;
+    return {
+      ...fakeDb.client,
+      bike: {
+        ...fakeDb.client.bike,
+        findFirst: ((args: never) => {
+          if (!first) return fakeDb.client.bike.findFirst(args);
+          first = false;
+          return Promise.resolve(null);
+        }) as typeof fakeDb.client.bike.findFirst,
+      },
+    } as GuestImportStore;
+  }
 
-    const result = await importGuestState(fakeDb.client, userId, state(racer), { now });
+  it("reports what the winner wrote when two devices race, and writes nothing itself", async () => {
+    // The other device's import, complete: bike, checkup, list.
+    const bike = collected(CHAIN_AND_CASSETTE);
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    const before = {
+      bikes: rows("Bike"),
+      states: rows("BikePartState"),
+      checkups: rows("Checkup"),
+      items: rows("CheckupItem"),
+      lists: rows("BuildList"),
+      lines: rows("BuildListItem"),
+    };
+
+    // This one read "not there yet", tried, and lost on the unique constraint.
+    const result = await importGuestState(racing(), userId, state(bike), deps);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.data.bikes[0].skipped).toBe("already-imported");
-    expect(fakeDb.rows("Bike")).toHaveLength(1);
+    expect(result.data.bikes[0]).toEqual({
+      localId: LOCAL_ID,
+      bikeId: before.bikes[0].id,
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "already-imported" }],
+    });
+    expect({
+      bikes: rows("Bike"),
+      states: rows("BikePartState"),
+      checkups: rows("Checkup"),
+      items: rows("CheckupItem"),
+      lists: rows("BuildList"),
+      lines: rows("BuildListItem"),
+    }).toEqual(before);
+  });
+
+  it("rethrows a unique violation that is not this bike's", async () => {
+    // A P2002 with no bike of this user behind it is not "already imported":
+    // answering that would name a bike that does not exist.
+    const store = {
+      ...fakeDb.client,
+      $transaction: () => Promise.reject(Object.assign(new Error("dup"), { code: "P2002" })),
+    } as unknown as GuestImportStore;
+    await expect(importGuestState(store, userId, state(collected()), deps)).rejects.toMatchObject({
+      code: "P2002",
+    });
   });
 });
 
-describe("checkups", () => {
-  it("become a checkup and its items, with a user-scoped idempotency key", async () => {
-    await importGuestState(
-      fakeDb.client,
-      userId,
-      state(guestBike({ checkups: [COMPLETED_CHECKUP] })),
-      { now },
+describe("all or nothing, per bike", () => {
+  /** The fake's client with one write that fails when the transaction reaches it. */
+  function failing(model: "checkup" | "buildList"): GuestImportStore {
+    return {
+      ...fakeDb.client,
+      [model]: { ...fakeDb.client[model], create: () => Promise.reject(new Error("boom")) },
+    } as unknown as GuestImportStore;
+  }
+
+  it.each(["checkup", "buildList"] as const)(
+    "leaves no bike behind when the %s write fails",
+    async (model) => {
+      const bike = collected(CHAIN_AND_CASSETTE);
+      await expect(importGuestState(failing(model), userId, state(bike), deps)).rejects.toThrow(
+        "boom",
+      );
+      // Not the bike — which would make every later import answer "already
+      // imported" and write nothing — nor anything that hangs off it.
+      for (const table of [
+        "Bike",
+        "BikePartState",
+        "Checkup",
+        "CheckupItem",
+        "BuildList",
+        "BuildListItem",
+      ]) {
+        expect(rows(table), table).toEqual([]);
+      }
+
+      // And the retry, once the fault is gone, imports everything.
+      const retry = await importGuestState(fakeDb.client, userId, state(bike), deps);
+      expect(retry.ok && retry.data.bikes[0].checkups[0].status).toBe("imported");
+      expect(rows("Bike")).toHaveLength(1);
+      expect(rows("Checkup")).toHaveLength(1);
+      expect(rows("BuildList")).toHaveLength(1);
+    },
+  );
+
+  it("writes the bike and everything under it in one transaction", async () => {
+    await importGuestState(fakeDb.client, userId, state(collected(CHAIN_AND_CASSETTE)), deps);
+    const writes = fakeDb.calls.filter(
+      (call) => call.op === "$transaction" || call.op === "create",
     );
-
-    const [checkup] = fakeDb.rows("Checkup") as Record<string, unknown>[];
-    expect(checkup.guestKey).toBe(guestCheckupKey(userId, CHECKUP_ID));
-    expect(checkup.scope).toBe("PARTIAL");
-    expect(checkup.status).toBe("COMPLETED");
-    expect((checkup.completedAt as Date).toISOString()).toBe(COMPLETED_CHECKUP.completedAt);
-
-    const items = fakeDb.rows("CheckupItem") as Record<string, unknown>[];
-    expect(items.map((item) => item.result)).toEqual(["KO", "OK", "SKIPPED"]);
-    expect(items[0].notes).toBe("élongation 0,8 %");
-  });
-
-  it("is IN_PROGRESS while it has no end", async () => {
-    const running = { ...COMPLETED_CHECKUP, completedAt: undefined, scope: "full" as const };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [running] })), {
-      now,
-    });
-    const [checkup] = fakeDb.rows("Checkup") as Record<string, unknown>[];
-    expect(checkup.status).toBe("IN_PROGRESS");
-    expect(checkup.scope).toBe("FULL");
-    expect(checkup.completedAt).toBeNull();
-  });
-
-  it("clamps both ends, and never finishes before it started", async () => {
-    const skewed = {
-      ...COMPLETED_CHECKUP,
-      startedAt: "2087-01-01T00:00:00.000Z",
-      completedAt: "2000-01-01T00:00:00.000Z",
-    };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [skewed] })), {
-      now,
-    });
-    const [checkup] = fakeDb.rows("Checkup") as { startedAt: Date; completedAt: Date }[];
-    expect(checkup.startedAt.getTime()).toBe(NOW);
-    expect(checkup.completedAt.getTime()).toBe(NOW);
-  });
-
-  it("drops an item whose part the catalogue no longer has, and keeps the rest", async () => {
-    const stale = {
-      ...COMPLETED_CHECKUP,
-      items: [
-        ...COMPLETED_CHECKUP.items,
-        {
-          stepKey: "check-drivetrain#gone",
-          partId: "part-from-2019",
-          guideSlug: "check-drivetrain",
-          result: "ko" as const,
-        },
-      ],
-    };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [stale] })), {
-      now,
-    });
-    expect(fakeDb.rows("CheckupItem")).toHaveLength(3);
-  });
-
-  it("writes one row for a step key the payload repeats", async () => {
-    const duplicated = {
-      ...COMPLETED_CHECKUP,
-      items: [COMPLETED_CHECKUP.items[0], { ...COMPLETED_CHECKUP.items[0], result: "ok" as const }],
-    };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [duplicated] })), {
-      now,
-    });
-    expect(fakeDb.rows("CheckupItem")).toHaveLength(1);
-  });
-
-  it("applies §4.2 b: a finished checkup leaves its parts BROKEN or serviced", async () => {
-    await importGuestState(
-      fakeDb.client,
-      userId,
-      state(guestBike({ checkups: [COMPLETED_CHECKUP] })),
-      { now },
-    );
-    const states = new Map(
-      (
-        fakeDb.rows("BikePartState") as {
-          partId: string;
-          status: string;
-          lastServicedAt: Date | null;
-        }[]
-      ).map((row) => [row.partId, row]),
-    );
-    expect(states.get("chain")?.status).toBe("BROKEN");
-    expect(states.get("cassette")?.status).toBe("OK");
-    expect(states.get("cassette")?.lastServicedAt?.toISOString()).toBe(
-      COMPLETED_CHECKUP.completedAt,
-    );
-    // SKIPPED says nothing about the part.
-    expect(states.get("tire-front")?.status).toBe("UNKNOWN");
-  });
-
-  it("lets the most recent verdict on a part stand", async () => {
-    const older = {
-      ...COMPLETED_CHECKUP,
-      guestKey: OLDER_CHECKUP_ID,
-      completedAt: "2026-09-01T08:00:00.000Z",
-    };
-    const newer = {
-      ...COMPLETED_CHECKUP,
-      items: [{ ...COMPLETED_CHECKUP.items[0], result: "ok" as const }],
-    };
-    // Given newest-first, as a history page would hold them.
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [newer, older] })), {
-      now,
-    });
-
-    const chain = (fakeDb.rows("BikePartState") as { partId: string; status: string }[]).find(
-      (row) => row.partId === "chain",
-    );
-    expect(chain?.status).toBe("OK");
-  });
-
-  it("falls back to now for a date it cannot parse at all", async () => {
-    const broken = { ...COMPLETED_CHECKUP, startedAt: "bientôt", completedAt: undefined };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [broken] })), {
-      now,
-    });
-    const [checkup] = fakeDb.rows("Checkup") as { startedAt: Date }[];
-    expect(checkup.startedAt.getTime()).toBe(NOW);
-  });
-
-  it("leaves the parts alone while the checkup is unfinished", async () => {
-    const running = { ...COMPLETED_CHECKUP, completedAt: undefined };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ checkups: [running] })), {
-      now,
-    });
-    const statuses = new Set(
-      (fakeDb.rows("BikePartState") as { status: string }[]).map((row) => row.status),
-    );
-    expect(statuses).toEqual(new Set(["UNKNOWN"]));
+    expect(writes.map((call) => `${call.model}.${call.op}`)).toEqual([
+      "$client.$transaction",
+      "bike.create",
+      "checkup.create",
+      "buildList.create",
+    ]);
   });
 });
 
 describe("build lists", () => {
-  const list = {
+  const list: GuestBuildList = {
     name: "Révision printemps",
     items: [
       {
         partId: "chain",
-        action: "replace" as const,
+        action: "replace",
         reasonKey: "chain-elongation",
         guideSlug: "replace-chain",
         done: false,
@@ -396,7 +982,7 @@ describe("build lists", () => {
       },
       {
         partId: "chain",
-        action: "clean" as const,
+        action: "clean",
         reasonKey: "chain-dirty",
         guideSlug: "clean-drivetrain",
         done: true,
@@ -412,28 +998,46 @@ describe("build lists", () => {
       },
     ],
   };
+  const withList = (lists: GuestBuildList[]) => state(collected(undefined, { lists }));
 
   it("become a list and its items, with the domain's actions in the database's vocabulary", async () => {
-    await importGuestState(fakeDb.client, userId, state(guestBike({ lists: [list] })), { now });
+    await importGuestState(fakeDb.client, userId, withList([list]), deps);
 
-    const [row] = fakeDb.rows("BuildList") as Record<string, unknown>[];
+    const [row] = rows("BuildList");
     expect(row.name).toBe("Révision printemps");
     expect(row.status).toBe("OPEN");
     expect(row.checkupId).toBeNull();
+    expect(row.bikeId).toBe(rows("Bike")[0].id);
 
-    const items = fakeDb.rows("BuildListItem") as Record<string, unknown>[];
+    const items = rows("BuildListItem");
     expect(items.map((item) => item.action)).toEqual(["REPLACE", "CLEAN"]);
     expect(items[1].done).toBe(true);
     expect(items[1].refinement).toEqual({ speeds: "11" });
     expect(items[1].chosenProduct).toMatchObject({ vendor: "alltricks" });
   });
 
+  it("keeps what the visitor typed on a line the checkup derives", async () => {
+    // The lines come from the PAYLOAD, never from a re-derivation: the product
+    // the visitor chose and the box they ticked are on them.
+    const bike = collected(CHAIN_AND_CASSETTE);
+    Object.assign(bike.lists[0].items[0], {
+      done: true,
+      refinement: list.items[1].refinement,
+      chosenProduct: list.items[1].chosenProduct,
+    });
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(rows("BuildListItem")[0]).toMatchObject({
+      done: true,
+      refinement: { speeds: "11" },
+      chosenProduct: { model: "CN-HG601" },
+    });
+    expect(rows("BuildListItem")[0].checkupItemId).not.toBeNull();
+  });
+
   it("writes one row per (part, action) — the pair is unique per list", async () => {
     const duplicated = { ...list, items: [list.items[0], { ...list.items[0], done: true }] };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ lists: [duplicated] })), {
-      now,
-    });
-    expect(fakeDb.rows("BuildListItem")).toHaveLength(1);
+    await importGuestState(fakeDb.client, userId, withList([duplicated]), deps);
+    expect(rows("BuildListItem")).toHaveLength(1);
   });
 
   it("numbers a line the payload did not number, in the order it arrived", async () => {
@@ -444,20 +1048,14 @@ describe("build lists", () => {
         { ...list.items[1], sortOrder: 2.5 },
       ],
     };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ lists: [unordered] })), {
-      now,
-    });
-    const items = fakeDb.rows("BuildListItem") as { sortOrder: number }[];
-    expect(items.map((item) => item.sortOrder)).toEqual([0, 1]);
+    await importGuestState(fakeDb.client, userId, withList([unordered]), deps);
+    expect(rows("BuildListItem").map((item) => item.sortOrder)).toEqual([0, 1]);
   });
 
   it("drops a line about a part the catalogue no longer has", async () => {
-    const stale = {
-      ...list,
-      items: [{ ...list.items[0], partId: "part-from-2019" }],
-    };
-    await importGuestState(fakeDb.client, userId, state(guestBike({ lists: [stale] })), { now });
-    expect(fakeDb.rows("BuildListItem")).toHaveLength(0);
+    const stale = { ...list, items: [{ ...list.items[0], partId: "part-from-2019" }] };
+    await importGuestState(fakeDb.client, userId, withList([stale]), deps);
+    expect(rows("BuildListItem")).toHaveLength(0);
   });
 });
 
@@ -474,9 +1072,15 @@ describe("quotas", () => {
     }
     fakeDb.resetCalls();
 
-    const result = await importGuestState(fakeDb.client, userId, state(guestBike()), { now });
+    const result = await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(CHAIN_AND_CASSETTE)),
+      deps,
+    );
     expect(result).toEqual({ ok: false, code: "TOO_MANY" });
-    expect(fakeDb.rows("Bike")).toHaveLength(QUOTAS.bikesPerUser);
+    expect(rows("Bike")).toHaveLength(QUOTAS.bikesPerUser);
+    expect(rows("Checkup")).toEqual([]);
     expect(fakeDb.calls.filter((call) => call.op === "create")).toHaveLength(0);
   });
 
@@ -493,14 +1097,14 @@ describe("quotas", () => {
         parts: DERIVED.parts,
       });
     }
-    const result = await importGuestState(fakeDb.client, userId, state(guestBike()), { now });
+    const result = await importGuestState(fakeDb.client, userId, state(collected()), deps);
     expect(result.ok).toBe(true);
   });
 });
 
 describe("an empty payload", () => {
   it("is a success that imported nothing", async () => {
-    const result = await importGuestState(fakeDb.client, userId, state(), { now });
+    const result = await importGuestState(fakeDb.client, userId, state(), deps);
     expect(result).toEqual({
       ok: true,
       data: { bikeId: null, bikes: [], imported: 0, skipped: 0 },
