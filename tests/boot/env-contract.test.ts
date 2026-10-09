@@ -20,8 +20,8 @@
  * started on purpose with `ENABLE_TEST_PAGES=1`. Case 4 is the other guard
  * rail: the contract must not make a legitimate deployment fail to boot.
  *
- * **HOW A REFUSAL LOOKS, measured on Next 16.3.6 and not assumed.** It is NOT
- * a non-zero exit. `NextNodeServer`'s constructor fires
+ * **HOW A REFUSAL LOOKS, measured on Next 16.3.6 — and again on 16.3.8 — and
+ * not assumed.** It is NOT a non-zero exit. `NextNodeServer`'s constructor fires
  * `this.prepare().catch(err => console.error('Failed to prepare server', err))`
  * (`next-server.js`), so the rejection `register()` raises is logged and
  * swallowed there; `initialize()` in `server/lib/start-server.js` resolves
@@ -223,7 +223,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** What a server that must not serve actually did. */
 interface Refusal {
-  /** Non-null only if the process died — Next 16.3.6 keeps it alive. */
+  /** Non-null only if the process died — Next 16.3.6 and 16.3.8 keep it alive. */
   readonly exitCode: number | null;
   /** One status per sample, `[]` when the process exited before answering. */
   readonly statuses: number[];
@@ -348,8 +348,8 @@ describe("boot: the environment contract on a started server", () => {
     const context = `exit=${exitCode} statuses=[${statuses.join(", ")}]\n${server.output()}`;
 
     // The property that matters, whichever way Next chooses to fail: the route
-    // was not answered once. On 16.3.6 that is three 500s and a process still
-    // running; a future Next that exits non-zero satisfies it too.
+    // was not answered once. On 16.3.6 and 16.3.8 that is three 500s and a
+    // process still running; a future Next that exits non-zero satisfies it too.
     expect(
       statuses.filter((status) => status < 500),
       context,

@@ -107,13 +107,28 @@ site ships. Reach past the first patched release only when a later one fixes
 something this tree needs — and when you do, record the skipped hold in
 `audit-ci-allowlist.md` so it is a decision and not an oversight.
 
+**The pin moved again on 2026-10-09, to 16.3.8, by the same rule.** Six
+advisories GitHub published within two minutes of each other on 2026-10-07
+(from 20:30:55Z) — one high, GHSA-cjq9-62q9-8jv4, SSRF in Image Optimization,
+which `trivy` reports as CVE-2026-94483; four moderate; one low — all end at
+`<16.3.8`. 16.3.8 is therefore the first patched release for every one of
+them, and at 8 d 21 h old it had cleared the hold on its own, four hours
+before the first of them was public. **`npm audit` proposes 16.4.0**, then
+2 d 19 h old: its `fixAvailable` is the newest release, never the lowest, so
+read the advisory's range and not the proposal. The paragraph above was
+written on 2026-09-30, when no published advisory named a version above
+16.3.6: "fixes nothing this tree needs" can only be judged on what is public,
+and 16.3.8 turned out to be the vendor's fix for these six a week before they
+were. [`audit-ci-allowlist.md`](./audit-ci-allowlist.md) has the table, the
+exposure facts and what the bump changed in the build.
+
 ---
 
 ## Stack
 
 | Layer      | Choice                                               | Notes                                                                             |
 | ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Framework  | Next.js **16.3.6** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
+| Framework  | Next.js **16.3.8** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
 | Language   | TypeScript **5.9.x**                                 | capped `<7`; the TS 7 Go port breaks `next build` and `@typescript-eslint`        |
 | Runtime    | Node **24**                                          | `.nvmrc`, `engines.node`, CI `node-version-file`                                  |
 | i18n       | next-intl **v4**                                     | `localePrefix: 'always'`, `localeDetection: false`                                |
@@ -485,7 +500,8 @@ docs/                contributor and operator docs — every one is linked from 
   that script — a local or CI build is `npm run build` /
   `bash scripts/ci/build.sh`.
   **A boot refusal is NOT an exit code** (Next 16.3.6, measured with
-  `next start` — the W5 plan assumed otherwise). `prepareImpl()` awaits
+  `next start`, and again on 16.3.8 when the pin moved — the W5 plan assumed
+  otherwise). `prepareImpl()` awaits
   `register()`, but `NextNodeServer`'s constructor fires
   `this.prepare().catch(err => console.error("Failed to prepare server", err))`,
   so the rejection is logged and swallowed there and `start-server.js`'s
@@ -1300,9 +1316,9 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   (`client-namespaces` fails with exactly that list).
 - **A file-convention `opengraph-image` must sit in the SAME segment as the page
   it is for.** `lib/seo/metadata.ts` gives every page an explicit `openGraph`
-  object, and on Next 16.3.4 — re-checked on 16.3.6, where the built `/fr` and
-  `/en` documents still carry the `app/[locale]` card — an explicit `openGraph`
-  in a descendant segment replaces the parent's, images included. An
+  object, and on Next 16.3.4 — re-checked on 16.3.6 and 16.3.8, where the built
+  `/fr` and `/en` documents still carry the `app/[locale]` card — an explicit
+  `openGraph` in a descendant segment replaces the parent's, images included. An
   `app/opengraph-image.tsx` at the app root (where §1.1 draws it) therefore
   reached exactly one route, Next's own `/_not-found`, which then warned five
   times per build that it had no `metadataBase` to resolve it against, while
@@ -1374,7 +1390,7 @@ scripts called with `bash` ran (`.debug/017`;
 - **The `boot` Vitest project** (`tests/boot/**`) spawns `next start` against
   the build ON DISK and asserts the environment contract on a real server, in
   four cases. `VERCEL_ENV=production ENABLE_TEST_PAGES=1` never answers
-  `/api/health` — three 500s on Next 16.3.6 — and logs the
+  `/api/health` — three 500s on Next 16.3.6 and on 16.3.8 — and logs the
   `EnvValidationError` with the variable's name. That same refused server
   still serves `/tree-drawings.json`: an observation the design leans on, not
   a requirement, held so it cannot quietly stop being true — it is why the
