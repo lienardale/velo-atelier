@@ -9,7 +9,7 @@ import {
 } from "@/components/bike3d/store";
 import { fail, ok, type ActionErrorCode } from "@/lib/actions/result";
 import { readLocalBike, writeLocalBike, type KeyValueStorage } from "@/lib/bike/local-bike";
-import { bikeRepoFor, localBikeRepo, type BikeRepo } from "@/lib/bike/repo";
+import { bikeRepoFor, localBikeRepo, type BikeRepo, type RemoteBikeActions } from "@/lib/bike/repo";
 import { hasMesh, partDefinition, type PartId } from "@/lib/domain/data/parts";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import { setAttribute } from "@/lib/domain/engine/validate-build";
@@ -52,8 +52,10 @@ import { PartsPanel, type PanelTab } from "./PartsPanel";
  *   P4  text typed and not left is committed, to its own part, when the field
  *       goes away — and a refusal that arrives after the field is gone is SAID.
  *
- * The last block, "what the review found", is one case per defect a review of
- * the first version of the fix reproduced (`.debug/017` §5.8, "Review of the fix").
+ * The blocks after P5, "what the review found", are one case per defect a
+ * review of the first version of the fix reproduced (`.debug/017` §5.8,
+ * "Review of the fix"), and "what the second review found" one per defect its
+ * repair left reachable ("Second review").
  */
 
 const notice = vi.hoisted(() => ({
@@ -92,6 +94,8 @@ interface Write {
 /** A bike somewhere, the repo that writes to it, and everything that was asked of that repo. */
 interface World {
   kind: "guest" | "saved";
+  /** The `[id]` segment the bike is addressed by: `local`, or a saved bike's id. */
+  bikeParam: string;
   repo: BikeRepo;
   build: BikeBuild;
   writes: Write[];
@@ -101,11 +105,19 @@ interface World {
   fill?: () => void;
   /** A `held` saved bike only: let the oldest `count` writes in flight be answered. */
   answer?: (count?: number) => Promise<void>;
+  /**
+   * A saved bike only: this world again, behind a NEW repo object — the same
+   * bike, the same server, the same writes in flight. It is what a workspace
+   * mounted again after a route change is handed: `BikeWorkspace` builds its
+   * repo when it mounts.
+   */
+  mountedAgain?: () => World;
 }
 
 function recording(inner: BikeRepo, writes: Write[]): BikeRepo {
   return {
     kind: inner.kind,
+    bikeParam: inner.bikeParam,
     canEdit: inner.canEdit,
     setAttribute: (build, edit) => {
       writes.push({ partId: edit.partId, key: edit.key, value: edit.value });
@@ -122,6 +134,7 @@ function guestWorld(preset: PresetId, build: BikeBuild = presetBuild(preset)): W
   const writes: Write[] = [];
   return {
     kind: "guest",
+    bikeParam: "local",
     repo: recording(localBikeRepo({ storage }), writes),
     build,
     writes,
@@ -137,6 +150,8 @@ function guestWorld(preset: PresetId, build: BikeBuild = presetBuild(preset)): W
 }
 
 const BIKE_ID = "3f0c1f0e-6f0a-4c56-9d3b-1c2d3e4f5a6b";
+/** Another saved bike of the same account. */
+const OTHER_BIKE_ID = "9b2d7c1a-5e3f-4a8b-b6c4-0d1e2f3a4b5c";
 
 /**
  * Every write a `held` saved bike has not been told to answer yet, across the
@@ -163,6 +178,10 @@ const stillHeld = new Set<() => void>();
  * `queued` makes it answer ONE CALL AT A TIME, in the order sent, which is
  * what Next's client does with server actions while the page stays put: two
  * writes of one field then land in the order they were typed.
+ *
+ * `bikeId` is which bike the form takes it for. Two worlds made with the same
+ * id are that one bike behind two servers, each with a build of its own;
+ * `mountedAgain()` is the same bike behind the SAME server.
  */
 function savedWorld(
   preset: PresetId,
@@ -172,7 +191,14 @@ function savedWorld(
     down = false,
     queued = false,
     refuse,
-  }: { held?: boolean; down?: boolean; queued?: boolean; refuse?: ActionErrorCode } = {},
+    bikeId = BIKE_ID,
+  }: {
+    held?: boolean;
+    down?: boolean;
+    queued?: boolean;
+    refuse?: ActionErrorCode;
+    bikeId?: string;
+  } = {},
 ): World {
   let server = build;
   const writes: Write[] = [];
@@ -201,25 +227,23 @@ function savedWorld(
     server = next;
     return ok(server);
   };
-  const repo = bikeRepoFor("db", {
-    bikeId: BIKE_ID,
-    actions: {
-      async updatePart(input) {
-        if (input.bikeId !== BIKE_ID) return fail("NOT_FOUND");
-        for (const [key, value] of Object.entries(input.attributes)) {
-          writes.push({ partId: input.partId, key, value });
-        }
-        if (!queued) return answer(input);
-        const mine = turn.then(() => answer(input));
-        turn = mine.catch(() => undefined);
-        return mine;
-      },
-      updateFit: async () => fail("NOT_FOUND"),
+  const actions: RemoteBikeActions = {
+    async updatePart(input) {
+      if (input.bikeId !== bikeId) return fail("NOT_FOUND");
+      for (const [key, value] of Object.entries(input.attributes)) {
+        writes.push({ partId: input.partId, key, value });
+      }
+      if (!queued) return answer(input);
+      const mine = turn.then(() => answer(input));
+      turn = mine.catch(() => undefined);
+      return mine;
     },
-  });
-  return {
+    updateFit: async () => fail("NOT_FOUND"),
+  };
+  const world: World = {
     kind: "saved",
-    repo,
+    bikeParam: bikeId,
+    repo: bikeRepoFor("db", { bikeId, actions }),
     build,
     writes,
     stored: (partId, key) => attributeOf(server, partId, key),
@@ -232,7 +256,9 @@ function savedWorld(
         await settle();
       }
     },
+    mountedAgain: () => ({ ...world, repo: bikeRepoFor("db", { bikeId, actions }) }),
   };
+  return world;
 }
 
 const WORLDS = {
@@ -250,7 +276,7 @@ function Harness({ world }: { world: World }): React.JSX.Element {
       build={liveBuild}
       repo={world.repo}
       guides={[]}
-      bikeParam={world.kind === "guest" ? "local" : BIKE_ID}
+      bikeParam={world.bikeParam}
       tab={tab}
       onTabChange={setTab}
       onSaved={setLiveBuild}
@@ -359,6 +385,13 @@ function typeUnreadableInto(key: string): void {
 
 const UNSAVED_WIDTH = "Pneu avant · Largeur du pneu : votre saisie n’a pas été enregistrée.";
 const NOT_POSSIBLE = "Cette valeur n’est pas possible pour cette caractéristique.";
+
+/** The stock gravel bike with one tyre's width set: what a page hands down after that write. */
+function withWidth(partId: "tire-front" | "tire-rear", width: number): BikeBuild {
+  const change = setAttribute(presetBuild("gravel-1x11"), partId, "etrto-width", width);
+  if (!change.ok) throw new Error("the domain refused the seed");
+  return change.build;
+}
 
 beforeEach(() => {
   notice.error.mockClear();
@@ -1368,6 +1401,137 @@ describe("what the review found — a value typed while an earlier write of the 
 
     expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
     expect(status("etrto-width")).toBe("");
+  });
+});
+
+describe("what the second review found — the write in flight was sent by a workspace that is gone", () => {
+  /**
+   * The removal's write on a ROUTE change (history back) is still on its way
+   * when the visitor comes forward again. The workspace is mounted anew and
+   * builds its repo anew, and the page the router kept still says 42. The
+   * record of writes in flight was kept per repo OBJECT, so the new form knew
+   * nothing of the 45: 42 typed and left was "unchanged", nothing was sent, and
+   * the bike ended at 45 (`.debug/017` §5.8, "Second review" — in jsdom, and in
+   * Chromium on a saved bike). The record is the BIKE's.
+   *
+   * What is held here is that the second write is SENT. The two are answered
+   * in the order they were sent; after a navigation Next's client has both in
+   * transit together, and which the bike ends on is then the order they reach
+   * the server in — that note says what was measured of it.
+   */
+  const leaves = ["the field is LEFT", "the 'Pièces' tab is pressed"] as const;
+
+  it.each(leaves)(
+    "45 typed and not left, the route left and come back to — a new workspace, a NEW repo, the same bike — then 42 typed and %s: the 42 is sent, and the bike ends at 42",
+    async (leave) => {
+      const world = savedWorld("gravel-1x11", undefined, { held: true });
+      const before = await open(world);
+      await before.user.click(row("tire-front"));
+      await typeInto(before.user, "etrto-width", "45");
+      before.unmount(); // the route changes: the removal sends 45, which does not answer yet
+      expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+
+      const back = world.mountedAgain!();
+      expect(back.repo).not.toBe(world.repo);
+      const { user } = await open(back);
+      await user.click(row("tire-front"));
+      expect(field("etrto-width").value).toBe("42");
+      expect(field("etrto-width")).not.toBeDisabled();
+
+      // The whole case: the 45 has NOT answered when the 42 is typed.
+      await typeInto(user, "etrto-width", "42");
+      expect(world.stored("tire-front", "etrto-width")).toBe(42);
+      if (leave === "the field is LEFT") {
+        await user.tab();
+        expect(status("etrto-width")).toBe("Enregistrement…");
+      } else {
+        await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      }
+      // Sent, with the 45 still unanswered.
+      expect(world.writes.map((write) => write.value)).toEqual([45, 42]);
+      expect(world.stored("tire-front", "etrto-width")).toBe(42);
+
+      await world.answer!(2);
+      expect(world.writes).toEqual([
+        { partId: "tire-front", key: "etrto-width", value: 45 },
+        { partId: "tire-front", key: "etrto-width", value: 42 },
+      ]);
+      expect(world.stored("tire-front", "etrto-width"), "the last value typed").toBe(42);
+      if (leave === "the field is LEFT") {
+        expect(field("etrto-width").value).toBe("42");
+        expect(status("etrto-width")).toBe("Enregistré");
+      }
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+
+  it("once that write has answered, the new workspace's field is back to rule 2: a value typed back to what is stored is not a write", async () => {
+    const world = savedWorld("gravel-1x11", undefined, { held: true });
+    const before = await open(world);
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    await world.answer!();
+    expect(world.stored("tire-front", "etrto-width")).toBe(45);
+
+    // The page that comes back after the answer says 45.
+    const { user } = await open({ ...world.mountedAgain!(), build: withWidth("tire-front", 45) });
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("45");
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+
+    expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+    expect(status("etrto-width")).toBe("");
+  });
+
+  it("a write that did not answer at all is not in flight for ever: back on the bike, a value typed back to what is stored is not a write", async () => {
+    const lost = savedWorld("gravel-1x11", undefined, { held: true, down: true });
+    const before = await open(lost);
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    await lost.answer!(); // …with an error: the network went
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+
+    // The same bike, reachable again.
+    const world = savedWorld("gravel-1x11");
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    await settle();
+
+    expect(world.writes).toEqual([]);
+    expect(status("etrto-width")).toBe("");
+  });
+
+  it("ANOTHER bike's write of the same part and field, still in flight, is not this bike's: a value typed back to what is stored is not a write", async () => {
+    // The record is per bike, not per part: the visitor left bike A with 45 on
+    // its way and opened bike B — whose front tyre nobody is writing.
+    const other = savedWorld("gravel-1x11", undefined, { held: true, bikeId: OTHER_BIKE_ID });
+    const before = await open(other);
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    expect(other.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+
+    const world = savedWorld("gravel-1x11");
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    await settle();
+
+    expect(world.writes).toEqual([]);
+    expect(status("etrto-width")).toBe("");
+    await other.answer!();
+    expect(other.stored("tire-front", "etrto-width")).toBe(45);
   });
 });
 

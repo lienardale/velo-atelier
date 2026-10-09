@@ -775,10 +775,23 @@ docs/                contributor and operator docs — every one is linked from 
   still clears the attribute, as on `main`: that exit awaits a ruling
   (`docs/backlog.md`) — do not read a rule out of it. **"What is stored", in
   rule 2, is only what the form was last told**: writes sent and not yet
-  answered are counted at module level, per repo and `part:key`, and while
+  answered are counted at module level, per BIKE and `part:key`, and while
   that count is not zero an edit is sent whatever it compares to — with 45 on
   its way, 42 typed back into a field still showing 42 used to be "unchanged",
-  and the bike ended at 45. A write that answers after its form is gone hands
+  and the bike ended at 45. **The count is keyed by `repo.bikeParam`, never by
+  the repo object**: `BikeWorkspace` builds its repo when it mounts, so a
+  route left and come straight back to is a second object over the same bike
+  while the first one's write is still on its way — keyed by the object, as
+  it first was, the same 42 was "unchanged" again (8 runs of 8 in Chromium on
+  that build; found by the second review). Keyed by a name, three things an
+  object gave for free need a test each, and have one: another bike's write
+  is not this bike's, and a write that failed, or answered, is no longer in
+  flight. What the count does NOT do is order two writes: after a navigation
+  Next's client has both in transit together (measured), the server applies
+  them in the order they arrive, and delivered the other way round the bike
+  ends at the first one typed — with the page saying so in the end
+  (`.debug/017` §5.8, "Second review"; `docs/backlog.md`). A write that
+  answers after its form is gone hands
   its build up (`onSaved`) and reports a refusal as a notice naming the part
   and the field (`bike.panel.unsaved`), never under another part's field; an
   untouched field follows the stored value when it changes under it, and text
@@ -853,7 +866,11 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   produced, in the server actions, in the guest repo and in `prisma/seed.ts`
   alike. `lib/bike/repo.ts` is the one interface over the three destinations
   (demo = read-only, local = `localStorage`, db = server actions), so no
-  component branches on the ref kind.
+  component branches on the ref kind. **A repo says which bike it writes —
+  `bikeParam`: `demo`, `local`, or the UUID — because a repo OBJECT is not
+  the bike**: `BikeWorkspace` builds one each time it mounts, so whatever is
+  remembered about a bike from one mount to the next is keyed by that name,
+  never by the object (the part form's writes in flight, above).
 - **The guest import is a contract, not three storage shapes forwarded — and a
   checkup travels as ANSWERS, never as steps.** `/import` is a server page
   (`auth()` + `buildMetadata`, like its `(protected)` siblings) wrapping one

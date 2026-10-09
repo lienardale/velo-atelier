@@ -220,9 +220,11 @@ describe("editing parts of one bike from several calls at once", () => {
    * is sent at once, whatever is pending (`.debug/017` §5.8, "Review of the fix") — and
    * two tabs or two devices need no navigation at all.
    *
-   * Twelve edits of twelve different fields, sent in the same tick. Without
-   * the row's lock every call reads the bike before any has written, so the
-   * last write is the only one left.
+   * Twelve edits of twelve different fields, started one event-loop turn
+   * apart so that they overlap (`sentTogether`). Without the row's lock,
+   * calls that overlap read the bike before the others have written, and
+   * most of the edits are lost: nine of the twelve, in the one run made on
+   * the unlocked action.
    */
   it("keeps every one of twelve edits sent together: none is written over another", async () => {
     await signedInUser("together@velo-atelier.test");

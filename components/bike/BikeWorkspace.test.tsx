@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readLocalBike, writeLocalBike } from "@/lib/bike/local-bike";
 import { resetLocalBikeSnapshotCache } from "@/lib/bike/repo";
@@ -45,6 +45,13 @@ const server = vi.hoisted(() => ({
   latencyMs: 0,
   /** The action does not answer at all: the network went, the function crashed. */
   down: false,
+  /**
+   * Every call waits until the CASE lets it be answered (`answerHeld`): "a
+   * write is in flight" as a state the case is in, never a timer against the
+   * clicks that have to fit before it.
+   */
+  hold: false,
+  held: [] as (() => void)[],
 }));
 
 const notice = vi.hoisted(() => ({
@@ -68,7 +75,8 @@ vi.mock("@/app/[locale]/velo/[id]/actions", () => ({
     attributes: Record<string, AttributeValue | null>;
   }) => {
     server.payloads.push(structuredClone(input));
-    await new Promise((resolve) => setTimeout(resolve, server.latencyMs));
+    if (server.hold) await new Promise<void>((resolve) => server.held.push(resolve));
+    else await new Promise((resolve) => setTimeout(resolve, server.latencyMs));
     if (server.down) throw new TypeError("Failed to fetch");
     let build = server.build as BikeBuild;
     for (const [key, value] of Object.entries(input.attributes)) {
@@ -125,6 +133,14 @@ const local = (partId: string, key: string): AttributeValue | undefined => {
 };
 const saved = (partId: string, key: string): AttributeValue | undefined =>
   attributeOf(server.build as BikeBuild, partId, key);
+
+/** Let the oldest held write be answered (`server.hold`). */
+async function answerHeld(): Promise<void> {
+  const next = server.held.shift();
+  if (next === undefined) throw new Error("no write is in flight to be answered");
+  next();
+  await settle();
+}
 
 /** `?part=` as a history move delivers it: no press, no focus change. */
 function historyMoveTo(partId: PartId): void {
@@ -221,10 +237,18 @@ beforeEach(() => {
   server.payloads.length = 0;
   server.latencyMs = 0;
   server.down = false;
+  server.hold = false;
   server.build = null;
   window.localStorage.clear();
   resetLocalBikeSnapshotCache();
   setMediaQuery(MEDIA.shortViewport, false);
+});
+
+// A case that failed half-way leaves its held writes unanswered, and React
+// entangles async transitions: the cases after it would wait on theirs for ever.
+afterEach(async () => {
+  for (const release of server.held.splice(0)) release();
+  await settle();
 });
 
 const LAYOUTS = [
@@ -632,6 +656,49 @@ describe("what the review found — a saved bike whose write does not answer", (
     server.down = false;
     await openSaved("gravel-1x11");
     expect(screen.queryByTestId("unsaved-notices")).toBeNull();
+  });
+});
+
+describe("what the second review found — the workspace mounted again while its own write is in flight", () => {
+  /**
+   * A route change and straight back, as the real workspace lives it: it is
+   * unmounted with 45 typed and not left (the removal sends it), and mounted
+   * again — which builds its repo again (`useMemo`) — over the page the router
+   * kept, which still says 42. The form's record of writes in flight was kept
+   * per repo OBJECT: 42 typed and left compared as "unchanged", nothing was
+   * sent, and the bike ended at 45 (`.debug/017` §5.8, "Second review").
+   * The two writes are answered here in the order they were sent.
+   */
+  it("45 typed and not left, the route left and come back to at once, 42 typed and the field left: the 42 is sent too, and the bike ends at 42", async () => {
+    server.hold = true;
+    const before = await openSaved("gravel-1x11");
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    expect(server.payloads).toEqual([
+      { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 45 } },
+    ]);
+    expect(saved("tire-front", "etrto-width")).toBe(42);
+
+    const { user } = await openSaved("gravel-1x11");
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    expect(status("etrto-width")).toBe("Enregistrement…");
+
+    await answerHeld();
+    expect(saved("tire-front", "etrto-width")).toBe(45);
+    await answerHeld();
+
+    expect(server.payloads).toEqual([
+      { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 45 } },
+      { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 42 } },
+    ]);
+    expect(saved("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
+    expect(field("etrto-width").value).toBe("42");
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(notice.error).not.toHaveBeenCalled();
   });
 });
 
