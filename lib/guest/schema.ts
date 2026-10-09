@@ -74,6 +74,13 @@
  * list line's `refinement` — because a `maxLength` says nothing about a map,
  * and so that a refusal is a `VALIDATION` rather than rows nobody bounded.
  *
+ * What a cap bounds is what is WRITTEN, not how much of a payload is read:
+ * zod runs a check on a value it has already parsed, so an array or a record
+ * over its cap has had every entry walked by the time it is refused. The
+ * 256 KB wall is what bounds the walk, which is why the action measures the
+ * payload before it calls the parser. Removing the byte budget because "the
+ * caps cover it" would remove the only bound there is.
+ *
  * ## What PostgreSQL is known not to store is refused here
  *
  * A refusal further down is a transaction that throws, i.e. a 500 and a page
@@ -88,10 +95,15 @@
  *   - **a lone surrogate, in every string** — half of a pair, which is what
  *     cutting a text in the middle of an emoji leaves. `jsonb` refuses it
  *     (`invalid input syntax for type json`: a refinement value, a chosen
- *     product's field, a part's free-text attribute). `text` does not refuse
- *     it and does not keep it either: the column comes back holding U+FFFD in
- *     its place, so the row no longer says what the payload said — and the
- *     account could then never be found to hold that copy ({@link storable});
+ *     product's field, a part's free-text attribute — the half travels there
+ *     as a JSON escape, and PostgreSQL refuses the escape). A `text` column
+ *     never receives it: UTF-8 has no encoding for half a pair, and
+ *     node-postgres writes U+FFFD (the bytes EF BF BD) in its place BEFORE
+ *     PostgreSQL sees anything. PostgreSQL stores what it was sent, so the
+ *     row no longer says what the payload said — and the account could then
+ *     never be found to hold that copy ({@link storable}). Given the
+ *     surrogate's own bytes (ED A0 BD) PostgreSQL does not store them either:
+ *     22021, `invalid byte sequence for encoding "UTF8"`;
  *   - a date before year 1: zod's `iso.datetime` accepts year 0000, Postgres
  *     answers 22008.
  *
@@ -99,8 +111,8 @@
  * contract to the real database, and through it.
  *
  * The COLLECTOR does not hand over a lone surrogate in the first place: it
- * replaces each with U+FFFD ({@link wellFormed}), which is what a `text`
- * column was found to hold for one anyway. So a note or a product name cut in
+ * replaces each with U+FFFD ({@link wellFormed}), which is the character the
+ * driver was found to send for one anyway. So a note or a product name cut in
  * the middle of an emoji is imported, and the refusal above is for a payload
  * that did not come from {@link collectGuestState}.
  *
@@ -149,8 +161,11 @@ export const GUEST_CAPS = {
   listsPerBike: 10,
   /**
    * Entries in each of a checkup's three records (answers, symptoms, notes).
-   * The whole corpus is 222 check steps today; no single checkup can answer
-   * more of them than exist.
+   * A checkup asks the steps of CHECK guides only (`planCheckup`), and the
+   * corpus has 64 of those today, in 13 guides — counted on 2026-10-09 in the
+   * generated `GUIDE_STEP_KEYS`, whose 222 entries are the step keys of every
+   * guide kind. No single checkup can answer more questions than exist, so
+   * the cap is roomy, not tight: do not size anything from the 222.
    */
   answersPerCheckup: 250,
   /** The wizard's own bound (`MAX_SYMPTOMS`): a step's `ko[]` is the real one. */
@@ -359,14 +374,24 @@ const NUL = String.fromCharCode(0);
  * Measured on 2026-10-09 (PostgreSQL 16, Prisma 7.10.0): in a `jsonb` column —
  * a refinement value, a chosen product's field, a part's free-text attribute —
  * the insert is refused (`invalid input syntax for type json`, P2007) and the
- * transaction throws, high half or low half alike. In a `text` column it is
- * stored as U+FFFD: the import went through, and the same copy sent again was
- * answered `skipped: 'bike-already-imported'`, because the row's note was no
- * longer the copy's.
+ * transaction throws, high half or low half alike. For a `text` column the
+ * row ends up holding U+FFFD: the import went through, and the same copy sent
+ * again was answered `skipped: 'bike-already-imported'`, because the row's
+ * note was no longer the copy's.
+ *
+ * WHO writes that U+FFFD was measured separately, the same day, with
+ * node-postgres 8.23.0 against PostgreSQL 16.15 and its socket recorded: the
+ * driver. The bytes it wrote for `a`, the high half, `b` were
+ * `61 ef bf bd 62` — the half already replaced — and PostgreSQL stored the
+ * five octets it was sent. Handed the surrogate's own bytes (`ED A0 BD`)
+ * PostgreSQL refuses them in `text` (22021, invalid byte sequence), and it
+ * refuses the escaped half in `jsonb` (22P02). So PostgreSQL never turns a
+ * half pair into another character; nothing it is sent through this driver
+ * still holds one. The outcome for the visitor, and the rule, are the same.
  */
 const LONE_SURROGATE = /\p{Cs}/u;
 
-/** Is `value` a string PostgreSQL stores as it is — in a `text` column and in a `jsonb` one? */
+/** Is `value` a string a row ends up holding as it is — in a `text` column and in a `jsonb` one? */
 function storable(value: string): boolean {
   return !value.includes(NUL) && !LONE_SURROGATE.test(value);
 }
@@ -636,10 +661,11 @@ const LONE_SURROGATES = /\p{Cs}/gu;
  *
  * Half a surrogate pair is not a character: it is what a cut at a fixed length
  * leaves of an emoji (the wizard caps a note with `slice(0, 2000)`), UTF-8
- * has no encoding for it, and on PostgreSQL a `text` column ends up holding
- * U+FFFD in its place while a `jsonb` one refuses the row. The projection
- * makes the same replacement itself, once, so that what is sent is what will
- * be stored — a note cut that way is imported instead of making its checkup
+ * has no encoding for it, so node-postgres sends U+FFFD in its place to a
+ * `text` column — the driver, before PostgreSQL sees anything — while a
+ * `jsonb` column, which gets the half as a JSON escape, refuses the row. The
+ * projection makes the same replacement itself, once, so that what is sent is
+ * what will be stored — a note cut that way is imported instead of making its checkup
  * `unreadable`, and a product name cut that way does not make the server
  * refuse the bike. Nothing a person typed is lost by it, and storage is not
  * written to.

@@ -763,9 +763,15 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   U+0000 in ANY string is a `VALIDATION` (`text` answers 22021, `jsonb`
   22P05), and so is a LONE SURROGATE — half of a pair, what a cut in the
   middle of an emoji leaves. `jsonb` refuses the insert (P2007,
-  `invalid input syntax for type json`); a `text` column ends up holding
-  U+FFFD in its place, a row that no longer says what the payload said (and
-  that `accountHolds` then never finds equal to the copy). Both rules hold in
+  `invalid input syntax for type json`: the half arrives as a JSON escape and
+  PostgreSQL refuses the escape); a `text` column ends up holding U+FFFD in
+  its place, a row that no longer says what the payload said (and that
+  `accountHolds` then never finds equal to the copy). **That U+FFFD is the
+  driver's, not PostgreSQL's**: UTF-8 has no encoding for half a pair, and
+  node-postgres writes the bytes EF BF BD on its socket BEFORE PostgreSQL
+  sees anything (measured with the socket recorded, node-postgres 8.23.0);
+  handed the surrogate's own bytes, PostgreSQL refuses them in `text` too
+  (22021, invalid byte sequence). Both rules hold in
   names, notes, refinement values, a chosen product's fields, and anywhere
   inside the two untyped values, `parts` and `fit`, keys included —
   `validateBuild` takes a part's free-text attribute by length alone. A date
@@ -780,7 +786,7 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   pair is what honest use can leave — the wizard caps a note with
   `slice(0, 2000)`, which counts code units — and the server refuses a payload
   WHOLE. So a note or a product name cut that way is imported, with the
-  character a `text` column was found to hold for it anyway, and the
+  character the driver was found to send for it anyway, and the
   contract's refusal is for a payload the page did not build. Storage itself
   is never rewritten. U+0000 is NOT replaced: nothing a person does produces
   one, and there is no character to put in its place.
