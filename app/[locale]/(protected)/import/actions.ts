@@ -20,9 +20,12 @@
  *   3. **Shape.** `GuestStateSchema` is a `strictObject` all the way down, so an
  *      `id`, a `userId` or a `spec` smuggled into a bike is `VALIDATION`, not a
  *      column (§4.7 mass assignment). The caps live in the schema too: blowing
- *      one is a refusal, never a hundred rows. So does everything PostgreSQL
- *      would refuse — a U+0000, a date it has no year for — because past this
- *      wall a refusal is a transaction that throws. A checkup is its ANSWERS,
+ *      one is a refusal, never a hundred rows. So does what PostgreSQL is
+ *      known not to store — a U+0000, half a surrogate pair, a date it has no
+ *      year for (the list is in `lib/guest/schema.ts`, each entry measured) —
+ *      because past this wall a refusal is a transaction that throws. A
+ *      payload the page collected holds no half pair to begin with: the
+ *      collector replaces it with U+FFFD. A checkup is its ANSWERS,
  *      keyed by step key: which part and which guide each one is about is not
  *      in the payload at all — the bike's plan is recomputed (§5.4), and an
  *      answer to a question this bike is not asked is dropped, not stored.

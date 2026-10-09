@@ -105,6 +105,23 @@ function storageWithCheckup(raw: string | null) {
 const collect = (storage: ReturnType<typeof memoryStorage> | null): GuestCollection =>
   collectGuestState({ storage, ...GUEST_NAMES });
 
+/**
+ * The two halves of one emoji and the character that replaces a half left
+ * alone — by their codes, so that no tool reads this file as holding one.
+ * `HIGH + LOW` is U+1F600, a well-formed pair.
+ */
+const HIGH = String.fromCharCode(0xd83d);
+const LOW = String.fromCharCode(0xde00);
+const EMOJI = HIGH + LOW;
+const REPLACEMENT = String.fromCharCode(0xfffd);
+
+/** Every string inside `value` — keys and values, at any depth. */
+function stringsOf(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (typeof value !== "object" || value === null) return [];
+  return Object.entries(value).flatMap(([key, child]) => [key, ...stringsOf(child)]);
+}
+
 // ── the collector ────────────────────────────────────────────────────────────
 
 describe("collectGuestState", () => {
@@ -272,6 +289,128 @@ describe("collectGuestState", () => {
       // The bike still goes: the payload without the checkup is one the server takes.
       expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok, name).toBe(true);
     }
+  });
+
+  it("collects a note the wizard's own cap cut in the middle of an emoji — with U+FFFD, not half a pair", () => {
+    // Not a hand-made value: the reducer caps a note with `slice(0, 2000)`,
+    // and a slice counts code units. An emoji astride the cap leaves its first
+    // half. zod, JSON and the wizard's guard all carry it; PostgreSQL does not.
+    const cut = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: {
+            [CHAIN]: {
+              ko: ["chain-elongation"],
+              notes: `${EMOJI} ${"x".repeat(MAX_NOTE_LENGTH - 4)}${EMOJI}`,
+            },
+            [CASSETTE]: "ok",
+          },
+          startedAt: STARTED_AT,
+          completedAt: COMPLETED_AT,
+        }),
+    });
+    const raw = cut.storage.map.get(checkupKey("local")) as string;
+    const storedNote = (JSON.parse(raw) as { notes: Record<string, string> }).notes[CHAIN];
+    expect(storedNote).toHaveLength(MAX_NOTE_LENGTH);
+    expect(storedNote.endsWith(HIGH)).toBe(true);
+    expect(storedNote.isWellFormed()).toBe(false);
+
+    const { state, checkup } = cut.collect();
+    // Collected — a cut note is a note, not a reason to leave the checkup behind.
+    expect(checkup).toBe("collected");
+    const note = state.bikes[0].checkups[0].notes[CHAIN];
+    // The half is replaced, where it was; the WHOLE emoji before it is untouched.
+    expect(note).toBe(`${storedNote.slice(0, -1)}${REPLACEMENT}`);
+    expect(note.startsWith(`${EMOJI} x`)).toBe(true);
+    expect(note).toHaveLength(MAX_NOTE_LENGTH);
+    // What is sent is a payload the server takes…
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+    // …and reading wrote nothing: the key is as the wizard left it.
+    expect(cut.storage.map.get(checkupKey("local"))).toBe(raw);
+  });
+
+  it("hands over no lone surrogate from ANY key — a part's attribute, the fit, a line's refinement and product", () => {
+    // None of these three values is checked against the contract on this side
+    // (only the checkup is), and the server refuses a payload WHOLE: one half
+    // emoji in a product name would be an import that fails for ever.
+    const bikeRaw = JSON.parse(LOCAL_BIKE_RAW) as {
+      parts: { partId: string; attributes: Record<string, unknown> }[];
+      fit: Record<string, unknown>;
+    };
+    const pads = bikeRaw.parts.find((part) => part.partId === "brake-pads-front");
+    if (pads === undefined) throw new Error("the gravel preset has front brake pads");
+    pads.attributes["pad-model"] = `B05S${HIGH}`;
+    bikeRaw.fit = { saddleHeightMm: 742, [`note${LOW}`]: `${LOW}${HIGH}` };
+
+    const listRaw = JSON.parse(LIST_RAW) as { name?: string; items: Record<string, unknown>[] };
+    // A name the collector itself cuts at 80 code units — through an emoji.
+    listRaw.name = `${"n".repeat(79)}${EMOJI}`;
+    listRaw.items[0].refinement = { speeds: `11${LOW}`, model: EMOJI };
+    listRaw.items[0].chosenProduct = {
+      brand: `${HIGH}Shimano`,
+      model: `CN${HIGH}HG601`,
+      size: `11v${LOW}`,
+      vendor: "other",
+      url: "https://example.com/chaine",
+    };
+
+    const raws = {
+      [LOCAL_BIKE_KEY]: JSON.stringify(bikeRaw),
+      [checkupKey("local")]: CHECKUP_RAW,
+      [buildListKey("local")]: JSON.stringify(listRaw),
+    };
+    const storage = memoryStorage(raws);
+    const { state, checkup } = collect(storage);
+    expect(checkup).toBe("collected");
+    const [bike] = state.bikes;
+
+    const collectedPads = (
+      bike.parts as { partId: string; attributes: Record<string, unknown> }[]
+    ).find((part) => part.partId === "brake-pads-front");
+    expect(collectedPads?.attributes["pad-model"]).toBe(`B05S${REPLACEMENT}`);
+    // A key too: the contract walks the keys of `fit`, and would refuse this one.
+    expect(bike.fit).toEqual({
+      saddleHeightMm: 742,
+      [`note${REPLACEMENT}`]: `${REPLACEMENT}${REPLACEMENT}`,
+    });
+    // The collector's own cut (`slice(0, 80)`) left a half; it does not send it.
+    expect(bike.lists[0].name).toBe(`${"n".repeat(79)}${REPLACEMENT}`);
+    const [line] = bike.lists[0].items;
+    // A whole emoji is a character like any other, and stays one.
+    expect(line.refinement).toEqual({ speeds: `11${REPLACEMENT}`, model: EMOJI });
+    expect(line.chosenProduct).toEqual({
+      brand: `${REPLACEMENT}Shimano`,
+      model: `CN${REPLACEMENT}HG601`,
+      size: `11v${REPLACEMENT}`,
+      vendor: "other",
+      url: "https://example.com/chaine",
+    });
+
+    // Not one string of the payload is ill-formed, and the server takes it…
+    const strings = stringsOf(state);
+    expect(strings.length).toBeGreaterThan(100);
+    expect(strings.filter((value) => !value.isWellFormed())).toEqual([]);
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+    // …while the very same values, sent as they are stored, are refused: the
+    // replacement is what lets this bike in, not a contract that looks away.
+    const asStored = JSON.parse(JSON.stringify(state)) as GuestState;
+    asStored.bikes[0].lists[0].items[0].refinement = { speeds: `11${LOW}` };
+    expect(parseGuestState(asStored).ok).toBe(false);
+    // Storage is read, never repaired: all three keys byte for byte.
+    for (const [key, raw] of Object.entries(raws)) expect(storage.map.get(key), key).toBe(raw);
+  });
+
+  it("changes nothing in a payload that holds no lone surrogate", () => {
+    // The projection of the module-scope fixture, which has accents, a comma
+    // and no half pair: the same values the three keys hold.
+    const [bike] = collected.bikes;
+    expect(bike.parts).toEqual(work.bike.parts);
+    expect(bike.answers).toEqual(work.bike.answers);
+    expect(bike.checkups[0].notes).toEqual({ [CHAIN]: "élongation 0,8 %" });
   });
 
   it("reads what writeGuestBuildList actually writes, named in the visitor's language", () => {
@@ -530,76 +669,129 @@ describe("GuestStateSchema", () => {
     expect(accepts((s) => delete s.bikes[0].checkups[0].completedAt)).toBe(true);
   });
 
+  // ── the strings no pattern matches ─────────────────────────────────────────
+
+  const TYPED_PRODUCT = {
+    brand: "Shimano",
+    model: "CN-HG601",
+    size: "11v",
+    vendor: "other",
+    url: "https://example.com/chaine",
+  };
+  /** The payload with a refinement and a product on its one line, then `mutate`d. */
+  const acceptsTyped = (mutate: (state: GuestState) => void): boolean => {
+    const tampered = payload();
+    Object.assign(tampered.bikes[0].lists[0].items[0], {
+      refinement: { speeds: "11" },
+      chosenProduct: { ...TYPED_PRODUCT },
+    });
+    mutate(tampered);
+    return parseGuestState(tampered).ok;
+  };
+  const typedLine = (s: GuestState) => s.bikes[0].lists[0].items[0];
+  /**
+   * Every place of the payload where a string is free text — held by `text()`
+   * or by the walk over the two untyped values, keys included — and how to put
+   * `poison` there.
+   */
+  const FREE_STRINGS: Record<string, (state: GuestState, poison: string) => void> = {
+    "the bike's name": (s, poison) => (s.bikes[0].name = `Mon${poison}vélo`),
+    "a note": (s, poison) => (s.bikes[0].checkups[0].notes[CHAIN] = `usure${poison}`),
+    "the list's name": (s, poison) => (s.bikes[0].lists[0].name = `Ma${poison}liste`),
+    "a refinement value": (s, poison) => (typedLine(s).refinement = { speeds: `11${poison}` }),
+    "the product's brand": (s, poison) =>
+      (typedLine(s).chosenProduct = { ...TYPED_PRODUCT, brand: `Shi${poison}mano` }),
+    "the product's model": (s, poison) =>
+      (typedLine(s).chosenProduct = { ...TYPED_PRODUCT, model: `CN${poison}HG601` }),
+    "the product's size": (s, poison) =>
+      (typedLine(s).chosenProduct = { ...TYPED_PRODUCT, size: `11${poison}v` }),
+    "the product's link": (s, poison) =>
+      (typedLine(s).chosenProduct = {
+        ...TYPED_PRODUCT,
+        url: `https://example.com/cha${poison}ine`,
+      }),
+    "a value inside a part": (s, poison) =>
+      (s.bikes[0].parts = [{ partId: "brake-pads-front", attributes: { "pad-model": poison } }]),
+    "a key inside a part": (s, poison) => (s.bikes[0].parts = [{ [`part${poison}Id`]: "chain" }]),
+    "a value nested in the fit": (s, poison) => (s.bikes[0].fit = { a: [[{ b: `x${poison}` }]] }),
+    "a key of the fit": (s, poison) => (s.bikes[0].fit = { [`saddle${poison}`]: 742 }),
+  };
+
   it("refuses U+0000 in every string — the one character PostgreSQL stores in no column", () => {
     const NUL = String.fromCharCode(0);
-    const product = {
-      brand: "Shimano",
-      model: "CN-HG601",
-      size: "11v",
-      vendor: "other",
-      url: "https://example.com/chaine",
-    };
-    /** The payload with a refinement and a product on its one line, then `mutate`d. */
-    const accepts = (mutate: (state: GuestState) => void): boolean => {
-      const tampered = payload();
-      Object.assign(tampered.bikes[0].lists[0].items[0], {
-        refinement: { speeds: "11" },
-        chosenProduct: { ...product },
-      });
-      mutate(tampered);
-      return parseGuestState(tampered).ok;
-    };
-    const line = (s: GuestState) => s.bikes[0].lists[0].items[0];
-    const breakers: Record<string, (state: GuestState, poison: string) => void> = {
-      "the bike's name": (s, poison) => (s.bikes[0].name = `Mon${poison}vélo`),
-      "a note": (s, poison) => (s.bikes[0].checkups[0].notes[CHAIN] = `usure${poison}`),
-      "the list's name": (s, poison) => (s.bikes[0].lists[0].name = `Ma${poison}liste`),
-      "a refinement value": (s, poison) => (line(s).refinement = { speeds: `11${poison}` }),
-      "the product's brand": (s, poison) =>
-        (line(s).chosenProduct = { ...product, brand: `Shi${poison}mano` }),
-      "the product's model": (s, poison) =>
-        (line(s).chosenProduct = { ...product, model: `CN${poison}HG601` }),
-      "the product's size": (s, poison) =>
-        (line(s).chosenProduct = { ...product, size: `11${poison}v` }),
-      "the product's link": (s, poison) =>
-        (line(s).chosenProduct = { ...product, url: `https://example.com/cha${poison}ine` }),
-      "a value inside a part": (s, poison) =>
-        (s.bikes[0].parts = [{ partId: "brake-pads-front", attributes: { "pad-model": poison } }]),
-      "a key inside a part": (s, poison) => (s.bikes[0].parts = [{ [`part${poison}Id`]: "chain" }]),
-      "a value nested in the fit": (s, poison) => (s.bikes[0].fit = { a: [[{ b: `x${poison}` }]] }),
-      "a key of the fit": (s, poison) => (s.bikes[0].fit = { [`saddle${poison}`]: 742 }),
-    };
-    for (const [name, poison] of Object.entries(breakers)) {
+    expect(Object.keys(FREE_STRINGS)).toHaveLength(12);
+    for (const [name, poison] of Object.entries(FREE_STRINGS)) {
       expect(
-        accepts((s) => poison(s, NUL)),
+        acceptsTyped((s) => poison(s, NUL)),
         name,
       ).toBe(false);
       // The control: the same edit with an ordinary character in the same
       // place is accepted, so it is the character that is refused.
       expect(
-        accepts((s) => poison(s, "-")),
+        acceptsTyped((s) => poison(s, "-")),
         `${name} (control)`,
       ).toBe(true);
     }
     // Other control characters are stored like any text: a note keeps its line breaks.
-    expect(accepts((s) => (s.bikes[0].checkups[0].notes[CHAIN] = "ligne 1\nligne 2\t."))).toBe(
+    expect(acceptsTyped((s) => (s.bikes[0].checkups[0].notes[CHAIN] = "ligne 1\nligne 2\t."))).toBe(
       true,
     );
-    expect(accepts((s) => (s.bikes[0].fit = null))).toBe(true);
+    expect(acceptsTyped((s) => (s.bikes[0].fit = null))).toBe(true);
+  });
+
+  it("refuses a lone surrogate in every string — half an emoji, which jsonb refuses and text does not keep", () => {
+    // Found in review on 2026-10-09: a refinement value, a chosen product's
+    // field or a part's free-text attribute holding half a pair passed every
+    // wall and aborted the transaction (`invalid input syntax for type json`).
+    // In a `text` column Postgres stores U+FFFD in its place — not what was
+    // sent — so the rule is the same in every string.
+    const halves = {
+      "the first half alone": HIGH,
+      "the second half alone": LOW,
+      "the two halves the wrong way round": LOW + HIGH,
+      "a half before a whole emoji": HIGH + EMOJI,
+      "a half after a whole emoji": EMOJI + LOW,
+    };
+    for (const [name, poison] of Object.entries(FREE_STRINGS)) {
+      for (const [which, half] of Object.entries(halves)) {
+        expect(
+          acceptsTyped((s) => poison(s, half)),
+          `${name}: ${which}`,
+        ).toBe(false);
+      }
+      // The control: a WHOLE emoji in the same place is a character like any
+      // other. What is refused is the half, not the emoji and not the field.
+      expect(
+        acceptsTyped((s) => poison(s, EMOJI)),
+        `${name} (a whole emoji)`,
+      ).toBe(true);
+      expect(
+        acceptsTyped((s) => poison(s, EMOJI + EMOJI)),
+        `${name} (two whole emoji)`,
+      ).toBe(true);
+    }
+    // The character the collector puts in a half's place is an ordinary one.
+    expect(acceptsTyped((s) => FREE_STRINGS["a note"](s, REPLACEMENT))).toBe(true);
   });
 
   it("is not stopped by how deeply an untyped value is nested", () => {
-    // `parts` and `fit` are walked for a U+0000 with a stack of their own, not
-    // the call stack: a value nested a few thousand levels is still a value.
-    let nested: unknown = "leaf";
-    for (let depth = 0; depth < 5000; depth += 1) nested = [nested];
+    // `parts` and `fit` are walked for an unstorable string with a stack of
+    // their own, not the call stack: a value nested a few thousand levels is
+    // still a value.
+    const nest = (leaf: string): unknown => {
+      let nested: unknown = leaf;
+      for (let depth = 0; depth < 5000; depth += 1) nested = [nested];
+      return nested;
+    };
     const deep = payload();
-    deep.bikes[0].fit = nested;
+    deep.bikes[0].fit = nest("leaf");
     expect(parseGuestState(deep).ok).toBe(true);
-    let poisoned: unknown = String.fromCharCode(0);
-    for (let depth = 0; depth < 5000; depth += 1) poisoned = [poisoned];
-    deep.bikes[0].fit = poisoned;
+    deep.bikes[0].fit = nest(String.fromCharCode(0));
     expect(parseGuestState(deep).ok).toBe(false);
+    deep.bikes[0].fit = nest(HIGH);
+    expect(parseGuestState(deep).ok).toBe(false);
+    deep.bikes[0].fit = nest(EMOJI);
+    expect(parseGuestState(deep).ok).toBe(true);
   });
 
   it("caps a line's refinement — a record like the checkup's three, and written to a JSON column", () => {

@@ -39,10 +39,17 @@
  * real checkup (`.debug/017` §5.6).
  *
  *   - **What Postgres refuses.** A U+0000 in a `text` column (22021) or in a
- *     `jsonb` one (22P05), and a date in year 0000 (22008), each abort the
- *     transaction: the action throws, a 500. Only the real database can say
- *     that those are refused and that year 0001 is not — which is what makes
- *     the contract's wall the right one, and in the right place.
+ *     `jsonb` one (22P05), half a surrogate pair in a `jsonb` one, and a date
+ *     in year 0000 (22008), each abort the transaction: the action throws, a
+ *     500. Only the real database can say that those are refused and that
+ *     year 0001 is not — which is what makes the contract's wall the right
+ *     one, and in the right place.
+ *   - **What Postgres stores as something else.** Half a surrogate pair in a
+ *     `text` column is written as U+FFFD: nothing throws, and the row no
+ *     longer says what the payload said. The fake stores the half as it came.
+ *   - **A lost race that is a real P2002.** The losing device's create is
+ *     refused by the constraint itself, and what it is then told about its
+ *     checkup is decided on the rows the winner committed.
  *
  * The fixtures are what the wizard stores (see below), including the two
  * sequences found in review on 2026-10-09: a run opened on one part and
@@ -97,6 +104,7 @@ const { guestRun, guestWork, partsScope, resumeGuestRun } =
 
 type GuestBike = import("@/lib/guest/schema").GuestBike;
 type GuestState = import("@/lib/guest/schema").GuestState;
+type GuestImportStore = import("@/lib/guest/import").GuestImportStore;
 type GuestVerdict = import("@/tests/_helpers/guest-work").GuestVerdict;
 type GuestWork = import("@/tests/_helpers/guest-work").GuestWork;
 type CheckupState = import("@/lib/checkup/types").CheckupState;
@@ -494,6 +502,102 @@ describe("the constraints the feature rests on", () => {
       lists: 1,
       lines: 1,
     });
+  });
+
+  /**
+   * The real client, except that the FIRST ownership read misses: the other
+   * device has not committed yet. The create is then really attempted, and it
+   * is PostgreSQL's unique constraint that answers — the race, without the
+   * luck three simultaneous promises need to lose it in a given order.
+   */
+  function losingTheRace() {
+    let ownershipReads = 0;
+    const store = {
+      checkup: prisma.checkup,
+      buildList: prisma.buildList,
+      $transaction: (queries: never) => prisma.$transaction(queries),
+      bike: {
+        count: (args: never) => prisma.bike.count(args),
+        create: (args: never) => prisma.bike.create(args),
+        findFirst: (args: never) => {
+          ownershipReads += 1;
+          return ownershipReads === 1 ? Promise.resolve(null) : prisma.bike.findFirst(args);
+        },
+      },
+    } as unknown as GuestImportStore;
+    return { store, ownershipReads: () => ownershipReads };
+  }
+
+  it("answers the device that LOST the race on what the account holds of ITS copy, not on the key", async () => {
+    // The test above races three IDENTICAL copies, for which `already-imported`
+    // is true however it is decided. Two devices need not hold the same copy:
+    // here the winner imported the run unfinished, and the loser had carried
+    // it on and finished it. Answering the loser on the checkup's id alone
+    // would tell its browser to forget the only copy of those answers — and
+    // no test failed when the losing path did exactly that (found when the
+    // repair was verified, 2026-10-09).
+    const user = await signedInUser("import-race-differs@velo-atelier.test");
+    const unfinished: RunOptions = {
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+      completedAt: null,
+    };
+    const carriedOn: RunOptions = {
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] }, [CASSETTE]: { ko: ["cassette-worn"] } },
+    };
+
+    const won = await importGuestState(prisma, user.id, state(guestBike(unfinished)), deps);
+    expect(won.ok && won.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    const before = await countsFor(user.id);
+    expect(before).toMatchObject({ bikes: 1, checkups: 1, items: 1, lists: 0 });
+
+    const loser = state(guestBike(carriedOn));
+    const race = losingTheRace();
+    const lost = await importGuestState(race.store, user.id, loser, deps);
+    expect(lost.ok).toBe(true);
+    if (!lost.ok) return;
+    // The path taken is the constraint's: one read that missed, a create that
+    // PostgreSQL refused (P2002), one read that found the winner's row.
+    expect(race.ownershipReads()).toBe(2);
+    // Nothing of the loser's was written — not its list either…
+    expect(await countsFor(user.id)).toEqual(before);
+    const row = await prisma.checkup.findFirstOrThrow({
+      where: { bike: { userId: user.id } },
+      include: { items: true },
+    });
+    expect(row.status).toBe("IN_PROGRESS");
+    expect(row.scope).toBe("PARTIAL");
+    expect(row.items.map((item) => item.stepKey)).toEqual([CHAIN]);
+    // …so the cassette's answer and the end of the run are NOT in the account,
+    // and the browser is not told they are.
+    expect(lost.data.bikes[0]).toEqual({
+      localId: LOCAL_ID,
+      bikeId: won.ok ? won.data.bikeId : null,
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" }],
+    });
+    expect(settleGuestImport({ state: loser, checkup: "collected" }, lost.data)).toEqual({
+      checkup: { status: "skipped", reason: "bike-already-imported" },
+      clear: [LOCAL_BIKE_KEY, buildListKey("local")],
+    });
+
+    // The same race lost with the copy the winner DID write: that one is in
+    // the account, and its browser may forget it.
+    const sameCopy = state(guestBike(unfinished));
+    const second = losingTheRace();
+    const again = await importGuestState(second.store, user.id, sameCopy, deps);
+    expect(second.ownershipReads()).toBe(2);
+    expect(again.ok && again.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "already-imported" },
+    ]);
+    expect(await countsFor(user.id)).toEqual(before);
+    if (!again.ok) return;
+    expect(settleGuestImport({ state: sameCopy, checkup: "collected" }, again.data).clear).toEqual([
+      LOCAL_BIKE_KEY,
+      buildListKey("local"),
+      checkupKey("local"),
+    ]);
   });
 
   it("refuses a duplicate at the database level, not only in our code", async () => {
@@ -1073,7 +1177,7 @@ describe("`already-imported` is a statement about the checkup's CONTENT, not its
   });
 });
 
-describe("what PostgreSQL would refuse is a VALIDATION, not a 500", () => {
+describe("what PostgreSQL does not store is a VALIDATION, not a 500", () => {
   const NUL = String.fromCharCode(0);
 
   /** A finished checkup, its list — and one line carrying what the visitor typed. */
@@ -1093,32 +1197,89 @@ describe("what PostgreSQL would refuse is a VALIDATION, not a 500", () => {
     return bike;
   }
 
-  /** One field of the payload, with a U+0000 in it. */
-  const POISONED: Record<string, (bike: GuestBike) => void> = {
-    "the bike's name (text)": (bike) => {
-      bike.name = `Mon${NUL}vélo`;
+  type StoredParts = { partId: string; attributes: Record<string, unknown> }[];
+  const frontPads = (parts: unknown) => {
+    const pads = (parts as StoredParts).find((part) => part.partId === "brake-pads-front");
+    if (pads === undefined) throw new Error("the gravel preset has front brake pads");
+    return pads;
+  };
+
+  /** One field of the payload bound for a `text` column: how to poison it, and how to read the column back. */
+  const TEXT_FIELDS: Record<
+    string,
+    {
+      set: (bike: GuestBike, poison: string) => string;
+      read: (userId: string) => Promise<string | null>;
+    }
+  > = {
+    "the bike's name (text)": {
+      set: (bike, poison) => (bike.name = `Mon${poison}vélo`),
+      read: async (userId) => (await prisma.bike.findFirstOrThrow({ where: { userId } })).name,
     },
-    "a checkup note (text)": (bike) => {
-      bike.checkups[0].notes = { [CHAIN]: `usure${NUL}0,8 %` };
+    "a checkup note (text)": {
+      set: (bike, poison) => {
+        const note = `usure${poison}0,8 %`;
+        bike.checkups[0].notes = { [CHAIN]: note };
+        return note;
+      },
+      read: async (userId) =>
+        (
+          await prisma.checkupItem.findFirstOrThrow({
+            where: { stepKey: CHAIN, checkup: { bike: { userId } } },
+          })
+        ).notes,
     },
-    "the list's name (text)": (bike) => {
-      bike.lists[0].name = `Ma${NUL}liste`;
-    },
-    "a refinement value (jsonb)": (bike) => {
-      bike.lists[0].items[0].refinement = { speeds: `11${NUL}` };
-    },
-    "a chosen product's model (jsonb)": (bike) => {
-      const product = bike.lists[0].items[0].chosenProduct;
-      if (product !== undefined) product.model = `CN${NUL}HG601`;
-    },
-    "a part's free-text attribute (jsonb)": (bike) => {
-      const pads = (bike.parts as { partId: string; attributes: Record<string, unknown> }[]).find(
-        (part) => part.partId === "brake-pads-front",
-      );
-      if (pads === undefined) throw new Error("the gravel preset has front brake pads");
-      pads.attributes["pad-model"] = `B05S${NUL}`;
+    "the list's name (text)": {
+      set: (bike, poison) => (bike.lists[0].name = `Ma${poison}liste`),
+      read: async (userId) =>
+        (await prisma.buildList.findFirstOrThrow({ where: { bike: { userId } } })).name,
     },
   };
+
+  /** One field of the payload bound for a `jsonb` column, with `poison` in it. */
+  const JSONB_FIELDS: Record<string, (bike: GuestBike, poison: string) => void> = {
+    "a refinement value (jsonb)": (bike, poison) => {
+      bike.lists[0].items[0].refinement = { speeds: `11${poison}` };
+    },
+    "a chosen product's model (jsonb)": (bike, poison) => {
+      const product = bike.lists[0].items[0].chosenProduct;
+      if (product !== undefined) product.model = `CN${poison}HG601`;
+    },
+    "a part's free-text attribute (jsonb)": (bike, poison) => {
+      frontPads(bike.parts).attributes["pad-model"] = `B05S${poison}`;
+    },
+  };
+
+  /** Every field above, with a U+0000 in it. */
+  const POISONED: Record<string, (bike: GuestBike) => void> = {
+    ...Object.fromEntries(
+      Object.entries(TEXT_FIELDS).map(([name, field]) => [
+        name,
+        (bike: GuestBike) => void field.set(bike, NUL),
+      ]),
+    ),
+    ...Object.fromEntries(
+      Object.entries(JSONB_FIELDS).map(([name, set]) => [
+        name,
+        (bike: GuestBike) => set(bike, NUL),
+      ]),
+    ),
+  };
+
+  /** The visitor's three hourly attempts: `null` while none was spent. */
+  const attemptsSpent = (userId: string) =>
+    prisma.authAttempt.findUnique({ where: { key: rateLimitKey("guest-import", userId) } });
+
+  it("has six fields to poison: three text columns, three jsonb ones", () => {
+    expect(Object.keys(POISONED)).toEqual([
+      "the bike's name (text)",
+      "a checkup note (text)",
+      "the list's name (text)",
+      "a refinement value (jsonb)",
+      "a chosen product's model (jsonb)",
+      "a part's free-text attribute (jsonb)",
+    ]);
+  });
 
   it.each(Object.keys(POISONED))(
     "a U+0000 in %s: Postgres refuses the transaction — and the action answers VALIDATION before it",
@@ -1138,31 +1299,229 @@ describe("what PostgreSQL would refuse is a VALIDATION, not a 500", () => {
       // The wall: an answer the page can show, nothing written, no attempt spent.
       expect(await importGuestStateAction(state(bike))).toEqual({ ok: false, code: "VALIDATION" });
       expect(await countsFor(user.id)).toEqual(NOTHING);
-      expect(
-        await prisma.authAttempt.findUnique({
-          where: { key: rateLimitKey("guest-import", user.id) },
-        }),
-      ).toBeNull();
+      expect(await attemptsSpent(user.id)).toBeNull();
     },
   );
 
   it("the same payload without the U+0000 is imported whole — the wall refuses the character, not the field", async () => {
     const user = await signedInUser("import-nul-control@velo-atelier.test");
     const bike = withTypedLine();
-    const pads = (bike.parts as { partId: string; attributes: Record<string, unknown> }[]).find(
-      (part) => part.partId === "brake-pads-front",
-    );
-    if (pads !== undefined) pads.attributes["pad-model"] = "B05S";
+    frontPads(bike.parts).attributes["pad-model"] = "B05S";
     bike.checkups[0].notes = { [CHAIN]: "usure 0,8 %" };
     const result = await importGuestStateAction(state(bike));
     expect(result.ok && result.data.bikes[0].checkups).toEqual([
       { guestKey: CHECKUP_ID, status: "imported" },
     ]);
     const row = await prisma.bike.findFirstOrThrow({ where: { userId: user.id } });
-    const stored = (row.parts as { partId: string; attributes: Record<string, unknown> }[]).find(
-      (part) => part.partId === "brake-pads-front",
+    expect(frontPads(row.parts).attributes["pad-model"]).toBe("B05S");
+  });
+
+  // ── half a surrogate pair ──────────────────────────────────────────────────
+  //
+  // By their codes, so that no tool reads this file as holding one. `HIGH + LOW`
+  // is U+1F600; either alone is not a character.
+  const HIGH = String.fromCharCode(0xd83d);
+  const LOW = String.fromCharCode(0xde00);
+  const REPLACEMENT = String.fromCharCode(0xfffd);
+  const HALVES = { "the first half": HIGH, "the second half": LOW };
+
+  /** As the wire carries it: JSON escapes the half, the server's parser gives it back. */
+  const wire = (bike: GuestBike): GuestState =>
+    JSON.parse(JSON.stringify(state(bike))) as GuestState;
+
+  it.each(
+    Object.keys(JSONB_FIELDS).flatMap((field) =>
+      Object.keys(HALVES).map((half) => [half, field] as const),
+    ),
+  )(
+    "%s of an emoji, alone in %s: Postgres refuses the transaction — and the action answers VALIDATION before it",
+    async (half, field) => {
+      const user = await signedInUser(
+        `import-half-${Object.keys(HALVES).indexOf(half)}-${Object.keys(JSONB_FIELDS).indexOf(field)}@velo-atelier.test`,
+      );
+      const bike = withTypedLine();
+      // eslint-disable-next-line security/detect-object-injection -- keys of the two literal tables above
+      JSONB_FIELDS[field](bike, HALVES[half as keyof typeof HALVES]);
+
+      // Why the wall exists: past the contract the insert is refused
+      // (`invalid input syntax for type json`) and the whole bike rolled back.
+      await expect(importGuestState(prisma, user.id, wire(bike), deps)).rejects.toThrow();
+      expect(await countsFor(user.id)).toEqual(NOTHING);
+
+      // The wall: an answer the page can show, nothing written, no attempt spent.
+      expect(await importGuestStateAction(wire(bike))).toEqual({ ok: false, code: "VALIDATION" });
+      expect(await countsFor(user.id)).toEqual(NOTHING);
+      expect(await attemptsSpent(user.id)).toBeNull();
+    },
+  );
+
+  it.each(Object.keys(TEXT_FIELDS))(
+    "half an emoji in %s: Postgres stores ANOTHER character in its place — so the action answers VALIDATION",
+    async (field) => {
+      const user = await signedInUser(
+        `import-half-text-${Object.keys(TEXT_FIELDS).indexOf(field)}@velo-atelier.test`,
+      );
+      const bike = withTypedLine();
+      // eslint-disable-next-line security/detect-object-injection -- a key of the literal table above
+      const column = TEXT_FIELDS[field];
+      const sent = column.set(bike, HIGH);
+      expect(sent).toContain(HIGH);
+
+      // The wall first: refused like the jsonb fields, for the same character.
+      expect(await importGuestStateAction(wire(bike))).toEqual({ ok: false, code: "VALIDATION" });
+      expect(await countsFor(user.id)).toEqual(NOTHING);
+      expect(await attemptsSpent(user.id)).toBeNull();
+
+      // Why it is refused here too, although nothing throws past the contract:
+      // the column does not hold what was sent. A row that says something else
+      // than the payload is not "stored".
+      const past = await importGuestState(prisma, user.id, wire(bike), deps);
+      expect(past.ok).toBe(true);
+      const stored = await column.read(user.id);
+      expect(stored).not.toBe(sent);
+      expect(stored).toBe(sent.replace(HIGH, REPLACEMENT));
+    },
+  );
+
+  it("past the contract, a note stored as another character is a copy the account is never found to hold", async () => {
+    // What "stores another character" costs: `already-imported` is said only
+    // when the row holds what the copy says, and this row never will — the
+    // very copy that wrote it is answered "not in the account".
+    const user = await signedInUser("import-half-note-again@velo-atelier.test");
+    const bike = guestBike();
+    bike.checkups[0].notes = { [CHAIN]: `usure${HIGH}` };
+    const first = await importGuestState(prisma, user.id, wire(bike), deps);
+    expect(first.ok && first.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    const again = await importGuestState(prisma, user.id, wire(bike), deps);
+    expect(again.ok && again.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" },
+    ]);
+  });
+
+  it("a WHOLE emoji in each of those fields is imported and read back as sent — the wall refuses the half", async () => {
+    const user = await signedInUser("import-emoji-control@velo-atelier.test");
+    const EMOJI = HIGH + LOW;
+    const bike = withTypedLine();
+    const sent = Object.fromEntries(
+      Object.entries(TEXT_FIELDS).map(([name, column]) => [name, column.set(bike, EMOJI)]),
     );
-    expect(stored?.attributes["pad-model"]).toBe("B05S");
+    for (const set of Object.values(JSONB_FIELDS)) set(bike, EMOJI);
+
+    const result = await importGuestStateAction(wire(bike));
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    for (const [name, column] of Object.entries(TEXT_FIELDS)) {
+      // eslint-disable-next-line security/detect-object-injection -- a key of the literal table above
+      expect(await column.read(user.id), name).toBe(sent[name]);
+    }
+    const row = await prisma.bike.findFirstOrThrow({ where: { userId: user.id } });
+    expect(frontPads(row.parts).attributes["pad-model"]).toBe(`B05S${EMOJI}`);
+    const line = await prisma.buildListItem.findFirstOrThrow({
+      where: { buildList: { bike: { userId: user.id } } },
+    });
+    expect(line.refinement).toEqual({ speeds: `11${EMOJI}` });
+    expect(line.chosenProduct).toMatchObject({ model: `CN${EMOJI}HG601` });
+  });
+
+  it("a guest whose texts were cut in the middle of an emoji is imported — U+FFFD where the half was, and found again", async () => {
+    // Through the COLLECTOR this time, which is what a browser sends. The note
+    // is cut by the wizard's own cap (`slice(0, 2000)` counts code units); the
+    // line and the pad reference are edited under their keys. Before
+    // 2026-10-09 this storage could not be imported at all: the transaction
+    // threw on the list line, import after import.
+    const user = await signedInUser("import-half-collected@velo-atelier.test");
+    const EMOJI = HIGH + LOW;
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      updatedAt: GUEST_UPDATED_AT,
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: {
+            [CHAIN]: { ko: ["chain-elongation"], notes: `${"x".repeat(1999)}${EMOJI}` },
+            [CASSETTE]: "ok",
+          },
+          startedAt: STARTED_AT,
+          completedAt: COMPLETED_AT,
+        }),
+    });
+    const edit = (key: string, change: (value: never) => void) => {
+      const value = JSON.parse(work.storage.getItem(key) ?? "null") as never;
+      change(value);
+      work.storage.setItem(key, JSON.stringify(value));
+    };
+    edit(buildListKey("local"), (list: { items: Record<string, unknown>[] }) => {
+      list.items[0].refinement = { speeds: `11${LOW}` };
+      list.items[0].chosenProduct = {
+        brand: "Shimano",
+        model: `CN-HG601 ${HIGH}`,
+        size: "11v",
+        vendor: "other",
+        url: "https://example.com/chaine",
+      };
+    });
+    edit(LOCAL_BIKE_KEY, (bike: { parts: unknown }) => {
+      frontPads(bike.parts).attributes["pad-model"] = `B05S${HIGH}`;
+    });
+    const raws = [LOCAL_BIKE_KEY, checkupKey("local"), buildListKey("local")].map((key) =>
+      work.storage.getItem(key),
+    );
+    // The wizard really did leave half a pair under its key.
+    expect(raws[1]).toContain(JSON.stringify(`x${HIGH}`).slice(1, -1));
+
+    const collection = work.collect();
+    expect(collection.checkup).toBe("collected");
+    const result = await importGuestStateAction(
+      JSON.parse(JSON.stringify(collection.state)) as GuestState,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.bikes[0].checkups).toEqual([{ guestKey: CHECKUP_ID, status: "imported" }]);
+
+    const note = (
+      await prisma.checkupItem.findFirstOrThrow({
+        where: { stepKey: CHAIN, checkup: { bike: { userId: user.id } } },
+      })
+    ).notes;
+    expect(note).toBe(`${"x".repeat(1999)}${REPLACEMENT}`);
+    const line = await prisma.buildListItem.findFirstOrThrow({
+      where: { buildList: { bike: { userId: user.id } } },
+    });
+    expect(line.refinement).toEqual({ speeds: `11${REPLACEMENT}` });
+    expect(line.chosenProduct).toMatchObject({ model: `CN-HG601 ${REPLACEMENT}` });
+    // Still linked to the step that derived it: the line was not re-made.
+    expect(line.checkupItemId).not.toBeNull();
+    const row = await prisma.bike.findFirstOrThrow({ where: { userId: user.id } });
+    expect(frontPads(row.parts).attributes["pad-model"]).toBe(`B05S${REPLACEMENT}`);
+
+    // The browser may forget all three keys — and nothing under them was
+    // rewritten by the read.
+    expect(settleGuestImport(collection, result.data).clear).toEqual([
+      LOCAL_BIKE_KEY,
+      buildListKey("local"),
+      checkupKey("local"),
+    ]);
+    expect(
+      [LOCAL_BIKE_KEY, checkupKey("local"), buildListKey("local")].map((key) =>
+        work.storage.getItem(key),
+      ),
+    ).toEqual(raws);
+
+    // The answer lost on the way: the same storage, imported again. What was
+    // sent is what is stored, so the account IS found to hold this copy.
+    const before = await countsFor(user.id);
+    const again = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    expect(again.ok && again.data.bikes[0]).toMatchObject({
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "already-imported" }],
+    });
+    expect(await countsFor(user.id)).toEqual(before);
   });
 
   it("a date in year 0000: Postgres has no such year — VALIDATION; year 0001 is stored", async () => {

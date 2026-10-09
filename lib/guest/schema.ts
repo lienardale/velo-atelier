@@ -74,16 +74,35 @@
  * list line's `refinement` — because a `maxLength` says nothing about a map,
  * and so that a refusal is a `VALIDATION` rather than rows nobody bounded.
  *
- * ## What PostgreSQL would refuse is refused here
+ * ## What PostgreSQL is known not to store is refused here
  *
- * A payload that passes this contract must be one the database stores: a
- * refusal further down is a transaction that throws, i.e. a 500 and a page
- * left on its spinner. Lengths are the columns' own; **U+0000 is refused in
- * every string** (`text` rejects it with 22021 and `jsonb` with 22P05 — a
- * note, a name, a part's free-text attribute); and a date has to be an instant
- * Postgres has a year for (zod's `iso.datetime` accepts year 0000, Postgres
- * answers 22008). `tests/integration/guest-import.test.ts` sends each of them
- * past this contract to the real database, and through it.
+ * A refusal further down is a transaction that throws, i.e. a 500 and a page
+ * left on its spinner, so the contract refuses first. What it refuses is a
+ * LIST — each entry measured on PostgreSQL 16, none deduced — and not a proof
+ * that the list is complete (it was one entry short until 2026-10-09, under a
+ * heading that said otherwise):
+ *
+ *   - a string longer than its column — lengths are the columns' own;
+ *   - **U+0000, in every string**: `text` rejects it with 22021 and `jsonb`
+ *     with 22P05 — a note, a name, a part's free-text attribute;
+ *   - **a lone surrogate, in every string** — half of a pair, which is what
+ *     cutting a text in the middle of an emoji leaves. `jsonb` refuses it
+ *     (`invalid input syntax for type json`: a refinement value, a chosen
+ *     product's field, a part's free-text attribute). `text` does not refuse
+ *     it and does not keep it either: the column comes back holding U+FFFD in
+ *     its place, so the row no longer says what the payload said — and the
+ *     account could then never be found to hold that copy ({@link storable});
+ *   - a date before year 1: zod's `iso.datetime` accepts year 0000, Postgres
+ *     answers 22008.
+ *
+ * `tests/integration/guest-import.test.ts` sends each of them past this
+ * contract to the real database, and through it.
+ *
+ * The COLLECTOR does not hand over a lone surrogate in the first place: it
+ * replaces each with U+FFFD ({@link wellFormed}), which is what a `text`
+ * column was found to hold for one anyway. So a note or a product name cut in
+ * the middle of an emoji is imported, and the refusal above is for a payload
+ * that did not come from {@link collectGuestState}.
  *
  * The payload is an ARRAY of bikes even though exactly one local bike can exist
  * (§1.2): forward-compatibility is cheaper to keep than to add.
@@ -291,8 +310,8 @@ export interface GuestImportSummary {
  *
  * Lengths are the database's (`VarChar(64)` for a part, `VarChar(160)` for a
  * slug, `VarChar(80)` for a reason key). A pattern is also why none of these
- * can hold a U+0000; the strings that are NOT matched by a pattern are held to
- * it explicitly, below.
+ * can hold a U+0000 or half a surrogate pair; the strings that are NOT matched
+ * by a pattern are held to that explicitly, below ({@link storable}).
  */
 const PartIdPattern = z.string().check(z.regex(/^[a-z0-9-]{1,64}$/));
 const GuideSlugPattern = z.string().check(z.regex(/^[a-z0-9-]{1,160}$/));
@@ -327,38 +346,62 @@ const IsoDate = z.iso
  * a tool might decode into it.
  */
 const NUL = String.fromCharCode(0);
-const withoutNul = z.refine<string>((value) => !value.includes(NUL));
+
+/**
+ * A surrogate code unit that is NOT half of a pair — the first half of an
+ * emoji with nothing after it, or the second with nothing before. With the `u`
+ * flag a well-formed pair is read as one code point, which is not a surrogate,
+ * so the class (`Cs`, general category Surrogate) matches the lone ones and
+ * only them: `String.prototype.isWellFormed`, for the browsers that do not
+ * have it yet. Written as a property escape so that this file holds no
+ * surrogate, nor an escape a tool might decode into one.
+ *
+ * Measured on 2026-10-09 (PostgreSQL 16, Prisma 7.10.0): in a `jsonb` column —
+ * a refinement value, a chosen product's field, a part's free-text attribute —
+ * the insert is refused (`invalid input syntax for type json`, P2007) and the
+ * transaction throws, high half or low half alike. In a `text` column it is
+ * stored as U+FFFD: the import went through, and the same copy sent again was
+ * answered `skipped: 'bike-already-imported'`, because the row's note was no
+ * longer the copy's.
+ */
+const LONE_SURROGATE = /\p{Cs}/u;
+
+/** Is `value` a string PostgreSQL stores as it is — in a `text` column and in a `jsonb` one? */
+function storable(value: string): boolean {
+  return !value.includes(NUL) && !LONE_SURROGATE.test(value);
+}
+const storableText = z.refine<string>(storable);
 
 /** A free-text field of at most `max` characters that PostgreSQL will store. */
 function text(max: number) {
-  return z.string().check(z.maxLength(max), withoutNul);
+  return z.string().check(z.maxLength(max), storableText);
 }
 
 /**
- * Does any string inside `value` — a key or a value, at any depth — hold a
- * U+0000? For the two fields this contract does not type (`parts`, `fit`):
- * `validateBuild` accepts a part's free-text attribute by length alone, and
- * the build is written to a `jsonb` column.
+ * Does any string inside `value` — a key or a value, at any depth — fail
+ * {@link storable}? For the two fields this contract does not type (`parts`,
+ * `fit`): `validateBuild` accepts a part's free-text attribute by length
+ * alone, and the build is written to a `jsonb` column.
  *
  * Iterative on purpose: the nesting of an untrusted value is not a depth to
  * recurse to.
  */
-function holdsNul(value: unknown): boolean {
+function holdsUnstorable(value: unknown): boolean {
   const pending: unknown[] = [value];
   while (pending.length > 0) {
     const next = pending.pop();
     if (typeof next === "string") {
-      if (next.includes(NUL)) return true;
+      if (!storable(next)) return true;
     } else if (typeof next === "object" && next !== null) {
       for (const [key, child] of Object.entries(next)) {
-        if (key.includes(NUL)) return true;
+        if (!storable(key)) return true;
         pending.push(child);
       }
     }
   }
   return false;
 }
-const nothingWithNul = z.refine<unknown>((value) => !holdsNul(value));
+const nothingUnstorable = z.refine<unknown>((value) => !holdsUnstorable(value));
 
 /** `CheckupItem.notes` / `BikePartState.notes` are `VarChar(2000)`. */
 const Notes = text(MAX_NOTE_LENGTH);
@@ -457,9 +500,9 @@ const BikeSchema = z.strictObject({
   name: Name,
   answers: AnswersSchema,
   // Untyped here — `validateBuild` and `coerceFit` are their readers — but not
-  // unbounded: nothing in them may hold a character the database refuses.
-  parts: z.array(z.unknown()).check(z.maxLength(GUEST_CAPS.partsPerBike), nothingWithNul),
-  fit: z.optional(z.nullable(z.unknown().check(nothingWithNul))),
+  // unbounded: nothing in them may hold a string the database does not store.
+  parts: z.array(z.unknown()).check(z.maxLength(GUEST_CAPS.partsPerBike), nothingUnstorable),
+  fit: z.optional(z.nullable(z.unknown().check(nothingUnstorable))),
   updatedAt: IsoDate,
   checkups: z.array(CheckupSchema).check(z.maxLength(GUEST_CAPS.checkupsPerBike)),
   lists: z.array(BuildListSchema).check(z.maxLength(GUEST_CAPS.listsPerBike)),
@@ -581,6 +624,41 @@ function readJson(storage: KeyValueStorage, key: string): unknown {
   }
 }
 
+/** U+FFFD, the replacement character — by its code, like `NUL` above. */
+const REPLACEMENT = String.fromCharCode(0xfffd);
+/** {@link LONE_SURROGATE}, every one of them. */
+const LONE_SURROGATES = /\p{Cs}/gu;
+
+/**
+ * `value` with every lone surrogate replaced by U+FFFD — in every string, at
+ * any depth, keys included (`String.prototype.toWellFormed`, for the browsers
+ * that do not have it yet).
+ *
+ * Half a surrogate pair is not a character: it is what a cut at a fixed length
+ * leaves of an emoji (the wizard caps a note with `slice(0, 2000)`), UTF-8
+ * has no encoding for it, and on PostgreSQL a `text` column ends up holding
+ * U+FFFD in its place while a `jsonb` one refuses the row. The projection
+ * makes the same replacement itself, once, so that what is sent is what will
+ * be stored — a note cut that way is imported instead of making its checkup
+ * `unreadable`, and a product name cut that way does not make the server
+ * refuse the bike. Nothing a person typed is lost by it, and storage is not
+ * written to.
+ *
+ * Recursive, unlike {@link holdsUnstorable}: it is only ever handed what the
+ * three storage guards have already given a shape to — a few levels, never an
+ * untrusted depth.
+ */
+function wellFormed<T>(value: T): T {
+  if (typeof value === "string") return value.replace(LONE_SURROGATES, REPLACEMENT) as T;
+  if (Array.isArray(value)) return value.map((entry: unknown) => wellFormed(entry)) as T;
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [wellFormed(key), wellFormed(child)]),
+    ) as T;
+  }
+  return value;
+}
+
 /**
  * What {@link collectGuestState} found under `va:checkup:local`.
  *
@@ -604,7 +682,9 @@ function collectCheckup(
   const stored = peek.stored;
   if (answeredCount(stored) === 0) return { read: "empty" };
 
-  const checkup: GuestCheckup = {
+  // Well-formed BEFORE the contract is asked: a note cut in the middle of an
+  // emoji is a note, not a reason to leave the whole checkup behind.
+  const checkup: GuestCheckup = wellFormed({
     guestKey: stored.id,
     scope:
       stored.scope.kind === "full"
@@ -617,7 +697,7 @@ function collectCheckup(
     notes: { ...stored.notes },
     startedAt: stored.startedAt,
     ...(stored.completedAt === undefined ? {} : { completedAt: stored.completedAt }),
-  };
+  });
   // The contract and the storage guard are two schemas, and the server refuses
   // a payload WHOLE: a checkup it would not accept must not take the bike down
   // with it, import after import. It is reported unreadable instead — kept in
@@ -700,7 +780,10 @@ export function collectGuestState({
     state: {
       version: GUEST_STATE_VERSION,
       bikes: [
-        {
+        // Every string of the projection, whichever key it was read from: the
+        // bike's free-text attributes and the list's lines are checked by no
+        // contract on this side, and the server refuses a payload WHOLE.
+        wellFormed({
           localId: bike.id,
           name: bikeName,
           answers: bike.answers as Record<string, string>,
@@ -709,7 +792,7 @@ export function collectGuestState({
           updatedAt: bike.updatedAt,
           checkups: collected.read === "collected" ? [collected.checkup] : [],
           lists: collectBuildLists(storage, listName),
-        },
+        }),
       ],
     },
     checkup: collected.read,
