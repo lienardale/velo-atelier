@@ -26,7 +26,9 @@ import { deriveBuildList } from "@/lib/checkup/build-list";
 import { MAX_NOTE_LENGTH, MAX_SYMPTOMS } from "@/lib/checkup/reducer";
 import { readStoredCheckup, toStored, writeStoredCheckup } from "@/lib/checkup/storage";
 import { CHECKUP_STATE_VERSION } from "@/lib/checkup/types";
+import { withinJsonBudget } from "@/lib/bike/rules";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+import { KO_ACTIONS } from "@/lib/domain/schema/procedure";
 import {
   GUEST_NAMES,
   guestRun,
@@ -246,6 +248,32 @@ describe("collectGuestState", () => {
     expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
   });
 
+  it("reports unreadable a checkup holding what PostgreSQL would refuse — a U+0000, a date in year 0", () => {
+    // Both pass the wizard's own guard (a note is a length, a date is ISO
+    // 8601). Sent as is, the server would refuse the whole payload — and
+    // before 2026-10-09 it did not even do that: it threw in the transaction.
+    const stored = toStored(work.checkup!);
+    const cases = {
+      "a U+0000 in a note": {
+        ...stored,
+        notes: { [CHAIN]: `usure${String.fromCharCode(0)}0,8 %` },
+      },
+      "startedAt in year 0000": { ...stored, startedAt: "0000-01-01T00:00:00.000Z" },
+    };
+    for (const [name, value] of Object.entries(cases)) {
+      const raw = JSON.stringify(value);
+      const storage = storageWithCheckup(raw);
+      // The wizard's guard does take it: the import's read is where it stops.
+      expect(readStoredCheckup("local", storageWithCheckup(raw)), name).not.toBeNull();
+      const { state, checkup } = collect(storage);
+      expect(checkup, name).toBe("unreadable");
+      expect(state.bikes[0].checkups, name).toEqual([]);
+      expect(storage.map.get(checkupKey("local")), name).toBe(raw);
+      // The bike still goes: the payload without the checkup is one the server takes.
+      expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok, name).toBe(true);
+    }
+  });
+
   it("reads what writeGuestBuildList actually writes, named in the visitor's language", () => {
     // The producer, not a hand-built shape: `guestWork` wrote the list the way
     // "Créer ma liste" does, so this fails if the envelope moves.
@@ -458,6 +486,170 @@ describe("GuestStateSchema", () => {
     expect(accepts((s) => (s.bikes[0].checkups[0].notes[CHAIN] = "n".repeat(2001)))).toBe(false);
   });
 
+  it("refuses a date that is not ISO 8601 with an offset — on a checkup's two ends and on the bike", () => {
+    const accepts = (mutate: (state: GuestState) => void): boolean => {
+      const tampered = payload();
+      mutate(tampered);
+      return parseGuestState(tampered).ok;
+    };
+    const fields: Record<string, (value: unknown) => (state: GuestState) => void> = {
+      startedAt: (value) => (s) => (s.bikes[0].checkups[0].startedAt = value as string),
+      completedAt: (value) => (s) => (s.bikes[0].checkups[0].completedAt = value as string),
+      updatedAt: (value) => (s) => (s.bikes[0].updatedAt = value as string),
+    };
+    const refused = [
+      "bientôt",
+      "2026-09-14",
+      "2026-09-14T08:00:00.000", // no offset: whose midnight?
+      "2026-13-45T99:99:99Z",
+      "",
+      1_726_300_800_000,
+      null,
+      // ISO 8601, and a year PostgreSQL does not have.
+      "0000-01-01T00:00:00.000Z",
+      "0000-12-31T23:59:59.999Z",
+      // Year 1 as written, year 0 as an instant.
+      "0001-01-01T00:00:00.000+14:00",
+    ];
+    for (const [field, set] of Object.entries(fields)) {
+      for (const value of refused) {
+        expect(accepts(set(value)), `${field}: ${String(value)}`).toBe(false);
+      }
+      // The first instant the database stores; a clock that was reset; an
+      // offset; and a clock a century ahead, which is `clamp()`'s to bring back.
+      for (const value of [
+        "0001-01-01T00:00:00.000Z",
+        "1970-01-01T00:00:00.000Z",
+        "2026-09-14T10:00:00.000+02:00",
+        "2126-01-01T00:00:00.000Z",
+      ]) {
+        expect(accepts(set(value)), `${field}: ${value}`).toBe(true);
+      }
+    }
+    // `completedAt` may be absent — and only absent, never another kind of empty.
+    expect(accepts((s) => delete s.bikes[0].checkups[0].completedAt)).toBe(true);
+  });
+
+  it("refuses U+0000 in every string — the one character PostgreSQL stores in no column", () => {
+    const NUL = String.fromCharCode(0);
+    const product = {
+      brand: "Shimano",
+      model: "CN-HG601",
+      size: "11v",
+      vendor: "other",
+      url: "https://example.com/chaine",
+    };
+    /** The payload with a refinement and a product on its one line, then `mutate`d. */
+    const accepts = (mutate: (state: GuestState) => void): boolean => {
+      const tampered = payload();
+      Object.assign(tampered.bikes[0].lists[0].items[0], {
+        refinement: { speeds: "11" },
+        chosenProduct: { ...product },
+      });
+      mutate(tampered);
+      return parseGuestState(tampered).ok;
+    };
+    const line = (s: GuestState) => s.bikes[0].lists[0].items[0];
+    const breakers: Record<string, (state: GuestState, poison: string) => void> = {
+      "the bike's name": (s, poison) => (s.bikes[0].name = `Mon${poison}vélo`),
+      "a note": (s, poison) => (s.bikes[0].checkups[0].notes[CHAIN] = `usure${poison}`),
+      "the list's name": (s, poison) => (s.bikes[0].lists[0].name = `Ma${poison}liste`),
+      "a refinement value": (s, poison) => (line(s).refinement = { speeds: `11${poison}` }),
+      "the product's brand": (s, poison) =>
+        (line(s).chosenProduct = { ...product, brand: `Shi${poison}mano` }),
+      "the product's model": (s, poison) =>
+        (line(s).chosenProduct = { ...product, model: `CN${poison}HG601` }),
+      "the product's size": (s, poison) =>
+        (line(s).chosenProduct = { ...product, size: `11${poison}v` }),
+      "the product's link": (s, poison) =>
+        (line(s).chosenProduct = { ...product, url: `https://example.com/cha${poison}ine` }),
+      "a value inside a part": (s, poison) =>
+        (s.bikes[0].parts = [{ partId: "brake-pads-front", attributes: { "pad-model": poison } }]),
+      "a key inside a part": (s, poison) => (s.bikes[0].parts = [{ [`part${poison}Id`]: "chain" }]),
+      "a value nested in the fit": (s, poison) => (s.bikes[0].fit = { a: [[{ b: `x${poison}` }]] }),
+      "a key of the fit": (s, poison) => (s.bikes[0].fit = { [`saddle${poison}`]: 742 }),
+    };
+    for (const [name, poison] of Object.entries(breakers)) {
+      expect(
+        accepts((s) => poison(s, NUL)),
+        name,
+      ).toBe(false);
+      // The control: the same edit with an ordinary character in the same
+      // place is accepted, so it is the character that is refused.
+      expect(
+        accepts((s) => poison(s, "-")),
+        `${name} (control)`,
+      ).toBe(true);
+    }
+    // Other control characters are stored like any text: a note keeps its line breaks.
+    expect(accepts((s) => (s.bikes[0].checkups[0].notes[CHAIN] = "ligne 1\nligne 2\t."))).toBe(
+      true,
+    );
+    expect(accepts((s) => (s.bikes[0].fit = null))).toBe(true);
+  });
+
+  it("is not stopped by how deeply an untyped value is nested", () => {
+    // `parts` and `fit` are walked for a U+0000 with a stack of their own, not
+    // the call stack: a value nested a few thousand levels is still a value.
+    let nested: unknown = "leaf";
+    for (let depth = 0; depth < 5000; depth += 1) nested = [nested];
+    const deep = payload();
+    deep.bikes[0].fit = nested;
+    expect(parseGuestState(deep).ok).toBe(true);
+    let poisoned: unknown = String.fromCharCode(0);
+    for (let depth = 0; depth < 5000; depth += 1) poisoned = [poisoned];
+    deep.bikes[0].fit = poisoned;
+    expect(parseGuestState(deep).ok).toBe(false);
+  });
+
+  it("caps a line's refinement — a record like the checkup's three, and written to a JSON column", () => {
+    const accepts = (refinement: Record<string, string>): boolean => {
+      const tampered = payload();
+      tampered.bikes[0].lists[0].items[0].refinement = refinement;
+      return parseGuestState(tampered).ok;
+    };
+    const entries = (count: number, value = "v") =>
+      Object.fromEntries(
+        Array.from({ length: count }, (_, index) => [
+          `k-${String(index).padStart(38, "0")}`,
+          value.repeat(120),
+        ]),
+      );
+    const cap = GUEST_CAPS.refinementEntries;
+    expect(cap).toBe(24);
+    expect(accepts(entries(cap))).toBe(true);
+    expect(accepts(entries(cap + 1))).toBe(false);
+    // 1 400 entries were accepted until 2026-10-09: 230 KB in one column.
+    expect(withinGuestPayloadBudget(entries(1400))).toBe(true);
+    expect(accepts(entries(1400))).toBe(false);
+    // The heaviest refinement the contract allows — 40-character keys, 120
+    // three-byte characters a value — is inside the 32 KB of a JSON column.
+    const heaviest = entries(cap, "€");
+    expect(accepts(heaviest)).toBe(true);
+    expect(withinJsonBudget(heaviest)).toBe(true);
+    // The two per-entry bounds it rests on.
+    expect(accepts({ ["k".repeat(41)]: "v" })).toBe(false);
+    expect(accepts({ k: "v".repeat(121) })).toBe(false);
+  });
+
+  it("accepts exactly the domain's five actions on a line", () => {
+    // The VALUES come from the zod-free vocabulary (`data/conventions.ts`), not
+    // from `schema/procedure.ts`, which is classic zod and must stay out of the
+    // chunk `/import` loads. Same array, by reference: they cannot drift.
+    const accepts = (action: string): boolean => {
+      const tampered = payload() as unknown as {
+        bikes: { lists: { items: { action: string }[] }[] }[];
+      };
+      tampered.bikes[0].lists[0].items[0].action = action;
+      return parseGuestState(tampered).ok;
+    };
+    expect([...KO_ACTIONS]).toEqual(["replace", "fix", "clean", "adjust", "inspect-shop"]);
+    for (const action of KO_ACTIONS) expect(accepts(action), action).toBe(true);
+    for (const action of ["REPLACE", "buy", "", "inspect_shop"]) {
+      expect(accepts(action), action).toBe(false);
+    }
+  });
+
   it("refuses a verdict that is not one of the three", () => {
     const tampered = payload() as unknown as {
       bikes: { checkups: { answers: Record<string, string> }[] }[];
@@ -571,6 +763,25 @@ describe("the payload budget", () => {
   it("leaves a real guest bike, checkup and list far inside it", () => {
     expect(guestStateBytes(collected)).toBeLessThan(MAX_GUEST_PAYLOAD_BYTES / 4);
   });
+
+  it("never throws: a value JSON cannot encode has no size, and is within no budget", () => {
+    // The measure is the first thing the action does with its input, and
+    // `JSON.stringify` throws on a BigInt — which a server action can be sent.
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    for (const value of [
+      BigInt(10),
+      { version: GUEST_STATE_VERSION, bikes: [BigInt(10)] },
+      cyclic,
+    ]) {
+      expect(guestStateBytes(value)).toBe(Number.POSITIVE_INFINITY);
+      expect(withinGuestPayloadBudget(value)).toBe(false);
+      // Whatever the budget: there is no size to compare.
+      expect(withinGuestPayloadBudget(value, Number.MAX_SAFE_INTEGER)).toBe(false);
+    }
+    // `undefined` encodes to nothing at all, which is no bytes — as before.
+    expect(guestStateBytes(undefined)).toBe(0);
+  });
 });
 
 // ── after the server answered ────────────────────────────────────────────────
@@ -614,7 +825,7 @@ describe("settleGuestImport", () => {
   });
 
   it("KEEPS the checkup key when the server wrote no row for it, and says why", () => {
-    for (const reason of ["nothing-kept", "bike-already-imported"] as const) {
+    for (const reason of ["nothing-kept", "bike-already-imported", "other-bike"] as const) {
       const settled = settleGuestImport(
         collection,
         summary({ checkups: [{ guestKey: CHECKUP_ID, status: "skipped", reason }] }),

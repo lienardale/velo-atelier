@@ -91,7 +91,10 @@ interface ImportMessages {
   done: string;
   alreadyDone: string;
   failedHelp: string;
-  checkupKept: Record<"unreadable" | "nothingKept" | "bikeAlreadyImported" | "unconfirmed", string>;
+  checkupKept: Record<
+    "unreadable" | "nothingKept" | "bikeAlreadyImported" | "otherBike" | "unconfirmed",
+    string
+  >;
 }
 
 async function importMessages(locale: Locale): Promise<ImportMessages> {
@@ -149,6 +152,8 @@ describe.each(["fr", "en"] as const)("the import page (%s)", (locale) => {
   it.each([
     ["nothing-kept", "nothingKept", undefined],
     ["bike-already-imported", "bikeAlreadyImported", "already-imported"],
+    // A NEW bike, imported — without a checkup the account holds under another.
+    ["other-bike", "otherBike", undefined],
   ] as const)(
     "KEEPS the checkup the server skipped (%s), and says so",
     async (reason, messageKey, skipped) => {
@@ -164,8 +169,12 @@ describe.each(["fr", "en"] as const)("the import page (%s)", (locale) => {
       expect(stored()).toEqual([null, CHECKUP_RAW, null]);
       const [title, options] = toast.mock.calls[0];
       expect(title).toBe(skipped ? t.alreadyDone : t.done);
-      // eslint-disable-next-line security/detect-object-injection -- one of two literal keys of the row above
+      // eslint-disable-next-line security/detect-object-injection -- one of the literal keys of the rows above
       expect(options?.description).toBe(t.checkupKept[messageKey]);
+      // A sentence of its own: no reason borrows another's wording.
+      expect(
+        Object.values(t.checkupKept).filter((sentence) => sentence === options?.description),
+      ).toHaveLength(1);
       // Long enough to be read: sonner's default is four seconds.
       expect(options?.duration).toBeGreaterThanOrEqual(10_000);
       expect(routerSpies.replace).toHaveBeenCalledWith({

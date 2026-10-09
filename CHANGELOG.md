@@ -45,10 +45,11 @@ runs at [velo-atelier.vercel.app][site], in production since 2026-09-29.
   as a guest, with its checkup and its to-fix list: the answers given, with
   their notes and symptoms; for a finished checkup, the state of the parts it
   found faulty or sound, and the link from each line of the list to the answer
-  that put it there. A checkup the import cannot read or cannot use is not
-  imported: the site says so and leaves it in the browser.
+  that put it there. A checkup that is not imported — the import cannot read
+  it or cannot use it, or the bike was already in the account without it — is
+  left in the browser, and the site says so.
 - **French and English.** Every screen and every guide in both languages, at
-  localized addresses: 1 684 interface strings per language, kept in step by
+  localized addresses: 1 685 interface strings per language, kept in step by
   [a test][parity-test]. No analytics, no cookie banner.
 
 ## How it is built and checked

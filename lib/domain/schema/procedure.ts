@@ -15,7 +15,7 @@
  */
 import * as z from "zod";
 
-import { ID_PATTERN } from "../data/conventions";
+import { ID_PATTERN, KO_ACTIONS } from "../data/conventions";
 
 import type { SpecPath } from "./bike-spec";
 import { SpecConditionSchema, type SpecCondition } from "./condition";
@@ -25,15 +25,14 @@ export const PROCEDURE_KINDS = ["check", "replace", "clean", "adjust", "measure"
 export type ProcedureKind = (typeof PROCEDURE_KINDS)[number];
 
 /**
- * What a failed check leads to.
+ * What a failed check leads to — the five actions of a to-fix line.
  *
- * `fix` is the "you can sort this out yourself without new parts" action and
- * resolves to an **`adjust`** guide; every other action resolves to a guide of
- * the same kind. `inspect-shop` is the honest answer for the jobs this site
- * deliberately does not teach (hydraulic bleeding, wheel truing, bearings) and
- * is the only action that may omit `guideSlug`.
+ * The VALUES live in `data/conventions.ts`, like the rest of the vocabulary,
+ * so that a module loaded in the browser can list them without importing this
+ * one, which is classic zod (`lib/guest/schema.ts` did, until 2026-10-09). They
+ * are re-exported here because this is where everything else looks for them.
  */
-export const KO_ACTIONS = ["replace", "fix", "clean", "adjust", "inspect-shop"] as const;
+export { KO_ACTIONS };
 
 export type KoAction = (typeof KO_ACTIONS)[number];
 

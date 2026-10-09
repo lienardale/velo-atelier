@@ -24,9 +24,10 @@
  *                      Clearing storage after a failure would lose the bike.
  *
  * **A checkup that was not imported is said, and stays.** Unreadable in this
- * browser, nothing the server could keep, or a bike that was already in the
- * account: the toast carries a second sentence naming which, in the visitor's
- * language, and stays up long enough to be read. Until 2026-10-07 this
+ * browser, nothing the server could keep, a bike that was already in the
+ * account without what this copy says, or a checkup the account holds under
+ * another bike: the toast carries a second sentence naming which, in the
+ * visitor's language, and stays up long enough to be read. Until 2026-10-07 this
  * component cleared all three keys after any successful import — including the
  * checkup the importer had silently skipped (`.debug/017` §5.6).
  *
@@ -103,6 +104,7 @@ export function GuestImport(): React.JSX.Element {
             unreadable: t("import.checkupKept.unreadable"),
             "nothing-kept": t("import.checkupKept.nothingKept"),
             "bike-already-imported": t("import.checkupKept.bikeAlreadyImported"),
+            "other-bike": t("import.checkupKept.otherBike"),
             unconfirmed: t("import.checkupKept.unconfirmed"),
           }[settlement.checkup.reason]
         : null;

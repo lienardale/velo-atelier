@@ -56,9 +56,10 @@ happened when it ended**:
   are imported into the account, the checkup is not. Awaiting the maintainer's
   ruling: fix before the tag, or tag first and open an issue.
   **Since: ruled on 2026-10-07 — fix before the tag — and fixed by
-  2026-10-08** (§5.2, item 1). What still waits on this line is the fix's
-  deployment and a re-run of the import on production, which had not happened
-  when this was written.
+  2026-10-08; that fix was reviewed on 2026-10-09, found to lose answers in
+  two more sequences, and repaired the same day** (§5.2, item 1). What still
+  waits on this line is the fix's deployment and a re-run of the import on
+  production, which had not happened when this was written.
 - **A ruling on the local Lighthouse CI result** — §5.2, item 2. Three local
   runs, all exit 1 on the same two bike-page LCP assertions, while CI's
   `lighthouse` context was green on every pull request of 2026-10-06. Recorded
@@ -1479,8 +1480,9 @@ maintainer has not ruled on: it is neither accepted nor fixed.
    session delegated to, from `git clone --depth 1` of `main` @ `863cd0c` in
    a scratch directory. Two findings, both fixed since: finding 1 in the
    change that closed W5's documents, finding 2 by 2026-10-08, after the
-   ruling of 2026-10-07 — and finding 2's fix had **not been run on
-   production** when this was written.
+   ruling of 2026-10-07 (and its fix repaired on 2026-10-09, after review) —
+   and finding 2's fix had **not been run on production** when this was
+   written.
    - **The quick start.** `npm ci`: exit 0, 52 s, 1697 packages;
      `cp .env.example .env.local`. **One deliberate deviation**:
      `npm run db:setup` was not run, because it runs `docker compose up` and
@@ -1527,15 +1529,36 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      when the server's answer says it is in the account — otherwise it stays,
      and the visitor is told. Details, the choices made and the tests:
      `.debug/017` §5.6.
+     **Reviewed on 2026-10-09, and repaired.** Two reviewers attacked that
+     fix and it still lost answers in two sequences: a checkup opened on one
+     part and carried on through another link (the wizard keeps the scope of
+     the first visit; the import planned that scope and imported 1 answer of
+     34, clearing the rest), and an import whose response never reached the
+     page followed by more answers in the same checkup (the next import called
+     it "already imported" on its id and cleared it). Both are repaired: the
+     answers are accepted against the bike's whole plan, and a checkup is
+     called already imported only when the account's row holds what the
+     browser's copy says. Also repaired: a U+0000 or a year-0 date reached
+     PostgreSQL and made the action throw; classic zod was in the chunk
+     `/import` loads; and five gaps in the walls and their tests. Each one,
+     with what was measured: `.debug/017` §5.6, "Found in review". One limit
+     is by ruling, not by omission: a bike already in the account is never
+     written to, so answers given AFTER a lost response stay in the browser —
+     said to the visitor — and are not added to the account.
      **Not re-run on production.** Journey B's import (B4) had not been walked
      again on `velo-atelier.vercel.app` when this was written, and the change
-     was not deployed. What ran, on 2026-10-08, is
+     was not deployed. What ran, on 2026-10-09 after the repairs, is
      `tests/e2e/guest-import.spec.ts`, in French and English, on
      `desktop-chromium` and `mobile-chromium`: a production build served
      locally against a `_test` database, reading the imported rows from
-     Postgres — one of its tests answers the checkup in the real wizard before
-     signing up, which is B2 to B4 as a test. After the deploy: repeat B2 to
-     B4 on production, and look for a `Checkup` row on the imported bike.
+     Postgres — three of its tests answer the checkup in the real wizard before
+     signing up, the first of which is B2 to B4 as a test. After the deploy:
+     repeat B2 to B4 on production, and look for a `Checkup` row on the
+     imported bike. Worth adding to that walk, since it is the sequence that
+     lost the most: check one part (the chain), leave without asking for the
+     list, open the full checkup from the bike, answer it, ask for the list,
+     then sign up and import — and count the imported `CheckupItem` rows
+     against the questions answered.
    - **Journey A** (signed in as `DEMO_USER`) — all seven steps passed: the
      demo sign-in; three bikes in "Mes vélos" and the gravel bike's viewer;
      the chain selected by a real click on the 3D canvas and from the parts

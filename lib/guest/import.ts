@@ -11,8 +11,10 @@
  *     guestLocalId])` is what makes "already imported" a database fact rather
  *     than a race. A bike that is already there is reported `skipped:
  *     'already-imported'` and **nothing is written** — not the bike, not its
- *     checkups, not its lists. An older copy therefore cannot win; there is
- *     nothing to compare because there is no second write.
+ *     checkups, not its lists. An older copy therefore cannot win, and nothing
+ *     is ever merged: there is no second write. (What IS compared, by a read
+ *     that writes nothing, is whether the account holds the browser's CHECKUP
+ *     — because the browser forgets it on the answer. See the next section.)
  *   - The same holds for the second device racing the first: the create is
  *     tried, and a P2002 on that constraint is read as the same "already
  *     imported" answer.
@@ -23,21 +25,64 @@
  *     about. A checkup the ACCOUNT already holds under that key is never
  *     written a second time, whichever bike carries it.
  *
+ * ## "Already imported" is said of a checkup only when it is TRUE of it
+ *
+ * The browser forgets `va:checkup:local` on the words `imported` and
+ * `already-imported` (`settleGuestImport`), so the second one is a promise:
+ * the account holds what this copy says. Sharing the key is not that. Until
+ * 2026-10-09 it was all that was asked, and two real sequences lost answers:
+ *
+ *   - an import whose ANSWER never reached the page (a dropped connection)
+ *     leaves every key in the browser; the visitor carries on with the same
+ *     run, answers more, finishes it; the next import finds the bike, writes
+ *     nothing — and reported the checkup `already-imported` on its id alone.
+ *     The later answers were then in neither place;
+ *   - a NEW guest bike carrying a run the account holds under another bike
+ *     was imported without it (the key is unique) and reported the same word.
+ *
+ * So ({@link accountHolds}): on a bike that is already in the account, a
+ * checkup is `already-imported` only if the row under its key is on THAT bike
+ * and already has every answer this import would have written from the copy —
+ * same verdict, same note, same symptoms — and is finished if the copy is. A
+ * row that has MORE (the run was carried on in the account) still holds the
+ * copy. Anything else is `skipped: 'bike-already-imported'`: nothing is
+ * written, as §6.8 AC8 rules, and the browser keeps its checkup and says so.
+ * On a NEW bike a held key is `skipped: 'other-bike'`, never "imported".
+ *
  * ## The server re-plans (§5.4)
  *
  * A checkup arrives as answers keyed by step key and nothing else
  * (`lib/guest/schema.ts`). What each answer is ABOUT — which part, which guide,
  * which symptoms the step offers — is computed here: the plan is recomputed
- * from the bike this import derives and the checkup's scope ({@link
- * GuestImportDeps.plan}), and the payload is married to it by `fromStored`
- * (`reconcile`), exactly as `controle/actions.ts` does for a saved bike. An
- * answer whose key is not in the plan is dropped; so is a symptom the step does
- * not offer. The rows are `answeredItems(state)` — the same function
- * `writeItems` uses.
+ * from the bike this import derives ({@link GuestImportDeps.plan}), and the
+ * payload is married to it by `fromStored` (`reconcile`), the call
+ * `controle/actions.ts` makes for a saved bike. An answer whose key is not in
+ * the plan is dropped; so is a symptom the step does not offer. The rows are
+ * `answeredItems(state)` — the same function `writeItems` uses.
  *
- * A checkup none of whose answers survives writes NO row and is reported
- * `skipped: 'nothing-kept'`: an empty `Checkup` would show as a history entry,
- * and the browser keeps its copy.
+ * **The plan the answers are accepted against is the bike's FULL plan, not the
+ * plan of the scope the payload names.** The stored scope is not a fact about
+ * the answers: the wizard resumes an unfinished run against whatever plan the
+ * page computed from the URL (`restore` → `fromStored(stored, props.steps)`)
+ * and keeps the scope the run was FIRST opened with. A guest who checked "this
+ * part" on the chain, left, and came back through "Contrôle complet" answered
+ * the other 33 questions under a header that said full checkup — and the run
+ * was stored with its 34 answers and `scope: parts[chain]`. Planning that
+ * scope kept one answer of the 34, reported the checkup `imported` and let the
+ * browser clear the rest (found in review, 2026-10-09, in a browser and on
+ * PostgreSQL). The full plan asks every question any scope of the same bike
+ * asks (`import.test.ts` checks it on the seven presets, part by part) and is
+ * just as much the server's own: no step is taken from the payload either way.
+ *
+ * The scope the payload names decides ONE thing, the `Checkup.scope` column,
+ * and only while it is still true: `PARTIAL` when the payload says `parts` and
+ * every kept answer is a question that scoped plan asks; `FULL` otherwise —
+ * the answers themselves show the run went beyond the parts it was opened on,
+ * and the column cannot say "these parts, then those".
+ *
+ * A checkup none of whose answers is a question this bike is asked writes NO
+ * row and is reported `skipped: 'nothing-kept'`: an empty `Checkup` would show
+ * as a history entry, and the browser keeps its copy.
  *
  * ## What a COMPLETED checkup does that an unfinished one does not
  *
@@ -69,13 +114,15 @@
  * clamped down to "now"), which is how `existingCheckup` recognises the run: a
  * FULL checkup is resumed and finished on the account as the SAME `Checkup`,
  * and `finishCheckupAction` links the list then
- * (`tests/integration/guest-import.test.ts`).
+ * (`tests/integration/guest-import.test.ts`). That includes a run whose answers
+ * went beyond the parts it was opened on: it is written `FULL`, so the account
+ * plans every question it answered.
  *
  * What is NOT imported for a PARTIAL checkup is the set of parts the visitor
  * picked: `Checkup.scope` is `FULL | PARTIAL` and there is no column for the
- * ids. They are used here, to plan, and then they are gone — as they are for
- * a partial checkup started on the account itself, whose resume this import
- * neither changes nor relies on.
+ * ids. They are used here, to decide that column, and then they are gone — as
+ * they are for a partial checkup started on the account itself, whose resume
+ * this import neither changes nor relies on.
  *
  * The list's LINES still come from the payload — they hold what the visitor
  * typed (`refinement`, `chosenProduct`, the ticks) — and are never re-derived.
@@ -100,6 +147,8 @@
  * of this module is what lets `import.test.ts` drive the real planner over the
  * guides on disk, `tests/security/guest-import.test.ts` go through the action
  * against the recording fake, and the integration test against real Postgres.
+ * `tests/unit/guest/module-graph.test.ts` walks this file's runtime imports and
+ * fails on `server-only`, `next/*`, the corpus or the database client.
  */
 import { randomUUID } from "node:crypto";
 
@@ -125,6 +174,7 @@ import { routing } from "@/lib/i18n/routing";
 
 import {
   GUEST_CAPS,
+  type GuestBike,
   type GuestBikeImport,
   type GuestBuildList,
   type GuestCheckup,
@@ -145,7 +195,9 @@ export interface GuestImportDeps {
   /**
    * The plan the server computes for a build and a scope (§5.4) —
    * `planForBuild` (`lib/content/checkup-plan.ts`) in production, the same
-   * function `controle/actions.ts` plans with.
+   * function `controle/actions.ts` plans with. Asked for the FULL plan of each
+   * bike that carries a checkup (what answers are accepted against), and for a
+   * `parts` scope only to decide the `Checkup.scope` column.
    */
   plan: (build: BikeBuild, scope: CheckupScope) => readonly CheckStepRef[];
   /** Injectable clock — the clamp is what these tests are about. */
@@ -211,54 +263,153 @@ function distinctCheckups(checkups: readonly GuestCheckup[]): GuestCheckup[] {
   );
 }
 
+/** What the account holds under one checkup's user-scoped key — as much as "is it all there?" needs. */
+interface HeldCheckup {
+  bikeId: string;
+  status: "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
+  items: { stepKey: string; result: string; notes: string | null; reasonKeys: string[] }[];
+}
+
 /**
- * The `guestKey`s of `checkups` this ACCOUNT already holds, on any of its bikes.
+ * The checkups of the payload this ACCOUNT already holds a row for, on any of
+ * its bikes, by `guestKey`.
  *
- * A read, never a write, with the owner in the `where` (§4.7). It serves two
- * answers: on a bike that is already imported, WHICH of the browser's checkups
- * the account has (so the browser may forget exactly those); and on a new bike,
- * which ones must not be written again — the column is globally unique, so a
- * second insert would abort the whole bike.
+ * ONE read, never a write, with the owner in the `where` (§4.7). It serves two
+ * answers: on a bike that is already imported, whether the account holds what
+ * the browser's copy says ({@link accountHolds}); and on a new bike, which
+ * keys must not be written again — the column is globally unique, so a second
+ * insert would abort the whole bike.
  */
-async function heldCheckupKeys(
+async function heldCheckups(
   db: GuestImportStore,
   userId: string,
   checkups: readonly GuestCheckup[],
-): Promise<Set<string>> {
-  if (checkups.length === 0) return new Set();
+): Promise<Map<string, HeldCheckup>> {
+  if (checkups.length === 0) return new Map();
   const rows = await db.checkup.findMany({
     where: {
       bike: { userId },
       guestKey: { in: checkups.map((checkup) => guestCheckupKey(userId, checkup.guestKey)) },
     },
-    select: { guestKey: true },
+    select: {
+      guestKey: true,
+      bikeId: true,
+      status: true,
+      items: { select: { stepKey: true, result: true, notes: true, reasonKeys: true } },
+    },
   });
-  const rowKeys = new Set(rows.map((row) => row.guestKey));
-  return new Set(
-    checkups
-      .filter((checkup) => rowKeys.has(guestCheckupKey(userId, checkup.guestKey)))
-      .map((checkup) => checkup.guestKey),
-  );
+  const byRowKey = new Map(rows.map((row) => [row.guestKey, row]));
+  const held = new Map<string, HeldCheckup>();
+  for (const checkup of checkups) {
+    const row = byRowKey.get(guestCheckupKey(userId, checkup.guestKey));
+    if (row !== undefined) held.set(checkup.guestKey, row);
+  }
+  return held;
 }
 
-/** What the browser is told about a bike the account already had: nothing was written. */
+/** The same symptoms, whatever order they were ticked in. */
+function sameReasons(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((reason) => b.includes(reason));
+}
+
+/**
+ * Does the account already hold what this copy of a checkup says?
+ *
+ * The question behind `already-imported`, and it is asked of the CONTENT (see
+ * the header): the row is on this bike; every row this import would have
+ * written from the copy is in it, with the same verdict, note and symptoms;
+ * and it is finished if the copy is. `accepted` is `null` when the server
+ * would keep nothing of the copy — then nothing shows the account has it.
+ *
+ * A row holding MORE answers still holds the copy: the visitor carried the run
+ * on in the account, and the browser's older copy adds nothing. A row holding
+ * a DIFFERENT verdict does not — which of the two is the newer cannot be known
+ * here, so the browser keeps its own.
+ */
+function accountHolds(
+  held: HeldCheckup | undefined,
+  bikeId: string,
+  accepted: AcceptedCheckup | null,
+): boolean {
+  if (held === undefined || accepted === null || held.bikeId !== bikeId) return false;
+  if (accepted.completedAt !== null && held.status !== "COMPLETED") return false;
+  const rows = new Map(held.items.map((item) => [item.stepKey, item]));
+  return accepted.items.every((item) => {
+    const row = rows.get(item.stepKey);
+    return (
+      row !== undefined &&
+      row.result === PRISMA_RESULT[item.result] &&
+      row.notes === item.notes &&
+      sameReasons(row.reasonKeys, item.reasonKeys)
+    );
+  });
+}
+
+/**
+ * What the browser is told about a bike the account already had: nothing was
+ * written, and — per checkup — whether the account holds it all the same.
+ *
+ * The copy is accepted exactly as a first import would have accepted it (the
+ * build this payload derives, the same plan), so an unchanged copy compares
+ * equal to the rows that import wrote. Nothing is derived or planned unless a
+ * row is held under one of the keys.
+ */
 async function alreadyImported(
   db: GuestImportStore,
   userId: string,
-  localId: string,
+  bike: GuestBike,
   bikeId: string,
   checkups: readonly GuestCheckup[],
+  deps: { plan: GuestImportDeps["plan"]; at: number },
 ): Promise<GuestBikeImport> {
-  const held = await heldCheckupKeys(db, userId, checkups);
+  const held = await heldCheckups(db, userId, checkups);
+  const planner = held.size === 0 ? null : plannerFor(deriveGuestBike(bike), deps.plan);
   return {
-    localId,
+    localId: bike.localId,
     bikeId,
     skipped: "already-imported",
-    checkups: checkups.map((checkup) =>
-      held.has(checkup.guestKey)
+    checkups: checkups.map((checkup) => {
+      const accepted =
+        planner === null || !held.has(checkup.guestKey)
+          ? null
+          : acceptCheckup(checkup, planner, bikeId, deps.at);
+      return accountHolds(held.get(checkup.guestKey), bikeId, accepted)
         ? { guestKey: checkup.guestKey, status: "already-imported" }
-        : { guestKey: checkup.guestKey, status: "skipped", reason: "bike-already-imported" },
-    ),
+        : { guestKey: checkup.guestKey, status: "skipped", reason: "bike-already-imported" };
+    }),
+  };
+}
+
+/**
+ * The bike a payload's bike derives to (§4.2 a).
+ *
+ * `answers` is the source of truth; the parts the payload carries are read
+ * only through `validateBuild`, and only to keep the owner's attribute edits.
+ * Anything it refuses is replaced by the defaults for this spec.
+ */
+function deriveGuestBike(bike: GuestBike) {
+  const base = deriveBike(bike.answers as Answers);
+  const checked = validateBuild({ spec: base.spec, parts: bike.parts });
+  return checked.ok ? deriveBike(bike.answers as Answers, checked.build.parts) : base;
+}
+
+/** The plans of ONE bike: the full one, computed once, and the scoped ones the column needs. */
+interface BikePlanner {
+  /** Every question this bike is asked — what a checkup's answers are accepted against. */
+  full: () => readonly CheckStepRef[];
+  /** The keys of the questions `scope` asks of this bike. */
+  asked: (scope: CheckupScope) => ReadonlySet<string>;
+}
+
+function plannerFor(
+  derived: { spec: BikeBuild["spec"]; parts: BikeBuild["parts"] },
+  plan: GuestImportDeps["plan"],
+): BikePlanner {
+  const build: BikeBuild = { spec: derived.spec, parts: derived.parts };
+  let full: readonly CheckStepRef[] | null = null;
+  return {
+    full: () => (full ??= plan(build, { kind: "full" })),
+    asked: (scope) => new Set(plan(build, scope).map((step) => step.key)),
   };
 }
 
@@ -268,6 +419,8 @@ interface AcceptedCheckup {
   /** The `Checkup` row's id — generated here, so the list can point at it. */
   id: string;
   state: CheckupState;
+  /** `Checkup.scope` — what the payload says, for as long as its answers bear it out. */
+  scope: "FULL" | "PARTIAL";
   items: (AnsweredItem & { id: string })[];
   startedAt: Date;
   /** `null` while IN_PROGRESS: the payload carried no `completedAt` (see the header). */
@@ -275,19 +428,22 @@ interface AcceptedCheckup {
 }
 
 /**
- * The payload against the plan the server just computed, or `null` when
- * nothing of it is about a question this bike is asked.
+ * The payload against the bike's FULL plan, or `null` when nothing of it is
+ * about a question this bike is asked.
  */
 function acceptCheckup(
   checkup: GuestCheckup,
-  steps: readonly CheckStepRef[],
+  planner: BikePlanner,
   bikeId: string,
   now: number,
 ): AcceptedCheckup | null {
   // `fromStored` reconciles: keys that are not in the plan and symptoms the
   // step does not offer are gone by the time anything is written — the same
-  // call `acceptedState` makes for a saved bike. The locale, the missing tools
-  // and the content version are the wizard's own business and are not stored.
+  // call `acceptedState` makes for a saved bike. The plan is the WHOLE bike's
+  // whatever scope the payload names (see the header: the stored scope is the
+  // one the run was first opened with, not the one its answers were given
+  // under). The locale, the missing tools and the content version are the
+  // wizard's own business and are not stored.
   const state = fromStored(
     {
       version: CHECKUP_STATE_VERSION,
@@ -303,11 +459,18 @@ function acceptCheckup(
       ...(checkup.completedAt === undefined ? {} : { completedAt: checkup.completedAt }),
       contentVersion: "",
     },
-    steps,
+    planner.full(),
     "",
   );
   const items = answeredItems(state).map((item) => ({ ...item, id: randomUUID() }));
   if (items.length === 0) return null;
+
+  // PARTIAL only while it is true: the payload says `parts` AND every answer
+  // that was kept is a question those parts ask. One answer beyond them and
+  // the run was not confined to them, whatever the stored scope still says.
+  const asked = checkup.scope.kind === "full" ? null : planner.asked(checkup.scope as CheckupScope);
+  const scope =
+    asked !== null && items.every((item) => asked.has(item.stepKey)) ? "PARTIAL" : "FULL";
 
   const startedAt = clamp(checkup.startedAt, now);
   // The PAYLOAD's `completedAt`, not the reconciled state's: `reconcile` drops
@@ -318,6 +481,7 @@ function acceptCheckup(
     guestKey: checkup.guestKey,
     id: randomUUID(),
     state,
+    scope,
     items,
     startedAt,
     // A device whose clock ran backwards between the two writes would otherwise
@@ -441,7 +605,7 @@ function checkupCreate(userId: string, bikeId: string, checkup: AcceptedCheckup)
     id: checkup.id,
     bikeId,
     guestKey: guestCheckupKey(userId, checkup.guestKey),
-    scope: checkup.state.scope.kind === "full" ? ("FULL" as const) : ("PARTIAL" as const),
+    scope: checkup.scope,
     status: checkup.completedAt === null ? ("IN_PROGRESS" as const) : ("COMPLETED" as const),
     startedAt: checkup.startedAt,
     ...(checkup.completedAt === null ? {} : { completedAt: checkup.completedAt }),
@@ -485,18 +649,13 @@ export async function importGuestState(
       select: { id: true },
     });
     if (existing !== null) {
-      bikes.push(await alreadyImported(db, userId, bike.localId, existing.id, checkups));
+      bikes.push(await alreadyImported(db, userId, bike, existing.id, checkups, { plan, at }));
       continue;
     }
 
     if (!withinQuota(owned, QUOTAS.bikesPerUser)) return fail("TOO_MANY");
 
-    // `answers` is the source of truth; the parts the payload carries are read
-    // only through `validateBuild`, and only to keep the owner's attribute
-    // edits. Anything it refuses is replaced by the defaults for this spec.
-    const base = deriveBike(bike.answers as Answers);
-    const checked = validateBuild({ spec: base.spec, parts: bike.parts });
-    const derived = checked.ok ? deriveBike(bike.answers as Answers, checked.build.parts) : base;
+    const derived = deriveGuestBike(bike);
     // The same ceiling `createBikeAction` applies, on the same column: `parts`
     // is the only one a payload can inflate (the answers are a partial map over
     // twelve known question ids, and the spec is derived from them). It is
@@ -508,18 +667,21 @@ export async function importGuestState(
     // Row ids are generated HERE: the list has to point at a checkup, and a
     // line at an item, that are created in the same transaction.
     const bikeId = randomUUID();
-    const build: BikeBuild = { spec: derived.spec, parts: derived.parts };
-    const held = await heldCheckupKeys(db, userId, checkups);
+    // The plan of THIS bike, as derived above — the one `planFor` will compute
+    // from the row once it exists.
+    const planner = plannerFor(derived, plan);
+    const held = await heldCheckups(db, userId, checkups);
     const accepted: AcceptedCheckup[] = [];
     const reports: GuestCheckupImport[] = [];
     for (const checkup of checkups) {
       if (held.has(checkup.guestKey)) {
-        reports.push({ guestKey: checkup.guestKey, status: "already-imported" });
+        // The key is unique and its row is ANOTHER bike's (this one does not
+        // exist yet): no second row — and no claim that the account has what
+        // this copy says. The browser keeps it.
+        reports.push({ guestKey: checkup.guestKey, status: "skipped", reason: "other-bike" });
         continue;
       }
-      // The plan of THIS bike, as derived above — the one `planFor` will
-      // compute from the row once it exists.
-      const one = acceptCheckup(checkup, plan(build, checkup.scope as CheckupScope), bikeId, at);
+      const one = acceptCheckup(checkup, planner, bikeId, at);
       if (one === null) {
         reports.push({ guestKey: checkup.guestKey, status: "skipped", reason: "nothing-kept" });
         continue;
@@ -590,7 +752,7 @@ export async function importGuestState(
         select: { id: true },
       });
       if (raced === null) throw error;
-      bikes.push(await alreadyImported(db, userId, bike.localId, raced.id, checkups));
+      bikes.push(await alreadyImported(db, userId, bike, raced.id, checkups, { plan, at }));
     }
   }
 

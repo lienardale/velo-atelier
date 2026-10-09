@@ -53,14 +53,37 @@
  * keys exactly like `.strict()` does on the server — verified against the
  * installed zod 4.5.4, see `schema.test.ts`.
  *
+ * That sentence was false until 2026-10-09: `KO_ACTIONS` was imported as a
+ * VALUE from `lib/domain/schema/procedure.ts`, which is classic zod, and the
+ * chunk `/import` loads carried a copy of it — 43 classic zod class names in a
+ * 43 054-byte chunk, against none in 26 186 bytes once the value came from
+ * `data/conventions.ts` (both builds measured). Nothing noticed: ESLint's
+ * client-bundle block does not list this folder, and the bundle budget
+ * measures first-load JS while this module is a dynamic import — the build
+ * with classic zod in it ended in "Bundle budget respected".
+ * `tests/unit/guest/module-graph.test.ts` now walks the runtime import graph
+ * from this file and fails on classic zod, on a generated enum, and on
+ * anything server-side.
+ *
  * ## Caps
  *
  * §4.4 names four: 10 bikes, 80 parts, 20 checkups, 10 lists — plus 256 KB for
  * the whole payload. The others ({@link GUEST_CAPS}) are not new policy: they
  * are what the corpus, the wizard's own guard and `QUOTAS.itemsPerList` already
- * allow, stated on every array and on each of a checkup's three RECORDS — a
- * `maxLength` says nothing about a map — so that a refusal is a `VALIDATION`
- * and not a 256 KB payload walked entry by entry.
+ * allow, stated on every array and on every RECORD — a checkup's three, and a
+ * list line's `refinement` — because a `maxLength` says nothing about a map,
+ * and so that a refusal is a `VALIDATION` rather than rows nobody bounded.
+ *
+ * ## What PostgreSQL would refuse is refused here
+ *
+ * A payload that passes this contract must be one the database stores: a
+ * refusal further down is a transaction that throws, i.e. a 500 and a page
+ * left on its spinner. Lengths are the columns' own; **U+0000 is refused in
+ * every string** (`text` rejects it with 22021 and `jsonb` with 22P05 — a
+ * note, a name, a part's free-text attribute); and a date has to be an instant
+ * Postgres has a year for (zod's `iso.datetime` accepts year 0000, Postgres
+ * answers 22008). `tests/integration/guest-import.test.ts` sends each of them
+ * past this contract to the real database, and through it.
  *
  * The payload is an ARRAY of bikes even though exactly one local bike can exist
  * (§1.2): forward-compatibility is cheaper to keep than to add.
@@ -73,9 +96,12 @@ import { QUOTAS } from "@/lib/bike/rules";
 import { MAX_NOTE_LENGTH, MAX_SYMPTOMS } from "@/lib/checkup/reducer";
 import { answeredCount, peekStoredCheckup } from "@/lib/checkup/storage";
 import { CHECKUP_ANSWERS, type CheckupAnswer } from "@/lib/checkup/types";
+// The VALUE comes from the zod-free vocabulary; `schema/procedure.ts` is
+// classic zod and may only be imported for its types here (see the header).
+import { KO_ACTIONS } from "@/lib/domain/data/conventions";
 import { QUESTION_IDS } from "@/lib/domain/data/decision-tree";
-import { KO_ACTIONS, type KoAction } from "@/lib/domain/schema/procedure";
 import { MAX_BUILD_PARTS } from "@/lib/domain/engine/validate-build";
+import type { KoAction } from "@/lib/domain/schema/procedure";
 import { isAllowedProductUrl, isPlainHttpsUrl } from "@/lib/shop/chosen-product";
 
 /**
@@ -113,6 +139,13 @@ export const GUEST_CAPS = {
   /** A partial checkup cannot name more parts than a build can hold. */
   scopeParts: MAX_BUILD_PARTS,
   itemsPerList: QUOTAS.itemsPerList,
+  /**
+   * Answers on one list line's `refinement` — the account's own bound
+   * (`MAX_REFINEMENT_KEYS` in `liste/actions.ts`): a part has a handful of
+   * attributes. With 40-character keys and 120-character values that is under
+   * 10 KB of JSON, well inside the 32 KB every JSON column is held to.
+   */
+  refinementEntries: 24,
 } as const;
 
 /**
@@ -204,16 +237,29 @@ export interface GuestState {
  * Why the server wrote no row for a checkup the payload carried.
  *
  *   `nothing-kept`           none of its answers is about a question this
- *                            bike's plan asks — there is no row to write;
+ *                            bike is asked, whatever the scope — there is no
+ *                            row to write;
  *   `bike-already-imported`  the bike was already in the account, so NOTHING
  *                            was written (§6.8 AC8), and the account does not
- *                            hold this checkup.
+ *                            hold what this copy of the checkup says: no row
+ *                            under its key on that bike, or a row that lacks
+ *                            an answer, or the completion, this copy has;
+ *   `other-bike`             the bike is new and was imported, but the account
+ *                            already holds a checkup under this key on ANOTHER
+ *                            bike. The key is unique, so no second row is
+ *                            written — and what this copy says is not in the
+ *                            account for this bike.
  */
-export type GuestCheckupSkipReason = "nothing-kept" | "bike-already-imported";
+export type GuestCheckupSkipReason = "nothing-kept" | "bike-already-imported" | "other-bike";
 
 /** What became of one checkup of the payload, by its `guestKey`. */
 export type GuestCheckupImport =
-  /** Written now, or (`already-imported`) found in the account under its user-scoped key. */
+  /**
+   * Written now — or (`already-imported`) already in the account ON THIS BIKE,
+   * with every answer this copy carries, and finished if this copy is. Never
+   * said of a row that merely shares the key: the browser forgets its checkup
+   * on this word (`settleGuestImport`).
+   */
   | { guestKey: string; status: "imported" | "already-imported" }
   | { guestKey: string; status: "skipped"; reason: GuestCheckupSkipReason };
 
@@ -244,8 +290,9 @@ export interface GuestImportSummary {
  * it has been proven to be `[a-z0-9-]`, so `../` can never get that far.
  *
  * Lengths are the database's (`VarChar(64)` for a part, `VarChar(160)` for a
- * slug, `VarChar(80)` for a reason key), so a payload Postgres would refuse is
- * refused here first, as a `VALIDATION` rather than a 500.
+ * slug, `VarChar(80)` for a reason key). A pattern is also why none of these
+ * can hold a U+0000; the strings that are NOT matched by a pattern are held to
+ * it explicitly, below.
  */
 const PartIdPattern = z.string().check(z.regex(/^[a-z0-9-]{1,64}$/));
 const GuideSlugPattern = z.string().check(z.regex(/^[a-z0-9-]{1,160}$/));
@@ -256,10 +303,66 @@ const ReasonKeyPattern = z.string().check(z.regex(/^[a-z0-9-]{1,80}$/));
  * a key the browser can hold is never a key the contract refuses.
  */
 const StepKeyPattern = z.string().check(z.regex(/^[a-z0-9-]{1,95}#[a-z0-9-]{1,64}$/));
-const IsoDate = z.iso.datetime({ offset: true });
+
+/**
+ * The first instant PostgreSQL has a year for. zod's `iso.datetime` accepts
+ * `0000-01-01T…`; Postgres answers `22008 date/time field value out of range`,
+ * the transaction throws and the action is a 500 (measured, 2026-10-09). The
+ * bound is on the INSTANT, so an offset cannot walk a year-1 date back into
+ * year 0. It is deliberately not "a plausible date": a phone whose clock was
+ * reset writes 1970, and that checkup is still the visitor's. The future is
+ * `clamp()`'s business, on the server.
+ */
+const EARLIEST_STORABLE_INSTANT = Date.parse("0001-01-01T00:00:00.000Z");
+const IsoDate = z.iso
+  .datetime({ offset: true })
+  .check(z.refine((value: string) => Date.parse(value) >= EARLIEST_STORABLE_INSTANT));
+
+/**
+ * U+0000. PostgreSQL stores it in neither `text` (`22021 invalid byte sequence
+ * for encoding "UTF8": 0x00`) nor `jsonb` (`22P05 unsupported Unicode escape
+ * sequence`, as a value and as a key), so a payload carrying one passed every
+ * wall and then threw in the transaction — measured on 2026-10-09. Built with
+ * `fromCharCode` so that this file never contains the character, nor an escape
+ * a tool might decode into it.
+ */
+const NUL = String.fromCharCode(0);
+const withoutNul = z.refine<string>((value) => !value.includes(NUL));
+
+/** A free-text field of at most `max` characters that PostgreSQL will store. */
+function text(max: number) {
+  return z.string().check(z.maxLength(max), withoutNul);
+}
+
+/**
+ * Does any string inside `value` — a key or a value, at any depth — hold a
+ * U+0000? For the two fields this contract does not type (`parts`, `fit`):
+ * `validateBuild` accepts a part's free-text attribute by length alone, and
+ * the build is written to a `jsonb` column.
+ *
+ * Iterative on purpose: the nesting of an untrusted value is not a depth to
+ * recurse to.
+ */
+function holdsNul(value: unknown): boolean {
+  const pending: unknown[] = [value];
+  while (pending.length > 0) {
+    const next = pending.pop();
+    if (typeof next === "string") {
+      if (next.includes(NUL)) return true;
+    } else if (typeof next === "object" && next !== null) {
+      for (const [key, child] of Object.entries(next)) {
+        if (key.includes(NUL)) return true;
+        pending.push(child);
+      }
+    }
+  }
+  return false;
+}
+const nothingWithNul = z.refine<unknown>((value) => !holdsNul(value));
+
 /** `CheckupItem.notes` / `BikePartState.notes` are `VarChar(2000)`. */
-const Notes = z.string().check(z.maxLength(MAX_NOTE_LENGTH));
-const Name = z.string().check(z.minLength(1), z.maxLength(80));
+const Notes = text(MAX_NOTE_LENGTH);
+const Name = text(80).check(z.minLength(1));
 
 /**
  * The decision tree's answers, as `createBikeAction` accepts them: a partial map
@@ -282,11 +385,11 @@ const AnswersSchema = z.partialRecord(
  */
 const ChosenProductSchema = z
   .strictObject({
-    brand: z.string().check(z.maxLength(80)),
-    model: z.string().check(z.maxLength(120)),
-    size: z.string().check(z.maxLength(40)),
+    brand: text(80),
+    model: text(120),
+    size: text(40),
     vendor: z.string().check(z.regex(/^[a-z0-9-]{1,40}$/)),
-    url: z.string().check(z.maxLength(1000), z.refine(isPlainHttpsUrl)),
+    url: text(1000).check(z.refine(isPlainHttpsUrl)),
   })
   .check(z.refine(isAllowedProductUrl));
 
@@ -333,8 +436,13 @@ const BuildListItemSchema = z.strictObject({
   guideSlug: z.optional(GuideSlugPattern),
   done: z.boolean(),
   sortOrder: z.int().check(z.gte(0), z.lte(10_000)),
+  // A record, so capped like one: until 2026-10-09 only the 256 KB budget
+  // bounded it, and one line could carry 1 400 entries — 230 KB of JSON in a
+  // column every other writer holds to 32 KB.
   refinement: z.optional(
-    z.record(z.string().check(z.regex(/^[a-z0-9-]{1,40}$/)), z.string().check(z.maxLength(120))),
+    z
+      .record(z.string().check(z.regex(/^[a-z0-9-]{1,40}$/)), text(120))
+      .check(maxEntries(GUEST_CAPS.refinementEntries)),
   ),
   chosenProduct: z.optional(ChosenProductSchema),
 });
@@ -348,8 +456,10 @@ const BikeSchema = z.strictObject({
   localId: z.uuid(),
   name: Name,
   answers: AnswersSchema,
-  parts: z.array(z.unknown()).check(z.maxLength(GUEST_CAPS.partsPerBike)),
-  fit: z.optional(z.nullable(z.unknown())),
+  // Untyped here — `validateBuild` and `coerceFit` are their readers — but not
+  // unbounded: nothing in them may hold a character the database refuses.
+  parts: z.array(z.unknown()).check(z.maxLength(GUEST_CAPS.partsPerBike), nothingWithNul),
+  fit: z.optional(z.nullable(z.unknown().check(nothingWithNul))),
   updatedAt: IsoDate,
   checkups: z.array(CheckupSchema).check(z.maxLength(GUEST_CAPS.checkupsPerBike)),
   lists: z.array(BuildListSchema).check(z.maxLength(GUEST_CAPS.listsPerBike)),
@@ -377,9 +487,27 @@ export function parseGuestState(input: unknown): ParseGuestStateResult {
 
 // ── size ─────────────────────────────────────────────────────────────────────
 
-/** UTF-8 bytes of the JSON encoding — `TextEncoder`, not `Buffer` (this runs in a browser too). */
+/**
+ * UTF-8 bytes of the JSON encoding — `TextEncoder`, not `Buffer` (this runs in
+ * a browser too).
+ *
+ * `Infinity` for a value JSON cannot encode: it has no size, so it is within
+ * no budget. `JSON.stringify` THROWS on a `BigInt`, which made this measure —
+ * the first thing the action does with its input — an unhandled `TypeError`
+ * instead of an answer. The decoder of a server action's arguments does build
+ * a `BigInt` for an argument spelled as one (`parseModelString`, read in the
+ * installed `react-server-dom-turbopack`; not sent over HTTP here). A value
+ * that contains itself throws the same way, and one nested too deeply to walk
+ * throws a `RangeError`: the same answer for all three.
+ */
 export function guestStateBytes(state: unknown): number {
-  return new TextEncoder().encode(JSON.stringify(state) ?? "").length;
+  let json: string | undefined;
+  try {
+    json = JSON.stringify(state);
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+  return new TextEncoder().encode(json ?? "").length;
 }
 
 export function withinGuestPayloadBudget(state: unknown, max = MAX_GUEST_PAYLOAD_BYTES): boolean {

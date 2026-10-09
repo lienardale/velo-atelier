@@ -59,6 +59,7 @@
       "unreadable": "The checkup saved on this device could not be read: it was not imported, and we left it on this device.",
       "nothingKept": "The checkup done on this device was not imported: none of its answers matches a question asked for this bike. It stays on this device.",
       "bikeAlreadyImported": "The checkup done on this device was not imported, because this bike was already in your account. It stays on this device.",
+      "otherBike": "The checkup done on this device was not imported with this bike: your account already received it with another bike. It stays on this device.",
       "unconfirmed": "The checkup done on this device was not imported. It stays on this device."
     },
     "failedHelp": "The import did not go through. Your bike is still on this device: nothing is lost.",

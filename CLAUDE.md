@@ -745,11 +745,42 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   client component, which is what reads `localStorage`: it projects
   `va:bike:local`, `va:checkup:local` and `va:buildlist:local` onto the
   `GuestState` payload of `lib/guest/schema.ts` (`zod/mini`; `strictObject` at
-  every level; a cap on every array, and on each of a checkup's three records
-  as well — a `maxLength` says nothing about a map; ids matched by PATTERN at
+  every level; a cap on every array AND every record — a checkup's three, and
+  a list line's `refinement` (24, the account's own `MAX_REFINEMENT_KEYS`) —
+  because a `maxLength` says nothing about a map; ids matched by PATTERN at
   their column's length, never against the generated enums, which stay out of
   the bundle), and `importGuestStateAction` validates only that — `withUser`,
-  then 256 KB, then the shape, then 3 an hour, in that order.
+  then 256 KB, then the shape, then 3 an hour, in that order. The 256 KB are
+  measured BEFORE `parseGuestState` is called — a test spies on the parser,
+  because the answer is `TOO_MANY` either way — and the measure never throws:
+  a value with no JSON size (a `BigInt`, which the action decoder can build)
+  is over every budget.
+  **What PostgreSQL would refuse, the contract refuses**, because past it a
+  refusal is a transaction that throws — a 500 and a page left on its spinner.
+  U+0000 in ANY string is a `VALIDATION` (`text` answers 22021, `jsonb`
+  22P05): names, notes, refinement values, a chosen product's fields, and
+  anywhere inside the two untyped values, `parts` and `fit`, keys included —
+  `validateBuild` takes a part's free-text attribute by length alone. A date
+  must be ISO 8601 with an offset AND an instant Postgres has a year for
+  (`0001-01-01T00:00:00Z` or later: zod accepts year 0000 and Postgres
+  answers 22008 to it) — not "a plausible date": a reset clock writes 1970.
+  `tests/integration/guest-import.test.ts` sends each of those past the
+  contract to the real database, and through it. A new free-text field goes
+  through `text(max)`, never a bare `z.string()`.
+  **`lib/guest/schema.ts` is loaded in the browser** (a dynamic `import()` in
+  `GuestImport.tsx`) and `lib/guest/import.ts` is plain Node, and
+  `tests/unit/guest/module-graph.test.ts` is the ONLY thing that holds either:
+  it walks both files' runtime imports and fails on classic `zod`, a generated
+  enum or anything server-side from the first, and on `server-only`, `next/*`,
+  the corpus or the database client from the second. ESLint's client-bundle
+  block does not list `lib/guest/`, and the bundle budget measures first-load
+  JS while this module is a lazy chunk: a build with classic zod in that chunk
+  (43 class names, 43 054 B against 26 186 B) ended "Bundle budget respected".
+  That copy came from importing `KO_ACTIONS` as a VALUE from
+  `lib/domain/schema/procedure.ts`; the array now lives in
+  `lib/domain/data/conventions.ts`, like the rest of the vocabulary a client
+  module may need, and `procedure.ts` re-exports it. From `schema/**`, a
+  browser-loaded module imports types only.
   **The stored checkup has ONE definition**: `StoredCheckupSchema`
   (`lib/checkup/storage.ts`), which is what `toStored` writes — no `steps`, no
   `cursor`. The import reads the key through `peekStoredCheckup`, which removes
@@ -762,10 +793,14 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   made by the code that makes the real thing** — `tests/_helpers/guest-work.ts`
   (the plan over the guides on disk, the reducer's own events, `toStored`,
   `writeStoredCheckup`, `writeGuestBuildList`, then `collectGuestState`); a
-  hostile payload is a collected one with exactly one thing broken; and one
-  test of `tests/e2e/guest-import.spec.ts` has no checkup fixture at all — the
-  guest answers it in the real wizard — and reads the imported rows from
-  Postgres, which no e2e assertion did before.
+  hostile payload is a collected one with exactly one thing broken; and three
+  tests of `tests/e2e/guest-import.spec.ts` have no checkup fixture at all —
+  the guest answers in the real wizard — and read the imported rows from
+  Postgres, which no e2e assertion did before. **A run the guest LEFT and came
+  back to is made by `resumeGuestRun`**, the wizard's own resume
+  (`readStoredCheckup`, then `fromStored` against the plan of the NEW link):
+  that is where a stale scope comes from, and a fixture that sets `scope` and
+  `answers` to agree describes a browser that does not exist.
   **What the payload carries**, per checkup: the state id (`guestKey`), the
   scope WITH its `partIds`, `answers` / `symptoms` / `notes` keyed by step key,
   `startedAt` and `completedAt` — no step, and no part or guide per answer.
@@ -775,17 +810,32 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `VALIDATION` that writes nothing and keeps every key (whether a tab loaded
   before a deploy can still reach the new action was not observed).
   **The server re-plans** (§5.4). `importGuestState` derives the bike, asks
-  the planner for THAT build and the checkup's scope, and marries the payload
-  to the plan with `fromStored` (`reconcile`), exactly as `acceptedState` does
-  for a saved bike: an answer whose key is not in the plan is dropped, and so
-  is a symptom the step does not offer. The planner is `planForBuild`
+  the planner for THAT build's FULL plan, and marries the payload to it with
+  `fromStored` (`reconcile`), the call `acceptedState` makes for a saved bike:
+  an answer whose key is not in the plan is dropped, and so is a symptom the
+  step does not offer.
+  **The scope the payload names is NOT what the answers are accepted
+  against.** The wizard resumes an unfinished run against the plan of the URL
+  (`restore` → `fromStored(stored, props.steps)`) and keeps the scope the run
+  was FIRST opened with, so a run opened on the chain and finished through
+  "Contrôle complet" is stored with 34 answers and `scope: parts[chain]`.
+  Planning that scope imported 1 answer of 34, reported the checkup
+  `imported`, and the browser cleared the rest (found in review, in a browser
+  and on PostgreSQL; `.debug/017` §5.6, R1). The full plan asks every question
+  any scope of the same bike asks, and is the server's own just as much. The
+  named scope decides one thing, the `Checkup.scope` column: `PARTIAL` while
+  every KEPT answer is a question that scope asks, `FULL` as soon as one is
+  not — which also means an unfinished run that went beyond its parts is
+  resumed on the account over the full plan. The wizard's resume was not
+  changed: browsers already hold such states. The planner is `planForBuild`
   (`lib/content/checkup-plan.ts`), the ONE plan every server-side write uses
   (`controle/actions.ts` too); it is INJECTED into `lib/guest/import.ts`
   because it reaches `content-collections`, so that module stays plain Node
   with the database and the corpus both passed in. The rows are
   `answeredItems(state)` (`lib/checkup/items.ts`), the function `writeItems`
   uses: one per answered planned step, `partId` = the step's FIRST part,
-  `reasonKeys` only on a KO. A checkup with no surviving answer writes no row.
+  `reasonKeys` only on a KO. A checkup none of whose answers is a question
+  this bike is asked writes no row (`nothing-kept`).
   **`COMPLETED` if and only if the payload carries `completedAt`** — NOT
   `reconcile`'s verdict, which drops the date as soon as today's plan asks a
   question the checkup did not answer. A checkup the visitor finished stays
@@ -807,9 +857,9 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   resumed and finished on the account is the SAME `Checkup` row
   (`tests/integration/guest-import.test.ts`). The parts a PARTIAL checkup was
   scoped to have no column (`Checkup.scope` is `FULL | PARTIAL`): the import
-  plans with them and they are then gone, exactly as for a partial checkup
-  started on the account. How an account resumes a partial run is that flow's
-  own path — not changed here, not relied on, and not ruled on.
+  uses them to decide that column and they are then gone, exactly as for a
+  partial checkup started on the account. How an account resumes a partial run
+  is that flow's own path — not changed here, not relied on, and not ruled on.
   (`finishCheckupAction` writes a KO as `ATTENTION`, host-expanded through
   `statusByPart`; the two are deliberately NOT aligned — a separate ruling.)
   **All or nothing per bike**: the bike, its part states, checkups, items,
@@ -820,18 +870,35 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   Idempotency is a database fact: a bike is created only when
   `(userId, guestLocalId)` is absent, so a second device's older copy is
   answered `skipped: 'already-imported'` with **nothing written** — never a
-  merge, never a compare — and a lost race (P2002) is the same answer.
+  merge — and a lost race (P2002) is the same answer.
   `Checkup.guestKey` is globally unique, so it is stored user-scoped
   (`${userId}:${CheckupState.id}`): two people importing from one shared
   browser hold the same state id; and a checkup the ACCOUNT already holds
   under that key is never written twice, whichever bike carries it.
+  **`already-imported`, said of a CHECKUP, is a statement about its content,
+  never about its id** — the browser forgets its copy on that word. On a bike
+  that is already in the account it is said only if the row under the key is
+  on THAT bike and already has every answer the import would have written
+  from this copy (same verdict, note and symptoms) and is `COMPLETED` if the
+  copy is finished (`accountHolds`, one read, no write; a row with MORE
+  answers still holds the copy). Otherwise `skipped: 'bike-already-imported'`.
+  On a NEW bike a held key is `skipped: 'other-bike'` — no second row, and no
+  claim that the account has what this copy says. Until this was so, an import
+  whose RESPONSE was lost, followed by more answers in the same run, ended
+  with those answers in neither place (`.debug/017` §5.6, R2). What it does
+  not do is write them: a bike already there is never written to, so they stay
+  in the browser, and the visitor is told.
   **The answer says what became of each checkup, and the browser clears on
   that answer and nothing else** (`settleGuestImport` → `clearGuestKeys`;
   there is no "clear everything" any more). `imported` or `already-imported`:
   `va:checkup:local` goes. `skipped` (`nothing-kept`,
-  `bike-already-imported`), unreadable in the browser, or not named by the
-  answer: it STAYS, and the toast says so in the visitor's language
-  (`account.import.checkupKept.*`). No stored checkup, or one with no answer
+  `bike-already-imported`, `other-bike`), unreadable in the browser, or not
+  named by the answer: it STAYS, and the toast says so in the visitor's
+  language — one sentence per reason, the union type makes `GuestImport.tsx`
+  fail to compile without it (`account.import.checkupKept.*`). A stored
+  checkup the contract would refuse (too many answers, a U+0000, a year-0
+  date) is reported `unreadable` by the collector, so it stays in the browser
+  instead of sinking the bike. No stored checkup, or one with no answer
   at all: there was nothing to import. The bike and list keys go once the bike
   is in the account; a refused import keeps every key. That wiring is the
   PAGE's, so it has a test of its own: `tests/ui/guest-import.test.tsx` mounts

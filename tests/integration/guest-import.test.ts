@@ -38,7 +38,20 @@
  * `list.checkupId` was NULL — which is exactly what production then did to a
  * real checkup (`.debug/017` §5.6).
  *
- * Two tests go through `importGuestStateAction` so the whole path — session,
+ *   - **What Postgres refuses.** A U+0000 in a `text` column (22021) or in a
+ *     `jsonb` one (22P05), and a date in year 0000 (22008), each abort the
+ *     transaction: the action throws, a 500. Only the real database can say
+ *     that those are refused and that year 0001 is not — which is what makes
+ *     the contract's wall the right one, and in the right place.
+ *
+ * The fixtures are what the wizard stores (see below), including the two
+ * sequences found in review on 2026-10-09: a run opened on one part and
+ * carried on through another link (`resumeGuestRun` — the stored scope is
+ * stale, and planning it kept 1 answer of 34), and an import whose answer was
+ * lost before the guest carried on (the second import cleared the newer
+ * answers on the strength of the checkup's id).
+ *
+ * A few tests go through `importGuestStateAction` so the whole path — session,
  * origin, schema, rate limit, planner, writes — is exercised against a real
  * database. The rest drive `importGuestState` directly: the action's bucket is
  * three an hour per user, and a test suite is not a visitor.
@@ -69,19 +82,24 @@ const { finishCheckupAction, saveCheckupAction } =
   await import("@/app/[locale]/velo/[id]/controle/actions");
 const { loadStoredCheckup } = await import("@/app/[locale]/velo/[id]/controle/load");
 const { guestCheckupKey, importGuestState } = await import("@/lib/guest/import");
-const { GUEST_STATE_VERSION } = await import("@/lib/guest/schema");
+const { GUEST_STATE_VERSION, settleGuestImport } = await import("@/lib/guest/schema");
+const { buildListKey, checkupKey, LOCAL_BIKE_KEY } = await import("@/lib/bike/storage-keys");
+const { rateLimitKey } = await import("@/lib/auth/tokens");
 // The planner the action injects — production's wiring, not a stand-in.
 const { planForBuild } = await import("@/lib/content/checkup-plan");
 const { deriveBike } = await import("@/lib/bike/rules");
 const { reduce } = await import("@/lib/checkup/reducer");
 const { fromStored, toStored } = await import("@/lib/checkup/storage");
-const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
+const { BIKE_PRESETS, PRESET_IDS } = await import("@/lib/domain/data/presets");
 const { validateBuild } = await import("@/lib/domain/engine/validate-build");
-const { guestRun, guestWork, partsScope } = await import("@/tests/_helpers/guest-work");
+const { guestRun, guestWork, partsScope, resumeGuestRun } =
+  await import("@/tests/_helpers/guest-work");
 
 type GuestBike = import("@/lib/guest/schema").GuestBike;
 type GuestState = import("@/lib/guest/schema").GuestState;
 type GuestVerdict = import("@/tests/_helpers/guest-work").GuestVerdict;
+type GuestWork = import("@/tests/_helpers/guest-work").GuestWork;
+type CheckupState = import("@/lib/checkup/types").CheckupState;
 
 const DERIVED = deriveBike(BIKE_PRESETS["gravel-1x11"]);
 const LOCAL_ID = "11111111-2222-4333-8444-555555555555";
@@ -92,8 +110,14 @@ const COMPLETED_AT = "2026-09-14T08:20:00.000Z";
 
 const CHAIN = "check-drivetrain#chain-wear";
 const CASSETTE = "check-drivetrain#cassette-teeth";
+const PAD_WEAR = "check-brakes-disc#pad-wear";
 
 const deps = { plan: planForBuild };
+
+/** The payload `/import` posts for what `work`'s storage holds — as JSON, like the wire. */
+function payloadOf(work: GuestWork): GuestState {
+  return JSON.parse(JSON.stringify(work.collect().state)) as GuestState;
+}
 
 interface RunOptions {
   verdicts: Record<string, GuestVerdict>;
@@ -382,7 +406,21 @@ describe("the constraints the feature rests on", () => {
     const before = await countsFor(user.id);
     expect(before).toMatchObject({ bikes: 1, checkups: 1, items: 2, lists: 1, lines: 1 });
 
-    // The same guest bike again, older, the chain now said to be fine.
+    // The same guest bike again, older — bike and checkup as they were imported.
+    const same = guestBike(FINISHED, {
+      name: "Vieille copie",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const again = await importGuestState(prisma, user.id, state(same), deps);
+    expect(again.ok && again.data).toMatchObject({ imported: 0, skipped: 1 });
+    // The account holds this checkup, answer for answer: the browser may forget it.
+    expect(again.ok && again.data.bikes[0]).toMatchObject({
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "already-imported" }],
+    });
+    expect(await countsFor(user.id)).toEqual(before);
+
+    // And a copy whose checkup says something ELSE: the chain now said to be fine.
     const older = guestBike(
       { verdicts: { [CHAIN]: "ok", [CASSETTE]: "ok" } },
       { name: "Vieille copie", updatedAt: "2026-01-01T00:00:00.000Z" },
@@ -391,10 +429,14 @@ describe("the constraints the feature rests on", () => {
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(second.data).toMatchObject({ imported: 0, skipped: 1 });
-    // The account holds this checkup — as the first import wrote it.
+    // Skipped like the bike — and NOT called "already imported": the account
+    // holds a row under this key, with another verdict on the chain. Which of
+    // the two is the right one cannot be known here, so the browser keeps its
+    // own. (Until 2026-10-09 this was reported `already-imported` on the id
+    // alone, and the browser cleared it.)
     expect(second.data.bikes[0]).toMatchObject({
       skipped: "already-imported",
-      checkups: [{ guestKey: CHECKUP_ID, status: "already-imported" }],
+      checkups: [{ guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" }],
     });
 
     // Nothing written: never a second Checkup, and the first one's verdict stands.
@@ -509,8 +551,9 @@ describe("the constraints the feature rests on", () => {
     const other = guestBike(FINISHED, { localId: "22222222-2222-4333-8444-555555555555" });
     const result = await importGuestState(prisma, user.id, state(other), deps);
     expect(result.ok && result.data).toMatchObject({ imported: 1 });
+    // Not written — and not called imported either: see the next describe.
     expect(result.ok && result.data.bikes[0].checkups).toEqual([
-      { guestKey: CHECKUP_ID, status: "already-imported" },
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "other-bike" },
     ]);
     expect(await countsFor(user.id)).toMatchObject({ bikes: 2, checkups: 1, lists: 2 });
   });
@@ -543,6 +586,635 @@ describe("the constraints the feature rests on", () => {
 
     await prisma.bike.delete({ where: { id: result.data.bikeId } });
     expect(await countsFor(user.id)).toEqual(NOTHING);
+  });
+});
+
+describe("an imported FINISHED checkup holds the rows a finish on the account writes", () => {
+  /*
+   * Adopted from the review of 2026-10-09: the same full checkup, answered the
+   * same way, once imported from a browser and once finished natively through
+   * `finishCheckupAction` on a saved bike of another account — on every
+   * preset. The `CheckupItem` rows must be the same rows, and each list line
+   * must be linked to the answer of the same step. (The PART STATES are not
+   * compared: the import writes a KO as `BROKEN` on the part its row names,
+   * the native finish `ATTENTION` through `statusByPart` — a separate ruling,
+   * and neither side is to be aligned.)
+   */
+  function verdictsFor(build: Parameters<typeof planForBuild>[0]): Record<string, GuestVerdict> {
+    return Object.fromEntries(
+      planForBuild(build, { kind: "full" }).map((step, index): [string, GuestVerdict] => {
+        const mode = index % 5;
+        if (mode === 1) return [step.key, step.skippable ? "skipped" : "ok"];
+        if (mode === 2 && step.ko.length > 0) {
+          return [step.key, { ko: [step.ko[0].reasonKey], notes: `note ${index}` }];
+        }
+        // A KO with no symptom ticked: every consequence of the step lands.
+        if (mode === 3) return [step.key, "ko"];
+        if (mode === 4) return [step.key, { ok: true, notes: `ok ${index}` }];
+        return [step.key, "ok"];
+      }),
+    );
+  }
+
+  it.each(PRESET_IDS)("%s", async (preset) => {
+    const guest = await signedInUser(`import-parity-guest-${preset}@velo-atelier.test`);
+    const work = guestWork({
+      // eslint-disable-next-line security/detect-object-injection -- `preset` iterates the literal PRESET_IDS
+      answers: BIKE_PRESETS[preset],
+      checkup: (build) =>
+        guestRun({
+          id: crypto.randomUUID(),
+          build,
+          scope: { kind: "full" },
+          verdicts: verdictsFor(build),
+          startedAt: STARTED_AT,
+          completedAt: COMPLETED_AT,
+        }),
+    });
+    const imported = await importGuestState(prisma, guest.id, payloadOf(work), deps);
+    expect(imported.ok && imported.data.bikes[0].checkups[0].status).toBe("imported");
+    if (!imported.ok || imported.data.bikeId === null) return;
+
+    // The same answers, finished natively on a saved bike of another account.
+    const native = await signedInUser(`import-parity-native-${preset}@velo-atelier.test`);
+    // eslint-disable-next-line security/detect-object-injection -- as above
+    const derived = deriveBike(BIKE_PRESETS[preset]);
+    const bike = await prisma.bike.create({
+      data: {
+        userId: native.id,
+        name: "Natif",
+        answers: derived.answers as object,
+        spec: derived.spec as object,
+        parts: derived.parts as unknown as object[],
+        partStates: { create: derived.parts.map((part) => ({ partId: part.partId })) },
+      },
+    });
+    const state: CheckupState = {
+      ...(work.checkup as CheckupState),
+      bikeRef: { kind: "db", id: bike.id },
+    };
+    expect((await finishCheckupAction({ bikeId: bike.id, checkup: toStored(state) })).ok).toBe(
+      true,
+    );
+
+    const rowsOf = (bikeId: string) =>
+      prisma.bike.findUniqueOrThrow({
+        where: { id: bikeId },
+        include: {
+          checkups: { include: { items: true } },
+          buildLists: { include: { items: true } },
+        },
+      });
+    const [a, b] = [await rowsOf(imported.data.bikeId), await rowsOf(bike.id)];
+
+    const itemsOf = (row: typeof a) =>
+      row.checkups[0].items
+        .map((item) => ({
+          stepKey: item.stepKey,
+          partId: item.partId,
+          guideSlug: item.guideSlug,
+          result: item.result,
+          notes: item.notes,
+          reasonKeys: item.reasonKeys,
+        }))
+        .sort((x, y) => x.stepKey.localeCompare(y.stepKey));
+    expect(itemsOf(a).length).toBeGreaterThan(10);
+    expect(itemsOf(a)).toEqual(itemsOf(b));
+    expect(a.checkups[0]).toMatchObject({
+      status: b.checkups[0].status,
+      scope: b.checkups[0].scope,
+    });
+
+    const linesOf = (row: typeof a) => {
+      const stepOfItem = new Map(row.checkups[0].items.map((item) => [item.id, item.stepKey]));
+      return row.buildLists[0].items
+        .map((line) => ({
+          pair: `${line.action}|${line.partId}`,
+          reasonKey: line.reasonKey,
+          guideSlug: line.guideSlug,
+          done: line.done,
+          linkedStep: line.checkupItemId === null ? null : stepOfItem.get(line.checkupItemId),
+        }))
+        .sort((x, y) => x.pair.localeCompare(y.pair));
+    };
+    expect(a.buildLists).toHaveLength(1);
+    expect(a.buildLists[0].checkupId).toBe(a.checkups[0].id);
+    expect(linesOf(a).length).toBeGreaterThan(0);
+    expect(linesOf(a)).toEqual(linesOf(b));
+    // Every line of a list one finished checkup derived is linked to its answer.
+    expect(linesOf(a).every((line) => line.linkedStep !== null)).toBe(true);
+  });
+});
+
+describe("a run the guest left and carried on through another link (the stored scope is stale)", () => {
+  /*
+   * `components/checkup/Wizard.tsx`, `restore`: an unfinished stored run is
+   * resumed against the plan of the URL — `fromStored(stored, props.steps)` —
+   * and keeps the scope it was first opened with. `resumeGuestRun` replays it
+   * call for call. Found in review on 2026-10-09, in a browser and here: the
+   * import planned the STORED scope, kept 1 answer of 34, reported the checkup
+   * `imported`, and the page cleared it.
+   */
+  function chainThen(link: Parameters<typeof resumeGuestRun>[1]) {
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      updatedAt: GUEST_UPDATED_AT,
+      // "Contrôler cette pièce" on the chain: one answer, then the guest leaves.
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain"),
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+          startedAt: STARTED_AT,
+        }),
+    });
+    return resumeGuestRun(work, link);
+  }
+
+  it("then the FULL checkup, finished: every answer is in the account, linked, with its part states", async () => {
+    const user = await signedInUser("import-stale-scope-full@velo-atelier.test");
+    expect(await countsFor(user.id)).toEqual(NOTHING);
+    const work = chainThen({
+      scope: { kind: "full" },
+      verdicts: { [PAD_WEAR]: { ko: ["pad-worn"], notes: "garniture à 0,5 mm" } },
+      rest: "ok",
+      completedAt: COMPLETED_AT,
+    });
+    const plan = planForBuild(work.build, { kind: "full" });
+    const stored = JSON.parse(work.storage.getItem(checkupKey("local")) ?? "{}") as {
+      scope: unknown;
+      answers: Record<string, string>;
+    };
+    // What the wizard left: the scope of the FIRST visit, the answers of both.
+    expect(stored.scope).toEqual({ kind: "parts", partIds: ["chain"] });
+    expect(Object.keys(stored.answers)).toHaveLength(plan.length);
+    expect(plan.length).toBeGreaterThan(30);
+
+    const collection = work.collect();
+    const result = await importGuestStateAction(payloadOf(work));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.bikes[0].checkups).toEqual([{ guestKey: CHECKUP_ID, status: "imported" }]);
+
+    const row = await prisma.bike.findUniqueOrThrow({
+      where: { id: result.data.bikeId ?? "" },
+      include: {
+        partStates: true,
+        checkups: { include: { items: true } },
+        buildLists: { include: { items: true } },
+      },
+    });
+    const [checkup] = row.checkups;
+    // Every answer the guest gave — not the one the stale scope asks.
+    expect(checkup.items.map((item) => item.stepKey).sort()).toEqual(
+      Object.keys(stored.answers).sort(),
+    );
+    expect(checkup).toMatchObject({ status: "COMPLETED", scope: "FULL" });
+    expect(checkup.items.find((item) => item.stepKey === PAD_WEAR)).toMatchObject({
+      result: "KO",
+      notes: "garniture à 0,5 mm",
+      reasonKeys: ["pad-worn"],
+    });
+
+    // The list the wizard wrote, and EVERY line of it linked to its answer.
+    const [list] = row.buildLists;
+    expect(list.checkupId).toBe(checkup.id);
+    expect(list.items.map((line) => `${line.action}|${line.partId}`).sort()).toEqual([
+      "REPLACE|brake-pads-front",
+      "REPLACE|brake-pads-rear",
+      "REPLACE|chain",
+    ]);
+    const itemIds = new Set(checkup.items.map((item) => item.id));
+    expect(list.items.every((line) => itemIds.has(line.checkupItemId ?? ""))).toBe(true);
+
+    // Part states for the whole checkup, not for the chain alone.
+    const states = new Map(row.partStates.map((state) => [state.partId, state.status]));
+    expect(states.get("chain")).toBe("BROKEN");
+    expect(states.get("brake-caliper-front")).toBe("BROKEN");
+    expect(states.get("cassette")).toBe("OK");
+    expect(row.partStates.filter((state) => state.status !== "UNKNOWN").length).toBeGreaterThan(10);
+
+    // Only now may the browser forget it: everything it held is in the account.
+    expect(settleGuestImport(collection, result.data)).toEqual({
+      checkup: { status: "imported" },
+      clear: [LOCAL_BIKE_KEY, buildListKey("local"), checkupKey("local")],
+    });
+  });
+
+  it("then ANOTHER part, finished: its answers are imported — the first part asks none of them", async () => {
+    const user = await signedInUser("import-stale-scope-part@velo-atelier.test");
+    const work = chainThen({
+      scope: partsScope("brake-caliper-front"),
+      verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] } },
+      rest: "ok",
+      completedAt: COMPLETED_AT,
+    });
+    const stored = JSON.parse(work.storage.getItem(checkupKey("local")) ?? "{}") as {
+      scope: unknown;
+      answers: Record<string, string>;
+    };
+    expect(stored.scope).toEqual({ kind: "parts", partIds: ["chain"] });
+    // The wizard's `reconcile` dropped the chain's answer under the brake's plan.
+    expect(Object.keys(stored.answers)).not.toContain(CHAIN);
+    expect(Object.keys(stored.answers).length).toBeGreaterThan(1);
+
+    const result = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    // Before: `skipped: 'nothing-kept'`, no Checkup row, an unlinked list — the
+    // production symptom again — and a bike in the account, so never a retry.
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    if (!result.ok || result.data.bikeId === null) return;
+    const checkups = await prisma.checkup.findMany({
+      where: { bikeId: result.data.bikeId },
+      include: { items: true },
+    });
+    expect(checkups).toHaveLength(1);
+    expect(checkups[0].items.map((item) => item.stepKey).sort()).toEqual(
+      Object.keys(stored.answers).sort(),
+    );
+    expect(checkups[0].scope).toBe("FULL");
+    const lines = await prisma.buildListItem.findMany({
+      where: { buildList: { bikeId: result.data.bikeId } },
+    });
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.every((line) => line.checkupItemId !== null)).toBe(true);
+  });
+
+  it("then the full checkup, LEFT again: resumed on the account as the same row, no answer lost", async () => {
+    const user = await signedInUser("import-stale-scope-resume@velo-atelier.test");
+    // Two more answers under the full link, and the guest leaves again.
+    const work = chainThen({
+      scope: { kind: "full" },
+      verdicts: { [CASSETTE]: "ok", [PAD_WEAR]: { ko: ["pad-worn"] } },
+    });
+    const result = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.data.bikeId === null) return;
+    const bikeId = result.data.bikeId;
+
+    const [imported] = await prisma.checkup.findMany({
+      where: { bikeId },
+      include: { items: true },
+    });
+    // Three answers, two of them beyond the chain: FULL — which is also what
+    // lets the account's own resume plan every question they answer.
+    expect(imported).toMatchObject({ status: "IN_PROGRESS", scope: "FULL" });
+    expect(imported.items.map((item) => item.stepKey).sort()).toEqual(
+      [CHAIN, CASSETTE, PAD_WEAR].sort(),
+    );
+
+    // The account's resume, as the page and the wizard do it.
+    const stored = await loadStoredCheckup(bikeId, user.id, "fr");
+    expect(stored?.scope).toEqual({ kind: "full" });
+    if (stored == null) return;
+    let run = fromStored(stored, planForBuild(work.build, stored.scope), stored.contentVersion);
+    expect(Object.keys(run.answers).sort()).toEqual([CHAIN, CASSETTE, PAD_WEAR].sort());
+    const next = run.steps[run.cursor];
+    run = reduce(run, { type: "ANSWER", key: next.key, result: "ok" });
+    expect((await saveCheckupAction({ bikeId, checkup: toStored(run) })).ok).toBe(true);
+
+    const after = await prisma.checkup.findMany({ where: { bikeId }, include: { items: true } });
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(imported.id);
+    // The three imported answers are still there, the new one beside them.
+    expect(after[0].items.map((item) => item.stepKey).sort()).toEqual(
+      [CHAIN, CASSETTE, PAD_WEAR, next.key].sort(),
+    );
+  });
+});
+
+describe("`already-imported` is a statement about the checkup's CONTENT, not its id", () => {
+  it("an import whose answer was lost, then more work in the browser: nothing written, and the checkup KEPT", async () => {
+    const user = await signedInUser("import-lost-answer@velo-atelier.test");
+
+    // The guest: chain KO, the checkup left in progress. `/import` runs, the
+    // server writes — and the response never reaches the page: keys kept.
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+          startedAt: STARTED_AT,
+        }),
+    });
+    const first = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    expect(first.ok && first.data.imported).toBe(1);
+    const afterFirst = await countsFor(user.id);
+    expect(afterFirst).toMatchObject({ bikes: 1, checkups: 1, items: 1, lists: 0 });
+
+    // The same browser, the same run: the cassette answered, "Créer ma liste".
+    const resumed = resumeGuestRun(work, {
+      scope: partsScope("chain", "cassette"),
+      verdicts: { [CASSETTE]: { ko: ["cassette-worn"], notes: "dents en aileron de requin" } },
+      completedAt: COMPLETED_AT,
+    });
+    const newer = resumed.storage.getItem(checkupKey("local"));
+    expect(newer).toContain("cassette-worn");
+    expect(resumed.storage.getItem(buildListKey("local"))).not.toBeNull();
+
+    // `/import` again.
+    const collection = resumed.collect();
+    const second = await importGuestState(prisma, user.id, payloadOf(resumed), deps);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    // §6.8 AC8, unchanged: the bike is there, so NOTHING is written…
+    expect(await countsFor(user.id)).toEqual(afterFirst);
+    expect(second.data.bikes[0].skipped).toBe("already-imported");
+    // …and therefore the account does NOT hold what the browser now does: the
+    // cassette's answer, the completion. Reported `already-imported` on the
+    // id, the page cleared all three keys and said nothing.
+    expect(second.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" },
+    ]);
+    const settlement = settleGuestImport(collection, second.data);
+    expect(settlement.checkup).toEqual({ status: "skipped", reason: "bike-already-imported" });
+    // The bike and the list go, as ruled; the checkup STAYS.
+    expect(settlement.clear).toEqual([LOCAL_BIKE_KEY, buildListKey("local")]);
+    expect(resumed.storage.getItem(checkupKey("local"))).toBe(newer);
+  });
+
+  it("the same lost answer with NO further work: the copy is in the account, and the browser may forget it", async () => {
+    const user = await signedInUser("import-lost-answer-same@velo-atelier.test");
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"], notes: "0,8 %" } },
+          startedAt: STARTED_AT,
+        }),
+    });
+    expect((await importGuestState(prisma, user.id, payloadOf(work), deps)).ok).toBe(true);
+    const before = await countsFor(user.id);
+
+    const collection = work.collect();
+    const second = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    expect(second.ok && second.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "already-imported" },
+    ]);
+    expect(await countsFor(user.id)).toEqual(before);
+    if (!second.ok) return;
+    expect(settleGuestImport(collection, second.data).clear).toEqual([
+      LOCAL_BIKE_KEY,
+      buildListKey("local"),
+      checkupKey("local"),
+    ]);
+  });
+
+  it("a run carried on IN THE ACCOUNT since: the browser's older copy adds nothing, and may go", async () => {
+    const user = await signedInUser("import-carried-on@velo-atelier.test");
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: { kind: "full" },
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+          startedAt: STARTED_AT,
+        }),
+    });
+    const first = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    if (!first.ok || first.data.bikeId === null) throw new Error("the first import failed");
+    const bikeId = first.data.bikeId;
+
+    // On the account: the next question answered through the real save action.
+    const stored = await loadStoredCheckup(bikeId, user.id, "fr");
+    if (stored === null) throw new Error("nothing to resume");
+    let run = fromStored(stored, planForBuild(work.build, stored.scope), stored.contentVersion);
+    run = reduce(run, { type: "ANSWER", key: run.steps[run.cursor].key, result: "ok" });
+    expect((await saveCheckupAction({ bikeId, checkup: toStored(run) })).ok).toBe(true);
+    expect(await prisma.checkupItem.count({ where: { checkup: { bikeId } } })).toBe(2);
+
+    // The browser's copy — one answer, which the row has.
+    const second = await importGuestState(prisma, user.id, payloadOf(work), deps);
+    expect(second.ok && second.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "already-imported" },
+    ]);
+    expect(await prisma.checkupItem.count({ where: { checkup: { bikeId } } })).toBe(2);
+  });
+
+  it("a NEW guest bike carrying a run the account holds under another bike: imported WITHOUT it, and the checkup kept", async () => {
+    const user = await signedInUser("import-other-bike@velo-atelier.test");
+    const first = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: { [CHAIN]: "ok" },
+          startedAt: STARTED_AT,
+        }),
+    });
+    expect((await importGuestState(prisma, user.id, payloadOf(first), deps)).ok).toBe(true);
+
+    // The same browser, another guest bike, and the SAME run under the key —
+    // now finished, against that bike, with a KO.
+    const second = guestWork({
+      answers: BIKE_PRESETS["road-disc-2x12"],
+      bikeId: "22222222-3333-4444-8555-666666666666",
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] }, [CASSETTE]: "ok" },
+          startedAt: STARTED_AT,
+          completedAt: COMPLETED_AT,
+        }),
+    });
+    const raw = second.storage.getItem(checkupKey("local"));
+    const collection = second.collect();
+    const result = await importGuestState(prisma, user.id, payloadOf(second), deps);
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.data.bikeId === null) return;
+
+    // The bike is imported; the key is unique, so no second Checkup row…
+    expect(result.data).toMatchObject({ imported: 1, skipped: 0 });
+    expect(await prisma.checkup.count({ where: { bikeId: result.data.bikeId } })).toBe(0);
+    expect(await prisma.checkup.count({ where: { bike: { userId: user.id } } })).toBe(1);
+    // …and the answer does not pretend otherwise: skipped, with its reason.
+    expect(result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "other-bike" },
+    ]);
+    // So the list is unlinked, no part has a status — and the browser keeps
+    // the checkup those would have come from.
+    const lists = await prisma.buildList.findMany({
+      where: { bikeId: result.data.bikeId },
+      include: { items: true },
+    });
+    expect(lists.map((list) => list.checkupId)).toEqual([null]);
+    expect(lists[0].items.every((line) => line.checkupItemId === null)).toBe(true);
+    expect(
+      await prisma.bikePartState.count({
+        where: { bikeId: result.data.bikeId, status: { not: "UNKNOWN" } },
+      }),
+    ).toBe(0);
+    const settlement = settleGuestImport(collection, result.data);
+    expect(settlement).toEqual({
+      checkup: { status: "skipped", reason: "other-bike" },
+      clear: [LOCAL_BIKE_KEY, buildListKey("local")],
+    });
+    expect(second.storage.getItem(checkupKey("local"))).toBe(raw);
+  });
+});
+
+describe("what PostgreSQL would refuse is a VALIDATION, not a 500", () => {
+  const NUL = String.fromCharCode(0);
+
+  /** A finished checkup, its list — and one line carrying what the visitor typed. */
+  function withTypedLine(): GuestBike {
+    const bike = guestBike();
+    bike.lists[0].items[0] = {
+      ...bike.lists[0].items[0],
+      refinement: { speeds: "11" },
+      chosenProduct: {
+        brand: "Shimano",
+        model: "CN-HG601",
+        size: "11v",
+        vendor: "other",
+        url: "https://example.com/chaine",
+      },
+    };
+    return bike;
+  }
+
+  /** One field of the payload, with a U+0000 in it. */
+  const POISONED: Record<string, (bike: GuestBike) => void> = {
+    "the bike's name (text)": (bike) => {
+      bike.name = `Mon${NUL}vélo`;
+    },
+    "a checkup note (text)": (bike) => {
+      bike.checkups[0].notes = { [CHAIN]: `usure${NUL}0,8 %` };
+    },
+    "the list's name (text)": (bike) => {
+      bike.lists[0].name = `Ma${NUL}liste`;
+    },
+    "a refinement value (jsonb)": (bike) => {
+      bike.lists[0].items[0].refinement = { speeds: `11${NUL}` };
+    },
+    "a chosen product's model (jsonb)": (bike) => {
+      const product = bike.lists[0].items[0].chosenProduct;
+      if (product !== undefined) product.model = `CN${NUL}HG601`;
+    },
+    "a part's free-text attribute (jsonb)": (bike) => {
+      const pads = (bike.parts as { partId: string; attributes: Record<string, unknown> }[]).find(
+        (part) => part.partId === "brake-pads-front",
+      );
+      if (pads === undefined) throw new Error("the gravel preset has front brake pads");
+      pads.attributes["pad-model"] = `B05S${NUL}`;
+    },
+  };
+
+  it.each(Object.keys(POISONED))(
+    "a U+0000 in %s: Postgres refuses the transaction — and the action answers VALIDATION before it",
+    async (field) => {
+      const user = await signedInUser(
+        `import-nul-${Object.keys(POISONED).indexOf(field)}@velo-atelier.test`,
+      );
+      const bike = withTypedLine();
+      // eslint-disable-next-line security/detect-object-injection -- a key of the literal table above
+      POISONED[field](bike);
+
+      // Why the wall exists: past the contract, the database throws, and the
+      // whole bike is rolled back.
+      await expect(importGuestState(prisma, user.id, state(bike), deps)).rejects.toThrow();
+      expect(await countsFor(user.id)).toEqual(NOTHING);
+
+      // The wall: an answer the page can show, nothing written, no attempt spent.
+      expect(await importGuestStateAction(state(bike))).toEqual({ ok: false, code: "VALIDATION" });
+      expect(await countsFor(user.id)).toEqual(NOTHING);
+      expect(
+        await prisma.authAttempt.findUnique({
+          where: { key: rateLimitKey("guest-import", user.id) },
+        }),
+      ).toBeNull();
+    },
+  );
+
+  it("the same payload without the U+0000 is imported whole — the wall refuses the character, not the field", async () => {
+    const user = await signedInUser("import-nul-control@velo-atelier.test");
+    const bike = withTypedLine();
+    const pads = (bike.parts as { partId: string; attributes: Record<string, unknown> }[]).find(
+      (part) => part.partId === "brake-pads-front",
+    );
+    if (pads !== undefined) pads.attributes["pad-model"] = "B05S";
+    bike.checkups[0].notes = { [CHAIN]: "usure 0,8 %" };
+    const result = await importGuestStateAction(state(bike));
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    const row = await prisma.bike.findFirstOrThrow({ where: { userId: user.id } });
+    const stored = (row.parts as { partId: string; attributes: Record<string, unknown> }[]).find(
+      (part) => part.partId === "brake-pads-front",
+    );
+    expect(stored?.attributes["pad-model"]).toBe("B05S");
+  });
+
+  it("a date in year 0000: Postgres has no such year — VALIDATION; year 0001 is stored", async () => {
+    const user = await signedInUser("import-year-zero@velo-atelier.test");
+    const YEAR_ZERO = "0000-06-15T00:00:00.000Z";
+    // The two dates that reach a column as they came (never later than now).
+    const fields: Record<string, (bike: GuestBike) => void> = {
+      "a checkup's startedAt": (bike) => {
+        bike.checkups[0].startedAt = YEAR_ZERO;
+      },
+      "the bike's updatedAt": (bike) => {
+        bike.updatedAt = YEAR_ZERO;
+      },
+    };
+    for (const [field, set] of Object.entries(fields)) {
+      const bike = guestBike();
+      set(bike);
+      // Past the contract, the transaction throws (22008)…
+      await expect(importGuestState(prisma, user.id, state(bike), deps), field).rejects.toThrow();
+      // …so the contract refuses it first.
+      expect(await importGuestStateAction(state(bike)), field).toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+      expect(await countsFor(user.id), field).toEqual(NOTHING);
+    }
+    // `completedAt` is held to the same rule by the contract, though the
+    // import would have raised it to `startedAt` before Postgres saw it.
+    const finishedInYearZero = guestBike();
+    finishedInYearZero.checkups[0].completedAt = YEAR_ZERO;
+    expect(await importGuestStateAction(state(finishedInYearZero))).toEqual({
+      ok: false,
+      code: "VALIDATION",
+    });
+    // An offset cannot walk a year-1 date back into year 0 either.
+    const walked = guestBike();
+    walked.checkups[0].startedAt = "0001-01-01T00:00:00.000+14:00";
+    expect(await importGuestStateAction(state(walked))).toEqual({ ok: false, code: "VALIDATION" });
+    expect(await countsFor(user.id)).toEqual(NOTHING);
+
+    // The bound is the database's, not a guess: the first instant of year 1 is stored.
+    const earliest = guestBike();
+    earliest.checkups[0].startedAt = "0001-01-01T00:00:00.000Z";
+    earliest.updatedAt = "0001-01-01T00:00:00.000Z";
+    const result = await importGuestStateAction(state(earliest));
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    const row = await prisma.checkup.findFirstOrThrow({ where: { bike: { userId: user.id } } });
+    expect(row.startedAt.toISOString()).toBe("0001-01-01T00:00:00.000Z");
+    const bikeRow = await prisma.bike.findFirstOrThrow({ where: { userId: user.id } });
+    expect(bikeRow.updatedAt.toISOString()).toBe("0001-01-01T00:00:00.000Z");
   });
 });
 

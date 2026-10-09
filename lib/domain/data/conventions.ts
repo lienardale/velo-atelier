@@ -112,6 +112,25 @@ export const PART_POSITIONS = ["front", "rear", "left", "right", "none"] as cons
 /** Units an attribute can carry; `count` covers "how many" (teeth, pistons, …). */
 export const ATTRIBUTE_UNITS = ["mm", "in", "g", "Wh", "V", "Nm", "count"] as const;
 
+// ── The vocabulary of a to-fix line ──────────────────────────────────────────
+//
+// Here for the same reason as the spec's vocabulary above: `schema/procedure.ts`
+// is a classic-zod module, and the guest-import contract (`lib/guest/schema.ts`)
+// is loaded in the browser by `/import`. Importing this VALUE from the schema
+// module put a copy of classic zod in that page's lazy chunk — found in review
+// on 2026-10-09, and held since by `tests/unit/guest/module-graph.test.ts`.
+
+/**
+ * What a failed check leads to.
+ *
+ * `fix` is the "you can sort this out yourself without new parts" action and
+ * resolves to an **`adjust`** guide; every other action resolves to a guide of
+ * the same kind. `inspect-shop` is the honest answer for the jobs this site
+ * deliberately does not teach (hydraulic bleeding, wheel truing, bearings) and
+ * is the only action that may omit `guideSlug`.
+ */
+export const KO_ACTIONS = ["replace", "fix", "clean", "adjust", "inspect-shop"] as const;
+
 /**
  * Which lever operates which brake, French/continental convention: left lever →
  * front brake. Used by the checkup wording ("le levier gauche commande le frein
