@@ -71,6 +71,27 @@ export async function pointFor(page: Page, id: string): Promise<{ x: number; y: 
   );
 }
 
+/**
+ * Wait until the camera has finished moving. A selection made from the parts
+ * list starts a transition towards the part, and a point read from
+ * `screenPositionOf` during it is where the part WAS: the click that follows
+ * lands beside it, on another part or on nothing (seen on the bike page, where
+ * a row is clicked before the canvas is).
+ */
+export async function waitCameraAtRest(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const camera = window.__va?.bike.camera();
+        if (!camera) return Number.POSITIVE_INFINITY;
+        const gap = (a: number[], b: number[]): number =>
+          Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+        return gap(camera.position, camera.endPosition) + gap(camera.target, camera.endTarget);
+      }),
+    )
+    .toBeLessThan(1e-3);
+}
+
 /** Click (mouse) or tap (touch) the canvas on `id`. */
 export async function clickPart(page: Page, id: string): Promise<void> {
   const point = await pointFor(page, id);

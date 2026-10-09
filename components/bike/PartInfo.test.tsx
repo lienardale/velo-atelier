@@ -24,6 +24,12 @@ import { PartInfo } from "./PartInfo";
  *    inner-tube one on a tubed bike;
  *  - **the demo bike shows no form at all**, because an edit there would change
  *    what every other visitor sees; it offers the fork instead.
+ *
+ * What this file CANNOT see: `partId` is set by hand here, once per render, so
+ * nothing below shows what the edit form does when the SELECTION changes under
+ * a tab that stays open — which is where it wrote one part's value to another
+ * until 2026-10-09 (`.debug/017` §5.8). That is `PartsPanel.test.tsx` and
+ * `BikeWorkspace.test.tsx`, through the panel and the store.
  */
 const gravel = buildOf(deriveBike(BIKE_PRESETS["gravel-1x11"])); // tubeless
 const roadRim = buildOf(deriveBike(BIKE_PRESETS["road-rim-2x11"])); // inner tubes
