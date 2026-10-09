@@ -733,6 +733,40 @@ docs/                contributor and operator docs — every one is linked from 
   `next build` both green. Keep input schemas module-private.
 - **State updaters never read an event.** `event.currentTarget` is `null` by the
   time a `setState(prev => …)` updater runs; read the value in the handler.
+- **The part edit form is ONE part's** (`components/bike/PartEditForm.tsx`,
+  `.debug/017` §5.8). The panel does not unmount when the selection changes: a
+  part picked on the bike — a mesh, the silhouette, `?part=` on a history move
+  — changes `partId` under an open "Infos" tab. Until 2026-10-09 the form had
+  no identity, and its uncontrolled fields kept the previous part's value
+  (React sets `element.value` at mount, so the field stops following
+  `defaultValue`) and wrote it to the new part on the next blur: a stock
+  dropper post's travel went from 170 to 140 with nothing typed. Three rules,
+  each held by tests that go THROUGH the panel
+  (`components/bike/{PartsPanel,BikeWorkspace}.test.tsx`,
+  `tests/integration/part-form.test.ts`, `tests/e2e/part-panel.spec.ts`):
+  (1) the form renders its fields under `key={partId}`, inside `PartEditForm`
+  and not at the call site, so every write carries the part the field was
+  rendered for; (2) a number or text field writes only what was typed since
+  its last commit, and only if that is not what is stored — leaving an
+  untouched field is never a write (the retry of a REFUSED value on the next
+  blur is the one exception, kept from before); (3) text typed and not left is
+  committed from a layout-effect cleanup when the field is removed. React runs
+  no `onBlur` for a node it removes, and the `blur` Chromium fires during the
+  removal arrives inside React's commit, where events are ignored: 45 typed
+  and the "Pièces" tab pressed stored 42 in Chromium 153, mouse and touch
+  (measured on the unfixed build). The rules overlap on purpose — with the key
+  alone removed the nothing-typed sequence still passes in a browser — so a
+  green run after dropping one of them proves nothing about the other two. A
+  write that answers after its form is gone hands its build up (`onSaved`) and
+  reports a refusal as a notice naming the part and the field
+  (`bike.panel.unsaved`), never under another part's field; an untouched field
+  follows the stored value when it changes under it, and text being typed is
+  never replaced. NOT covered: the page unloaded with the caret in the field
+  (a reload, a closed tab) — nothing is unmounted, and a saved bike's write
+  would be a request the browser may drop. **Any form that edits "the selected
+  X" inside a container that outlives the selection follows the same three
+  rules, and is tested through that container**: `PartInfo.test.tsx` rendered
+  the form with a part set by hand and could not see any of this.
 - **Bike writes go through `lib/bike/rules.ts`** — `deriveBike(answers,
 previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   produced, in the server actions, in the guest repo and in `prisma/seed.ts`

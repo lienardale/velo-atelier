@@ -34,6 +34,7 @@
     "edit": "Modifier cette pièce",
     "saving": "Enregistrement…",
     "saved": "Enregistré",
+    "unsaved": "{part} · {field} : votre saisie n’a pas été enregistrée.",
     "notSet": "Non renseigné",
     "yes": "Oui",
     "no": "Non",

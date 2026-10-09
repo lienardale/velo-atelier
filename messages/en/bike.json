@@ -34,6 +34,7 @@
     "edit": "Edit this part",
     "saving": "Saving…",
     "saved": "Saved",
+    "unsaved": "{part} · {field}: what you typed was not saved.",
     "notSet": "Not set",
     "yes": "Yes",
     "no": "No",
