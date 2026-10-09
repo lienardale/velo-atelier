@@ -27,17 +27,25 @@
  *   4. **The caps hold** (§4.4): 10 bikes, 80 parts, 20 checkups, 10 lists,
  *      250 entries in each of a checkup's three records, 12 symptoms per step,
  *      80 parts in a scope, 2000 characters in a note, 50 lines per list
- *      (`QUOTAS.itemsPerList`) and 256 KB — each refused with nothing written.
+ *      (`QUOTAS.itemsPerList`), 24 answers in a line's `refinement`, and
+ *      256 KB — each refused with nothing written. The 256 KB are measured
+ *      BEFORE the payload is parsed (the parser is spied on, not inferred from
+ *      the answer), and a value that has no JSON size at all — a `BigInt` — is
+ *      refused there too rather than thrown on.
  *   5. **Idempotent.** The same guest bike twice is one row and one checkup;
  *      the second answer is `skipped: 'already-imported'` and not a single
- *      write (§6.8 AC8).
+ *      write (§6.8 AC8). The CHECKUP is called `already-imported` only when
+ *      the account's row holds what the second copy says.
  *   6. **Rate limited.** `guest-import:<userId>`, three an hour, counted per
  *      user, with `retryAfterSec` on the refusal.
  *   7. **No hostile string reaches a lookup, a column or a link.** Step keys,
  *      part ids, reason keys and slugs are `[a-z0-9-]` and no longer than their
  *      column before anything resolves them — an over-long id is a
  *      `VALIDATION`, never a 500 — and a chosen product's URL is plain `https:`
- *      or it is not stored.
+ *      or it is not stored. A U+0000 anywhere, and a date that is not ISO 8601
+ *      or that PostgreSQL has no year for, are `VALIDATION`s as well: the fake
+ *      would store them, the real database throws on them
+ *      (`tests/integration/guest-import.test.ts` shows it doing so).
  *   8. **The visitor's clock cannot write the future** (§4.7).
  *
  * The fixtures are real: `tests/_helpers/guest-work.ts` stores what the wizard
@@ -67,12 +75,20 @@ vi.mock("content-collections", async () => ({
 }));
 
 const { importGuestStateAction } = await import("@/app/[locale]/(protected)/import/actions");
-const { GUEST_CAPS, GUEST_STATE_VERSION, MAX_GUEST_PAYLOAD_BYTES } =
-  await import("@/lib/guest/schema");
+const guestSchema = await import("@/lib/guest/schema");
+const { GUEST_CAPS, GUEST_STATE_VERSION, MAX_GUEST_PAYLOAD_BYTES } = guestSchema;
+/**
+ * The parser, watched: "refused BEFORE it is parsed" is a claim about a call
+ * that must not happen, and the answer alone cannot show it — `TOO_MANY` comes
+ * back just the same when the payload was walked first (a mutation that moved
+ * the parse above the size check left every test green, found in review).
+ */
+const parseGuestStateSpy = vi.spyOn(guestSchema, "parseGuestState");
 const { RATE_LIMITS } = await import("@/lib/security/rate-limit");
 const { deriveBike } = await import("@/lib/bike/rules");
-const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
-const { guestRun, guestWork, partsScope } = await import("@/tests/_helpers/guest-work");
+const { BIKE_PRESETS, PRESET_IDS } = await import("@/lib/domain/data/presets");
+const { guestRun, guestWork, partsScope, planFromDisk } =
+  await import("@/tests/_helpers/guest-work");
 
 type GuestBike = import("@/lib/guest/schema").GuestBike;
 type GuestState = import("@/lib/guest/schema").GuestState;
@@ -168,6 +184,7 @@ beforeEach(async () => {
   })) as unknown as SeededUser;
   setSession(sessionFor(me));
   fakeDb.resetCalls();
+  parseGuestStateSpy.mockClear();
 });
 
 describe("who is allowed to call it", () => {
@@ -203,6 +220,38 @@ describe("the four walls, in their order", () => {
     const huge = tampered({ userId: "x", name: "x".repeat(MAX_GUEST_PAYLOAD_BYTES) });
     expect(await importGuestStateAction(huge)).toEqual({ ok: false, code: "TOO_MANY" });
     expectNoWrites();
+    // The order itself, not only its answer: the parser never saw the payload.
+    expect(parseGuestStateSpy).not.toHaveBeenCalled();
+  });
+
+  it("does parse a payload that is within the budget — the spy above is not blind", async () => {
+    expect(await importGuestStateAction(tampered({ userId: "x" }))).toEqual({
+      ok: false,
+      code: "VALIDATION",
+    });
+    expect(parseGuestStateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses at the size wall, without throwing, a value that has no JSON size", async () => {
+    // React's action decoder delivers a BigInt when the request spells one, and
+    // `JSON.stringify` throws on it: the measure was an unhandled TypeError.
+    const cyclic: Record<string, unknown> = { version: GUEST_STATE_VERSION, bikes: [] };
+    cyclic.self = cyclic;
+    const payloads: [string, unknown][] = [
+      ["a BigInt among the bikes", { version: GUEST_STATE_VERSION, bikes: [BigInt(10)] }],
+      ["a BigInt deep in a real bike", tampered({ fit: { saddleHeightMm: BigInt(742) } })],
+      ["a structure that contains itself", cyclic],
+    ];
+    for (const [name, payload] of payloads) {
+      await expect(importGuestStateAction(payload), name).resolves.toEqual({
+        ok: false,
+        code: "TOO_MANY",
+      });
+    }
+    // Refused where its size could not be known: not handed to the parser.
+    expect(parseGuestStateSpy).not.toHaveBeenCalled();
+    expectNoWrites();
+    expect(fakeDb.rows("AuthAttempt")).toEqual([]);
   });
 
   it("checks the shape before the rate limit: a refused payload spends no attempt", async () => {
@@ -373,6 +422,73 @@ describe("the server re-plans: the payload names no step, no part and no guide (
       [CHAIN, "chain", "check-drivetrain", "KO", ["chain-elongation"]],
       [CASSETTE, "cassette", "check-drivetrain", "OK", []],
     ]);
+    expectScopedToUser(fakeDb.calls, me.id);
+  });
+
+  it("buys nothing with the scope it names: every question of every bike answered 'about the chain' writes this bike's plan, each row the plan's", async () => {
+    // The answers are accepted against the bike's whole plan, whatever scope
+    // the payload names (a wizard that resumes a run under another link leaves
+    // a stale one). So the scope is not a way in: a payload that claims to be
+    // about one part and answers EVERYTHING gets exactly what a full checkup
+    // would — this bike's questions, about the plan's parts and guides.
+    const plans = PRESET_IDS.map((preset) => {
+      // eslint-disable-next-line security/detect-object-injection -- `preset` iterates the literal PRESET_IDS
+      const derived = deriveBike(BIKE_PRESETS[preset]);
+      return planFromDisk({ spec: derived.spec, parts: derived.parts }, { kind: "full" });
+    });
+    const mine = planFromDisk({ spec: DERIVED.spec, parts: DERIVED.parts }, { kind: "full" });
+    const everyKey = [...new Set([...mine, ...plans.flat()].map((step) => step.key))].slice(
+      0,
+      GUEST_CAPS.answersPerCheckup,
+    );
+    // Questions of other bikes are in there too — a motor, rim brakes.
+    expect(everyKey.length).toBeGreaterThan(mine.length + 10);
+    const everyReason = [
+      ...new Set(plans.flat().flatMap((step) => step.ko.map((ko) => ko.reasonKey))),
+    ].slice(0, GUEST_CAPS.symptomsPerStep);
+
+    const result = await importGuestStateAction(
+      checkupWith({
+        scope: { kind: "parts", partIds: ["chain"] },
+        answers: Object.fromEntries(everyKey.map((key) => [key, "ko"])),
+        symptoms: Object.fromEntries(everyKey.map((key) => [key, everyReason])),
+        notes: Object.fromEntries(everyKey.map((key) => [key, "n"])),
+      }),
+    );
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+
+    const byKey = new Map(mine.map((step) => [step.key, step]));
+    const items = fakeDb.rows("CheckupItem") as {
+      stepKey: string;
+      partId: string;
+      guideSlug: string;
+      reasonKeys: string[];
+    }[];
+    // This bike's plan, no more and no less…
+    expect(items.map((item) => item.stepKey).sort()).toEqual([...byKey.keys()].sort());
+    for (const item of items) {
+      const step = byKey.get(item.stepKey);
+      // …each row about the part and the guide the PLAN gives its step…
+      expect(item.partId, item.stepKey).toBe(step?.partIds[0]);
+      expect(item.guideSlug, item.stepKey).toBe(step?.guideSlug);
+      // …with no symptom the step does not offer.
+      const offered = new Set(step?.ko.map((ko) => ko.reasonKey));
+      expect(
+        item.reasonKeys.filter((reason) => !offered.has(reason)),
+        item.stepKey,
+      ).toEqual([]);
+    }
+    // Not "about the chain": the column says what was answered.
+    expect((fakeDb.rows("Checkup") as { scope: string }[])[0].scope).toBe("FULL");
+    // And every part state is on a part of THIS bike, named by a row.
+    const named = new Set(items.map((item) => item.partId));
+    const touched = (fakeDb.rows("BikePartState") as { partId: string; status: string }[]).filter(
+      (row) => row.status !== "UNKNOWN",
+    );
+    expect(touched.length).toBeGreaterThan(0);
+    expect(touched.every((row) => named.has(row.partId))).toBe(true);
     expectScopedToUser(fakeDb.calls, me.id);
   });
 
@@ -633,6 +749,58 @@ describe("the caps §4.4 names", () => {
     expectNoWrites();
   });
 
+  /** A line of the real list carrying `count` refinement answers: 40-character keys, 120-character values. */
+  function refined(
+    count: number,
+    character = "v",
+  ): { payload: unknown; refinement: Record<string, string> } {
+    const refinement = Object.fromEntries(
+      Array.from({ length: count }, (_, index) => [
+        `k-${String(index).padStart(38, "0")}`,
+        character.repeat(120),
+      ]),
+    );
+    return {
+      refinement,
+      payload: tampered({ lists: [{ ...LIST, items: [{ ...LIST.items[0], refinement }] }] }),
+    };
+  }
+
+  it("refuses a line whose refinement has more answers than a part has attributes", async () => {
+    // A record, and until 2026-10-09 the one record of the payload with no cap:
+    // 1 400 entries — 230 KB of JSON in one column — passed all four walls.
+    for (const count of [GUEST_CAPS.refinementEntries + 1, 1400]) {
+      const { payload } = refined(count);
+      expect(guestSchema.withinGuestPayloadBudget(payload), String(count)).toBe(true);
+      expect(await importGuestStateAction(payload), String(count)).toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+    }
+    expectNoWrites();
+  });
+
+  it("stores a refinement exactly AT its cap, inside the 32 KB every JSON column is held to", async () => {
+    const { withinJsonBudget } = await import("@/lib/bike/rules");
+    // Three UTF-8 bytes a character: the heaviest value the contract allows.
+    const { payload, refinement } = refined(GUEST_CAPS.refinementEntries, "€");
+    expect((await importGuestStateAction(payload)).ok).toBe(true);
+    const [line] = fakeDb.rows("BuildListItem") as { refinement: Record<string, string> }[];
+    expect(line.refinement).toEqual(refinement);
+    // The largest refinement the contract lets through fits the column's budget.
+    expect(withinJsonBudget(line.refinement)).toBe(true);
+  });
+
+  it("keeps the refinement cap at the account's own (`MAX_REFINEMENT_KEYS`, liste/actions.ts)", async () => {
+    // That constant is private to a `"use server"` module, which may export
+    // only async functions: read where it is written.
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync("app/[locale]/velo/[id]/liste/actions.ts", "utf8");
+    const declared = /^const MAX_REFINEMENT_KEYS = (\d+);$/m.exec(source)?.[1];
+    expect(declared).toBeDefined();
+    expect(GUEST_CAPS.refinementEntries).toBe(Number(declared));
+  });
+
   it("keeps the caps at the account's own quotas, so an import cannot bring more", async () => {
     const { QUOTAS } = await import("@/lib/bike/rules");
     expect(GUEST_CAPS.itemsPerList).toBe(QUOTAS.itemsPerList);
@@ -646,6 +814,8 @@ describe("the caps §4.4 names", () => {
     const huge = tampered({ name: "x".repeat(MAX_GUEST_PAYLOAD_BYTES) });
     expect(await importGuestStateAction(huge)).toEqual({ ok: false, code: "TOO_MANY" });
     expectNoWrites();
+    // "Before it parses": the parser was not called at all.
+    expect(parseGuestStateSpy).not.toHaveBeenCalled();
   });
 
   it("answers TOO_MANY to a checkup filled to every cap at once — 256 KB comes first", async () => {
@@ -719,6 +889,121 @@ describe("hostile strings", () => {
       });
     }
     expectNoWrites();
+  });
+
+  it("answers VALIDATION to a U+0000 in any string — PostgreSQL stores it in no column", async () => {
+    const NUL = String.fromCharCode(0);
+    const line = {
+      ...LIST.items[0],
+      refinement: { speeds: "11" },
+      chosenProduct: {
+        brand: "Shimano",
+        model: "CN-HG601",
+        size: "11v",
+        vendor: "other",
+        url: "https://example.com/chaine",
+      },
+    };
+    const lineWith = (patch: Record<string, unknown>) =>
+      tampered({ lists: [{ ...LIST, items: [{ ...line, ...patch }] }] });
+    const product = (patch: Record<string, string>) =>
+      lineWith({ chosenProduct: { ...line.chosenProduct, ...patch } });
+    const parts = JSON.parse(JSON.stringify(bike().parts)) as {
+      partId: string;
+      attributes: Record<string, unknown>;
+    }[];
+    const pads = parts.find((part) => part.partId === "brake-pads-front");
+    if (pads === undefined) throw new Error("the gravel preset has front brake pads");
+    pads.attributes["pad-model"] = `B05S${NUL}`;
+
+    const payloads: [string, unknown][] = [
+      ["the bike's name", tampered({ name: `Mon${NUL}vélo` })],
+      ["a note", checkupWith({ notes: { [CHAIN]: `usure${NUL}0,8 %` } })],
+      ["a note that is nothing else", checkupWith({ notes: { [CHAIN]: NUL } })],
+      ["the list's name", tampered({ lists: [{ ...LIST, name: `Ma${NUL}liste` }] })],
+      ["a refinement value", lineWith({ refinement: { speeds: `11${NUL}` } })],
+      ["a product's brand", product({ brand: `Shi${NUL}mano` })],
+      ["a product's model", product({ model: `CN${NUL}HG601` })],
+      ["a product's size", product({ size: `11${NUL}v` })],
+      ["a product's link", product({ url: `https://example.com/cha${NUL}ine` })],
+      ["a part's free-text attribute", tampered({ parts })],
+      ["a key inside a part", tampered({ parts: [{ [`part${NUL}Id`]: "chain" }] })],
+      ["a value deep inside the fit", tampered({ fit: { a: [{ b: [`x${NUL}`] }] } })],
+    ];
+    for (const [name, payload] of payloads) {
+      await expect(importGuestStateAction(payload), name).resolves.toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+    }
+    expectNoWrites();
+    // Controls: the very same shapes without the character are imported, so
+    // what is refused above is the character and nothing else about them.
+    pads.attributes["pad-model"] = "B05S";
+    const clean = tampered({
+      name: "Mon vélo",
+      parts,
+      fit: { saddleHeightMm: 742 },
+      lists: [{ ...LIST, name: "Ma liste", items: [line] }],
+      checkups: [{ ...CHECKUP, notes: { [CHAIN]: "usure 0,8 %" } }],
+    });
+    expect((await importGuestStateAction(clean)).ok).toBe(true);
+    const [stored] = fakeDb.rows("Bike") as {
+      parts: { partId: string; attributes: Record<string, unknown> }[];
+    }[];
+    expect(
+      stored.parts.find((part) => part.partId === "brake-pads-front")?.attributes["pad-model"],
+    ).toBe("B05S");
+    expect(fakeDb.rows("BuildListItem")[0]).toMatchObject({
+      refinement: { speeds: "11" },
+      chosenProduct: { model: "CN-HG601" },
+    });
+  });
+
+  it("answers VALIDATION to a date that is not ISO 8601, or that PostgreSQL has no year for", async () => {
+    const dates: [string, unknown][] = [
+      ["a word", "bientot"],
+      ["a date without a time", "2026-09-14"],
+      ["no offset", "2026-09-14T08:00:00.000"],
+      ["month 13", "2026-13-45T99:99:99Z"],
+      ["a number", 1_726_300_800_000],
+      ["year 0000", "0000-01-01T00:00:00.000Z"],
+      ["year 1, walked back into year 0 by its offset", "0001-01-01T00:00:00.000+14:00"],
+    ];
+    for (const [name, value] of dates) {
+      for (const payload of [
+        checkupWith({ startedAt: value }),
+        checkupWith({ completedAt: value }),
+        tampered({ updatedAt: value }),
+      ]) {
+        await expect(importGuestStateAction(payload), name).resolves.toEqual({
+          ok: false,
+          code: "VALIDATION",
+        });
+      }
+    }
+    expectNoWrites();
+    // The earliest instant the database stores, and a clock that was reset:
+    // both are dates, and both are imported.
+    for (const [index, startedAt] of [
+      "0001-01-01T00:00:00.000Z",
+      "1970-01-01T00:00:05.000Z",
+    ].entries()) {
+      const result = await importGuestStateAction(
+        state(
+          bike({
+            localId: `6666666${index}-2222-4333-8444-555555555555`,
+            checkups: [
+              { ...CHECKUP, guestKey: `7777777${index}-2222-4333-8444-555555555555`, startedAt },
+            ],
+          }),
+        ),
+      );
+      expect(result.ok && result.data.bikes[0].checkups[0].status, startedAt).toBe("imported");
+    }
+    expect(
+      (fakeDb.rows("Checkup") as { startedAt: Date }[]).map((row) => row.startedAt.toISOString()),
+    ).toEqual(["0001-01-01T00:00:00.000Z", "1970-01-01T00:00:05.000Z"]);
   });
 
   it("stores the longest ids the columns hold without complaint", async () => {
@@ -842,10 +1127,8 @@ describe("importing the same browser twice", () => {
     expect(before.Checkup).toHaveLength(1);
     fakeDb.resetCalls();
 
-    // The other device's older copy, with different content under the same ids.
+    // The other device's older copy of the bike — its checkup as it was imported.
     const older = bike({ name: "Vieille copie", updatedAt: "2026-01-01T00:00:00.000Z" });
-    older.checkups[0].answers = { [CHAIN]: "ok", [CASSETTE]: "ok" };
-    older.checkups[0].symptoms = {};
     const second = await importGuestStateAction(state(older));
 
     expect(second.ok).toBe(true);
@@ -856,7 +1139,7 @@ describe("importing the same browser twice", () => {
       bikeId: (before.Bike[0] as { id: string }).id,
     });
     expect(second.data.bikes[0].skipped).toBe("already-imported");
-    // The account holds that checkup — as the FIRST import wrote it.
+    // The account holds that checkup, answer for answer.
     expect(second.data.bikes[0].checkups).toEqual([
       { guestKey: CHECKUP_ID, status: "already-imported" },
     ]);
@@ -865,6 +1148,48 @@ describe("importing the same browser twice", () => {
       (call) => call.model !== "authAttempt" && !/^(find|count)/.test(call.op),
     );
     expect(writes).toEqual([]);
+    expectScopedToUser(fakeDb.calls, me.id);
+  });
+
+  it("does not call `already-imported` a checkup whose content the account does not hold, same id or not", async () => {
+    expect((await importGuestStateAction(state(bike()))).ok).toBe(true);
+    const before = Object.fromEntries(TABLES.map((table) => [table, fakeDb.rows(table)]));
+    fakeDb.resetCalls();
+
+    // The same ids, different content: the chain is now said to be fine.
+    const differing = bike({ name: "Vieille copie", updatedAt: "2026-01-01T00:00:00.000Z" });
+    differing.checkups[0].answers = { [CHAIN]: "ok", [CASSETTE]: "ok" };
+    differing.checkups[0].symptoms = {};
+    const second = await importGuestStateAction(state(differing));
+
+    // Until 2026-10-09 the id was enough, the browser was told the account
+    // had it, and cleared the only copy of what it said.
+    expect(second.ok && second.data.bikes[0]).toMatchObject({
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" }],
+    });
+    // Still not one write (§6.8 AC8), and every read is the caller's own.
+    expect(Object.fromEntries(TABLES.map((table) => [table, fakeDb.rows(table)]))).toEqual(before);
+    expect(
+      fakeDb.calls.filter((call) => call.model !== "authAttempt" && !/^(find|count)/.test(call.op)),
+    ).toEqual([]);
+    expectScopedToUser(fakeDb.calls, me.id);
+  });
+
+  it("does not take another account's row under the same checkup id for this account's", async () => {
+    // A shared browser: the neighbour imported this very bike and checkup.
+    setSession(sessionFor(other));
+    expect((await importGuestStateAction(state(bike()))).ok).toBe(true);
+    // Mine holds the bike WITHOUT the checkup.
+    setSession(sessionFor(me));
+    expect((await importGuestStateAction(state(bike({ checkups: [] })))).ok).toBe(true);
+    fakeDb.resetCalls();
+
+    const again = await importGuestStateAction(state(bike()));
+    // The neighbour's row is not evidence that MY account has it.
+    expect(again.ok && again.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" },
+    ]);
     expectScopedToUser(fakeDb.calls, me.id);
   });
 

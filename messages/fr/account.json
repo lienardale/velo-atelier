@@ -59,6 +59,7 @@
       "unreadable": "Le contrôle enregistré sur cet appareil n’a pas pu être lu : il n’a pas été importé, et nous l’avons laissé sur cet appareil.",
       "nothingKept": "Le contrôle fait sur cet appareil n’a pas été importé : aucune de ses réponses ne correspond aux questions posées pour ce vélo. Il reste sur cet appareil.",
       "bikeAlreadyImported": "Le contrôle fait sur cet appareil n’a pas été importé, car ce vélo était déjà sur votre compte. Il reste sur cet appareil.",
+      "otherBike": "Le contrôle fait sur cet appareil n’a pas été importé avec ce vélo : votre compte l’a déjà reçu avec un autre vélo. Il reste sur cet appareil.",
       "unconfirmed": "Le contrôle fait sur cet appareil n’a pas été importé. Il reste sur cet appareil."
     },
     "failedHelp": "L’import n’a pas abouti. Votre vélo est toujours sur cet appareil : rien n’est perdu.",

@@ -27,7 +27,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { fakeDb } from "@/tests/_fakes/prisma";
 import { deriveBike, QUOTAS } from "@/lib/bike/rules";
 import type { CheckupState } from "@/lib/checkup/types";
-import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+import { BIKE_PRESETS, PRESET_IDS } from "@/lib/domain/data/presets";
 import { validateBuild } from "@/lib/domain/engine/validate-build";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import {
@@ -35,6 +35,8 @@ import {
   guestWork,
   partsScope,
   planFromDisk,
+  resumeGuestRun,
+  type GuestResumeOptions,
   type GuestVerdict,
 } from "@/tests/_helpers/guest-work";
 
@@ -99,6 +101,23 @@ function collected(checkup?: RunOptions, patch: Partial<GuestBike> = {}): GuestB
   });
   const [bike] = (JSON.parse(JSON.stringify(work.collect().state)) as GuestState).bikes;
   return { ...bike, ...patch };
+}
+
+/**
+ * A run the guest left unfinished and came back to through ANOTHER link — the
+ * wizard's own resume (`resumeGuestRun`): the answers against the new link's
+ * plan, under the scope the run was first opened with.
+ */
+function continued(first: RunOptions, second: GuestResumeOptions): GuestBike {
+  const work = guestWork({
+    answers: BIKE_PRESETS["gravel-1x11"],
+    bikeId: LOCAL_ID,
+    updatedAt: "2026-09-14T09:00:00.000Z",
+    checkup: (build) => run(build, { ...first, completedAt: null }),
+  });
+  const resumed = resumeGuestRun(work, second);
+  const [bike] = (JSON.parse(JSON.stringify(resumed.collect().state)) as GuestState).bikes;
+  return bike;
 }
 
 /** One checkup of a payload — what `collected(run).checkups[0]` is. */
@@ -294,19 +313,56 @@ describe("a checkup: the server re-plans (§5.4)", () => {
     ]);
   });
 
-  it("asks the planner for THIS bike's plan and the checkup's own scope", async () => {
+  /** `planFromDisk`, recording what it was asked. */
+  function recordingPlan() {
     const seen: { parts: number; scope: unknown }[] = [];
+    const plan: typeof planFromDisk = (build, scope) => {
+      seen.push({ parts: build.parts.length, scope });
+      expect(build.spec).toEqual(DERIVED.spec);
+      return planFromDisk(build, scope);
+    };
+    return { seen, plan };
+  }
+
+  it("asks the planner for THIS bike's FULL plan, and for the named scope only to settle the column", async () => {
+    const { seen, plan } = recordingPlan();
     await importGuestState(fakeDb.client, userId, state(collected(CHAIN_AND_CASSETTE)), {
       now,
-      plan: (build, scope) => {
-        seen.push({ parts: build.parts.length, scope });
-        expect(build.spec).toEqual(DERIVED.spec);
-        return planFromDisk(build, scope);
-      },
+      plan,
     });
+    // The answers are accepted against the whole bike's plan; the scope the
+    // payload names is planned too, to know whether PARTIAL is still true.
     expect(seen).toEqual([
+      { parts: DERIVED.parts.length, scope: { kind: "full" } },
       { parts: DERIVED.parts.length, scope: { kind: "parts", partIds: ["chain", "cassette"] } },
     ]);
+  });
+
+  it("plans the full checkup once for a bike, however many checkups it carries, and never for none", async () => {
+    const older = checkupOf({
+      id: OLDER_CHECKUP_ID,
+      verdicts: { [CHAIN]: "ok" },
+      completedAt: null,
+    });
+    const newer = checkupOf({ verdicts: { [CASSETTE]: "ok" }, completedAt: null });
+    const two = recordingPlan();
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [older, newer] })),
+      { now, plan: two.plan },
+    );
+    // Both are full checkups: one plan, shared.
+    expect(two.seen).toEqual([{ parts: DERIVED.parts.length, scope: { kind: "full" } }]);
+    expect(rows("Checkup")).toHaveLength(2);
+
+    fakeDb.reset();
+    const user = (await fakeDb.seed("User", { email: "sans-controle@velo-atelier.test" })) as {
+      id: string;
+    };
+    const none = recordingPlan();
+    await importGuestState(fakeDb.client, user.id, state(collected()), { now, plan: none.plan });
+    expect(none.seen).toEqual([]);
   });
 
   it("drops an answer whose key is not in the plan, and keeps the rest", async () => {
@@ -366,7 +422,10 @@ describe("a checkup: the server re-plans (§5.4)", () => {
     expect(rows("CheckupItem")).toEqual([]);
   });
 
-  it("writes no row for a scope that names no part of this bike", async () => {
+  it("keeps the answers this bike is asked whatever the scope names — even one that names none of its parts", async () => {
+    // Until 2026-10-09 this checkup was dropped whole (`nothing-kept`): the
+    // plan was the plan of the scope the payload named, and that scope asks
+    // nothing of this bike. But both answers ARE questions this bike is asked.
     const checkup = checkupOf(CHAIN_AND_CASSETTE);
     checkup.scope = { kind: "parts", partIds: ["part-from-2019"] };
     const result = await importGuestState(
@@ -375,11 +434,167 @@ describe("a checkup: the server re-plans (§5.4)", () => {
       state(collected(undefined, { checkups: [checkup] })),
       deps,
     );
-    expect(result.ok && result.data.bikes[0].checkups[0]).toMatchObject({
-      status: "skipped",
-      reason: "nothing-kept",
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([CHAIN, CASSETTE]);
+    // The parts it names ask neither question, so PARTIAL would be a lie.
+    expect(rows("Checkup")[0].scope).toBe("FULL");
+  });
+
+  it("imports EVERY answer of a run opened on one part and finished through the full checkup", async () => {
+    // The wizard's own behaviour (`restore`): the guest checks the chain,
+    // leaves, comes back through "Contrôle complet" and answers everything —
+    // and the run is stored with all its answers under `scope: parts[chain]`.
+    const bike = continued(
+      { parts: ["chain"], verdicts: { [CHAIN]: { ko: ["chain-elongation"] } } },
+      {
+        scope: { kind: "full" },
+        verdicts: { [PAD_WEAR]: { ko: ["pad-worn"], notes: "garniture à 0,5 mm" } },
+        rest: "ok",
+        completedAt: COMPLETED_AT,
+      },
+    );
+    const [checkup] = bike.checkups;
+    const full = planFromDisk(DERIVED, { kind: "full" });
+    // What the browser holds: the stale scope, and an answer to every question.
+    expect(checkup.scope).toEqual({ kind: "parts", partIds: ["chain"] });
+    expect(Object.keys(checkup.answers)).toHaveLength(full.length);
+    expect(full.length).toBeGreaterThan(30);
+
+    const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+
+    // Not one answer short: a row per question, in the plan's order.
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual(full.map((step) => step.key));
+    const [row] = rows("Checkup");
+    expect(row.status).toBe("COMPLETED");
+    // The answers go far beyond the chain: the column says what the run WAS.
+    expect(row.scope).toBe("FULL");
+
+    // The KO given on the second visit is there with its symptom and its note…
+    expect(rows("CheckupItem").find((item) => item.stepKey === PAD_WEAR)).toMatchObject({
+      result: "KO",
+      notes: "garniture à 0,5 mm",
+      reasonKeys: ["pad-worn"],
     });
-    expect(rows("Checkup")).toEqual([]);
+    // …it marked its part, as the chain's did…
+    expect(partStates().get("brake-caliper-front")?.status).toBe("BROKEN");
+    expect(partStates().get("chain")?.status).toBe("BROKEN");
+    expect(partStates().get("cassette")?.status).toBe("OK");
+    // …and EVERY line of the list is linked: the brake pads' as well as the chain's.
+    expect(rows("BuildList")[0].checkupId).toBe(row.id);
+    const lines = rows("BuildListItem");
+    expect(lines.map((line) => `${String(line.action)}|${String(line.partId)}`).sort()).toEqual([
+      "REPLACE|brake-pads-front",
+      "REPLACE|brake-pads-rear",
+      "REPLACE|chain",
+    ]);
+    expect(lines.every((line) => line.checkupItemId !== null)).toBe(true);
+  });
+
+  it("imports a run opened on one part and continued on ANOTHER — none of whose answers the first part asks", async () => {
+    // Chain first; then "check this part" on the front caliper. `reconcile`
+    // drops the chain's answer there (the wizard's doing), and what is stored
+    // is three brake answers under `scope: parts[chain]`.
+    const bike = continued(
+      { parts: ["chain"], verdicts: { [CHAIN]: { ko: ["chain-elongation"] } } },
+      {
+        scope: partsScope("brake-caliper-front"),
+        verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] } },
+        rest: "ok",
+        completedAt: COMPLETED_AT,
+      },
+    );
+    expect(bike.checkups[0].scope).toEqual({ kind: "parts", partIds: ["chain"] });
+    expect(Object.keys(bike.checkups[0].answers).sort()).toEqual(
+      [ALIGNMENT, HOSE, PAD_WEAR].sort(),
+    );
+
+    const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
+    // Before: `skipped: 'nothing-kept'`, and the visitor was told none of the
+    // answers matched a question asked for this bike. All three do.
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([PAD_WEAR, ALIGNMENT, HOSE]);
+    // Not the chain's checkup any more: the column cannot name the caliper.
+    expect(rows("Checkup")[0].scope).toBe("FULL");
+    expect(rows("BuildListItem").every((line) => line.checkupItemId !== null)).toBe(true);
+  });
+
+  it("loses nothing by planning the whole bike: the full plan asks every question any scope asks", () => {
+    // What accepting against the FULL plan rests on, checked rather than
+    // assumed: on every preset, for every part of the bike taken alone.
+    let scopes = 0;
+    for (const preset of PRESET_IDS) {
+      const derived = deriveBike(BIKE_PRESETS[preset]);
+      const build: BikeBuild = { spec: derived.spec, parts: derived.parts };
+      const full = new Set(planFromDisk(build, { kind: "full" }).map((step) => step.key));
+      expect(full.size, preset).toBeGreaterThan(10);
+      for (const part of derived.parts) {
+        const scoped = planFromDisk(build, partsScope(part.partId));
+        const beyond = scoped.filter((step) => !full.has(step.key)).map((step) => step.key);
+        expect(beyond, `${preset}: ${part.partId}`).toEqual([]);
+        scopes += 1;
+      }
+      // And the other way round, so that the column's rule has something to
+      // decide: no single part's plan is the whole bike's.
+      expect(
+        derived.parts.every(
+          (part) => planFromDisk(build, partsScope(part.partId)).length < full.size,
+        ),
+        preset,
+      ).toBe(true);
+    }
+    expect(scopes).toBeGreaterThan(200);
+  });
+
+  it("is FULL as soon as ONE kept answer is beyond the parts it names, and PARTIAL until then", async () => {
+    const within = checkupOf({ ...CHAIN_AND_CASSETTE, completedAt: null });
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [within] })),
+      deps,
+    );
+    expect(rows("Checkup")[0].scope).toBe("PARTIAL");
+
+    fakeDb.reset();
+    const user = (await fakeDb.seed("User", { email: "au-dela@velo-atelier.test" })) as {
+      id: string;
+    };
+    const beyond = checkupOf({ ...CHAIN_AND_CASSETTE, completedAt: null });
+    beyond.answers[HOSE] = "ok";
+    await importGuestState(
+      fakeDb.client,
+      user.id,
+      state(collected(undefined, { checkups: [beyond] })),
+      deps,
+    );
+    expect(
+      rows("CheckupItem")
+        .map((item) => item.stepKey)
+        .sort(),
+    ).toEqual([CHAIN, CASSETTE, HOSE].sort());
+    expect(rows("Checkup")[0].scope).toBe("FULL");
+  });
+
+  it("stays PARTIAL when the answer beyond its parts is one the bike is not asked at all", async () => {
+    // Dropped by the plan, so it is not an answer the run HAS: nothing shows
+    // the checkup went beyond the chain and the cassette.
+    const checkup = checkupOf(CHAIN_AND_CASSETTE);
+    checkup.answers["check-brakes-rim#pad-wear"] = "ko";
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(undefined, { checkups: [checkup] })),
+      deps,
+    );
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([CHAIN, CASSETTE]);
+    expect(rows("Checkup")[0].scope).toBe("PARTIAL");
   });
 
   it("is IN_PROGRESS while it has no end, and FULL when it is about the whole bike", async () => {
@@ -821,8 +1036,12 @@ describe("importing twice", () => {
     });
     const result = await importGuestState(fakeDb.client, userId, state(other), deps);
     expect(result.ok && result.data).toMatchObject({ imported: 1, skipped: 0 });
+    // NOT "already imported": the account holds a row under that key, on the
+    // other bike, and nothing says it holds what THIS copy says for this one.
+    // The browser forgets its checkup on that word (found in review,
+    // 2026-10-09: it did, and the answers were in neither place).
     expect(result.ok && result.data.bikes[0].checkups).toEqual([
-      { guestKey: CHECKUP_ID, status: "already-imported" },
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "other-bike" },
     ]);
     expect(rows("Bike")).toHaveLength(2);
     expect(rows("Checkup")).toHaveLength(1);
@@ -830,6 +1049,189 @@ describe("importing twice", () => {
     const lists = rows("BuildList");
     expect(lists).toHaveLength(2);
     expect(lists[1].checkupId).toBeNull();
+    // And no part of the new bike has a status on the strength of it.
+    const newBike = rows("Bike")[1];
+    expect(
+      rows("BikePartState").filter((row) => row.bikeId === newBike.id && row.status !== "UNKNOWN"),
+    ).toEqual([]);
+  });
+
+  describe("`already-imported` is said of a checkup only when the account holds what the copy says", () => {
+    /** The chain is worn; the cassette has not been looked at yet. */
+    const CHAIN_ONLY: RunOptions = {
+      parts: ["chain", "cassette"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"], notes: "élongation 0,8 %" } },
+      completedAt: null,
+    };
+    const BOTH: RunOptions = {
+      parts: ["chain", "cassette"],
+      verdicts: {
+        [CHAIN]: { ko: ["chain-elongation"], notes: "élongation 0,8 %" },
+        [CASSETTE]: { ko: ["cassette-worn"] },
+      },
+      completedAt: null,
+    };
+
+    /** Import `first`, then the same guest bike again holding `second`; nothing may be written. */
+    async function reimport(first: GuestBike, second: GuestBike) {
+      const one = await importGuestState(fakeDb.client, userId, state(first), deps);
+      expect(one.ok && one.data.imported).toBe(1);
+      const before = Object.fromEntries(
+        ["Bike", "BikePartState", "Checkup", "CheckupItem", "BuildList", "BuildListItem"].map(
+          (table) => [table, rows(table)],
+        ),
+      );
+      fakeDb.resetCalls();
+      const two = await importGuestState(fakeDb.client, userId, state(second), deps);
+      expect(two.ok).toBe(true);
+      // §6.8 AC8, unchanged: a bike that is already there is never written to.
+      for (const [table, was] of Object.entries(before)) expect(rows(table), table).toEqual(was);
+      expect(fakeDb.calls.filter((call) => !/^(find|count)/.test(call.op))).toEqual([]);
+      if (!two.ok) throw new Error("the second import was refused");
+      expect(two.data.bikes[0].skipped).toBe("already-imported");
+      return two.data.bikes[0].checkups;
+    }
+
+    const HELD = [{ guestKey: CHECKUP_ID, status: "already-imported" }];
+    const NOT_HELD = [{ guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" }];
+
+    it("the same copy again — the answer that was lost on the way — is in the account", async () => {
+      expect(await reimport(collected(CHAIN_ONLY), collected(CHAIN_ONLY))).toEqual(HELD);
+    });
+
+    it("a copy with an answer the row does not have is NOT — the run was carried on in the browser", async () => {
+      // The first import's answer never reached the page; the guest answered
+      // the cassette too. Reported `already-imported`, that answer was cleared.
+      expect(await reimport(collected(CHAIN_ONLY), collected(BOTH))).toEqual(NOT_HELD);
+    });
+
+    it("a copy that is FINISHED when the row is not is NOT, with the very same answers", async () => {
+      const unfinished = { ...BOTH, completedAt: null };
+      const finished = { ...BOTH, completedAt: COMPLETED_AT };
+      expect(await reimport(collected(unfinished), collected(finished))).toEqual(NOT_HELD);
+    });
+
+    it("a copy with a different verdict, note or symptom on a question is NOT", async () => {
+      const cases: Record<string, RunOptions> = {
+        verdict: { ...CHAIN_ONLY, verdicts: { [CHAIN]: "ok" } },
+        note: { ...CHAIN_ONLY, verdicts: { [CHAIN]: { ko: ["chain-elongation"], notes: "1 %" } } },
+        "no note": { ...CHAIN_ONLY, verdicts: { [CHAIN]: { ko: ["chain-elongation"] } } },
+        symptom: {
+          ...CHAIN_ONLY,
+          verdicts: { [CHAIN]: { ko: ["chain-dirty"], notes: "élongation 0,8 %" } },
+        },
+        "one symptom more": {
+          ...CHAIN_ONLY,
+          verdicts: {
+            [CHAIN]: { ko: ["chain-elongation", "chain-dirty"], notes: "élongation 0,8 %" },
+          },
+        },
+      };
+      for (const [name, other] of Object.entries(cases)) {
+        fakeDb.reset();
+        userId = (
+          (await fakeDb.seed("User", { email: "camille@velo-atelier.test" })) as { id: string }
+        ).id;
+        expect(await reimport(collected(CHAIN_ONLY), collected(other)), name).toEqual(NOT_HELD);
+      }
+    });
+
+    it("a copy that differs by the VERDICT alone — no note, no symptom either side — is NOT", async () => {
+      // Each pair has the same (absent) note and symptoms: only `result` tells them apart.
+      const pairs: [GuestVerdict, GuestVerdict][] = [
+        ["ok", "skipped"],
+        ["skipped", "ok"],
+        ["ok", "ko"],
+        ["ko", "ok"],
+      ];
+      for (const [first, second] of pairs) {
+        fakeDb.reset();
+        userId = (
+          (await fakeDb.seed("User", { email: "camille@velo-atelier.test" })) as { id: string }
+        ).id;
+        const copy = (verdict: GuestVerdict): RunOptions => ({
+          parts: ["chain", "cassette"],
+          verdicts: { [CHAIN]: verdict },
+          completedAt: null,
+        });
+        expect(
+          await reimport(collected(copy(first)), collected(copy(second))),
+          `${String(first)} then ${String(second)}`,
+        ).toEqual(NOT_HELD);
+      }
+    });
+
+    it("an OLDER copy — every answer of which the row has, and more — is in the account", async () => {
+      // The run was carried on in the account (or imported from the fresher
+      // device first): the browser's shorter copy adds nothing.
+      expect(await reimport(collected(BOTH), collected(CHAIN_ONLY))).toEqual(HELD);
+      // …finished there, too: an unfinished copy of a finished run adds nothing.
+      fakeDb.reset();
+      userId = (
+        (await fakeDb.seed("User", { email: "camille@velo-atelier.test" })) as { id: string }
+      ).id;
+      expect(
+        await reimport(collected({ ...BOTH, completedAt: COMPLETED_AT }), collected(CHAIN_ONLY)),
+      ).toEqual(HELD);
+    });
+
+    it("the same symptoms ticked in another order are the same symptoms", async () => {
+      const ab: RunOptions = {
+        ...CHAIN_ONLY,
+        verdicts: { [CHAIN]: { ko: ["chain-elongation", "chain-dirty"] } },
+      };
+      const second = collected(ab);
+      second.checkups[0].symptoms[CHAIN] = ["chain-dirty", "chain-elongation"];
+      expect(await reimport(collected(ab), second)).toEqual(HELD);
+    });
+
+    it("a copy the server would keep NOTHING of is not shown to be in the account", async () => {
+      const second = collected(CHAIN_ONLY);
+      second.checkups[0].answers = { "check-brakes-rim#pad-wear": "ko" };
+      second.checkups[0].symptoms = {};
+      second.checkups[0].notes = {};
+      expect(await reimport(collected(CHAIN_ONLY), second)).toEqual(NOT_HELD);
+    });
+
+    it("a row under the key on ANOTHER bike of the account is not this bike's checkup", async () => {
+      // Bike A, imported with no checkup; bike B, imported with the run.
+      await importGuestState(fakeDb.client, userId, state(collected()), deps);
+      await importGuestState(
+        fakeDb.client,
+        userId,
+        state(collected(CHAIN_ONLY, { localId: "22222222-2222-4333-8444-555555555555" })),
+        deps,
+      );
+      expect(rows("Checkup")).toHaveLength(1);
+
+      // Bike A's browser again, now holding that very run.
+      const again = await importGuestState(
+        fakeDb.client,
+        userId,
+        state(collected(CHAIN_ONLY)),
+        deps,
+      );
+      expect(again.ok && again.data.bikes[0]).toMatchObject({
+        skipped: "already-imported",
+        checkups: NOT_HELD,
+      });
+      expect(rows("Checkup")).toHaveLength(1);
+    });
+
+    it("neither derives nor plans anything for a bike already there unless a row is held under a key", async () => {
+      await importGuestState(fakeDb.client, userId, state(collected()), deps);
+      let planned = 0;
+      const counting: typeof planFromDisk = (build, scope) => {
+        planned += 1;
+        return planFromDisk(build, scope);
+      };
+      const result = await importGuestState(fakeDb.client, userId, state(collected(CHAIN_ONLY)), {
+        now,
+        plan: counting,
+      });
+      expect(result.ok && result.data.bikes[0].checkups).toEqual(NOT_HELD);
+      expect(planned).toBe(0);
+    });
   });
 
   it("lets another account import the same browser's bike, checkup included", async () => {

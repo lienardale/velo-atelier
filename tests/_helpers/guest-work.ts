@@ -16,6 +16,13 @@
  *                 guest (`components/checkup/Wizard.tsx`) → `va:buildlist:local`
  *   the payload   `collectGuestState`, reading those three keys back
  *
+ * …and a run the guest LEFT and came back to through another link is resumed
+ * the way the wizard resumes it ({@link resumeGuestRun}): the stored answers
+ * against the plan of the NEW link, under the scope the run was first opened
+ * with. That stale scope is real — `restore` in `components/checkup/Wizard.tsx`
+ * — and a fixture that tidied it up hid the fact that the import dropped 33 of
+ * a finished checkup's 34 answers (found in review, 2026-10-09).
+ *
  * Nothing here names a step's part or guide: the plan does. A fixture that
  * needs a hostile or malformed payload starts from a real one and breaks
  * exactly one thing.
@@ -28,7 +35,9 @@ import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { planCheckup, type PlannableGuide } from "@/lib/checkup/plan";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
 import {
+  fromStored,
   readGuestBuildList,
+  readStoredCheckup,
   toStored,
   writeGuestBuildList,
   writeStoredCheckup,
@@ -105,7 +114,7 @@ export interface GuestRunOptions {
  */
 export function guestRun(options: GuestRunOptions): CheckupState {
   const steps = planFromDisk(options.build, options.scope);
-  let state = createCheckupState({
+  const state = createCheckupState({
     id: options.id,
     bikeRef: { kind: "local" },
     scope: options.scope,
@@ -115,9 +124,19 @@ export function guestRun(options: GuestRunOptions): CheckupState {
     startedAt: options.startedAt,
   });
 
-  for (const [key, verdict] of Object.entries(options.verdicts)) {
-    if (!steps.some((step) => step.key === key)) {
-      throw new Error(`guestRun(): "${key}" is not in this bike's plan for that scope`);
+  return finish(answer(state, options.verdicts, "guestRun()"), options.completedAt, "guestRun()");
+}
+
+/** The verdicts, given through the reducer's own events — never written into the state. */
+function answer(
+  from: CheckupState,
+  verdicts: Readonly<Record<string, GuestVerdict>>,
+  who: string,
+): CheckupState {
+  let state = from;
+  for (const [key, verdict] of Object.entries(verdicts)) {
+    if (!state.steps.some((step) => step.key === key)) {
+      throw new Error(`${who}: "${key}" is not in this bike's plan for that scope`);
     }
     const before = state;
     if (verdict === "skipped") state = reduce(state, { type: "SKIP", key });
@@ -134,16 +153,48 @@ export function guestRun(options: GuestRunOptions): CheckupState {
     } else {
       state = reduce(state, { type: "ANSWER", key, result: "ok", notes: verdict.notes });
     }
-    if (state === before) throw new Error(`guestRun(): the reducer refused "${key}"`);
+    if (state === before) throw new Error(`${who}: the reducer refused "${key}"`);
   }
+  return state;
+}
 
-  if (options.completedAt === undefined) return state;
-  const completedAt = options.completedAt;
+/** "Créer ma liste" at `completedAt`, or the state as it is when there is none. */
+function finish(state: CheckupState, completedAt: string | undefined, who: string): CheckupState {
+  if (completedAt === undefined) return state;
   const finished = reduce(state, { type: "FINISH" }, () => new Date(completedAt));
   if (finished.completedAt === undefined) {
-    throw new Error("guestRun(): FINISH was refused — a question of the plan has no verdict");
+    throw new Error(`${who}: FINISH was refused — a question of the plan has no verdict`);
   }
   return finished;
+}
+
+/**
+ * Write `checkup` under the guest keys the way the wizard does: the checkup
+ * always, and — exactly `Wizard.tsx`'s `onCreate` for a guest — the list when
+ * the checkup FINISHES, merged into whatever the key already holds.
+ */
+function storeGuestCheckup(
+  storage: MemoryStorage,
+  checkup: CheckupState,
+  list: boolean,
+  who: string,
+): void {
+  if (!writeStoredCheckup("local", toStored(checkup), storage)) {
+    throw new Error(`${who}: writeStoredCheckup refused to write`);
+  }
+  if (!list) return;
+  const stored = readGuestBuildList("local", storage);
+  writeGuestBuildList(
+    "local",
+    mergeGuestBuildList(
+      stored?.items ?? [],
+      deriveBuildList(checkup),
+      checkup,
+      stored?.checkupId === checkup.id,
+    ),
+    checkup.id,
+    storage,
+  );
 }
 
 export interface GuestWorkOptions {
@@ -195,25 +246,12 @@ export function guestWork(options: GuestWorkOptions): GuestWork {
 
   const checkup = options.checkup?.(build) ?? null;
   if (checkup !== null) {
-    if (!writeStoredCheckup("local", toStored(checkup), storage)) {
-      throw new Error("guestWork(): writeStoredCheckup refused to write");
-    }
-    // Exactly `Wizard.tsx`'s `onCreate` for a guest: the list is written when a
-    // checkup FINISHES, merged into whatever the key already holds.
-    if (options.list ?? checkup.completedAt !== undefined) {
-      const stored = readGuestBuildList("local", storage);
-      writeGuestBuildList(
-        "local",
-        mergeGuestBuildList(
-          stored?.items ?? [],
-          deriveBuildList(checkup),
-          checkup,
-          stored?.checkupId === checkup.id,
-        ),
-        checkup.id,
-        storage,
-      );
-    }
+    storeGuestCheckup(
+      storage,
+      checkup,
+      options.list ?? checkup.completedAt !== undefined,
+      "guestWork()",
+    );
   }
 
   return {
@@ -223,4 +261,57 @@ export function guestWork(options: GuestWorkOptions): GuestWork {
     checkup,
     collect: () => collectGuestState({ storage, ...GUEST_NAMES }),
   };
+}
+
+export interface GuestResumeOptions {
+  /** The scope of the link the guest came BACK through: `?parts=`, or the full checkup. */
+  scope: CheckupScope;
+  /** Step key → verdict, for questions of THAT link's plan. */
+  verdicts?: Readonly<Record<string, GuestVerdict>>;
+  /** The verdict every question still open then gets — a guest who answers them all. */
+  rest?: "ok" | "skipped";
+  /** "Créer ma liste" at this instant; omit to leave the run in progress again. */
+  completedAt?: string;
+}
+
+/**
+ * The guest comes back to an UNFINISHED checkup through another link, and
+ * carries on — `restore` in `components/checkup/Wizard.tsx`, call for call.
+ *
+ * The page plans the link's scope; the wizard reads the stored run (its own
+ * read, `readStoredCheckup`) and marries it to THAT plan with `fromStored`.
+ * Two things follow, and neither is this helper's doing: an answer the new
+ * plan does not ask is dropped by `reconcile`, and the state keeps the scope
+ * the run was first opened with — `fromStored` takes `stored.scope`, and
+ * `toStored` writes it back. So a run opened on the chain and finished through
+ * "Contrôle complet" is stored with 34 answers and `scope: parts[chain]`.
+ *
+ * Returns the same storage with the continued run under the key (and the list,
+ * if it finished).
+ */
+export function resumeGuestRun(work: GuestWork, options: GuestResumeOptions): GuestWork {
+  const stored = readStoredCheckup("local", work.storage);
+  if (stored === null) throw new Error("resumeGuestRun(): no stored checkup to resume");
+  if (stored.completedAt !== undefined) {
+    throw new Error("resumeGuestRun(): a finished checkup is never resumed (isFinished)");
+  }
+
+  const plan = planFromDisk(work.build, options.scope);
+  let state = fromStored(stored, plan, stored.contentVersion);
+  state = answer(state, options.verdicts ?? {}, "resumeGuestRun()");
+  const rest = options.rest;
+  if (rest !== undefined) {
+    const open = plan.filter((step) => !Object.hasOwn(state.answers, step.key));
+    state = answer(
+      state,
+      Object.fromEntries(
+        // A question that cannot be skipped is answered instead.
+        open.map((step) => [step.key, rest === "skipped" && !step.skippable ? "ok" : rest]),
+      ),
+      "resumeGuestRun()",
+    );
+  }
+  const checkup = finish(state, options.completedAt, "resumeGuestRun()");
+  storeGuestCheckup(work.storage, checkup, checkup.completedAt !== undefined, "resumeGuestRun()");
+  return { ...work, checkup };
 }

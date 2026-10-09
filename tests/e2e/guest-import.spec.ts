@@ -32,6 +32,24 @@
  *      answers it in the real wizard, which writes the two keys itself — the
  *      walk that found the bug (`docs/deploy.md` §5.2, Journey B), as a test.
  *
+ * …and two journeys found in review on 2026-10-09, each of which lost answers
+ * with every claim above green:
+ *
+ *   7. **a checkup opened on one part and carried on through another link.**
+ *      The wizard resumes the unfinished run against the plan of the new URL
+ *      and keeps the scope it was FIRST opened with, so a guest who checked the
+ *      chain, left, and then did the full checkup stores 34 answers under
+ *      `scope: parts[chain]`. The import planned that scope: one answer of the
+ *      34 reached the account, the checkup was reported imported, and the
+ *      browser cleared the other 33. Every answer the browser holds must be a
+ *      row afterwards — in the real wizard, with no fixture;
+ *   8. **an import whose answer never reaches the page.** The server wrote, the
+ *      response was lost, the keys stayed; the guest carried on with the same
+ *      checkup and finished it. The next import finds the bike, writes nothing
+ *      (§6.8 AC8) — and called the checkup "already imported" on its id, so the
+ *      page cleared the newer answers too. The checkup must still be in the
+ *      browser afterwards, and the visitor told.
+ *
  * `localStorage` is written with `page.evaluate` rather than the `addInitScript`
  * of `_local-bike.ts`: that helper re-seeds on every document load, which is
  * exactly what claim 2 must not have happening behind it.
@@ -47,12 +65,15 @@ import accountEn from "../../messages/en/account.json";
 import accountFr from "../../messages/fr/account.json";
 import authEn from "../../messages/en/auth.json";
 import authFr from "../../messages/fr/auth.json";
+import checkupEn from "../../messages/en/checkup.json";
+import checkupFr from "../../messages/fr/checkup.json";
 import { resolveTestEnv } from "../_fakes/db";
 import { guestRun, guestWork, partsScope, type GuestWork } from "../_helpers/guest-work";
 
 /* eslint-disable security/detect-object-injection, security/detect-non-literal-regexp -- locale-keyed message fixtures, and patterns built from paths this file computed itself */
 const ACCOUNT: Record<Locale, typeof accountFr> = { fr: accountFr, en: accountEn };
 const AUTH: Record<Locale, typeof authFr> = { fr: authFr, en: authEn };
+const CHECKUP: Record<Locale, typeof checkupFr> = { fr: checkupFr, en: checkupEn };
 
 const PASSWORD = "Guidon-Tandem-47!";
 const CHECKUP_ID = "3f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a90";
@@ -60,6 +81,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 const CHAIN = "check-drivetrain#chain-wear";
 const CASSETTE = "check-drivetrain#cassette-teeth";
+const PAD_WEAR = "check-brakes-disc#pad-wear";
 
 const KEYS = [LOCAL_BIKE_KEY, checkupKey("local"), buildListKey("local")] as const;
 
@@ -326,7 +348,12 @@ forEachLocale((locale) => {
     await page.waitForURL(bikeUrlPattern);
     // The same bike as the first import, not a second one.
     expect(page.url()).toBe(bikeUrl);
-    // The account already holds that checkup, so the browser forgets its copy.
+    // The account already holds that checkup — the older copy says nothing the
+    // row does not: the same answers, note and symptom — so the browser forgets
+    // its copy. (A copy that says something ELSE is kept: the test below.)
+    for (const sentence of Object.values(account.import.checkupKept)) {
+      await expect(page.getByText(sentence)).toHaveCount(0);
+    }
     expect(await storedKeys(page)).toEqual([null, null, null]);
     // Nothing was written the second time: the same rows, to the id.
     expect(await rowsOf(bikeId)).toEqual(imported);
@@ -459,6 +486,267 @@ forEachLocale((locale) => {
       { partId: "chain", action: "REPLACE", checkupItemId: imported.items[0].id },
     ]);
     expect(imported.known).toEqual({ chain: "BROKEN" });
+  });
+
+  /**
+   * Answer the question on screen, and the next, until the wizard shows its
+   * summary: KO with the named symptom for the keys of `ko`, OK for the rest.
+   * Returns the keys it answered, in order.
+   */
+  async function answerToTheSummary(
+    page: import("@playwright/test").Page,
+    ko: Readonly<Record<string, string>>,
+  ): Promise<string[]> {
+    const wizard = page.getByTestId("checkup-wizard");
+    const onScreen = async (): Promise<string> =>
+      (await wizard.getAttribute("data-phase")) === "summary"
+        ? "summary"
+        : ((await page.getByTestId("step-card").getAttribute("data-step-key")) ?? "");
+    const answered: string[] = [];
+    // A full checkup of this bike asks 34 questions; the bound is there so a
+    // wizard that stops advancing fails here, by name, and not on a timeout.
+    for (let guard = 0; guard < 80; guard += 1) {
+      const key = await onScreen();
+      if (key === "summary") return answered;
+      if (Object.hasOwn(ko, key)) {
+        await page.getByTestId("verdict-ko").click();
+        await page.getByTestId(`symptom-${ko[key]}`).click();
+      } else {
+        await page.getByTestId("verdict-ok").click();
+      }
+      answered.push(key);
+      await expect.poll(onScreen).not.toBe(key);
+    }
+    throw new Error(`the wizard never reached its summary (answered ${answered.length})`);
+  }
+
+  /** `va:checkup:local` as the wizard left it. */
+  async function storedCheckup(page: import("@playwright/test").Page) {
+    const [, raw] = await storedKeys(page);
+    return {
+      raw,
+      value: JSON.parse(raw ?? "null") as {
+        id: string;
+        scope: { kind: string; partIds?: string[] };
+        answers: Record<string, string>;
+        completedAt?: string;
+      },
+    };
+  }
+
+  for (const [name, link] of [
+    ["the full checkup", {}],
+    ["another part", { parts: "brake-caliper-front" }],
+  ] as const) {
+    test(`a checkup opened on one part and carried on through ${name} is imported WHOLE (${locale})`, async ({
+      page,
+      signupEmail,
+    }) => {
+      test.slow();
+
+      // A guest bike and nothing else: every key below is written by the app.
+      const { raw, specCode } = localBikePayload(BIKE_PRESETS["gravel-1x11"]);
+      await page.goto(href(locale, "/"));
+      await page.evaluate(
+        ([key, value]) => window.localStorage.setItem(key, value),
+        [LOCAL_BIKE_KEY, raw],
+      );
+
+      // 1. "Check this part", on the chain: one answer, and the guest leaves
+      //    WITHOUT asking for the list — the run is unfinished.
+      await page.goto(
+        href(locale, "/velo/[id]/controle", { id: "local" }, { spec: specCode, parts: "chain" }),
+      );
+      await page.getByTestId("checkup-start").click();
+      await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", CHAIN);
+      await page.getByTestId("verdict-ko").click();
+      await page.getByTestId("symptom-chain-elongation").click();
+      await expect(page.getByTestId("checkup-save-state")).toHaveAttribute("data-state", "saved");
+      const first = await storedCheckup(page);
+      expect(first.value.scope).toEqual({ kind: "parts", partIds: ["chain"] });
+      expect(first.value.answers).toEqual({ [CHAIN]: "ko" });
+      expect(first.value.completedAt).toBeUndefined();
+
+      // 2. Back on the bike, the unfinished run is on offer…
+      await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+      await expect(page.getByTestId("resume-banner")).toBeVisible();
+      // …and the guest opens ANOTHER checkup instead — the address the
+      // workspace's own links carry (`?spec=`, and `?parts=` for one part).
+      await page.goto(
+        href(locale, "/velo/[id]/controle", { id: "local" }, { spec: specCode, ...link }),
+      );
+      // The wizard resumes the stored run (straight to a question, no tool
+      // list) under the header of the link that was followed.
+      await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
+      await expect(page.getByTestId("checkup-scope")).toHaveText(
+        "parts" in link ? CHECKUP[locale].scopePartial : CHECKUP[locale].scopeFull,
+      );
+      const given = await answerToTheSummary(page, { [PAD_WEAR]: "pad-worn" });
+      expect(given).toContain(PAD_WEAR);
+      expect(given.length).toBeGreaterThan(1);
+      await page.getByTestId("summary-create").click();
+      await page.waitForURL(
+        (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: "local" }),
+      );
+      await expect(page.getByTestId("build-item").first()).toBeVisible();
+
+      // What the browser holds now: ONE run (the id of the first visit), finished,
+      // with every answer of the second visit in it.
+      const stored = await storedCheckup(page);
+      expect(stored.value.id).toBe(first.value.id);
+      expect(stored.value.completedAt).toBeDefined();
+      const answers = Object.keys(stored.value.answers).sort();
+      for (const key of given) expect(answers).toContain(key);
+      expect(stored.value.answers[PAD_WEAR]).toBe("ko");
+      const [, , storedList] = await storedKeys(page);
+      const guestLines = (
+        JSON.parse(storedList ?? "null") as { items: { partId: string; action: string }[] }
+      ).items.map((item) => `${item.action}|${item.partId}`);
+      expect(guestLines).toContain("replace|brake-pads-front");
+
+      // 3. Sign up, `/import`.
+      await signUpAndStartImport(page, signupEmail);
+      await expect(page.getByText(account.import.done)).toBeVisible();
+      // The checkup WAS imported: no sentence says otherwise…
+      for (const sentence of Object.values(account.import.checkupKept)) {
+        await expect(page.getByText(sentence)).toHaveCount(0);
+      }
+      await page.waitForURL(bikeUrlPattern);
+      const bikeId = bikeUrlPattern.exec(page.url())?.[1] ?? "";
+      // …and the browser forgot it — which is only right if the account has it.
+      expect(await storedKeys(page)).toEqual([null, null, null]);
+
+      const imported = await rowsOf(bikeId);
+      expect(imported.checkups).toHaveLength(1);
+      const [checkup] = imported.checkups;
+      // EVERY answer the browser held is a row: before the fix, the full
+      // checkup left 1 of 34 here, and the other part left no checkup at all.
+      expect(imported.items.map((item) => item.stepKey).sort()).toEqual(answers);
+      expect(checkup).toMatchObject({
+        status: "COMPLETED",
+        // The answers go beyond the chain the run was opened on.
+        scope: "FULL",
+        guestKey: `${imported.userId}:${stored.value.id}`,
+      });
+      expect(imported.items.find((item) => item.stepKey === PAD_WEAR)).toMatchObject({
+        result: "KO",
+        reasonKeys: ["pad-worn"],
+      });
+      // The list is the checkup's, and EVERY line is linked to its answer.
+      expect(imported.lists).toEqual([{ id: expect.any(String), checkupId: checkup.id }]);
+      expect(imported.lines.map((line) => `${line.action}|${line.partId}`.toLowerCase())).toEqual(
+        guestLines,
+      );
+      const itemIds = new Set(imported.items.map((item) => item.id));
+      expect(imported.lines.every((line) => itemIds.has(line.checkupItemId ?? ""))).toBe(true);
+      // And the parts it found faulty say so.
+      expect(imported.known["brake-caliper-front"]).toBe("BROKEN");
+    });
+  }
+
+  test(`an import whose answer is lost, then more answers: nothing is written twice and the checkup STAYS (${locale})`, async ({
+    page,
+    signupEmail,
+  }) => {
+    test.slow();
+
+    // A guest bike and a checkup left IN PROGRESS: the chain is worn.
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("chain", "cassette"),
+          verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+          startedAt: "2026-09-14T08:00:00.000Z",
+        }),
+    });
+    await page.goto(href(locale, "/"));
+    await seedGuestWork(page, work.storage);
+
+    // The import's POST reaches the server; its response never reaches the page.
+    let lost = 0;
+    await page.route(`**${href(locale, "/import")}`, async (route) => {
+      const request = route.request();
+      if (request.method() !== "POST" || request.headers()["next-action"] === undefined) {
+        await route.fallback();
+        return;
+      }
+      await route.fetch(); // the server runs the action to the end…
+      await route.abort("connectionreset"); // …and the browser never hears of it
+      lost += 1;
+    });
+    await signUpAndStartImport(page, signupEmail);
+    // Counted AFTER the abort: un-routing while the handler is still waiting
+    // for the server would let the response through after all.
+    await expect.poll(() => lost).toBe(1);
+    await page.unroute(`**${href(locale, "/import")}`);
+
+    // The server DID import: one bike, with the checkup as it was then.
+    const bikeId = await withDb(async (client) => {
+      const { rows } = await client.query<{ id: string }>(
+        `SELECT b.id FROM "Bike" b JOIN "User" u ON u.id = b."userId" WHERE u.email = $1`,
+        [signupEmail],
+      );
+      expect(rows).toHaveLength(1);
+      return rows[0].id;
+    });
+    const afterFirst = await rowsOf(bikeId);
+    expect(afterFirst.checkups).toEqual([
+      {
+        id: expect.any(String),
+        status: "IN_PROGRESS",
+        scope: "PARTIAL",
+        guestKey: `${afterFirst.userId}:${CHECKUP_ID}`,
+      },
+    ]);
+    expect(afterFirst.items.map((item) => item.stepKey)).toEqual([CHAIN]);
+    // The page never got its answer, so it cleared nothing: the bike and the
+    // checkup are as they were seeded (an unfinished run has written no list).
+    expect(await storedKeys(page)).toEqual(KEYS.map((key) => work.storage.getItem(key)));
+    expect(work.storage.getItem(buildListKey("local"))).toBeNull();
+
+    // The bike is still on this device, so the guest carries on: the SAME run,
+    // in the real wizard — the cassette is worn too — and asks for the list.
+    const specCode = localBikePayload(BIKE_PRESETS["gravel-1x11"]).specCode;
+    await page.goto(
+      href(
+        locale,
+        "/velo/[id]/controle",
+        { id: "local" },
+        { spec: specCode, parts: "chain,cassette" },
+      ),
+    );
+    await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
+    await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", CASSETTE);
+    await answerToTheSummary(page, { [CASSETTE]: "cassette-worn" });
+    await page.getByTestId("summary-create").click();
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: "local" }),
+    );
+    await expect(page.getByTestId("build-item").first()).toBeVisible();
+    const newer = await storedCheckup(page);
+    expect(newer.value.id).toBe(CHECKUP_ID);
+    expect(newer.value.answers).toEqual({ [CHAIN]: "ko", [CASSETTE]: "ko" });
+    expect(newer.value.completedAt).toBeDefined();
+
+    // `/import` again.
+    await page.goto(href(locale, "/import"));
+    // The bike was already there — and the visitor is TOLD the checkup on
+    // this device was not imported with it.
+    // (`exact`: the second sentence happens to contain the first one's words.)
+    await expect(page.getByText(account.import.alreadyDone, { exact: true })).toBeVisible();
+    await expect(page.getByText(account.import.checkupKept.bikeAlreadyImported)).toBeVisible();
+    await page.waitForURL(bikeUrlPattern);
+    expect(bikeUrlPattern.exec(page.url())?.[1]).toBe(bikeId);
+
+    // Nothing was written the second time (§6.8 AC8): the same rows, to the id…
+    expect(await rowsOf(bikeId)).toEqual(afterFirst);
+    // …so the cassette's answer and the completion are NOT in the account —
+    // and they are still in the browser, byte for byte. Until 2026-10-09 this
+    // was `[null, null, null]` with no sentence: the answers were nowhere.
+    expect(await storedKeys(page)).toEqual([null, newer.raw, null]);
   });
 
   test(`/import asks an anonymous visitor to sign in first (${locale})`, async ({ page }) => {
