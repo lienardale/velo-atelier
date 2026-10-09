@@ -249,6 +249,29 @@ row. Optionally add `@@unique([bikeId, startedAt])` on `Checkup` (today
 same run could then no longer create two rows (see "Two in-progress runs" under
 Product surface).
 
+#### `updateBikeFitAction` and `updateBikeAction` read a bike and write it back with nothing held in between
+
+`updateBikePartAction` did too, until 2026-10-09: two calls for one bike that
+overlap each read the row and each wrote its own edit over the other's, both
+answering ok. They do overlap — Next's client sends an action dispatched
+during a navigation at once, whatever is pending, and two tabs need no
+navigation (`.debug/017` §5.8, "Review of the fix"). That action now takes the
+bike row's lock before it reads. Two others have the old shape (read, not
+measured): `updateBikeFitAction` merges a patch into the `fit` it read, so of
+two measurements saved together one can be lost; `updateBikeAction` re-derives
+`parts` from the row it read, so a part edit committed between its read and
+its write is written over.
+
+_Why deferred_: found while repairing the part form's fix, the day before the
+tag, and neither was measured. `MeasurementForm` has no write on removal, but
+that is not what it takes: two selects changed and then a route change lost
+an edit in one run of four before the part form had one.
+
+_To pick up_: the same shape as `updateBikePartAction` — one interactive
+`$transaction` whose first statement is an owner-scoped `UPDATE` of the bike
+row, every query through `tx` — and, as there, a test on PostgreSQL that sends
+several calls together (`tests/integration/bikes.test.ts`).
+
 #### The preview database secret is a repository secret
 
 `NEON_PREVIEW_DIRECT_URL`, which one step of
@@ -401,6 +424,47 @@ typed (`.debug/015` §2, §9). The e2e specs wait until React owns the field.
 
 _To pick up_: read the field's DOM value into state on mount; re-seed only the
 fields the visitor has not touched.
+
+#### A number field left holding text the browser cannot read clears its attribute
+
+In the part edit form (`components/bike/PartEditForm.tsx`), a number field
+holding `45.` (on the way to 45.5), `4e` or a lone minus reports an EMPTY
+value to the page, with `validity.badInput` as the only sign that anything is
+in it. LEAVING such a field sends that empty value as a clear: the stored
+value is deleted, the write answers ok, the field still shows the characters
+and its status reads "Enregistré" (measured on 2026-10-09 in Chromium 153, a
+guest bike, mouse and touch; `.debug/017` §5.8). `main` does the same.
+
+_Why deferred_ (the review of the part-form fix, 2026-10-09): the fix made a
+field REMOVED with such text send nothing and say so — that exit was new, and
+deleted a value that used to survive. The blur is older than the fix and was
+left as found: changing what leaving a field does is a decision about the
+form, not a repair of the change under review. **Awaiting the maintainer's
+ruling.**
+
+_To pick up_: if ruled "never a clear", make the blur do what the removal
+does — nothing sent — and show `bike.errors.invalid-value` under the field
+(it is still there to show it under). `onChange` already records `badInput`;
+`tests/e2e/part-panel.spec.ts` has the helper that types the real thing, and
+jsdom needs the state given to the node (`typeUnreadableInto`).
+
+#### The part form saves nothing when the page is unloaded with the caret in a field
+
+A value typed and not left is committed when its field is removed — another
+part, another tab, the panel rebuilt, a route change inside the app. A reload,
+a closed tab or another document unmounts nothing, and the text is lost
+(measured on 2026-10-09: a guest bike held 42 where 45 was typed, a saved one
+45 where 46 was; `.debug/017` §5.8). It was as lost before the form had that
+rule.
+
+_Why deferred_: a `pagehide` flush would save a guest bike (its write is
+synchronous) and not reliably a saved one (a request the browser is free to
+drop as the page goes), and could report neither — a difference between the
+two bikes this form is built not to have.
+
+_To pick up_: decide whether a guest-only save is wanted; for a saved bike,
+`fetch(…, { keepalive: true })` to a route handler rather than a server
+action, and a way to say on the next visit that the last edit did not land.
 
 #### The guides list is built twice, and a card clicked during the swap does nothing
 

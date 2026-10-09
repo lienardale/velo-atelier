@@ -34,6 +34,7 @@ import { viewerStatus } from "@/components/checkup/viewer-status";
 import { BikeCanvasFallback } from "./BikeCanvasFallback";
 import { PartsPanel, type PanelTab } from "./PartsPanel";
 import { ResumeBanner } from "./ResumeBanner";
+import { UnsavedNotices } from "./UnsavedNotices";
 
 /**
  * Deferred, and the 11 kB is the reason.
@@ -352,6 +353,14 @@ function WorkspaceBody({
           ? t("workspace.selected", { part: tParts(`${selectedPartId}.label` as never) })
           : ""}
       </p>
+
+      {/*
+       * Where "this was not saved" is said when the toast that normally says
+       * it cannot be had. Owned here and not by the panel, which is rebuilt
+       * between its two layouts; fixed to the viewport, so that the open sheet
+       * is not painted over it.
+       */}
+      <UnsavedNotices />
 
       <BikeViewer
         spec={liveBuild.spec}

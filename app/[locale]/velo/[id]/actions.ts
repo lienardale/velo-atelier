@@ -24,12 +24,40 @@
  * after an `if (bike.userId !== user.id)`. A foreign id matches no row, and no
  * row is `NOT_FOUND` — 404, never 403 (§4.7). `tests/security/idor.test.ts`
  * replays every one of these with another user's ids.
+ *
+ * ## Two calls for one bike at once: the row is locked BEFORE it is read
+ *
+ * The edit is read-modify-write on one JSON column: read `parts`, change one
+ * attribute, write the whole array back. Until 2026-10-09 nothing was held in
+ * between, on the understanding that Next's client sends server actions one
+ * at a time. It does — until a navigation arrives: the navigation takes the
+ * pending action's turn and the next action is sent AT ONCE
+ * (`next/dist/client/components/app-router-instance.js`, read). The part
+ * form's write on removal (`components/bike/PartEditForm.tsx`, rule 3) is
+ * dispatched exactly then. Two calls read the same row, each wrote its own
+ * edit over the other's, and both answered ok: a select changed and a width
+ * typed, then history back, lost one of the two in five runs of six
+ * (`.debug/017` §5.8, "Review of the fix"; two selects and a route change lost one before
+ * rule 3 existed). Two tabs, or two devices, need no navigation at all.
+ *
+ * So the whole edit is one interactive transaction whose FIRST statement is an
+ * `UPDATE` of the bike row — the ownership predicate in it — which takes the
+ * row's lock: a second call for the same bike waits on that statement until
+ * the first commits, and under READ COMMITTED (pinned below) the read that
+ * follows sees what the first wrote. No raw `SELECT … FOR UPDATE`
+ * (`tests/security/sql-injection.test.ts`, and `expectScopedToUser` could not
+ * read one), no retry loop, and nothing Prisma would log as an error.
+ *
+ * A refusal decided after the lock is THROWN ({@link Refusal}), so that the
+ * transaction rolls back: a refused edit must not leave the lock's own write —
+ * a newer `updatedAt`, which is what "Mes vélos" sorts by — behind it.
+ * `tests/integration/bikes.test.ts` holds both halves on PostgreSQL.
  */
 
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
-import { fail, ok, type ActionResult } from "@/lib/actions/result";
+import { fail, ok, type ActionFailure, type ActionResult } from "@/lib/actions/result";
 import { withUser } from "@/lib/actions/with-user";
 import { deriveBike, MAX_JSON_BYTES, withinJsonBudget } from "@/lib/bike/rules";
 import { prisma } from "@/lib/db/prisma";
@@ -72,6 +100,18 @@ const updateBikePartSchema = z
 export type UpdateBikePartInput = z.infer<typeof updateBikePartSchema>;
 
 /**
+ * An expected failure found INSIDE the transaction. Still returned to the
+ * caller, never thrown at it — it only travels as an exception as far as the
+ * transaction's edge, because that is the one way to make Prisma roll back.
+ * Not exported: a `"use server"` module exports async functions only.
+ */
+class Refusal extends Error {
+  constructor(readonly failure: ActionFailure) {
+    super(failure.code);
+  }
+}
+
+/**
  * Edit one part: its attributes, what is actually installed on the bike, its
  * status and the owner's notes. Returns the build as stored, so the panel can
  * render the result without a round trip through the page.
@@ -82,49 +122,76 @@ export const updateBikePartAction = withUser(
     if (!parsed.success) return fail("VALIDATION");
     const { bikeId, partId, attributes, installed, status, notes } = parsed.data;
 
-    const row = await prisma.bike.findFirst({
-      where: { id: bikeId, userId: user.id },
-      select: { id: true, answers: true, parts: true },
-    });
-    if (row === null) return fail("NOT_FOUND");
+    let build: BikeBuild;
+    try {
+      build = await prisma.$transaction(
+        async (tx) => {
+          // The lock (see the header). `updatedAt` is what any update of this
+          // row sets anyway; naming it is what makes this statement an UPDATE.
+          const locked = await tx.bike.updateMany({
+            where: { id: bikeId, userId: user.id },
+            data: { updatedAt: new Date() },
+          });
+          if (locked.count === 0) throw new Refusal(fail("NOT_FOUND"));
 
-    const derived = deriveBike(row.answers as Answers, asParts(row.parts));
-    let build: BikeBuild = { spec: derived.spec, parts: derived.parts };
-    if (build.parts.every((part) => part.partId !== partId)) return fail("NOT_FOUND");
+          const row = await tx.bike.findFirst({
+            where: { id: bikeId, userId: user.id },
+            select: { id: true, answers: true, parts: true },
+          });
+          if (row === null) throw new Refusal(fail("NOT_FOUND"));
 
-    for (const [key, value] of Object.entries(attributes ?? {})) {
-      const change = setAttribute(build, partId, key, value);
-      if (!change.ok) {
-        return change.code === "unknown-part" || change.code === "part-not-fitted"
-          ? fail("NOT_FOUND")
-          : fail("VALIDATION", { fieldErrors: { [key]: `bike.errors.${change.code}` } });
-      }
-      build = change.build;
-    }
+          const derived = deriveBike(row.answers as Answers, asParts(row.parts));
+          let edited: BikeBuild = { spec: derived.spec, parts: derived.parts };
+          if (edited.parts.every((part) => part.partId !== partId)) {
+            throw new Refusal(fail("NOT_FOUND"));
+          }
 
-    if (!withinJsonBudget(build.parts, MAX_JSON_BYTES)) return fail("TOO_MANY");
+          for (const [key, value] of Object.entries(attributes ?? {})) {
+            const change = setAttribute(edited, partId, key, value);
+            if (!change.ok) {
+              throw new Refusal(
+                change.code === "unknown-part" || change.code === "part-not-fitted"
+                  ? fail("NOT_FOUND")
+                  : fail("VALIDATION", { fieldErrors: { [key]: `bike.errors.${change.code}` } }),
+              );
+            }
+            edited = change.build;
+          }
 
-    const updated = await prisma.bike.updateMany({
-      where: { id: bikeId, userId: user.id },
-      data: { parts: json(build.parts), spec: json(build.spec) },
-    });
-    if (updated.count === 0) return fail("NOT_FOUND");
+          if (!withinJsonBudget(edited.parts, MAX_JSON_BYTES)) {
+            throw new Refusal(fail("TOO_MANY"));
+          }
 
-    if (status !== undefined || notes !== undefined || installed !== undefined) {
-      const data = {
-        ...(status === undefined ? {} : { status }),
-        ...(notes === undefined ? {} : { notes }),
-        ...(installed === undefined ? {} : { installed }),
-      };
-      const touched = await prisma.bikePartState.updateMany({
-        where: { bikeId, partId, bike: { userId: user.id } },
-        data,
-      });
-      if (touched.count === 0) {
-        // A part state can be missing on a bike written before the part existed:
-        // the ownership check above has already proven this bike is the caller's.
-        await prisma.bikePartState.create({ data: { bikeId, partId, ...data } });
-      }
+          const updated = await tx.bike.updateMany({
+            where: { id: bikeId, userId: user.id },
+            data: { parts: json(edited.parts), spec: json(edited.spec) },
+          });
+          if (updated.count === 0) throw new Refusal(fail("NOT_FOUND"));
+
+          if (status !== undefined || notes !== undefined || installed !== undefined) {
+            const data = {
+              ...(status === undefined ? {} : { status }),
+              ...(notes === undefined ? {} : { notes }),
+              ...(installed === undefined ? {} : { installed }),
+            };
+            const touched = await tx.bikePartState.updateMany({
+              where: { bikeId, partId, bike: { userId: user.id } },
+              data,
+            });
+            if (touched.count === 0) {
+              // A part state can be missing on a bike written before the part existed:
+              // the ownership check above has already proven this bike is the caller's.
+              await tx.bikePartState.create({ data: { bikeId, partId, ...data } });
+            }
+          }
+
+          return edited;
+        },
+        { isolationLevel: "ReadCommitted" },
+      );
+    } catch (error) {
+      if (error instanceof Refusal) return error.failure;
+      throw error;
     }
 
     revalidatePath("/[locale]/velo/[id]", "page");

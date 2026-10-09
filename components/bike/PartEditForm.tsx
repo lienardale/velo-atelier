@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loadToast } from "@/components/ui-ext/Notices";
 import type { ActionFailure } from "@/lib/actions/result";
 import type { BikeRepo } from "@/lib/bike/repo";
 import { partDefinition } from "@/lib/domain/data/parts";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 import { useBikeActionText } from "./action-text";
 import { usePartsText } from "./parts-text";
+import { showUnsavedNotice } from "./UnsavedNotices";
 
 /**
  * The editable attributes of one part (§6.4, §6.8 AC11).
@@ -59,6 +61,9 @@ import { usePartsText } from "./parts-text";
  *      visitor typed since its last commit, and only if that is not what is
  *      stored. Focusing a field and leaving it sends nothing. (It used to send
  *      whatever the DOM held, which is how a stale field became a write.)
+ *      "What is stored" is only what this form was last TOLD: while a write of
+ *      the same field has not answered yet it is about to change, so the
+ *      comparison is not made and the edit is sent ({@link unanswered}).
  *   3. **Typed text is committed when the field goes away.** React runs no
  *      `onBlur` for a node it removes — and a browser that does fire `blur`
  *      during the removal (Chromium 153 does: measured) fires it inside React's
@@ -67,17 +72,52 @@ import { usePartsText } from "./parts-text";
  *      would be dropped by rule 1 whenever the part changes under a focused
  *      field. The field flushes it from a layout-effect cleanup instead.
  *
- * A write that answers after its form is gone — the flush of rule 3, or an
- * ordinary save overtaken by the next selection — has no field left to report
- * under. Success needs nothing said: `onSaved` still hands the build up, and
- * the part shows the value the next time it is opened. A refusal is raised as
- * a notice naming the part and the field ({@link PartFields}' `reportUnsaved`).
+ * ### What rule 3 commits — and the one thing it never does
+ *
+ * What leaving the field would have: the value typed, or a CLEAR when the
+ * visitor emptied the field (new with rule 3: an emptied field that was not
+ * left used to keep its value).
+ *
+ * Never text the browser cannot read as a number — `45.` on the way to 45.5, a
+ * lone minus, `4e`. A number input reports those as an EMPTY `value`, with
+ * `validity.badInput` as the only sign that anything is in the field at all.
+ * As first written, rule 3 sent that empty value as a clear: the stored width
+ * deleted, the write answering ok, and nothing said — on exits where, before
+ * rule 3 existed, the stored value survived (measured in Chromium 153, guest
+ * and saved; `.debug/017` §5.8, "Review of the fix"). So `onChange` records `badInput`
+ * beside the text, and a field removed holding unreadable text sends NOTHING:
+ * the stored value stays, and the visitor is told, by the notice below.
+ * LEAVING such a field still clears the attribute, as it does on `main`: that
+ * exit is older than this form's three rules and is the maintainer's to rule
+ * on (`docs/backlog.md`).
+ *
+ * ### A write that answers after its form is gone
+ *
+ * — the flush of rule 3, or an ordinary save overtaken by the next selection —
+ * has no field left to report under. Success needs nothing said: `onSaved`
+ * still hands the build up, and the part shows the value the next time it is
+ * opened. A refusal is raised as a notice naming the part and the field
+ * ({@link PartFields}' `reportUnsaved`).
+ *
+ * That notice must not need the network: a write that does not answer is first
+ * of all a connection that went. It is a toast taken from the layout's host
+ * (`loadToast`, `components/ui-ext/Notices.tsx`), which is in memory from a
+ * moment after hydration; should even that be missing, the sentence is shown
+ * in the workspace's own region (`UnsavedNotices`). Not sonner's "rich" error
+ * colours: #e60000 on #fff0f0 is 4.34:1 at 13 px, which axe reports as a
+ * serious `color-contrast` violation.
  *
  * Rule 3 covers every way the field can leave the page while the page lives:
  * another part, another tab, the panel rebuilt between its two layouts, the
  * route itself. It does NOT cover the page being unloaded with the caret
  * still in the field (a reload, a closed tab): nothing is unmounted then, and
  * a saved bike's write would be a request the browser is free to drop.
+ *
+ * On a route change the flush is one more thing: a write sent WHILE ANOTHER IS
+ * IN FLIGHT. Next's client sends server actions one at a time until a
+ * navigation arrives; the navigation takes the pending action's turn and the
+ * next one goes at once. `updateBikePartAction` therefore takes the bike row's
+ * lock before it reads (its header says how) — nothing here orders the two.
  */
 export interface PartEditFormProps {
   build: BikeBuild;
@@ -90,16 +130,57 @@ export interface PartEditFormProps {
 
 type FieldState = { status: "idle" | "saving" | "saved" } | { status: "error"; messageKey: string };
 
-/** The message key a refused write of `attribute` is rendered with. */
+/**
+ * The message key a refused write of `attribute` is rendered with: the
+ * field's own reason, else the form-level one (a guest bike whose storage is
+ * full answers `fieldErrors.form`, `lib/bike/repo.ts`), else the code's.
+ */
 function refusalKey(attribute: AttributeDef, refusal: ActionFailure): string {
-  return refusal.fieldErrors?.[attribute.key] ?? `errors.${refusal.code}`;
+  return (
+    refusal.fieldErrors?.[attribute.key] ?? refusal.fieldErrors?.form ?? `errors.${refusal.code}`
+  );
 }
+
+/** The reason given for text a number field could not read: the domain's own, for a value it refuses. */
+const UNREADABLE_KEY = "bike.errors.invalid-value";
 
 /**
  * How long the "not saved" notice stays (sonner's default is four seconds):
  * it names a part the visitor has already left, and has to be read.
  */
 const UNSAVED_NOTICE_MS = 20_000;
+
+/**
+ * Writes that were sent and have not answered yet: per repo, how many for
+ * each `part:key`.
+ *
+ * Rule 2 compares what was typed with what is stored — and "stored" is what
+ * the form was last handed, which a write in flight is about to change. With
+ * 45 on its way for the front tyre (rule 3's write, the tab pressed), the
+ * visitor back on the tyre sees 42 still shown, types 42 to be sure and leaves
+ * the field: compared with the stale 42 that is "unchanged", nothing is sent,
+ * and a moment later the field and the database say 45 (measured, a saved
+ * bike on a slow connection; `.debug/017` §5.8, "Review of the fix"). So while a write of
+ * the same field is unanswered an edit is sent whatever it compares to.
+ *
+ * Module-level, because the form that sent the write is usually gone when the
+ * question is asked; keyed by the repo, which `BikeWorkspace` keeps for as
+ * long as the bike is on the page. A guest bike's write is in storage before
+ * `setAttribute` returns, and its entry lasts one microtask.
+ */
+const unanswered = new WeakMap<BikeRepo, Map<string, number>>();
+
+/** Send one write, counted in {@link unanswered} from before it leaves until it answers or fails. */
+function sendTracked<T>(repo: BikeRepo, field: string, send: () => Promise<T>): Promise<T> {
+  const fields = unanswered.get(repo) ?? new Map<string, number>();
+  unanswered.set(repo, fields);
+  fields.set(field, (fields.get(field) ?? 0) + 1);
+  return send().finally(() => {
+    const left = (fields.get(field) ?? 1) - 1;
+    if (left > 0) fields.set(field, left);
+    else fields.delete(field);
+  });
+}
 
 /** Rule 1: one instance per part. The key belongs here — see the header. */
 export function PartEditForm(props: PartEditFormProps): React.JSX.Element | null {
@@ -125,6 +206,10 @@ function PartFields({
   // sent: the answer is what needs a field to be shown under.
   const mounted = useRef(true);
   useLayoutEffect(() => {
+    // Set here too, not only by `useRef`: under StrictMode — `npm run dev` —
+    // React runs this effect, its cleanup, and the effect again on the same
+    // instance, and a form left at `false` would raise every refusal as a
+    // notice and keep a thrown write from `error.tsx`.
     mounted.current = true;
     return () => {
       mounted.current = false;
@@ -149,19 +234,32 @@ function PartFields({
       field: partsText(attribute.labelKey),
     });
     const description = messageKey === null ? undefined : actionText(messageKey);
-    // Imported here, not at module scope: a static import would put sonner in
-    // this route's first-load JS (see components/ui-ext/Notices.tsx).
-    void import("sonner").then(({ toast }) =>
-      toast.error(title, { description, duration: UNSAVED_NOTICE_MS }),
-    );
+    // `loadToast`, never an `import("sonner")` of this module's own: that is a
+    // chunk the page has not requested, and this sentence is for when the
+    // network is down (see the header). `richColors: false` for its contrast.
+    void loadToast()
+      .then((toast) => {
+        toast.error(title, { description, duration: UNSAVED_NOTICE_MS, richColors: false });
+      })
+      .catch(() => {
+        showUnsavedNotice(title, description, UNSAVED_NOTICE_MS);
+      });
   };
+
+  const fieldOf = (attribute: AttributeDef): string => `${partId}:${attribute.key}`;
+
+  /** The one way a write leaves this form. The call itself is synchronous. */
+  const write = (attribute: AttributeDef, value: AttributeValue | null) =>
+    sendTracked(repo, fieldOf(attribute), () =>
+      repo.setAttribute(build, { partId, key: attribute.key, value }),
+    );
 
   const save = (attribute: AttributeDef, value: AttributeValue | null): void => {
     setFields((current) => ({ ...current, [attribute.key]: { status: "saving" } }));
     startTransition(async () => {
       let result: Awaited<ReturnType<BikeRepo["setAttribute"]>>;
       try {
-        result = await repo.setAttribute(build, { partId, key: attribute.key, value });
+        result = await write(attribute, value);
       } catch (error) {
         // A write that did not answer is the error boundary's while this form
         // is there to be replaced by it — and a notice once it is not.
@@ -192,9 +290,10 @@ function PartFields({
    * synchronously (a guest bike is in storage before this returns).
    */
   const saveOnRemoval = (attribute: AttributeDef, value: AttributeValue | null): void => {
+    const sent = write(attribute, value);
     void (async () => {
       try {
-        const result = await repo.setAttribute(build, { partId, key: attribute.key, value });
+        const result = await sent;
         if (result.ok) onSaved?.(result.data);
         else reportUnsaved(attribute, refusalKey(attribute, result));
       } catch {
@@ -228,9 +327,12 @@ function PartFields({
               attribute={attribute}
               value={value}
               disabled={!repo.canEdit || state.status === "saving"}
+              saving={state.status === "saving"}
               refused={state.status === "error"}
+              isUnanswered={() => (unanswered.get(repo)?.get(fieldOf(attribute)) ?? 0) > 0}
               onCommit={(next) => save(attribute, next)}
               onCommitOnRemoval={(next) => saveOnRemoval(attribute, next)}
+              onUnreadableOnRemoval={() => reportUnsaved(attribute, UNREADABLE_KEY)}
               onUnchanged={() => settle(attribute)}
             />
             <p
@@ -262,11 +364,17 @@ interface AttributeControlProps {
   attribute: AttributeDef;
   value: AttributeValue | undefined;
   disabled: boolean;
+  /** A write of this field, sent by THIS form, has not answered yet. */
+  saving: boolean;
   /** The last commit of this field was refused, and it still shows that text. */
   refused: boolean;
+  /** Has a write of this field — by this form or by one that is gone — not answered yet? */
+  isUnanswered: () => boolean;
   onCommit: (value: AttributeValue | null) => void;
   /** As `onCommit`, for text the field still held when it was removed. */
   onCommitOnRemoval: (value: AttributeValue | null) => void;
+  /** The field was removed holding text the browser could not read as a number. */
+  onUnreadableOnRemoval: () => void;
   /** The field was left showing exactly what is stored. */
   onUnchanged: () => void;
 }
@@ -328,6 +436,14 @@ function isStored(next: AttributeValue | null, stored: AttributeValue | undefine
   return next === null ? stored === undefined : next === stored;
 }
 
+/** What the visitor has typed into a field since its last commit. */
+interface Typed {
+  /** The field's `value` — EMPTY for text a number input cannot read. */
+  text: string;
+  /** `validity.badInput`: there are characters in the field that `text` does not show. */
+  unreadable: boolean;
+}
+
 /**
  * A number or text attribute: committed on blur, so every keystroke is not a
  * write — and, since 2026-10-09, committed when the field is REMOVED with text
@@ -343,30 +459,50 @@ function TypedControl({
   attribute,
   value,
   disabled,
+  saving,
   refused,
+  isUnanswered,
   onCommit,
   onCommitOnRemoval,
+  onUnreadableOnRemoval,
   onUnchanged,
 }: AttributeControlProps): React.JSX.Element {
   const stored = value === undefined ? "" : String(value);
   const input = useRef<HTMLInputElement>(null);
-  /** Text typed since the last commit; `null` when nothing is uncommitted. */
-  const typed = useRef<string | null>(null);
+  /** `null` when nothing is uncommitted. */
+  const typed = useRef<Typed | null>(null);
 
-  // What the removal has to read is the LAST render's, not the first's.
-  const latest = useRef({ attribute, value, onCommitOnRemoval });
+  // What an effect has to read is the LAST render's, not the first's.
+  const latest = useRef({
+    attribute,
+    value,
+    saving,
+    isUnanswered,
+    onCommitOnRemoval,
+    onUnreadableOnRemoval,
+  });
   useLayoutEffect(() => {
-    latest.current = { attribute, value, onCommitOnRemoval };
+    latest.current = {
+      attribute,
+      value,
+      saving,
+      isUnanswered,
+      onCommitOnRemoval,
+      onUnreadableOnRemoval,
+    };
   });
 
   // An untouched field says what is stored. `defaultValue` alone stops doing
   // that the moment the field has a value of its own, which React gives it at
   // mount: a write that answers after the field was mounted (rule 3's, when
   // the visitor comes straight back to the part) would leave the old number
-  // on screen. Text the visitor is in the middle of typing is never replaced.
+  // on screen. Text the visitor is in the middle of typing is never replaced —
+  // and neither is the value this field is in the middle of SAVING: an earlier
+  // write of the same field answering first would otherwise put its number
+  // back in the field for as long as the later one takes.
   useLayoutEffect(() => {
     const node = input.current;
-    if (node === null || typed.current !== null) return;
+    if (node === null || typed.current !== null || latest.current.saving) return;
     if (node.value !== stored) node.value = stored;
   }, [stored]);
 
@@ -374,11 +510,14 @@ function TypedControl({
   // `onBlur` will ever come for it.
   useLayoutEffect(
     () => () => {
-      const text = typed.current;
-      if (text === null) return;
+      const edit = typed.current;
+      if (edit === null) return;
       typed.current = null;
-      const next = typedValue(latest.current.attribute, text);
-      if (!isStored(next, latest.current.value)) latest.current.onCommitOnRemoval(next);
+      const last = latest.current;
+      // Never a clear: the empty `text` is the browser's, not the visitor's.
+      if (edit.unreadable) return last.onUnreadableOnRemoval();
+      const next = typedValue(last.attribute, edit.text);
+      if (last.isUnanswered() || !isStored(next, last.value)) last.onCommitOnRemoval(next);
     },
     [],
   );
@@ -396,7 +535,8 @@ function TypedControl({
       className="min-h-[var(--tap-min)] text-base md:text-base"
       data-attr={attribute.key}
       onChange={(event) => {
-        typed.current = event.currentTarget.value;
+        const node = event.currentTarget;
+        typed.current = { text: node.value, unreadable: node.validity.badInput };
       }}
       onBlur={(event) => {
         const edited = typed.current !== null;
@@ -404,7 +544,7 @@ function TypedControl({
         // Rule 2: nothing typed, nothing sent.
         if (!edited && !refused) return;
         const next = typedValue(attribute, event.currentTarget.value);
-        if (isStored(next, value)) return onUnchanged();
+        if (!isUnanswered() && isStored(next, value)) return onUnchanged();
         onCommit(next);
       }}
     />

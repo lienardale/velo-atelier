@@ -1,4 +1,4 @@
-import { act, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readLocalBike, writeLocalBike } from "@/lib/bike/local-bike";
@@ -43,12 +43,21 @@ const server = vi.hoisted(() => ({
   payloads: [] as unknown[],
   build: null as unknown,
   latencyMs: 0,
+  /** The action does not answer at all: the network went, the function crashed. */
+  down: false,
 }));
 
 const notice = vi.hoisted(() => ({
   error: vi.fn<(title: string, options?: { description?: string; duration?: number }) => void>(),
+  /** The toast library cannot be had: its chunk was never fetched, and the network is gone. */
+  unavailable: false,
 }));
-vi.mock("sonner", () => ({ toast: { error: notice.error } }));
+vi.mock("sonner", () => ({
+  get toast() {
+    if (notice.unavailable) throw new Error("Failed to load chunk /_next/static/chunks/sonner.js");
+    return { error: notice.error };
+  },
+}));
 
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
 
@@ -60,6 +69,7 @@ vi.mock("@/app/[locale]/velo/[id]/actions", () => ({
   }) => {
     server.payloads.push(structuredClone(input));
     await new Promise((resolve) => setTimeout(resolve, server.latencyMs));
+    if (server.down) throw new TypeError("Failed to fetch");
     let build = server.build as BikeBuild;
     for (const [key, value] of Object.entries(input.attributes)) {
       const change = setAttribute(build, input.partId, key, value);
@@ -193,10 +203,24 @@ async function typeInto(user: User, key: string, text: string): Promise<void> {
   expect(document.activeElement).toBe(field(key));
 }
 
+/** Text a number input cannot read, as Chromium reports it: an empty value and `badInput`. */
+function typeUnreadableInto(key: string): void {
+  const node = field(key);
+  act(() => node.focus());
+  Object.defineProperty(node, "validity", { configurable: true, value: { badInput: true } });
+  fireEvent.change(node, { target: { value: "" } });
+  expect(document.activeElement).toBe(node);
+}
+
+const UNSAVED_WIDTH = "Pneu avant · Largeur du pneu : votre saisie n’a pas été enregistrée.";
+const NOT_POSSIBLE = "Cette valeur n’est pas possible pour cette caractéristique.";
+
 beforeEach(() => {
   notice.error.mockClear();
+  notice.unavailable = false;
   server.payloads.length = 0;
   server.latencyMs = 0;
+  server.down = false;
   server.build = null;
   window.localStorage.clear();
   resetLocalBikeSnapshotCache();
@@ -498,6 +522,119 @@ describe("a saved bike — what the client sends to updateBikePartAction", () =>
     expect(notice.error.mock.calls[0][1]?.description).toBe(
       "Cette valeur n’est pas possible pour cette caractéristique.",
     );
+  });
+});
+
+describe.each(LAYOUTS)("what the review found, panel $layout", ({ desktop }) => {
+  it.each([
+    ["the 'Pièces' tab is pressed", "tab"],
+    ["a history move changes ?part= under the focused field", "history"],
+    ["the panel is rebuilt in its other layout", "layout"],
+  ] as const)(
+    "text a number field cannot read, typed and not left, then %s: the stored width is not deleted, and the visitor is told",
+    async (_, exit) => {
+      const { user } = await openGuest("gravel-1x11", desktop, withRear38("gravel-1x11"));
+      await user.click(row("tire-rear"));
+      expect(field("etrto-width").value).toBe("38");
+      const before = window.localStorage.getItem(LOCAL_BIKE_KEY);
+      typeUnreadableInto("etrto-width");
+
+      if (exit === "tab") await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      else if (exit === "history") historyMoveTo("tire-front");
+      else act(() => setMediaQuery(MEDIA.desktop, !desktop));
+      await settle();
+
+      // Not one byte of the stored bike moved: a clear would have given 42 back.
+      expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(before);
+      expect(local("tire-rear", "etrto-width")).toBe(38);
+      expect(notice.error).toHaveBeenCalledTimes(1);
+      expect(notice.error.mock.calls[0][0]).toBe(
+        "Pneu arrière · Largeur du pneu : votre saisie n’a pas été enregistrée.",
+      );
+      expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_POSSIBLE);
+    },
+  );
+
+  /**
+   * The notice is a toast, and a toast is a library to download. When it
+   * cannot be had the sentence is said by the workspace itself — it used to be
+   * lost with the import's rejection, which nothing handled.
+   */
+  it("the toast cannot be had: a refused width, typed and not left, is said on the page itself", async () => {
+    const { user } = await openGuest("gravel-1x11", desktop);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "999");
+    notice.unavailable = true;
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    expect(notice.error).not.toHaveBeenCalled();
+    const said = screen.getByTestId("unsaved-notices");
+    expect(said).toHaveAttribute("role", "alert");
+    expect(said).toHaveTextContent(`${UNSAVED_WIDTH} ${NOT_POSSIBLE}`);
+    // Outside the panel: it is still there when the panel is rebuilt in its other layout.
+    expect(said.closest("[data-testid=parts-panel]")).toBeNull();
+    act(() => setMediaQuery(MEDIA.desktop, !desktop));
+    await settle();
+    expect(screen.getByTestId("unsaved-notices")).toHaveTextContent(UNSAVED_WIDTH);
+    expect(local("tire-front", "etrto-width")).toBe(42);
+  });
+});
+
+describe("what the review found — a saved bike whose write does not answer", () => {
+  it("offline, the toast in memory: the visitor is told, with no reason invented", async () => {
+    server.down = true;
+    const { user } = await openSaved("gravel-1x11");
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+    expect(notice.error.mock.calls[0][1]?.description).toBeUndefined();
+    expect(screen.queryByTestId("unsaved-notices")).toBeNull();
+  });
+
+  it("offline, and the toast cannot be had either: the workspace says it, and nothing is left unhandled", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    server.down = true;
+    notice.unavailable = true;
+    const { user } = await openSaved("gravel-1x11");
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+
+    historyMoveTo("tire-rear");
+    await settle(20);
+
+    expect(title()).toBe("Pneu arrière");
+    expect(screen.getByTestId("unsaved-notices")).toHaveTextContent(UNSAVED_WIDTH);
+    expect(screen.getByTestId("unsaved-notices")).not.toHaveTextContent(NOT_POSSIBLE);
+    expect(notice.error).not.toHaveBeenCalled();
+    process.off("unhandledRejection", unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it("the workspace itself gone (a route change) and no toast: nothing to say it in, nothing thrown, and nothing left for the next bike's page", async () => {
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    server.down = true;
+    notice.unavailable = true;
+    const { user, unmount } = await openSaved("gravel-1x11");
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+
+    unmount();
+    await settle(20);
+    process.off("unhandledRejection", unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+
+    server.down = false;
+    await openSaved("gravel-1x11");
+    expect(screen.queryByTestId("unsaved-notices")).toBeNull();
   });
 });
 

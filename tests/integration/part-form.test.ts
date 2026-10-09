@@ -22,9 +22,15 @@
  * ended with the owner's 38 mm rear tyre at 45, and the second with a stock
  * dropper post at 140 mm of travel — nothing typed, the server answering ok.
  *
- * NOT real: HTTP and the flight serialisation of props and action calls (the
- * action is a plain function here, so nothing queues two calls the way Next's
- * client does); the browser — jsdom has no WebGL, so a part is picked on the
+ * NOT real: HTTP and the flight serialisation of props and action calls. The
+ * action is a plain function here, so two calls made together simply overlap —
+ * which, as it turned out, is also what Next's client does with an action
+ * dispatched during a navigation (it sends one at a time only while the page
+ * stays put). What the action does with two calls that overlap is held on
+ * PostgreSQL by `tests/integration/bikes.test.ts`, and from a real browser by
+ * `tests/e2e/part-panel.spec.ts`. Also not real: the browser — jsdom has no
+ * number-input state for text it cannot read (given one below, as Chromium
+ * reports it), and no WebGL, so a part is picked on the
  * silhouette the site serves before the 3D is up; `next/dynamic` (the lazy 3D
  * chunk and the guest resume banner render nothing). A real browser, a real
  * canvas and a real server are `tests/e2e/part-panel.spec.ts`.
@@ -90,7 +96,7 @@ afterAll(async () => {
 });
 
 await import("@/tests/setup.dom");
-const { act, cleanup, screen, waitFor } = await import("@testing-library/react");
+const { act, cleanup, fireEvent, screen, waitFor } = await import("@testing-library/react");
 const { renderWithIntl } = await import("@/tests/_helpers/intl");
 
 const { default: BikePage } = await import("@/app/[locale]/velo/[id]/page");
@@ -313,6 +319,37 @@ describe("the part form of a saved bike, through the real action, on PostgreSQL"
     expect(notice.error).toHaveBeenCalledTimes(1);
     expect(notice.error.mock.calls[0][0]).toBe(
       "Pneu avant · Largeur du pneu : votre saisie n’a pas été enregistrée.",
+    );
+    expect(notice.error.mock.calls[0][1]?.description).toBe(
+      "Cette valeur n’est pas possible pour cette caractéristique.",
+    );
+  }, 60_000);
+
+  it("the owner's rear tyre holds 38: text the browser cannot read as a number, typed there and not left, then the 'Pièces' tab — the action is never called, and the 38 is still in PostgreSQL", async () => {
+    // `45.` on the way to 45.5. Chromium reports it as an EMPTY value with
+    // `validity.badInput`; sent as it stands that is a clear, which the real
+    // action accepts — the 38 gone, the default (42) back, "ok".
+    await signedInUser("part-form-5@velo-atelier.test");
+    const bikeId = await ownBike("gravel-1x11", 38);
+    posted.length = 0;
+    const { user } = await open(bikeId);
+
+    await user.click(row("tire-rear"));
+    const width = field("etrto-width");
+    expect(width.value).toBe("38");
+    act(() => width.focus());
+    Object.defineProperty(width, "validity", { configurable: true, value: { badInput: true } });
+    fireEvent.change(width, { target: { value: "" } });
+    expect(document.activeElement).toBe(width);
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle(300);
+
+    expect(posted).toEqual([]);
+    expect(await inDatabase(bikeId, "tire-rear", "etrto-width")).toBe(38);
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    expect(notice.error.mock.calls[0][0]).toBe(
+      "Pneu arrière · Largeur du pneu : votre saisie n’a pas été enregistrée.",
     );
     expect(notice.error.mock.calls[0][1]?.description).toBe(
       "Cette valeur n’est pas possible pour cette caractéristique.",

@@ -1,5 +1,5 @@
-import { act, fireEvent, screen } from "@testing-library/react";
-import { Component, useState, type ReactNode } from "react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { Component, StrictMode, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,7 +7,7 @@ import {
   ViewerStoreProvider,
   type ViewerStore,
 } from "@/components/bike3d/store";
-import { fail, ok } from "@/lib/actions/result";
+import { fail, ok, type ActionErrorCode } from "@/lib/actions/result";
 import { readLocalBike, writeLocalBike, type KeyValueStorage } from "@/lib/bike/local-bike";
 import { bikeRepoFor, localBikeRepo, type BikeRepo } from "@/lib/bike/repo";
 import { hasMesh, partDefinition, type PartId } from "@/lib/domain/data/parts";
@@ -25,6 +25,7 @@ import {
   PRESET_IDS,
   presetBuild,
   sharedTypedPairs,
+  sharedUntypedPairs,
 } from "@/tests/_helpers/part-attributes";
 
 import { PartsPanel, type PanelTab } from "./PartsPanel";
@@ -50,19 +51,31 @@ import { PartsPanel, type PanelTab } from "./PartsPanel";
  *   P3  focusing a field and leaving it is not a write;
  *   P4  text typed and not left is committed, to its own part, when the field
  *       goes away — and a refusal that arrives after the field is gone is SAID.
+ *
+ * The last block, "what the review found", is one case per defect a review of
+ * the first version of the fix reproduced (`.debug/017` §5.8, "Review of the fix").
  */
 
 const notice = vi.hoisted(() => ({
-  error: vi.fn<(title: string, options?: { description?: string; duration?: number }) => void>(),
+  error:
+    vi.fn<
+      (
+        title: string,
+        options?: { description?: string; duration?: number; richColors?: boolean },
+      ) => void
+    >(),
 }));
 vi.mock("sonner", () => ({ toast: { error: notice.error } }));
 
 class MemoryStorage implements KeyValueStorage {
   private value: string | null = null;
+  /** A browser whose storage is full refuses the write, by throwing. */
+  full = false;
   getItem(): string | null {
     return this.value;
   }
   setItem(_key: string, value: string): void {
+    if (this.full) throw new DOMException("quota", "QuotaExceededError");
     this.value = value;
   }
   removeItem(): void {
@@ -84,6 +97,8 @@ interface World {
   writes: Write[];
   /** The truth: what the destination holds, whatever the page shows. */
   stored(partId: string, key: string): AttributeValue | undefined;
+  /** Guest bike only: from now on the browser's storage is full. */
+  fill?: () => void;
 }
 
 function recording(inner: BikeRepo, writes: Write[]): BikeRepo {
@@ -108,6 +123,9 @@ function guestWorld(preset: PresetId, build: BikeBuild = presetBuild(preset)): W
     repo: recording(localBikeRepo({ storage }), writes),
     build,
     writes,
+    fill: () => {
+      storage.full = true;
+    },
     stored: (partId, key) => {
       const bike = readLocalBike(storage);
       if (bike === null) throw new Error("the guest bike is gone");
@@ -123,15 +141,42 @@ const BIKE_ID = "3f0c1f0e-6f0a-4c56-9d3b-1c2d3e4f5a6b";
  * and answers as `updateBikePartAction` does — the domain's own `setAttribute`,
  * the refusal keyed by the field. `latencyMs` is how long it takes to answer,
  * which is what lets an answer arrive after its form is gone; `down` makes it
- * not answer at all.
+ * not answer at all; `refuse` makes it answer with that code, whatever is
+ * asked. `queued` makes it answer ONE CALL AT A TIME, in the order sent, which
+ * is what Next's client does with server actions while the page stays put:
+ * two writes of one field then land in the order they were typed.
  */
 function savedWorld(
   preset: PresetId,
   build: BikeBuild = presetBuild(preset),
-  { latencyMs = 0, down = false }: { latencyMs?: number; down?: boolean } = {},
+  {
+    latencyMs = 0,
+    down = false,
+    queued = false,
+    refuse,
+  }: { latencyMs?: number; down?: boolean; queued?: boolean; refuse?: ActionErrorCode } = {},
 ): World {
   let server = build;
   const writes: Write[] = [];
+  let turn: Promise<unknown> = Promise.resolve();
+  const answer = async (input: {
+    partId: string;
+    attributes: Record<string, AttributeValue | null>;
+  }) => {
+    await new Promise((resolve) => setTimeout(resolve, latencyMs));
+    if (down) throw new Error("the action did not answer");
+    if (refuse !== undefined) return fail(refuse);
+    let next = server;
+    for (const [key, value] of Object.entries(input.attributes)) {
+      const change = setAttribute(next, input.partId, key, value);
+      if (!change.ok) {
+        return fail("VALIDATION", { fieldErrors: { [key]: `bike.errors.${change.code}` } });
+      }
+      next = change.build;
+    }
+    server = next;
+    return ok(server);
+  };
   const repo = bikeRepoFor("db", {
     bikeId: BIKE_ID,
     actions: {
@@ -140,18 +185,10 @@ function savedWorld(
         for (const [key, value] of Object.entries(input.attributes)) {
           writes.push({ partId: input.partId, key, value });
         }
-        await new Promise((resolve) => setTimeout(resolve, latencyMs));
-        if (down) throw new Error("the action did not answer");
-        let next = server;
-        for (const [key, value] of Object.entries(input.attributes)) {
-          const change = setAttribute(next, input.partId, key, value);
-          if (!change.ok) {
-            return fail("VALIDATION", { fieldErrors: { [key]: `bike.errors.${change.code}` } });
-          }
-          next = change.build;
-        }
-        server = next;
-        return ok(server);
+        if (!queued) return answer(input);
+        const mine = turn.then(() => answer(input));
+        turn = mine.catch(() => undefined);
+        return mine;
       },
       updateFit: async () => fail("NOT_FOUND"),
     },
@@ -199,18 +236,20 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   }
 }
 
-async function open(world: World, locale: Locale = "fr") {
+async function open(world: World, locale: Locale = "fr", { strict = false } = {}) {
   const store: ViewerStore = createViewerStore({
     availablePartIds: world.build.parts.map((part) => part.partId as PartId),
   });
-  const view = await renderWithIntl(
+  const tree = (
     <ViewerStoreProvider store={store}>
       <Boundary>
         <Harness world={world} />
       </Boundary>
-    </ViewerStoreProvider>,
-    { locale },
+    </ViewerStoreProvider>
   );
+  // `strict` is `npm run dev` (`next.config.ts`: `reactStrictMode`): every
+  // effect runs, is cleaned up, and runs again on the same instance.
+  const view = await renderWithIntl(strict ? <StrictMode>{tree}</StrictMode> : tree, { locale });
   return { ...view, store };
 }
 
@@ -269,6 +308,24 @@ async function typeInto(user: User, key: string, text: string): Promise<void> {
   if (text !== "") await user.type(field(key), text);
   expect(document.activeElement).toBe(field(key));
 }
+
+/**
+ * Put text a number input cannot read into the field of `key` — `45.` on the
+ * way to 45.5, a lone minus, `4e` — the way Chromium reports it to a script:
+ * an EMPTY value, with `validity.badInput` the only sign that the field holds
+ * anything (measured, `tests/e2e/part-panel.spec.ts`). jsdom has no such
+ * state, so it is given one; the real thing is in that spec.
+ */
+function typeUnreadableInto(key: string): void {
+  const node = field(key);
+  act(() => node.focus());
+  Object.defineProperty(node, "validity", { configurable: true, value: { badInput: true } });
+  fireEvent.change(node, { target: { value: "" } });
+  expect(document.activeElement).toBe(node);
+}
+
+const UNSAVED_WIDTH = "Pneu avant · Largeur du pneu : votre saisie n’a pas été enregistrée.";
+const NOT_POSSIBLE = "Cette valeur n’est pas possible pour cette caractéristique.";
 
 beforeEach(() => {
   notice.error.mockClear();
@@ -603,6 +660,34 @@ describe("P3 — focusing a field and leaving it is not a write", () => {
     },
   );
 
+  it.each(KINDS)(
+    "text typed into a field that stores nothing, then deleted, is not a write — the field left, or the tab pressed — %s bike",
+    async (kind) => {
+      // "Nothing" compared with "nothing stored": the other arm of the
+      // comparison, which no case held until the review.
+      // eslint-disable-next-line security/detect-object-injection -- "guest" | "saved"
+      const world = WORLDS[kind]("gravel-1x11");
+      expect(world.stored("brake-pads-front", "pad-model")).toBeUndefined();
+      const { user } = await open(world);
+      await user.click(row("brake-pads-front"));
+
+      await typeInto(user, "pad-model", "L05A");
+      await typeInto(user, "pad-model", "");
+      await user.tab();
+      await settle();
+      expect(world.writes).toEqual([]);
+      expect(status("pad-model")).toBe("");
+
+      await typeInto(user, "pad-model", "L05A");
+      await typeInto(user, "pad-model", "");
+      await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      await settle();
+      expect(world.writes).toEqual([]);
+      expect(world.stored("brake-pads-front", "pad-model")).toBeUndefined();
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+
   it("putting the stored value back after a refusal sends nothing, and takes the refusal away", async () => {
     const world = guestWorld("gravel-1x11");
     const { user } = await open(world);
@@ -811,6 +896,8 @@ describe("P4 — text typed and not left is committed to its own part when the f
       );
       // Long enough to be read: sonner's default is four seconds.
       expect(options?.duration).toBeGreaterThanOrEqual(10_000);
+      // Not sonner's "rich" error colours: 4.34:1, below AA (the e2e runs axe on it).
+      expect(options?.richColors).toBe(false);
     });
 
     it("says it of a write that did not answer at all, with no reason invented", async () => {
@@ -1002,4 +1089,351 @@ describe("P5 — what did not change", () => {
     expect(field("etrto-width")).not.toBeDisabled();
     expect(field("etrto-width").value).toBe("45");
   });
+});
+
+// ── what the review found ────────────────────────────────────────────────────
+
+describe("what the review found — text a number field cannot read is never a clear", () => {
+  /**
+   * `45.` typed on the way to 45.5 and the next press a tab: the browser
+   * reports an empty value, the removal sent it as a clear, the write
+   * succeeded and nothing was said. Before rule 3 the stored value survived.
+   */
+  const exits = [
+    "the 'Pièces' tab is pressed",
+    "the 'Actions' tab is pressed",
+    "another part is picked on the bike",
+  ] as const;
+
+  it.each(KINDS.flatMap((kind) => exits.map((exit) => [kind, exit] as const)))(
+    "%s bike: unreadable text typed and not left, then %s — nothing is sent, the stored width stays, and the visitor is told",
+    async (kind, exit) => {
+      // eslint-disable-next-line security/detect-object-injection -- "guest" | "saved"
+      const world = WORLDS[kind]("gravel-1x11", distinctBuild("gravel-1x11"));
+      const own = world.stored("tire-front", "etrto-width");
+      const rear = world.stored("tire-rear", "etrto-width");
+      expect(own).not.toBe(42); // not the default a clear would give back
+      const { user, store } = await open(world);
+      await user.click(row("tire-front"));
+      typeUnreadableInto("etrto-width");
+
+      if (exit === "another part is picked on the bike") selectOnBike(store, "tire-rear");
+      else
+        await user.click(
+          screen.getByRole("tab", { name: exit.includes("Actions") ? "Actions" : "Pièces" }),
+        );
+      await settle();
+
+      expect(world.writes).toEqual([]);
+      expect(world.stored("tire-front", "etrto-width")).toBe(own);
+      expect(world.stored("tire-rear", "etrto-width")).toBe(rear);
+      expect(notice.error).toHaveBeenCalledTimes(1);
+      const [said, options] = notice.error.mock.calls[0];
+      expect(said).toBe(UNSAVED_WIDTH);
+      expect(options?.description).toBe(NOT_POSSIBLE);
+
+      // Back on the tyre: its own value, and nothing waiting to be written.
+      if (exit === "another part is picked on the bike") selectOnBike(store, "tire-front");
+      else {
+        await user.click(screen.getByRole("tab", { name: "Pièces" }));
+        await user.click(row("tire-front"));
+      }
+      expect(field("etrto-width").value).toBe(String(own));
+      await user.click(field("etrto-width"));
+      await user.tab();
+      await settle();
+      expect(world.writes).toEqual([]);
+    },
+  );
+
+  it("text that can be read again before the field goes is committed as usual: 45. and then 45.5", async () => {
+    const world = guestWorld("gravel-1x11");
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    typeUnreadableInto("etrto-width");
+    // The next keystroke makes it a number: the browser reports the value again.
+    Object.defineProperty(field("etrto-width"), "validity", {
+      configurable: true,
+      value: { badInput: false },
+    });
+    fireEvent.change(field("etrto-width"), { target: { value: "45.5" } });
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45.5 }]);
+    expect(world.stored("tire-front", "etrto-width")).toBe(45.5);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  it.each(KINDS)(
+    "%s bike: a NUMBER field the visitor emptied and did not leave is cleared by its removal, as leaving it clears it",
+    async (kind) => {
+      // The decision the case above is the exception to: an empty field with
+      // nothing unreadable in it is the visitor's own doing.
+      // eslint-disable-next-line security/detect-object-injection -- "guest" | "saved"
+      const world = WORLDS[kind]("gravel-1x11");
+      const { user } = await open(world);
+      await user.click(row("tire-front"));
+      await typeInto(user, "etrto-width", "");
+
+      await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      await settle();
+
+      expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: null }]);
+      expect(world.stored("tire-front", "etrto-width")).toBeUndefined();
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("what the review found — a value typed while an earlier write of the same field is in flight", () => {
+  /**
+   * 45 is on its way; the field, mounted again, still shows 42; the visitor
+   * types 42 to be sure. Compared with the 42 the form was last told, that is
+   * "unchanged" — and a moment later the bike holds 45.
+   */
+  it("45 typed and the tab pressed, back on the tyre, 42 typed again and the field LEFT: the bike ends at 42, and the field never shows the 45 it is not saving", async () => {
+    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 300, queued: true });
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.click(screen.getByRole("tab", { name: "Pièces" })); // rule 3: 45 is in flight
+    await user.click(row("tire-front"));
+
+    await typeInto(user, "etrto-width", "42");
+    // The whole case: the 45 has NOT answered when the 42 is left.
+    expect(world.stored("tire-front", "etrto-width")).toBe(42);
+    await user.tab();
+    expect(status("etrto-width")).toBe("Enregistrement…");
+
+    // The 45 answers first. The field goes on showing what it is saving.
+    await waitFor(() => expect(world.stored("tire-front", "etrto-width")).toBe(45));
+    expect(field("etrto-width").value).toBe("42");
+    expect(status("etrto-width")).toBe("Enregistrement…");
+
+    await settle(450);
+    expect(world.writes).toEqual([
+      { partId: "tire-front", key: "etrto-width", value: 45 },
+      { partId: "tire-front", key: "etrto-width", value: 42 },
+    ]);
+    expect(world.stored("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
+    expect(field("etrto-width").value).toBe("42");
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  it("the same with the field LEFT first (an ordinary save in flight), another part picked and the first picked again", async () => {
+    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 300, queued: true });
+    const { user, store } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.tab(); // the blur's own save, in flight
+    selectOnBike(store, "tire-rear");
+    selectOnBike(store, "tire-front");
+    expect(field("etrto-width").value).toBe("42");
+    expect(field("etrto-width")).not.toBeDisabled();
+
+    await typeInto(user, "etrto-width", "42");
+    expect(world.stored("tire-front", "etrto-width")).toBe(42);
+    await user.tab();
+    await settle(800);
+
+    expect(world.stored("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
+    expect(field("etrto-width").value).toBe("42");
+  });
+
+  it("the same with the 42 NOT left: the tab pressed twice, 45 then 42", async () => {
+    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 300, queued: true });
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "42");
+    expect(world.stored("tire-front", "etrto-width")).toBe(42);
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle(800);
+
+    expect(world.writes).toEqual([
+      { partId: "tire-front", key: "etrto-width", value: 45 },
+      { partId: "tire-front", key: "etrto-width", value: 42 },
+    ]);
+    expect(world.stored("tire-front", "etrto-width")).toBe(42);
+  });
+
+  it("once the earlier write has answered, a value typed back to what is stored is a no-op again", async () => {
+    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 30, queued: true });
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle(120);
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("45");
+
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle(120);
+
+    expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+    expect(status("etrto-width")).toBe("");
+  });
+});
+
+describe("what the review found — the form under StrictMode (`npm run dev`)", () => {
+  /**
+   * React mounts, unmounts and mounts every effect again on the same instance.
+   * A form that did not put its "am I on screen" flag back up would raise
+   * every refusal as a notice — under a field that is right there — and keep a
+   * thrown write from the route's `error.tsx`.
+   */
+  it("visiting a form writes nothing; a typed value is written once when the tab is pressed; a refusal is said under its field, not in a notice", async () => {
+    const world = guestWorld("gravel-1x11");
+    const { user } = await open(world, "fr", { strict: true });
+    await user.click(row("tire-front"));
+    await user.click(field("etrto-width"));
+    await user.tab();
+    await settle();
+    expect(world.writes).toEqual([]);
+
+    await typeInto(user, "etrto-width", "45");
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+    expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "999");
+    await user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe(NOT_POSSIBLE);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  it("a write that does not answer while its form is on screen still ends in the route's error page", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const world = savedWorld("gravel-1x11", undefined, { down: true });
+    const { user } = await open(world, "fr", { strict: true });
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+
+    expect(screen.getByTestId("error-boundary")).toBeInTheDocument();
+    expect(notice.error).not.toHaveBeenCalled();
+    logged.mockRestore();
+  });
+});
+
+describe("what the review found — a refusal that is not about the field", () => {
+  const STORAGE_FULL =
+    "Impossible d’enregistrer sur cet appareil : l’espace de stockage du navigateur est plein.";
+
+  it("a guest bike whose storage is full is told THAT — under the field while it is there, in the notice once it is not", async () => {
+    // The one failure a guest can act on. It used to read "Cette opération
+    // entre en conflit avec des données existantes.": the repo answers
+    // `fieldErrors.form`, and only the field's own key was looked up.
+    const world = guestWorld("gravel-1x11");
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    world.fill!();
+
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe(STORAGE_FULL);
+    expect(notice.error).not.toHaveBeenCalled();
+
+    await typeInto(user, "etrto-width", "46");
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    const [said, options] = notice.error.mock.calls[0];
+    expect(said).toBe(UNSAVED_WIDTH);
+    expect(options?.description).toBe(STORAGE_FULL);
+    expect(world.stored("tire-front", "etrto-width")).toBe(42);
+  });
+
+  it.each([
+    ["UNAUTHORIZED", "Vous devez être connecté pour faire cela."],
+    ["NOT_FOUND", "Introuvable."],
+    ["RATE_LIMITED", "Trop de tentatives. Réessayez dans un instant."],
+  ] as const)(
+    "a late write refused %s has that reason for a description, in words",
+    async (code, reason) => {
+      const world = savedWorld("gravel-1x11", undefined, { refuse: code });
+      const { user } = await open(world);
+      await user.click(row("tire-front"));
+      await typeInto(user, "etrto-width", "45");
+      await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      await settle();
+
+      expect(notice.error).toHaveBeenCalledTimes(1);
+      expect(notice.error.mock.calls[0][1]?.description).toBe(reason);
+    },
+  );
+});
+
+describe("what the review found — a select's or a checkbox's status is not carried to the next part either", () => {
+  /**
+   * They are controlled, so they never SHOWED another part's value — but their
+   * "Enregistré" lived in the same per-key map as a typed field's. One pair
+   * per shared key, enumerated from the catalogue.
+   */
+  const pairs = sharedUntypedPairs();
+
+  it("covers every select and checkbox key two parts of a preset share", () => {
+    expect(pairs.length).toBeGreaterThanOrEqual(32);
+    expect(pairs.map((pair) => pair.key)).toEqual(
+      expect.arrayContaining(["tread", "etrto-diameter", "tubeless-ready", "lockout", "valve"]),
+    );
+    for (const pair of pairs) expect(isTyped(pair.from.attribute)).toBe(false);
+  });
+
+  it.each(
+    pairs.flatMap((pair) =>
+      KINDS.map((kind) => [pair.key, pair.from.partId, pair.to.partId, kind, pair] as const),
+    ),
+  )(
+    "%s changed for %s, then %s picked on the bike — %s bike",
+    async (key, from, to, kind, pair) => {
+      // eslint-disable-next-line security/detect-object-injection -- "guest" | "saved"
+      const world = WORLDS[kind](pair.preset);
+      const { user, store } = await open(world);
+      await user.click(row(from));
+
+      const control = field(key);
+      if (pair.from.attribute.kind === "boolean") {
+        await user.click(control);
+      } else {
+        const other = (pair.from.attribute.values ?? []).find(
+          (option) => option !== pair.from.value,
+        );
+        if (other === undefined) throw new Error(`${key} has no second option`);
+        await user.selectOptions(control, String(other));
+      }
+      await settle();
+      // "Enregistré", or the domain's refusal of that option: a status either way.
+      expect(status(key), `${from}.${key} says how its change went`).not.toBe("");
+      expect(world.writes).toHaveLength(1);
+      expect(world.writes[0]).toMatchObject({ partId: from, key });
+      const theirs = world.stored(to, key);
+
+      selectOnBike(store, to);
+      expect(field(key).id).toBe(`attr-${to}-${key}`);
+      expect(status(key), `${to}.${key}: the status of ${from}'s`).toBe("");
+      expect(shown(field(key))).toBe(asShown(pair.to.attribute.kind, theirs));
+      expect(field(key)).not.toBeDisabled();
+
+      // Visiting the other part's form sends nothing.
+      for (const visited of form()!.querySelectorAll("[data-attr]")) {
+        fireEvent.focus(visited);
+        fireEvent.blur(visited);
+      }
+      await settle();
+      expect(world.writes).toHaveLength(1);
+      expect(world.stored(to, key)).toBe(theirs);
+    },
+  );
 });
