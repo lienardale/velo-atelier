@@ -103,7 +103,11 @@ day, on the preview `dpl_4MS8nEKgrqYoUoVVrkoWeD5wh17f` and on production's
 `dpl_8fUtvWonaB42YUxGCwha8aBsmn8F` (§2, "Read on Vercel"). **Nothing else
 has been**: not a refused build, not what a refused deployment serves, not
 `VERCEL_ENV` with the system-variables setting off, not a Custom Environment,
-not Instant Rollback — and each place where that matters says so.
+not Instant Rollback — and each place where that matters says so. When the pin
+moved to Next 16.3.8, on 2026-10-09, the shape of a refusal was measured again
+locally and had not changed: the 500s, the process that stays up, the two
+files still served, the `[env]` line of a clean boot. Nothing else was
+repeated.
 
 - **A wrong scope fails the BUILD, before anything is migrated.** Next does not
   run `register()` during a build, so the boot hook alone would first meet a

@@ -67,7 +67,8 @@ esac
 # compiled into the JavaScript the deployment serves. And a boot refusal does
 # not un-serve it: a refused server answers 500 for every page and route
 # handler, but still hands out the files under `/_next/static` (measured with
-# `next start` on Next 16.3.6, `tests/boot/env-contract.test.ts`).
+# `next start` on Next 16.3.6 and again on 16.3.8,
+# `tests/boot/env-contract.test.ts`).
 #
 # So it is refused here, before anything is run at all: refuse the whole
 # deployment rather than migrate a database for a build that must not ship.
