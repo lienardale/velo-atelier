@@ -84,12 +84,13 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * As first written, rule 3 sent that empty value as a clear: the stored width
  * deleted, the write answering ok, and nothing said — on exits where, before
  * rule 3 existed, the stored value survived (measured in Chromium 153, guest
- * and saved; `.debug/017` §5.8, "Review of the fix"). So `onChange` records `badInput`
- * beside the text, and a field removed holding unreadable text sends NOTHING:
- * the stored value stays, and the visitor is told, by the notice below.
- * LEAVING such a field still clears the attribute, as it does on `main`: that
- * exit is older than this form's three rules and is the maintainer's to rule
- * on (`docs/backlog.md`).
+ * and saved; `.debug/017` §5.8, "Review of the fix"). So the field records
+ * `badInput` beside the text on every keystroke (`TypedControl`'s `record`
+ * says why `onChange` alone is not that), and one removed holding unreadable
+ * text sends NOTHING: the stored value stays, and the visitor is told, by the
+ * notice below. LEAVING such a field still clears the attribute, as it does
+ * on `main`: that exit is older than this form's three rules and is the
+ * maintainer's to rule on (`docs/backlog.md`).
  *
  * ### A write that answers after its form is gone
  *
@@ -472,6 +473,19 @@ function TypedControl({
   /** `null` when nothing is uncommitted. */
   const typed = useRef<Typed | null>(null);
 
+  /**
+   * Kept on every native `input` event AND on React's `change`, which are not
+   * the same thing: React fires `onChange` only when the value it tracks has
+   * MOVED, and for a number input "emptied" and "emptied, then a minus typed"
+   * are the same empty value. With `onChange` alone the second was still on
+   * record as the first — a field the visitor had cleared — and its removal
+   * deleted the stored value (measured in Chromium 153, on the first repair
+   * of this very defect). `onInput` is told of every keystroke.
+   */
+  const record = (node: HTMLInputElement): void => {
+    typed.current = { text: node.value, unreadable: node.validity.badInput };
+  };
+
   // What an effect has to read is the LAST render's, not the first's.
   const latest = useRef({
     attribute,
@@ -534,10 +548,8 @@ function TypedControl({
       disabled={disabled}
       className="min-h-[var(--tap-min)] text-base md:text-base"
       data-attr={attribute.key}
-      onChange={(event) => {
-        const node = event.currentTarget;
-        typed.current = { text: node.value, unreadable: node.validity.badInput };
-      }}
+      onInput={(event) => record(event.currentTarget)}
+      onChange={(event) => record(event.currentTarget)}
       onBlur={(event) => {
         const edited = typed.current !== null;
         typed.current = null;

@@ -765,7 +765,12 @@ docs/                contributor and operator docs — every one is linked from 
   so the stored width was deleted, the write answered ok and nothing was said,
   on exits where the value had survived before the rule existed (measured in
   Chromium 153, guest and saved; found by review the day the fix was written).
-  `onChange` records `badInput` beside the text, and a field removed holding
+  The field records `badInput` beside the text on EVERY native `input` event
+  (`onInput` as well as `onChange`: React fires `onChange` only when the value
+  it tracks has moved, and "emptied" and "emptied, then a minus typed" are the
+  same empty value — with `onChange` alone the second was still on record as
+  a field the visitor had cleared, and its removal deleted the stored value;
+  seen on the first repair's own build). A field removed holding
   unreadable text sends NOTHING and raises the notice. LEAVING such a field
   still clears the attribute, as on `main`: that exit awaits a ruling
   (`docs/backlog.md`) — do not read a rule out of it. **"What is stored", in

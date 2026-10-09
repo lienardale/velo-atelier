@@ -593,9 +593,20 @@ async function setSavedAttribute(
  * Chromium keeps the characters on screen and reports an EMPTY `value` with
  * `validity.badInput` — which is all a script, or React, can see of them.
  */
-async function typeUnreadable(page: Page, field: ReturnType<Page["locator"]>, text: string) {
+async function typeUnreadable(
+  page: Page,
+  field: ReturnType<Page["locator"]>,
+  text: string,
+  { emptiedFirst = false } = {},
+) {
   await field.click();
   await page.keyboard.press("ControlOrMeta+a");
+  if (emptiedFirst) {
+    // Emptied, THEN the text: the value goes from "" to "" — nothing a
+    // listener of value changes is told about.
+    await page.keyboard.press("Delete");
+    await expect(field).toHaveValue("");
+  }
   await page.keyboard.type(text);
   await expect(field).toBeFocused();
   expect(
@@ -639,18 +650,29 @@ forEachLocale((locale) => {
     const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
     const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
 
-    for (const [index, text] of ["45.", "4e", "-"].entries()) {
+    const sequences = [
+      { text: "45.", emptiedFirst: false },
+      { text: "4e", emptiedFirst: false },
+      { text: "-", emptiedFirst: false },
+      // The field emptied first: React hears of no change when the minus is typed.
+      { text: "-", emptiedFirst: true },
+      { text: ".", emptiedFirst: true },
+    ];
+    for (const [index, { text, emptiedFirst }] of sequences.entries()) {
       await clickRow(page, "tire-front");
       await expandSheetIfPresent(page);
       await expect(width).toHaveValue("42");
-      await typeUnreadable(page, width, text);
+      await typeUnreadable(page, width, text, { emptiedFirst });
 
       if (hasTouch) await partsTab.tap();
       else await partsTab.click();
       await expect(page.getByTestId("parts-list")).toBeVisible();
 
       // A guest bike's write is synchronous: had the removal sent one, it is in storage by now.
-      expect(await guestAttribute(page, "tire-front", "etrto-width"), text).toBe(42);
+      expect(
+        await guestAttribute(page, "tire-front", "etrto-width"),
+        `${text}${emptiedFirst ? ", the field emptied first" : ""}`,
+      ).toBe(42);
       await expect(unsavedNotices(page, locale), `a notice for ${text}`).toHaveCount(index + 1);
       await expect(unsavedNotices(page, locale).first()).toContainText(NOT_POSSIBLE[locale]);
     }

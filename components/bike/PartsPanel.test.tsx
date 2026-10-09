@@ -1185,6 +1185,51 @@ describe("what the review found — text a number field cannot read is never a c
     },
   );
 
+  it.each(KINDS)(
+    "%s bike: a field EMPTIED and then given unreadable text — the value React sees never moves — is not cleared by its removal either",
+    async (kind) => {
+      // "" (emptied) and "" (emptied, then a minus): one and the same value, so
+      // React fires no `change` for the minus. Only the native `input` event
+      // says a key was pressed; a record kept by `onChange` alone still read
+      // "the visitor cleared the field" (seen in Chromium on the first repair).
+      // eslint-disable-next-line security/detect-object-injection -- "guest" | "saved"
+      const world = WORLDS[kind]("gravel-1x11", distinctBuild("gravel-1x11"));
+      const own = world.stored("tire-front", "etrto-width");
+      const { user } = await open(world);
+      await user.click(row("tire-front"));
+      await typeInto(user, "etrto-width", "");
+      const node = field("etrto-width");
+      Object.defineProperty(node, "validity", { configurable: true, value: { badInput: true } });
+      fireEvent.input(node);
+      expect(node.value).toBe("");
+
+      await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      await settle();
+
+      expect(world.writes).toEqual([]);
+      expect(world.stored("tire-front", "etrto-width")).toBe(own);
+      expect(notice.error).toHaveBeenCalledTimes(1);
+      expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_POSSIBLE);
+    },
+  );
+
+  it("unreadable text DELETED again before the field goes — the value still never moves — is a field the visitor emptied: cleared", async () => {
+    const world = guestWorld("gravel-1x11");
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    typeUnreadableInto("etrto-width");
+    const node = field("etrto-width");
+    Object.defineProperty(node, "validity", { configurable: true, value: { badInput: false } });
+    fireEvent.input(node);
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: null }]);
+    expect(world.stored("tire-front", "etrto-width")).toBeUndefined();
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
   it("text that can be read again before the field goes is committed as usual: 45. and then 45.5", async () => {
     const world = guestWorld("gravel-1x11");
     const { user } = await open(world);
