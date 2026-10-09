@@ -755,11 +755,19 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   because the answer is `TOO_MANY` either way — and the measure never throws:
   a value with no JSON size (a `BigInt`, which the action decoder can build)
   is over every budget.
-  **What PostgreSQL would refuse, the contract refuses**, because past it a
-  refusal is a transaction that throws — a 500 and a page left on its spinner.
+  **What PostgreSQL is KNOWN not to store, the contract refuses**, because
+  past it a refusal is a transaction that throws — a 500 and a page left on
+  its spinner. It is a list of measured cases, not a proof that nothing else
+  exists: the sentence here used to be "what PostgreSQL would refuse, the
+  contract refuses", and it was one case short the day it was written.
   U+0000 in ANY string is a `VALIDATION` (`text` answers 22021, `jsonb`
-  22P05): names, notes, refinement values, a chosen product's fields, and
-  anywhere inside the two untyped values, `parts` and `fit`, keys included —
+  22P05), and so is a LONE SURROGATE — half of a pair, what a cut in the
+  middle of an emoji leaves. `jsonb` refuses the insert (P2007,
+  `invalid input syntax for type json`); a `text` column ends up holding
+  U+FFFD in its place, a row that no longer says what the payload said (and
+  that `accountHolds` then never finds equal to the copy). Both rules hold in
+  names, notes, refinement values, a chosen product's fields, and anywhere
+  inside the two untyped values, `parts` and `fit`, keys included —
   `validateBuild` takes a part's free-text attribute by length alone. A date
   must be ISO 8601 with an offset AND an instant Postgres has a year for
   (`0001-01-01T00:00:00Z` or later: zod accepts year 0000 and Postgres
@@ -767,6 +775,15 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `tests/integration/guest-import.test.ts` sends each of those past the
   contract to the real database, and through it. A new free-text field goes
   through `text(max)`, never a bare `z.string()`.
+  **The collector hands over no lone surrogate**: `collectGuestState` replaces
+  each with U+FFFD in every string it projects (`wellFormed`), because a half
+  pair is what honest use can leave — the wizard caps a note with
+  `slice(0, 2000)`, which counts code units — and the server refuses a payload
+  WHOLE. So a note or a product name cut that way is imported, with the
+  character a `text` column was found to hold for it anyway, and the
+  contract's refusal is for a payload the page did not build. Storage itself
+  is never rewritten. U+0000 is NOT replaced: nothing a person does produces
+  one, and there is no character to put in its place.
   **`lib/guest/schema.ts` is loaded in the browser** (a dynamic `import()` in
   `GuestImport.tsx`) and `lib/guest/import.ts` is plain Node, and
   `tests/unit/guest/module-graph.test.ts` is the ONLY thing that holds either:
@@ -882,6 +899,14 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   from this copy (same verdict, note and symptoms) and is `COMPLETED` if the
   copy is finished (`accountHolds`, one read, no write; a row with MORE
   answers still holds the copy). Otherwise `skipped: 'bike-already-imported'`.
+  The device that LOSES a race (P2002) is answered by that same comparison, of
+  its own copy against what the winner committed — two devices need not hold
+  the same copy. The tests of that path race DIFFERING copies
+  (`lib/guest/import.test.ts`; on PostgreSQL through a store whose first
+  ownership read misses, so the create is really refused by the constraint):
+  racing identical ones, as both tiers first did, holds nothing — for them
+  `already-imported` is true however it is decided, and the losing path could
+  answer on the key alone with every test green.
   On a NEW bike a held key is `skipped: 'other-bike'` — no second row, and no
   claim that the account has what this copy says. Until this was so, an import
   whose RESPONSE was lost, followed by more answers in the same run, ended
@@ -898,7 +923,8 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   fail to compile without it (`account.import.checkupKept.*`). A stored
   checkup the contract would refuse (too many answers, a U+0000, a year-0
   date) is reported `unreadable` by the collector, so it stays in the browser
-  instead of sinking the bike. No stored checkup, or one with no answer
+  instead of sinking the bike (half a surrogate pair is not such a case: the
+  collector replaces it, above). No stored checkup, or one with no answer
   at all: there was nothing to import. The bike and list keys go once the bike
   is in the account; a refused import keeps every key. That wiring is the
   PAGE's, so it has a test of its own: `tests/ui/guest-import.test.tsx` mounts

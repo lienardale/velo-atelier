@@ -42,10 +42,12 @@
  *      part ids, reason keys and slugs are `[a-z0-9-]` and no longer than their
  *      column before anything resolves them — an over-long id is a
  *      `VALIDATION`, never a 500 — and a chosen product's URL is plain `https:`
- *      or it is not stored. A U+0000 anywhere, and a date that is not ISO 8601
- *      or that PostgreSQL has no year for, are `VALIDATION`s as well: the fake
- *      would store them, the real database throws on them
- *      (`tests/integration/guest-import.test.ts` shows it doing so).
+ *      or it is not stored. A U+0000 anywhere, half a surrogate pair anywhere,
+ *      and a date that is not ISO 8601 or that PostgreSQL has no year for, are
+ *      `VALIDATION`s as well: the fake would store them, the real database
+ *      throws on them — or, for half a pair in a `text` column, stores another
+ *      character in its place (`tests/integration/guest-import.test.ts` shows
+ *      it doing each).
  *   8. **The visitor's clock cannot write the future** (§4.7).
  *
  * The fixtures are real: `tests/_helpers/guest-work.ts` stores what the wizard
@@ -891,45 +893,92 @@ describe("hostile strings", () => {
     expectNoWrites();
   });
 
-  it("answers VALIDATION to a U+0000 in any string — PostgreSQL stores it in no column", async () => {
-    const NUL = String.fromCharCode(0);
-    const line = {
-      ...LIST.items[0],
-      refinement: { speeds: "11" },
-      chosenProduct: {
-        brand: "Shimano",
-        model: "CN-HG601",
-        size: "11v",
-        vendor: "other",
-        url: "https://example.com/chaine",
-      },
-    };
-    const lineWith = (patch: Record<string, unknown>) =>
-      tampered({ lists: [{ ...LIST, items: [{ ...line, ...patch }] }] });
-    const product = (patch: Record<string, string>) =>
-      lineWith({ chosenProduct: { ...line.chosenProduct, ...patch } });
-    const parts = JSON.parse(JSON.stringify(bike().parts)) as {
-      partId: string;
-      attributes: Record<string, unknown>;
-    }[];
+  // ── a string the database does not store ───────────────────────────────────
+
+  const TYPED_LINE = {
+    ...LIST.items[0],
+    refinement: { speeds: "11" },
+    chosenProduct: {
+      brand: "Shimano",
+      model: "CN-HG601",
+      size: "11v",
+      vendor: "other",
+      url: "https://example.com/chaine",
+    },
+  };
+  type StoredParts = { partId: string; attributes: Record<string, unknown> }[];
+  /** The real bike's parts, with the front pads' free-text reference set. */
+  function partsWithPadModel(model: string): StoredParts {
+    const parts = JSON.parse(JSON.stringify(bike().parts)) as StoredParts;
     const pads = parts.find((part) => part.partId === "brake-pads-front");
     if (pads === undefined) throw new Error("the gravel preset has front brake pads");
-    pads.attributes["pad-model"] = `B05S${NUL}`;
-
-    const payloads: [string, unknown][] = [
-      ["the bike's name", tampered({ name: `Mon${NUL}vélo` })],
-      ["a note", checkupWith({ notes: { [CHAIN]: `usure${NUL}0,8 %` } })],
-      ["a note that is nothing else", checkupWith({ notes: { [CHAIN]: NUL } })],
-      ["the list's name", tampered({ lists: [{ ...LIST, name: `Ma${NUL}liste` }] })],
-      ["a refinement value", lineWith({ refinement: { speeds: `11${NUL}` } })],
-      ["a product's brand", product({ brand: `Shi${NUL}mano` })],
-      ["a product's model", product({ model: `CN${NUL}HG601` })],
-      ["a product's size", product({ size: `11${NUL}v` })],
-      ["a product's link", product({ url: `https://example.com/cha${NUL}ine` })],
-      ["a part's free-text attribute", tampered({ parts })],
-      ["a key inside a part", tampered({ parts: [{ [`part${NUL}Id`]: "chain" }] })],
-      ["a value deep inside the fit", tampered({ fit: { a: [{ b: [`x${NUL}`] }] } })],
+    pads.attributes["pad-model"] = model;
+    return parts;
+  }
+  /**
+   * One payload per place where a string is free text — each the real bike
+   * with `poison` put in exactly that place.
+   */
+  function payloadsHolding(poison: string): [string, unknown][] {
+    const lineWith = (patch: Record<string, unknown>) =>
+      tampered({ lists: [{ ...LIST, items: [{ ...TYPED_LINE, ...patch }] }] });
+    const product = (patch: Record<string, string>) =>
+      lineWith({ chosenProduct: { ...TYPED_LINE.chosenProduct, ...patch } });
+    return [
+      ["the bike's name", tampered({ name: `Mon${poison}vélo` })],
+      ["a note", checkupWith({ notes: { [CHAIN]: `usure${poison}0,8 %` } })],
+      ["a note that is nothing else", checkupWith({ notes: { [CHAIN]: poison } })],
+      ["the list's name", tampered({ lists: [{ ...LIST, name: `Ma${poison}liste` }] })],
+      ["a refinement value", lineWith({ refinement: { speeds: `11${poison}` } })],
+      ["a product's brand", product({ brand: `Shi${poison}mano` })],
+      ["a product's model", product({ model: `CN${poison}HG601` })],
+      ["a product's size", product({ size: `11${poison}v` })],
+      ["a product's link", product({ url: `https://example.com/cha${poison}ine` })],
+      ["a part's free-text attribute", tampered({ parts: partsWithPadModel(`B05S${poison}`) })],
+      ["a key inside a part", tampered({ parts: [{ [`part${poison}Id`]: "chain" }] })],
+      ["a value deep inside the fit", tampered({ fit: { a: [{ b: [`x${poison}`] }] } })],
     ];
+  }
+  /** The very same shapes with an ordinary text in each place: imported, and stored as sent. */
+  async function expectImportedWith(text: string): Promise<void> {
+    const clean = tampered({
+      name: `Mon vélo${text}`,
+      parts: partsWithPadModel(`B05S${text}`),
+      fit: { saddleHeightMm: 742 },
+      lists: [
+        {
+          ...LIST,
+          name: `Ma liste${text}`,
+          items: [
+            {
+              ...TYPED_LINE,
+              refinement: { speeds: `11${text}` },
+              chosenProduct: { ...TYPED_LINE.chosenProduct, model: `CN-HG601${text}` },
+            },
+          ],
+        },
+      ],
+      checkups: [{ ...CHECKUP, notes: { [CHAIN]: `usure 0,8 %${text}` } }],
+    });
+    expect((await importGuestStateAction(clean)).ok).toBe(true);
+    const [stored] = fakeDb.rows("Bike") as { name: string; parts: StoredParts }[];
+    expect(stored.name).toBe(`Mon vélo${text}`);
+    expect(
+      stored.parts.find((part) => part.partId === "brake-pads-front")?.attributes["pad-model"],
+    ).toBe(`B05S${text}`);
+    expect(fakeDb.rows("BuildListItem")[0]).toMatchObject({
+      refinement: { speeds: `11${text}` },
+      chosenProduct: { model: `CN-HG601${text}` },
+    });
+    expect(fakeDb.rows("CheckupItem").find((row) => row.stepKey === CHAIN)).toMatchObject({
+      notes: `usure 0,8 %${text}`,
+    });
+  }
+
+  it("answers VALIDATION to a U+0000 in any string — PostgreSQL stores it in no column", async () => {
+    const NUL = String.fromCharCode(0);
+    const payloads = payloadsHolding(NUL);
+    expect(payloads).toHaveLength(12);
     for (const [name, payload] of payloads) {
       await expect(importGuestStateAction(payload), name).resolves.toEqual({
         ok: false,
@@ -939,25 +988,38 @@ describe("hostile strings", () => {
     expectNoWrites();
     // Controls: the very same shapes without the character are imported, so
     // what is refused above is the character and nothing else about them.
-    pads.attributes["pad-model"] = "B05S";
-    const clean = tampered({
-      name: "Mon vélo",
-      parts,
-      fit: { saddleHeightMm: 742 },
-      lists: [{ ...LIST, name: "Ma liste", items: [line] }],
-      checkups: [{ ...CHECKUP, notes: { [CHAIN]: "usure 0,8 %" } }],
-    });
-    expect((await importGuestStateAction(clean)).ok).toBe(true);
-    const [stored] = fakeDb.rows("Bike") as {
-      parts: { partId: string; attributes: Record<string, unknown> }[];
-    }[];
-    expect(
-      stored.parts.find((part) => part.partId === "brake-pads-front")?.attributes["pad-model"],
-    ).toBe("B05S");
-    expect(fakeDb.rows("BuildListItem")[0]).toMatchObject({
-      refinement: { speeds: "11" },
-      chosenProduct: { model: "CN-HG601" },
-    });
+    await expectImportedWith("");
+  });
+
+  it("answers VALIDATION to a lone surrogate in any string — half an emoji, which jsonb refuses and text does not keep", async () => {
+    // The fake stores half a surrogate pair like any string. PostgreSQL does
+    // not: `jsonb` aborts the transaction on it and `text` writes U+FFFD in
+    // its place (`tests/integration/guest-import.test.ts` shows both). Until
+    // 2026-10-09 these payloads passed all four walls.
+    const HIGH = String.fromCharCode(0xd83d);
+    const LOW = String.fromCharCode(0xde00);
+    for (const [which, half] of [
+      ["the first half", HIGH],
+      ["the second half", LOW],
+      ["the halves the wrong way round", LOW + HIGH],
+    ]) {
+      for (const [name, payload] of payloadsHolding(half)) {
+        // As the wire carries it: JSON escapes the half and the server's
+        // parser gives it back, so it arrives exactly as it left.
+        const wire: unknown = JSON.parse(JSON.stringify(payload));
+        await expect(importGuestStateAction(wire), `${name}: ${which}`).resolves.toEqual({
+          ok: false,
+          code: "VALIDATION",
+        });
+      }
+    }
+    expectNoWrites();
+    // Refused at the shape, the third wall: none of the visitor's three
+    // hourly attempts was spent on it.
+    expect(fakeDb.rows("AuthAttempt")).toEqual([]);
+    // The control: a WHOLE emoji in each of those places is imported and
+    // stored as sent. What is refused is the half.
+    await expectImportedWith(HIGH + LOW);
   });
 
   it("answers VALIDATION to a date that is not ISO 8601, or that PostgreSQL has no year for", async () => {

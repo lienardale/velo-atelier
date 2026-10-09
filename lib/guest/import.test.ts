@@ -26,6 +26,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { fakeDb } from "@/tests/_fakes/prisma";
 import { deriveBike, QUOTAS } from "@/lib/bike/rules";
+import { buildListKey, checkupKey, LOCAL_BIKE_KEY } from "@/lib/bike/storage-keys";
 import type { CheckupState } from "@/lib/checkup/types";
 import { BIKE_PRESETS, PRESET_IDS } from "@/lib/domain/data/presets";
 import { validateBuild } from "@/lib/domain/engine/validate-build";
@@ -44,6 +45,7 @@ import { guestCheckupKey, importGuestState, type GuestImportStore } from "./impo
 import {
   GUEST_CAPS,
   GUEST_STATE_VERSION,
+  settleGuestImport,
   type GuestBike,
   type GuestBuildList,
   type GuestCheckup,
@@ -1303,6 +1305,103 @@ describe("importing twice", () => {
       lists: rows("BuildList"),
       lines: rows("BuildListItem"),
     }).toEqual(before);
+  });
+
+  it("tells the device that LOST the race what the account holds of ITS copy — not what the key says", async () => {
+    // The two devices do not hold the same copy: one imported the run while
+    // it was unfinished, the other carried it on and finished it. Until this
+    // case existed, the two race tests (here and on PostgreSQL) only ever
+    // raced IDENTICAL copies, and the losing path could go back to answering
+    // `already-imported` on the checkup's id alone with every test green
+    // (found when the repair was verified, 2026-10-09) — the answer on which
+    // the browser forgets its checkup.
+    const CHAIN_ONLY: RunOptions = {
+      parts: ["chain", "cassette"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+      completedAt: null,
+    };
+    const CARRIED_ON: RunOptions = {
+      parts: ["chain", "cassette"],
+      verdicts: {
+        [CHAIN]: { ko: ["chain-elongation"] },
+        [CASSETTE]: { ko: ["cassette-worn"] },
+      },
+    };
+    const winner = await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected(CHAIN_ONLY)),
+      deps,
+    );
+    expect(winner.ok && winner.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
+    const tables = [
+      "Bike",
+      "BikePartState",
+      "Checkup",
+      "CheckupItem",
+      "BuildList",
+      "BuildListItem",
+    ];
+    const before = Object.fromEntries(tables.map((table) => [table, rows(table)]));
+    expect(before.CheckupItem).toHaveLength(1);
+    fakeDb.resetCalls();
+
+    // The loser read "not there yet", tried, and lost on the unique constraint.
+    const loser = state(collected(CARRIED_ON));
+    const result = await importGuestState(racing(), userId, loser, deps);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // It did try — this is the P2002 path, not the "already there" read.
+    expect(fakeDb.calls.some((call) => call.model === "bike" && call.op === "create")).toBe(true);
+    // Nothing of the loser's is written: the cassette's answer and the end of
+    // the run are NOT in the account…
+    for (const table of tables) expect(rows(table), table).toEqual(before[table]);
+    // …so the account is not said to have them.
+    expect(result.data.bikes[0]).toEqual({
+      localId: LOCAL_ID,
+      bikeId: (before.Bike[0] as { id: string }).id,
+      skipped: "already-imported",
+      checkups: [{ guestKey: CHECKUP_ID, status: "skipped", reason: "bike-already-imported" }],
+    });
+    // And the browser keeps its checkup: the only place those answers are.
+    expect(settleGuestImport({ state: loser, checkup: "collected" }, result.data)).toEqual({
+      checkup: { status: "skipped", reason: "bike-already-imported" },
+      clear: [LOCAL_BIKE_KEY, buildListKey("local")],
+    });
+  });
+
+  it("tells the device that lost the race `already-imported` when the winner wrote MORE than it holds", async () => {
+    // The other way round: the winner had carried the run on; the loser's
+    // older copy adds nothing, and the account does hold everything it says.
+    const older: RunOptions = {
+      parts: ["chain", "cassette"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] } },
+      completedAt: null,
+    };
+    const newer: RunOptions = {
+      parts: ["chain", "cassette"],
+      verdicts: { [CHAIN]: { ko: ["chain-elongation"] }, [CASSETTE]: "ok" },
+      completedAt: null,
+    };
+    await importGuestState(fakeDb.client, userId, state(collected(newer)), deps);
+    const items = rows("CheckupItem");
+    expect(items).toHaveLength(2);
+
+    const loser = state(collected(older));
+    const result = await importGuestState(racing(), userId, loser, deps);
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "already-imported" },
+    ]);
+    expect(rows("CheckupItem")).toEqual(items);
+    if (!result.ok) return;
+    expect(settleGuestImport({ state: loser, checkup: "collected" }, result.data).clear).toEqual([
+      LOCAL_BIKE_KEY,
+      buildListKey("local"),
+      checkupKey("local"),
+    ]);
   });
 
   it("rethrows a unique violation that is not this bike's", async () => {

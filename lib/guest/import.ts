@@ -745,7 +745,10 @@ export async function importGuestState(
       bikes.push({ localId: bike.localId, bikeId, checkups: reports });
     } catch (error) {
       // Two devices importing the same guest bike at the same moment: the
-      // constraint decided, and the loser reports what the winner wrote.
+      // constraint decided, and the loser reports what the winner wrote — of
+      // ITS OWN copy, which need not be the winner's. Same answer as the read
+      // above, by the same comparison, never on the checkup's key alone: the
+      // browser forgets its checkup on `already-imported`.
       if (!isUniqueViolation(error)) throw error;
       const raced = await db.bike.findFirst({
         where: { userId, guestLocalId: bike.localId },

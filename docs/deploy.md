@@ -1545,6 +1545,16 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      is by ruling, not by omission: a bike already in the account is never
      written to, so answers given AFTER a lost response stay in the browser —
      said to the visitor — and are not added to the account.
+     **Verified the same day, and two more things found.** One more value
+     reached PostgreSQL and made the action throw: half a surrogate pair —
+     what a text cut in the middle of an emoji ends with — in a list line's
+     refinement or chosen product, or in a part's free-text attribute. It is
+     now refused by the contract like a U+0000, and never sent by the page,
+     which replaces it with U+FFFD: such a bike is imported. And the answer
+     given to the device that LOSES when two import at the same instant was
+     held by no test (the code was right; both race tests raced identical
+     copies): it now is, on PostgreSQL too. `.debug/017` §5.6, "Found in
+     verification".
      **Not re-run on production.** Journey B's import (B4) had not been walked
      again on `velo-atelier.vercel.app` when this was written, and the change
      was not deployed. What ran, on 2026-10-09 after the repairs, is
