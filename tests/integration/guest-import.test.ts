@@ -44,9 +44,15 @@
  *     500. Only the real database can say that those are refused and that
  *     year 0001 is not — which is what makes the contract's wall the right
  *     one, and in the right place.
- *   - **What Postgres stores as something else.** Half a surrogate pair in a
- *     `text` column is written as U+FFFD: nothing throws, and the row no
- *     longer says what the payload said. The fake stores the half as it came.
+ *   - **What reaches Postgres as something else.** Half a surrogate pair
+ *     bound for a `text` column is U+FFFD by the time the row is written:
+ *     nothing throws, and the row no longer says what the payload said. The
+ *     replacement is node-postgres's — UTF-8 has no encoding for half a pair,
+ *     and the driver writes the bytes EF BF BD before PostgreSQL sees
+ *     anything (its socket recorded, 2026-10-09); PostgreSQL itself refuses
+ *     the surrogate's own bytes in `text` (22021) and stores what it is sent.
+ *     Only the real driver and the real database show the row that results:
+ *     the fake stores the half as it came.
  *   - **A lost race that is a real P2002.** The losing device's create is
  *     refused by the constraint itself, and what it is then told about its
  *     checkup is decided on the rows the winner committed.
@@ -1356,7 +1362,7 @@ describe("what PostgreSQL does not store is a VALIDATION, not a 500", () => {
   );
 
   it.each(Object.keys(TEXT_FIELDS))(
-    "half an emoji in %s: Postgres stores ANOTHER character in its place — so the action answers VALIDATION",
+    "half an emoji in %s: the driver sends ANOTHER character and the column holds that one — so the action answers VALIDATION",
     async (field) => {
       const user = await signedInUser(
         `import-half-text-${Object.keys(TEXT_FIELDS).indexOf(field)}@velo-atelier.test`,
@@ -1373,8 +1379,9 @@ describe("what PostgreSQL does not store is a VALIDATION, not a 500", () => {
       expect(await attemptsSpent(user.id)).toBeNull();
 
       // Why it is refused here too, although nothing throws past the contract:
-      // the column does not hold what was sent. A row that says something else
-      // than the payload is not "stored".
+      // the column does not hold what was sent — node-postgres encodes the
+      // half as U+FFFD before PostgreSQL sees it. A row that says something
+      // else than the payload is not "stored".
       const past = await importGuestState(prisma, user.id, wire(bike), deps);
       expect(past.ok).toBe(true);
       const stored = await column.read(user.id);
@@ -1384,7 +1391,7 @@ describe("what PostgreSQL does not store is a VALIDATION, not a 500", () => {
   );
 
   it("past the contract, a note stored as another character is a copy the account is never found to hold", async () => {
-    // What "stores another character" costs: `already-imported` is said only
+    // What "the column holds another character" costs: `already-imported` is said only
     // when the row holds what the copy says, and this row never will — the
     // very copy that wrote it is answered "not in the account".
     const user = await signedInUser("import-half-note-again@velo-atelier.test");

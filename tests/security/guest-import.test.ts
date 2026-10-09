@@ -45,9 +45,9 @@
  *      or it is not stored. A U+0000 anywhere, half a surrogate pair anywhere,
  *      and a date that is not ISO 8601 or that PostgreSQL has no year for, are
  *      `VALIDATION`s as well: the fake would store them, the real database
- *      throws on them — or, for half a pair in a `text` column, stores another
- *      character in its place (`tests/integration/guest-import.test.ts` shows
- *      it doing each).
+ *      throws on them — or, for half a pair bound for a `text` column, is sent
+ *      another character in its place by the driver and stores that one
+ *      (`tests/integration/guest-import.test.ts` shows each).
  *   8. **The visitor's clock cannot write the future** (§4.7).
  *
  * The fixtures are real: `tests/_helpers/guest-work.ts` stores what the wizard
@@ -992,9 +992,10 @@ describe("hostile strings", () => {
   });
 
   it("answers VALIDATION to a lone surrogate in any string — half an emoji, which jsonb refuses and text does not keep", async () => {
-    // The fake stores half a surrogate pair like any string. PostgreSQL does
-    // not: `jsonb` aborts the transaction on it and `text` writes U+FFFD in
-    // its place (`tests/integration/guest-import.test.ts` shows both). Until
+    // The fake stores half a surrogate pair like any string. No real row
+    // does: `jsonb` aborts the transaction on it, and a `text` column is sent
+    // U+FFFD in its place by node-postgres, before PostgreSQL sees anything
+    // (`tests/integration/guest-import.test.ts` shows both). Until
     // 2026-10-09 these payloads passed all four walls.
     const HIGH = String.fromCharCode(0xd83d);
     const LOW = String.fromCharCode(0xde00);

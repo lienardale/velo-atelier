@@ -294,7 +294,7 @@ describe("collectGuestState", () => {
   it("collects a note the wizard's own cap cut in the middle of an emoji — with U+FFFD, not half a pair", () => {
     // Not a hand-made value: the reducer caps a note with `slice(0, 2000)`,
     // and a slice counts code units. An emoji astride the cap leaves its first
-    // half. zod, JSON and the wizard's guard all carry it; PostgreSQL does not.
+    // half. zod, JSON and the wizard's guard all carry it; no row ever holds it.
     const cut = guestWork({
       answers: BIKE_PRESETS["gravel-1x11"],
       checkup: (build) =>
@@ -743,8 +743,9 @@ describe("GuestStateSchema", () => {
     // Found in review on 2026-10-09: a refinement value, a chosen product's
     // field or a part's free-text attribute holding half a pair passed every
     // wall and aborted the transaction (`invalid input syntax for type json`).
-    // In a `text` column Postgres stores U+FFFD in its place — not what was
-    // sent — so the rule is the same in every string.
+    // A `text` column ends up holding U+FFFD in its place — the driver's
+    // encoding of the half, written before PostgreSQL sees anything; not what
+    // was sent — so the rule is the same in every string.
     const halves = {
       "the first half alone": HIGH,
       "the second half alone": LOW,
