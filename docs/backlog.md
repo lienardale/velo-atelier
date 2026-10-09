@@ -444,9 +444,10 @@ ruling.**
 
 _To pick up_: if ruled "never a clear", make the blur do what the removal
 does — nothing sent — and show `bike.errors.invalid-value` under the field
-(it is still there to show it under). `onChange` already records `badInput`;
-`tests/e2e/part-panel.spec.ts` has the helper that types the real thing, and
-jsdom needs the state given to the node (`typeUnreadableInto`).
+(it is still there to show it under). The field already records `badInput`
+on every keystroke; `tests/e2e/part-panel.spec.ts` has the helper that types
+the real thing, and jsdom needs the state given to the node
+(`typeUnreadableInto`).
 
 #### The part form saves nothing when the page is unloaded with the caret in a field
 
