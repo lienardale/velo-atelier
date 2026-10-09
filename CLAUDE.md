@@ -786,7 +786,13 @@ docs/                contributor and operator docs — every one is linked from 
   hand and could not see any of this — **and its number fields are tried with
   text a number input cannot read**: jsdom has no `badInput`, so a jsdom test
   gives the node one (as Chromium reports it) and the browser test types the
-  real thing.
+  real thing. **A case that needs a write IN FLIGHT holds the write and
+  answers it itself** (`savedWorld(…, { held: true })`, `world.answer()` in
+  `PartsPanel.test.tsx`), never a timer against the clicks that have to fit
+  before it: the 60 ms version failed once under the whole suite's load. And
+  every held write is released in `afterEach` — React entangles async
+  transitions, so one that never settles (a case that failed half-way) makes
+  the cases after it wait for ever on theirs.
 - **A notice that must be said when the network may be down is raised through
   `loadToast()`** (`components/ui-ext/Notices.tsx`), never through an
   `import("sonner")` at the call site. The bundler gives each dynamic import
