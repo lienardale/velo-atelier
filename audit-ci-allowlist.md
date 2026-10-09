@@ -29,6 +29,12 @@ packages — 0 critical, 17 high, 2 moderate — under **six** advisory ids, and
 six are exactly the array. The count rose from 11 because `braces` marks the
 whole glob chain above it; the number of ids is the figure to watch.
 
+Re-recorded on 2026-10-09, same Node and npm, after the pin moved to Next
+16.3.8 (“Six advisories on `next`, published 2026-10-07”): `npm audit` finds
+the same **19** vulnerable packages — 0 critical, 17 high, 2 moderate — under
+the same **six** ids, and the six are exactly the array. Minutes earlier, on
+`main`'s tree, it found 20 — `next` among them — under twelve.
+
 ## Pinned through `overrides` instead of allow-listed
 
 These seven are **fixed**, not tolerated. For the first five the parent's
@@ -313,6 +319,12 @@ is the largest single body of code shipped to production here, so “two extra
 patch releases of unreviewed change” is not a rounding error. The pin is
 16.3.6 and Renovate will propose 16.3.7+ on the normal schedule, once they
 have aged through the hold like everything else.
+
+(Added 2026-10-09. They never got that far: 16.3.8 was the vendor's fix for
+six advisories that were not public when this was written, and the pin moved
+to it nine days later — “Six advisories on `next`, published 2026-10-07”,
+below. Nothing above is withdrawn: on 2026-09-30 the release was 101 minutes
+old and no published advisory named it.)
 
 If a future advisory forces a release that is inside the hold window, that is
 a real decision and it belongs here in writing: name the advisory, the age of
@@ -631,6 +643,170 @@ releases still inside the hold. Exposure here was nil before the bump: the bug
 needs the SDK's OAuth client over HTTP, and `shadcn` imports only
 `server/index.js`, `server/stdio.js` and `types.js` from the SDK; nothing in
 this repository runs `shadcn mcp` at all.
+
+## Six advisories on `next`, published 2026-10-07
+
+Six ids against `next` itself entered the feed within two minutes of each
+other on the evening of 2026-10-07, 5 h 38 min after `main`'s last CI run
+started (run 37640409895, 14:52Z, on `9ae46bf`; it passed). Nothing was pushed
+afterwards and no scheduled workflow runs `audit` or `trivy`, so no run on
+GitHub ever showed them; nor did Dependabot, whose open alerts on 2026-10-09
+at about 14:45Z were the two `extract-zip` ones and nothing on `next`. They
+were measured on 2026-10-09 at 13:52Z on a fresh `npm ci` of that same commit:
+`bash scripts/ci/audit.sh` exits 1 on five ids and `bash scripts/ci/trivy.sh`
+exits 1 on one. **None is allow-listed, and none could be**: `next` is the
+first name under “What is **not** allow-listed”.
+
+| In the feed (UTC)   | Advisory            | CVE            | Severity | Range              | What it is                                                                     |
+| ------------------- | ------------------- | -------------- | -------- | ------------------ | ------------------------------------------------------------------------------ |
+| 2026-10-07 20:30:55 | GHSA-cjq9-62q9-8jv4 | CVE-2026-94483 | high     | `>=16.0.0 <16.3.8` | server-side request forgery in Image Optimization, through an allow-listed URL |
+| 2026-10-07 20:31:13 | GHSA-mcj8-r9mp-w47p | CVE-2026-94484 | moderate | `>=16.0.0 <16.3.8` | response-cache poisoning: a root-level catch-all page beside SSG/ISR routes    |
+| 2026-10-07 20:31:33 | GHSA-f87g-xv8r-7p7x | CVE-2026-94485 | moderate | `>=16.0.0 <16.3.8` | metadata image routes ignore `dynamicParams`, in builds made with webpack      |
+| 2026-10-07 20:31:51 | GHSA-39w2-rjm5-chcv | CVE-2026-94486 | low      | `>=16.0.0 <16.3.8` | the development server's MCP endpoint answers any site the developer visits    |
+| 2026-10-07 20:32:06 | GHSA-4jqv-mc3x-m676 | CVE-2026-94543 | moderate | `>=16.0.0 <16.3.8` | cache poisoning of SSG/ISR pages — Pages Router, self-hosted                   |
+| 2026-10-07 20:32:13 | GHSA-3w37-wq28-93x7 | CVE-2026-94544 | moderate | `>=16.3.0 <16.3.8` | a pending `use cache` fill leaks Draft Mode content into regular responses     |
+
+“In the feed” is `github_reviewed_at`, as in the tables above; for these six it
+equals `published_at`. `audit-ci.json` fails at `moderate`, so the low one
+never blocked the gate, and the same release fixes it. `trivy` gates on HIGH
+and CRITICAL and names only the first, as CVE-2026-94483, “fixed in 16.3.8”.
+A seventh id is in 16.3.8's own release note and nowhere else:
+GHSA-h694-7cp9-m8p3, “Cache leak across root param values in nested
+`use cache` functions”. `gh api /advisories/GHSA-h694-7cp9-m8p3` answered 404
+on 2026-10-09 and `npm audit` does not report it; the bump covers it by that
+note's account, which nothing here checked.
+
+The pin moved: **`next` and `eslint-config-next` 16.3.6 → 16.3.8**, together.
+Twelve lockfile entries move and nothing else — the same twelve as on
+2026-09-30: `next`, `eslint-config-next`, `@next/env`,
+`@next/eslint-plugin-next` and the eight `@next/swc-*` binaries. The lockfile
+holds 1898 entries before and after. 16.3.8 declares the dependencies 16.3.6
+did, `sharp: ^0.35.4` among the optional ones, so `sharp` stays at 0.35.5.
+
+On the result `bash scripts/ci/audit.sh` passed **six runs of six** (all
+within the minute of 13:55Z; six because of the flapping recorded above, though
+these ids were 41 hours old by then) and `bash scripts/ci/trivy.sh` is clean
+(14:47Z).
+
+### Why 16.3.8, and not the release `npm audit` proposes
+
+`npm audit` reports `fixAvailable: next@16.4.0`. That is the newest release,
+not the lowest one that clears the range, and on 2026-10-09 it was inside the
+hold. `npm view next time`:
+
+| Release    | Published            | Age on 2026-10-09 13:55Z | Clears the six       | Clears the 7-day hold            |
+| ---------- | -------------------- | ------------------------ | -------------------- | -------------------------------- |
+| 16.3.6     | 2026-09-22T16:19:00Z | 16 d 21 h                | no (the pin)         | yes                              |
+| 16.3.7     | 2026-09-29T09:04:19Z | 10 d 4 h                 | no (last vulnerable) | yes                              |
+| **16.3.8** | 2026-09-30T16:07:21Z | **8 d 21 h**             | yes (first patched)  | **yes**, since 2026-10-07T16:07Z |
+| 16.4.0     | 2026-10-06T18:35:31Z | 2 d 19 h                 | yes                  | no, until 2026-10-13T18:35Z      |
+
+Every one of the six ranges ends at `<16.3.8`, so one release is the first
+patched version for all of them, and it had cleared the hold 4 h 23 min before
+the first id was published. Lowest-that-clears and past-the-hold are the same
+release: the waiver was not needed, and nothing was decided here that the rule
+had not already decided. 16.4.0 is a minor, under three days old, and fixes
+nothing these ranges name.
+
+**What this does to the 2026-09-30 record above.** That section declined
+16.3.8, then 101 minutes old, because no advisory in this tree named a version
+above 16.3.6. That was true of what was public. 16.3.8 was also the release
+that fixed these six, which stayed unpublished for seven more days. Its GitHub
+release note, read on 2026-10-09, opens “This release contains security fixes
+for the following advisories” and lists them. Whether it said so on
+2026-09-30 was not established: the API gives the release an `updated_at`
+equal to its `published_at` (2026-09-30T16:13:46Z), which means it did only if
+that field tracks edits to the note. Either way the cost of the rule is now on
+record: between a fix and its advisory, the lowest-release rule keeps the tree
+on the vulnerable release, and `audit` has nothing to say about it. Whether
+that changes the rule is the maintainer's to say; nothing here changes it.
+
+### Exposure, for the record: it was fixed without an exposure argument
+
+`next` ships, so the rule at the top of this file decided it before any of
+this was weighed. What was read and measured on this tree all the same, so the
+next reader need not redo it:
+
+- **GHSA-cjq9-62q9-8jv4 (high).** The advisory exempts an application with no
+  `images.remotePatterns`. This one has one — `next.config.ts` allows
+  `https://lh3.googleusercontent.com` — so the exemption does not apply. No
+  file under `app/`, `components/` or `lib/` imports `next/image`, and the
+  optimizer does not need one: on a production server `/_next/image` is
+  mounted (400 without parameters, 200 for `url=/favicon.ico`). Whether that
+  one host can be made to serve what the attack needs was **not** established.
+- **GHSA-mcj8-r9mp-w47p.** The tree has a catch-all page,
+  `app/[locale]/[...rest]/page.tsx`, beside the 219 pages the build
+  prerenders. It sits one dynamic segment below the root; whether that is the
+  advisory's “root-level catch-all” was not established.
+- **GHSA-f87g-xv8r-7p7x.** Webpack builds only. Every build here is Turbopack,
+  and `--webpack`, the fallback `scripts/ci/build.sh` names for
+  prisma/prisma#29025, has never been applied.
+  Related, and **not** changed by this bump: `guides/[slug]/page.tsx` sets
+  `dynamicParams = false`, the image route beside it exports no segment option
+  of its own, and on 16.3.6 and 16.3.8 alike
+  `/fr/guides/<unknown>/opengraph-image` answers 200 with the generic card —
+  rendered on demand, then cached on disk — while the page answers 404. That
+  is this repository's code, not the advisory. It is noted here and left for
+  a change of its own.
+- **GHSA-4jqv-mc3x-m676.** Pages Router, self-hosted; the advisory says
+  applications deployed on Vercel are not affected. There is no `pages/`
+  directory.
+- **GHSA-3w37-wq28-93x7.** Needs Cache Components (or `experimental.useCache`)
+  and Draft Mode. None of `"use cache"`, `draftMode` and `cacheComponents`
+  occurs in `app/`, `components/`, `lib/`, `proxy.ts`, `auth.ts` or
+  `next.config.ts`.
+- **GHSA-39w2-rjm5-chcv (low).** `next dev` only, and `npm run dev` is how
+  this repository is developed: the exposure was a developer's machine, never
+  the site.
+
+### What the bump changed
+
+**In `next`**, read from the two tarballs (`npm pack next@16.3.6 next@16.3.8`;
+each sha512 equals its lockfile `integrity`): 8 531 files become 8 539, and 79
+differ outside source maps, `dist/esm` and `dist/compiled`. 16.3.7 is one
+Turbopack backport. The rest is 16.3.8: the image optimizer (318 changed
+lines: its own HTTP agents and a pinned DNS lookup), the response cache and
+the file-system incremental cache, now keyed by the route that owns an entry
+(a new `server/lib/route-cache-key.js`), the `use cache` wrapper, the
+development MCP middleware, the webpack metadata-route loader, and how a
+pathname served by several app paths picks its entry (`selectAppPageEntry`).
+`dist/client/index.js` and `app-bootstrap.js` differ by the version string
+alone.
+
+**In this build**, measured on one machine: `main`'s tree, then this one, the
+hooks-on and the hooks-off build of each through `scripts/ci/build.sh`.
+
+| Measured                                              | 16.3.6                       | 16.3.8                                    |
+| ----------------------------------------------------- | ---------------------------- | ----------------------------------------- |
+| route table (`●` / `ƒ` / `○`), 219 prerendered pages  | —                            | identical, line for line                  |
+| `bundle-guard`, files checked (hooks on / off)        | 65 / 63                      | 65 / 63                                   |
+| files under `.next/static` (hooks on / off)           | 77 / 75                      | 77 / 75                                   |
+| first-load JS, gzip, each of the nine budgeted routes | `/[locale]`: 195 750 B       | **+95 B** on each; `/[locale]`: 195 845 B |
+| all JS under `.next/static`, raw (hooks off)          | 4 985 697 B                  | 4 985 933 B (+236 B)                      |
+| CSS under `.next/static`                              | 67 663 B                     | 67 663 B                                  |
+| boot check; `boot` tier                               | `{"ok":true,"db":true}`; 4/4 | the same                                  |
+
+No ceiling in `perf.budgets.json` moves; headroom stays between 8.5 % and
+9.4 %. `/fr` and `/en` still carry the `app/[locale]` card, and a refused boot
+looks as it did (three 500s from `/api/health`, the process alive,
+`/tree-drawings.json` and a chunk still served).
+
+**On a started server**, 44 requests to 39 URLs — pages, guides, the 404s, the
+two card routes, the bike routes, `/_next/image` — answered alike on a fresh
+build of each release, line for line: status, content type, byte count,
+`Location` and `x-nextjs-cache`.
+
+**One thing changed, on disk.** An entry a self-hosted server caches on demand
+used to be written beside the prerendered files
+(`.next/server/app/fr/guides/<slug>/opengraph-image.body`); 16.3.8 writes it
+under `.next/server/route-cache/APP_ROUTE/<sha256 of the owning route>/$/…`.
+What the build prerenders is where it was, and nothing in this repository
+reads the other kind.
+
+**Not proved by a local run:** the browser tiers. `bash scripts/ci.sh` and the
+hooks-on `scripts/ci/build.sh` passed on the result; e2e, perf and Lighthouse
+were not run, and their jobs on the pull request are the first to put 16.3.8
+in front of a browser.
 
 ## Removed from the array (2026-09-30)
 

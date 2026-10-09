@@ -54,7 +54,7 @@ runs at [velo-atelier.vercel.app][site], in production since 2026-09-29.
 
 ## How it is built and checked
 
-Next.js 16.3.6 (App Router), React 19 and TypeScript 5.9 on Node 24; next-intl
+Next.js 16.3.8 (App Router), React 19 and TypeScript 5.9 on Node 24; next-intl
 4, Tailwind 4, React Three Fiber 9, Prisma 7.10 on PostgreSQL 16, Auth.js v5.
 Hosted on Vercel (Paris) and Neon (Frankfurt). Guides and bike data live in the
 repository; the database holds user data only. What the repository enforces,

@@ -12,7 +12,12 @@
  * Four facts about Next 16.3.6 shape it. Each was read off the installed
  * package, and the three about a running server were also measured against
  * it, 2026-10-06 (`tests/boot/env-contract.test.ts` holds the refusal and the
- * file that is still served, and relies on the fourth to take a FIRST answer):
+ * file that is still served, and relies on the fourth to take a FIRST answer).
+ * They were checked again when the pin moved to 16.3.8, 2026-10-09: the two
+ * files the first and third cite are byte-identical in both releases,
+ * `start-server.js` and `bin/next` differ by the version string alone, and
+ * the refusal and the two files still served were measured again. The fourth
+ * was read again, not re-polled:
  *
  *   - **`register()` does not run during `next build`.**
  *     `server/lib/router-utils/instrumentation-globals.external.js` returns
