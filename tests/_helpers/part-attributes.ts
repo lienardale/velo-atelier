@@ -118,6 +118,33 @@ export function sharedTypedPairs(): SharedPair[] {
 }
 
 /**
+ * One ordered pair of parts for every SELECT or CHECKBOX key two parts of a
+ * preset share — the first pair found, on the first preset that fits both.
+ *
+ * A select or a checkbox is controlled, so it never showed another part's
+ * value; but its status line ("Enregistré", or a refusal) lived in the same
+ * per-key map as a typed field's and was carried to the next part just the
+ * same. One pair per key is enough for that: the map never knew the part.
+ */
+export function sharedUntypedPairs(): SharedPair[] {
+  const pairs = new Map<string, SharedPair>();
+  for (const preset of PRESET_IDS) {
+    const untyped = formAttributes(presetBuild(preset)).filter(
+      (entry) => !isTyped(entry.attribute),
+    );
+    for (const from of untyped) {
+      if (pairs.has(from.attribute.key)) continue;
+      const to = untyped.find(
+        (entry) => entry.partId !== from.partId && entry.attribute.key === from.attribute.key,
+      );
+      if (to !== undefined)
+        pairs.set(from.attribute.key, { key: from.attribute.key, preset, from, to });
+    }
+  }
+  return [...pairs.values()];
+}
+
+/**
  * `preset`'s build with a value of its own in every number and text field, so
  * that two parts never hold the same thing under the same key. Out of the box
  * almost all of them do (both tyres are 42 mm wide), and a field showing the

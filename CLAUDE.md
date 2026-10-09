@@ -756,17 +756,87 @@ docs/                contributor and operator docs — every one is linked from 
   and the "Pièces" tab pressed stored 42 in Chromium 153, mouse and touch
   (measured on the unfixed build). The rules overlap on purpose — with the key
   alone removed the nothing-typed sequence still passes in a browser — so a
-  green run after dropping one of them proves nothing about the other two. A
-  write that answers after its form is gone hands its build up (`onSaved`) and
-  reports a refusal as a notice naming the part and the field
-  (`bike.panel.unsaved`), never under another part's field; an untouched field
-  follows the stored value when it changes under it, and text being typed is
-  never replaced. NOT covered: the page unloaded with the caret in the field
-  (a reload, a closed tab) — nothing is unmounted, and a saved bike's write
-  would be a request the browser may drop. **Any form that edits "the selected
-  X" inside a container that outlives the selection follows the same three
-  rules, and is tested through that container**: `PartInfo.test.tsx` rendered
-  the form with a part set by hand and could not see any of this.
+  green run after dropping one of them proves nothing about the other two.
+  **What rule 3 commits is what leaving the field would — a value, or a clear
+  for a field the visitor EMPTIED — and never text the browser cannot read as
+  a number.** A number input reports `45.` (on the way to 45.5), `4e` or a
+  lone minus as an EMPTY `value`, with `validity.badInput` the only sign that
+  the field holds anything; the first version of rule 3 sent that as a clear,
+  so the stored width was deleted, the write answered ok and nothing was said,
+  on exits where the value had survived before the rule existed (measured in
+  Chromium 153, guest and saved; found by review the day the fix was written).
+  `onChange` records `badInput` beside the text, and a field removed holding
+  unreadable text sends NOTHING and raises the notice. LEAVING such a field
+  still clears the attribute, as on `main`: that exit awaits a ruling
+  (`docs/backlog.md`) — do not read a rule out of it. **"What is stored", in
+  rule 2, is only what the form was last told**: writes sent and not yet
+  answered are counted at module level, per repo and `part:key`, and while
+  that count is not zero an edit is sent whatever it compares to — with 45 on
+  its way, 42 typed back into a field still showing 42 used to be "unchanged",
+  and the bike ended at 45. A write that answers after its form is gone hands
+  its build up (`onSaved`) and reports a refusal as a notice naming the part
+  and the field (`bike.panel.unsaved`), never under another part's field; an
+  untouched field follows the stored value when it changes under it, and text
+  being typed — or a value being saved — is never replaced. NOT covered: the
+  page unloaded with the caret in the field (a reload, a closed tab) — nothing
+  is unmounted, and a saved bike's write would be a request the browser may
+  drop. **Any form that edits "the selected X" inside a container that
+  outlives the selection follows the same three rules, and is tested through
+  that container** — `PartInfo.test.tsx` rendered the form with a part set by
+  hand and could not see any of this — **and its number fields are tried with
+  text a number input cannot read**: jsdom has no `badInput`, so a jsdom test
+  gives the node one (as Chromium reports it) and the browser test types the
+  real thing.
+- **A notice that must be said when the network may be down is raised through
+  `loadToast()`** (`components/ui-ext/Notices.tsx`), never through an
+  `import("sonner")` at the call site. The bundler gives each dynamic import
+  its own chunk, and the one a page's component asks for is not the one the
+  layout's host loaded: the part form's "not saved" notice was raised that way
+  and, offline — the first reason a write does not answer — the import failed,
+  the visitor was told nothing and the rejection went unhandled (measured,
+  Chromium 153; `.debug/017` §5.8). The host now keeps `toast` when its own
+  chunk arrives, and `loadToast()` answers from memory from a moment after
+  hydration. **Keeping what the import resolved to is the fix, not where the
+  import is written**: with that one assignment removed the offline e2e cases
+  fail again while every jsdom test passes (a mocked module is always
+  importable). `loadToast()` REJECTS when sonner cannot be had at all, and the
+  caller says it some other way: the part form through `UnsavedNotices`, a
+  plain-text `role="alert"` the workspace owns, fixed to the bottom of the
+  viewport above the sheet (in the flow of the workspace it is painted UNDER a
+  fully open sheet on a phone: measured). That notice is `toast.error` with
+  `richColors: false`: sonner's rich error colours are #e60000 on #fff0f0,
+  4.34:1 at 13 px, a serious axe violation that `a11y.spec.ts` cannot see
+  because the page it opens raises no notice — `part-panel.spec.ts` runs axe
+  on the notice's own region. The two other notices (`BikeWorkspace`,
+  `GuestImport`) are raised while the network is demonstrably up and still
+  import at the call site.
+- **`updateBikePartAction` takes the bike row's lock BEFORE it reads the row.**
+  The edit is read-modify-write on one JSON column, and two calls for one bike
+  DO overlap: Next's client sends server actions one at a time only while the
+  page stays put — a navigation takes the pending action's turn and the next
+  action is sent at once
+  (`next/dist/client/components/app-router-instance.js`, read), which is
+  exactly when the part form's write on removal is dispatched. Unlocked, each
+  call wrote its own edit over the other's and both answered ok: a select
+  changed, a width typed, then history back lost one of the two in five runs
+  of six (`.debug/017` §5.8). So the whole edit is ONE interactive
+  `$transaction` whose first statement is an `UPDATE` of the bike row with the
+  ownership predicate — that is the lock; a second call waits on it and, under
+  READ COMMITTED (pinned in the call: under REPEATABLE READ the waiting call
+  fails instead), reads what the first wrote. No raw `SELECT … FOR UPDATE`
+  (`tests/security/sql-injection.test.ts`; `expectScopedToUser` could not read
+  one), no retry loop. A refusal found after the lock is THROWN as far as the
+  transaction's edge (a module-private `Refusal`) so that the lock's own write
+  — a newer `updatedAt`, which "Mes vélos" sorts by — rolls back with it; the
+  action still RETURNS the failure. Inside the callback every query goes
+  through `tx`, never `prisma`: the pool has three connections, and a
+  transaction that asks the pool for another while its siblings wait on the
+  lock deadlocks until Prisma's timeouts (seen under a mutation).
+  `tests/integration/bikes.test.ts` holds it on PostgreSQL with twelve edits
+  sent together; its calls are started one event-loop turn apart, because of
+  several `import()` of a mocked module issued in one tick Vitest 4.1.11 gives
+  the mock to the first only. `updateBikeFitAction` and `updateBikeAction`
+  still read and write with nothing held (`docs/backlog.md`).
 - **Bike writes go through `lib/bike/rules.ts`** — `deriveBike(answers,
 previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   produced, in the server actions, in the guest repo and in `prisma/seed.ts`

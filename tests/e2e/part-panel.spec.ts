@@ -27,6 +27,7 @@
  *     with the text is an ordering of mousedown, React's commit and the focus
  *     change that only a browser has.
  */
+import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { Client } from "pg";
 
@@ -559,3 +560,389 @@ forEachLocale((locale) => {
     expect(actions, "the width was sent once").toBe(1);
   });
 });
+
+// ── what the review of 2026-10-09 found (`.debug/017` §5.8, "Review of the fix") ────────
+
+/** Give one attribute of a saved bike a value of the owner's own, straight in PostgreSQL. */
+async function setSavedAttribute(
+  bikeId: string,
+  partId: string,
+  key: string,
+  value: number,
+): Promise<void> {
+  const client = new Client({ connectionString: resolveTestEnv().POSTGRES_URL });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{
+      parts: { partId: string; attributes: Record<string, unknown> }[];
+    }>(`SELECT parts FROM "Bike" WHERE id = $1`, [bikeId]);
+    const parts = rows[0].parts.map((part) =>
+      part.partId === partId ? { ...part, attributes: { ...part.attributes, [key]: value } } : part,
+    );
+    await client.query(`UPDATE "Bike" SET parts = $2 WHERE id = $1`, [
+      bikeId,
+      JSON.stringify(parts),
+    ]);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Type text a number field cannot read as a number, and stay in the field.
+ * Chromium keeps the characters on screen and reports an EMPTY `value` with
+ * `validity.badInput` — which is all a script, or React, can see of them.
+ */
+async function typeUnreadable(page: Page, field: ReturnType<Page["locator"]>, text: string) {
+  await field.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(text);
+  await expect(field).toBeFocused();
+  expect(
+    await field.evaluate((node) => ({
+      value: (node as HTMLInputElement).value,
+      badInput: (node as HTMLInputElement).validity.badInput,
+    })),
+    `what the browser reports for ${JSON.stringify(text)}`,
+  ).toEqual({ value: "", badInput: true });
+}
+
+/** The "not saved" notice for the front tyre's width, as the visitor reads it. */
+const UNSAVED_WIDTH: Record<Locale, string> = {
+  fr: "Pneu avant · Largeur du pneu : votre saisie n’a pas été enregistrée.",
+  en: "Front tyre · Tyre width: what you typed was not saved.",
+};
+const NOT_POSSIBLE: Record<Locale, string> = {
+  fr: frBike.errors["invalid-value"],
+  en: enBike.errors["invalid-value"],
+};
+
+/* eslint-disable security/detect-object-injection -- locale-keyed message fixtures */
+/** Every "not saved" notice on the page, by its sentence. */
+const unsavedNotices = (page: Page, locale: Locale) =>
+  page.locator("[data-sonner-toast]").filter({ hasText: UNSAVED_WIDTH[locale] });
+
+forEachLocale((locale) => {
+  /**
+   * "45." on the way to 45.5, a stray minus, "4e": until the review these were
+   * a DELETION of the stored width when the next press was a tab — the field's
+   * removal committed the empty value the browser reports for them, the write
+   * succeeded, and nothing was said. Before 2026-10-09 the removal committed
+   * nothing at all, so the stored width survived.
+   */
+  test(`number text the browser cannot read, typed and not left, deletes nothing when the next press is the parts tab: the width is kept and the visitor is told — guest bike (${locale})`, async ({
+    page,
+    hasTouch,
+  }) => {
+    await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+    await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+    const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+    const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
+
+    for (const [index, text] of ["45.", "4e", "-"].entries()) {
+      await clickRow(page, "tire-front");
+      await expandSheetIfPresent(page);
+      await expect(width).toHaveValue("42");
+      await typeUnreadable(page, width, text);
+
+      if (hasTouch) await partsTab.tap();
+      else await partsTab.click();
+      await expect(page.getByTestId("parts-list")).toBeVisible();
+
+      // A guest bike's write is synchronous: had the removal sent one, it is in storage by now.
+      expect(await guestAttribute(page, "tire-front", "etrto-width"), text).toBe(42);
+      await expect(unsavedNotices(page, locale), `a notice for ${text}`).toHaveCount(index + 1);
+      await expect(unsavedNotices(page, locale).first()).toContainText(NOT_POSSIBLE[locale]);
+    }
+  });
+
+  test(`number text the browser cannot read, typed and not left, deletes nothing when the next press is the parts tab: nothing is sent, the owner's width is still in PostgreSQL — saved bike (${locale})`, async ({
+    page,
+    hasTouch,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownBike(
+      `unreadable-${testInfo.project.name}-${locale}`,
+      locale,
+      "gravel-1x11",
+    );
+    // The owner's own width: 38, where clearing the attribute gives the default back (42).
+    await setSavedAttribute(bikeId, "tire-front", "etrto-width", 38);
+    await signedInContext(user);
+    await page.goto(href(locale, "/velo/[id]", { id: bikeId }));
+
+    await clickRow(page, "tire-front");
+    await expandSheetIfPresent(page);
+    const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+    await expect(width).toHaveValue("38");
+    await typeUnreadable(page, width, "45.");
+
+    let actions = 0;
+    page.on("request", (request) => {
+      if (request.method() === "POST") actions += 1;
+    });
+    const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
+    if (hasTouch) await partsTab.tap();
+    else await partsTab.click();
+    await expect(page.getByTestId("parts-list")).toBeVisible();
+
+    // Soft, so that a missing notice still goes on to show what was SENT and stored.
+    await expect.soft(unsavedNotices(page, locale)).toHaveCount(1);
+    await expect.soft(unsavedNotices(page, locale)).toContainText(NOT_POSSIBLE[locale]);
+    expect(actions, "text that cannot be read is not sent").toBe(0);
+    expect(await savedAttribute(bikeId, "tire-front", "etrto-width")).toBe(38);
+
+    await clickRow(page, "tire-front");
+    await expect(width).toHaveValue("38");
+  });
+
+  /**
+   * The other half of the same exit, and a decision: a field the visitor
+   * EMPTIED (nothing in it, nothing unreadable) is cleared by its removal
+   * exactly as leaving it clears it. New with the removal's commit — before
+   * it, an emptied field that was not left kept its value.
+   */
+  test(`a width emptied and not left is cleared when the next press is the parts tab, as leaving the field clears it — guest bike (${locale})`, async ({
+    page,
+    hasTouch,
+  }) => {
+    await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+    await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+    await clickRow(page, "tire-front");
+    await expandSheetIfPresent(page);
+    const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+    await expect(width).toHaveValue("42");
+    await width.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("Delete");
+    await expect(width).toBeFocused();
+    expect(
+      await width.evaluate((node) => ({
+        value: (node as HTMLInputElement).value,
+        badInput: (node as HTMLInputElement).validity.badInput,
+      })),
+    ).toEqual({ value: "", badInput: false });
+
+    const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
+    if (hasTouch) await partsTab.tap();
+    else await partsTab.click();
+    await expect(page.getByTestId("parts-list")).toBeVisible();
+
+    await expect.poll(() => guestAttribute(page, "tire-front", "etrto-width")).toBeUndefined();
+    await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+  });
+
+  /**
+   * Two writes of one bike in flight together. Next's client sends server
+   * actions one at a time — until a navigation arrives, which discards the
+   * pending one's turn and lets the next go at once (read in
+   * `next/dist/client/components/app-router-instance.js`). The removal's write
+   * is dispatched exactly then. `updateBikePartAction` used to read the row,
+   * edit the build and write it back with nothing held in between, so the two
+   * overwrote each other: five runs of six lost one of the edits, both POSTs
+   * answering 200.
+   *
+   * The first POST is held in transit until the second is on its way — a slow
+   * connection, a cold function — and then both go on together.
+   */
+  test(`a select changed, a width typed and not left, then history back while the first write is still in transit: both are in PostgreSQL — saved bike (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownBike(
+      `route-${testInfo.project.name}-${locale}-${testInfo.repeatEachIndex}`,
+      locale,
+      "gravel-1x11",
+    );
+    await signedInContext(user);
+    // Reached by its link, so that "back" is a navigation inside the app.
+    await page.goto(href(locale, "/mes-velos"));
+    await page.locator(`[data-testid=my-bikes-list] a[href$="/${bikeId}"]`).first().click();
+    await page.waitForURL((url) => url.pathname.endsWith(`/${bikeId}`));
+
+    await clickRow(page, "tire-front");
+    await expandSheetIfPresent(page);
+    const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+    await expect(width).toHaveValue("42");
+    expect(await savedAttribute(bikeId, "tire-front", "tread")).toBe("semi-slick");
+
+    const sent: string[] = [];
+    let release: (() => void) | null = null;
+    await page.route(
+      () => true,
+      async (route) => {
+        if (route.request().method() !== "POST") return route.continue();
+        sent.push(new URL(route.request().url()).pathname);
+        if (sent.length === 1) {
+          await new Promise<void>((resolve) => {
+            release = resolve;
+            // Should the client ever queue the second behind the first, let it through.
+            setTimeout(resolve, 5000);
+          });
+        } else {
+          release?.();
+        }
+        await route.continue();
+      },
+    );
+
+    await page.locator('[data-testid=part-edit-form] [data-attr="tread"]').selectOption("slick");
+    await typeAndStay(page, width, "45");
+    await page.goBack();
+    await page.waitForURL((url) => url.pathname === href(locale, "/mes-velos"));
+
+    await expect
+      .poll(
+        async () => ({
+          tread: await savedAttribute(bikeId, "tire-front", "tread"),
+          width: await savedAttribute(bikeId, "tire-front", "etrto-width"),
+          sent: sent.length,
+        }),
+        { timeout: 15_000 },
+      )
+      .toEqual({ tread: "slick", width: 45, sent: 2 });
+    await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+  });
+
+  /**
+   * The write fails because the network is gone — the first reason a write
+   * does not answer. The notice must not need a download of its own to be
+   * shown: until the review it did (a chunk the page had never requested), so
+   * the visitor was told nothing and the import's rejection went unhandled.
+   */
+  test(`offline: a width typed and not left, then the parts tab — the visitor is told it was not saved, by a notice that needs no download — saved bike (${locale})`, async ({
+    page,
+    context,
+    hasTouch,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownBike(
+      `offline-tab-${testInfo.project.name}-${locale}`,
+      locale,
+      "gravel-1x11",
+    );
+    await signedInContext(user);
+    await page.goto(href(locale, "/velo/[id]", { id: bikeId }));
+    await clickRow(page, "tire-front");
+    await expandSheetIfPresent(page);
+    const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+    await expect(width).toHaveValue("42");
+    await typeAndStay(page, width, "45");
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await context.setOffline(true);
+    const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
+    if (hasTouch) await partsTab.tap();
+    else await partsTab.click();
+    await expect(page.getByTestId("parts-list")).toBeVisible();
+
+    await expect(unsavedNotices(page, locale)).toHaveCount(1);
+    await context.setOffline(false);
+    expect(pageErrors, "no rejection left unhandled").toEqual([]);
+    expect(await savedAttribute(bikeId, "tire-front", "etrto-width")).toBe(42);
+  });
+
+  test(`offline: a width typed and not left, then a history move onto another part — the visitor is told it was not saved — saved bike (${locale})`, async ({
+    page,
+    context,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownBike(
+      `offline-part-${testInfo.project.name}-${locale}`,
+      locale,
+      "gravel-1x11",
+    );
+    await signedInContext(user);
+    await page.goto(href(locale, "/velo/[id]", { id: bikeId }));
+    await clickRow(page, "tire-front");
+    await expandSheetIfPresent(page);
+    const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+    await expect(width).toHaveValue("42");
+    await typeAndStay(page, width, "45");
+
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await context.setOffline(true);
+    // `?part=` as a history move delivers it: the field keeps the caret until it is removed.
+    await page.evaluate(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("part", "tire-rear");
+      window.history.pushState(window.history.state, "", url);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(page.getByTestId("part-panel-title")).toHaveText(partLabel(locale, "tire-rear"));
+
+    await expect(unsavedNotices(page, locale)).toHaveCount(1);
+    await context.setOffline(false);
+    expect(pageErrors, "no rejection left unhandled").toEqual([]);
+    expect(await savedAttribute(bikeId, "tire-front", "etrto-width")).toBe(42);
+  });
+
+  /**
+   * The notice is the only thing that tells the visitor a typed value was not
+   * saved once its field is gone, and `a11y.spec.ts` cannot reach it: the demo
+   * bike it opens has no form. Sonner's "rich" error colours were #e60000 on
+   * #fff0f0 — 4.34:1 at 13 px, a serious `color-contrast` violation in both
+   * schemes and both languages.
+   */
+  for (const scheme of ["light", "dark"] as const) {
+    test(`the "not saved" notice passes axe at serious/critical, ${scheme} (${locale})`, async ({
+      page,
+      hasTouch,
+    }) => {
+      test.setTimeout(90_000);
+      await page.emulateMedia({ colorScheme: scheme });
+      await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+      await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+      await clickRow(page, "tire-front");
+      await expandSheetIfPresent(page);
+      const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+      await typeAndStay(page, width, "999"); // out of the 18–130 the domain accepts
+
+      const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
+      if (hasTouch) await partsTab.tap();
+      else await partsTab.click();
+      const toast = unsavedNotices(page, locale);
+      await expect(toast).toHaveCount(1);
+      await expect(toast).toContainText(NOT_POSSIBLE[locale]);
+      // Once it has finished arriving: axe reads what is painted.
+      await expect
+        .poll(() => toast.evaluate((node) => getComputedStyle(node).opacity), { timeout: 10_000 })
+        .toBe("1");
+      await expect
+        .poll(() =>
+          toast.evaluate(
+            (node) =>
+              node.getAnimations().filter((animation) => animation.playState === "running").length,
+          ),
+        )
+        .toBe(0);
+      const box = await toast.boundingBox();
+      const viewport = page.viewportSize()!;
+      expect(box, "the notice is on the page").not.toBeNull();
+      expect(box!.y, "inside the viewport").toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height, "inside the viewport").toBeLessThanOrEqual(viewport.height);
+
+      // The notice's own region, not the page around it: the 3D viewer's label
+      // of the selected part fades in over the canvas as the camera moves, and
+      // an analysis that catches it half-way reports ITS text (1.07:1, one run
+      // of eight here). The page itself is `a11y.spec.ts`'s.
+      const { violations } = await new AxeBuilder({ page })
+        .include("[data-sonner-toaster]")
+        .analyze();
+      const blocking = violations
+        .filter((violation) => violation.impact === "serious" || violation.impact === "critical")
+        .flatMap((violation) =>
+          violation.nodes.map(
+            (node) =>
+              `[${violation.impact}] ${violation.id} ${node.target.join(" ")} ${JSON.stringify(
+                node.any.map((check) => check.data),
+              ).slice(0, 300)}`,
+          ),
+        );
+      expect(blocking).toEqual([]);
+    });
+  }
+});
+/* eslint-enable security/detect-object-injection */
