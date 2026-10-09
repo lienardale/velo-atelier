@@ -1,6 +1,6 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { Component, StrictMode, useState, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createViewerStore,
@@ -99,6 +99,8 @@ interface World {
   stored(partId: string, key: string): AttributeValue | undefined;
   /** Guest bike only: from now on the browser's storage is full. */
   fill?: () => void;
+  /** A `held` saved bike only: let the oldest `count` writes in flight be answered. */
+  answer?: (count?: number) => Promise<void>;
 }
 
 function recording(inner: BikeRepo, writes: Write[]): BikeRepo {
@@ -137,33 +139,55 @@ function guestWorld(preset: PresetId, build: BikeBuild = presetBuild(preset)): W
 const BIKE_ID = "3f0c1f0e-6f0a-4c56-9d3b-1c2d3e4f5a6b";
 
 /**
+ * Every write a `held` saved bike has not been told to answer yet, across the
+ * file. A case that FAILS half-way leaves one behind, and React entangles
+ * async transitions: with one that never settles, the cases after it wait for
+ * ever on theirs and fail too, for no reason of their own (seen under
+ * mutations). `afterEach` lets them all through.
+ */
+const stillHeld = new Set<() => void>();
+
+/**
  * A saved bike: the real `remoteBikeRepo`, over an action that keeps the build
  * and answers as `updateBikePartAction` does — the domain's own `setAttribute`,
- * the refusal keyed by the field. `latencyMs` is how long it takes to answer,
- * which is what lets an answer arrive after its form is gone; `down` makes it
- * not answer at all; `refuse` makes it answer with that code, whatever is
- * asked. `queued` makes it answer ONE CALL AT A TIME, in the order sent, which
- * is what Next's client does with server actions while the page stays put:
- * two writes of one field then land in the order they were typed.
+ * the refusal keyed by the field. `down` makes it not answer at all; `refuse`
+ * makes it answer with that code, whatever is asked.
+ *
+ * `held` is what lets an answer arrive after its form is gone: every call
+ * waits until the TEST lets it be answered (`world.answer()`), so "a write is
+ * in flight" is a state the test is in, not a race against a timer. These
+ * cases were timed at first — a 60 ms answer against the clicks that had to
+ * fit before it — and one of them failed once under the load of the whole
+ * suite (2026-10-09, `bash scripts/ci.sh`: the answer came first).
+ *
+ * `queued` makes it answer ONE CALL AT A TIME, in the order sent, which is
+ * what Next's client does with server actions while the page stays put: two
+ * writes of one field then land in the order they were typed.
  */
 function savedWorld(
   preset: PresetId,
   build: BikeBuild = presetBuild(preset),
   {
-    latencyMs = 0,
+    held = false,
     down = false,
     queued = false,
     refuse,
-  }: { latencyMs?: number; down?: boolean; queued?: boolean; refuse?: ActionErrorCode } = {},
+  }: { held?: boolean; down?: boolean; queued?: boolean; refuse?: ActionErrorCode } = {},
 ): World {
   let server = build;
   const writes: Write[] = [];
   let turn: Promise<unknown> = Promise.resolve();
+  const inFlight: (() => void)[] = [];
   const answer = async (input: {
     partId: string;
     attributes: Record<string, AttributeValue | null>;
   }) => {
-    await new Promise((resolve) => setTimeout(resolve, latencyMs));
+    if (held) {
+      await new Promise<void>((resolve) => {
+        inFlight.push(resolve);
+        stillHeld.add(resolve);
+      });
+    }
     if (down) throw new Error("the action did not answer");
     if (refuse !== undefined) return fail(refuse);
     let next = server;
@@ -199,6 +223,15 @@ function savedWorld(
     build,
     writes,
     stored: (partId, key) => attributeOf(server, partId, key),
+    answer: async (count = 1) => {
+      for (let index = 0; index < count; index += 1) {
+        const next = inFlight.shift();
+        if (next === undefined) throw new Error("no write is in flight to be answered");
+        stillHeld.delete(next);
+        next();
+        await settle();
+      }
+    },
   };
 }
 
@@ -329,6 +362,12 @@ const NOT_POSSIBLE = "Cette valeur n’est pas possible pour cette caractéristi
 
 beforeEach(() => {
   notice.error.mockClear();
+});
+
+afterEach(async () => {
+  for (const release of stillHeld) release();
+  stillHeld.clear();
+  await settle();
 });
 
 // ── P1 ───────────────────────────────────────────────────────────────────────
@@ -833,7 +872,7 @@ describe("P4 — text typed and not left is committed to its own part when the f
     // The removal's write is still in flight when the form is mounted again, on
     // the OLD stored value. Left to `defaultValue`, the field would go on
     // showing it after the answer, beside a read-only line saying 45.
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 60 });
+    const world = savedWorld("gravel-1x11", undefined, { held: true });
     const { user } = await open(world);
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "45");
@@ -842,19 +881,19 @@ describe("P4 — text typed and not left is committed to its own part when the f
     expect(field("etrto-width").value).toBe("42");
     expect(world.stored("tire-front", "etrto-width")).toBe(42);
 
-    await settle(120);
+    await world.answer!();
 
     expect(world.stored("tire-front", "etrto-width")).toBe(45);
     expect(field("etrto-width").value).toBe("45");
     expect(document.querySelector('[data-attr-row="etrto-width"] dd')).toHaveTextContent("45 mm");
     await user.click(field("etrto-width"));
     await user.tab();
-    await settle(120);
+    await settle();
     expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
   });
 
   it("does not replace what the visitor is typing when the stored value changes under the field", async () => {
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 60 });
+    const world = savedWorld("gravel-1x11", undefined, { held: true });
     const { user } = await open(world);
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "45");
@@ -862,12 +901,12 @@ describe("P4 — text typed and not left is committed to its own part when the f
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "50"); // typed while 45 is still in flight
 
-    await settle(120);
+    await world.answer!();
     expect(world.stored("tire-front", "etrto-width")).toBe(45);
     expect(field("etrto-width").value).toBe("50");
 
     await user.tab();
-    await settle(120);
+    await world.answer!();
     expect(world.stored("tire-front", "etrto-width")).toBe(50);
   });
 
@@ -919,7 +958,7 @@ describe("P4 — text typed and not left is committed to its own part when the f
     it("says it of an ORDINARY save that is refused after the visitor picked another part — and not under that part's field", async () => {
       // The field was left, so this is the blur's write; the answer comes back
       // to a form that is no longer there.
-      const world = savedWorld("gravel-1x11", undefined, { latencyMs: 60 });
+      const world = savedWorld("gravel-1x11", undefined, { held: true });
       const { user, store } = await open(world);
       await user.click(row("tire-front"));
       await typeInto(user, "etrto-width", "999");
@@ -927,7 +966,7 @@ describe("P4 — text typed and not left is committed to its own part when the f
       expect(status("etrto-width")).toBe("Enregistrement…");
 
       selectOnBike(store, "tire-rear");
-      await settle(120);
+      await world.answer!();
 
       expect(title()).toBe("Pneu arrière");
       expect(status("etrto-width"), "the rear tyre did nothing wrong").toBe("");
@@ -941,14 +980,14 @@ describe("P4 — text typed and not left is committed to its own part when the f
     });
 
     it("says it of an ORDINARY save that does not answer after the visitor picked another part — and replaces nothing with the error page", async () => {
-      const world = savedWorld("gravel-1x11", undefined, { latencyMs: 60, down: true });
+      const world = savedWorld("gravel-1x11", undefined, { held: true, down: true });
       const { user, store } = await open(world);
       await user.click(row("tire-front"));
       await typeInto(user, "etrto-width", "45");
       await user.tab();
 
       selectOnBike(store, "tire-rear");
-      await settle(120);
+      await world.answer!();
 
       expect(screen.queryByTestId("error-boundary")).toBeNull();
       expect(title()).toBe("Pneu arrière");
@@ -959,14 +998,14 @@ describe("P4 — text typed and not left is committed to its own part when the f
     });
 
     it("says nothing when such a write succeeds: the build is handed up, and the part shows it", async () => {
-      const world = savedWorld("gravel-1x11", undefined, { latencyMs: 60 });
+      const world = savedWorld("gravel-1x11", undefined, { held: true });
       const { user, store } = await open(world);
       await user.click(row("tire-front"));
       await typeInto(user, "etrto-width", "45");
       await user.tab();
 
       selectOnBike(store, "tire-rear");
-      await settle(120);
+      await world.answer!();
       expect(notice.error).not.toHaveBeenCalled();
       expect(status("etrto-width")).toBe("");
 
@@ -1076,7 +1115,7 @@ describe("P5 — what did not change", () => {
   });
 
   it("an ordinary edit says 'Enregistrement…' and then 'Enregistré', under the field", async () => {
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 60 });
+    const world = savedWorld("gravel-1x11", undefined, { held: true });
     const { user } = await open(world);
     await user.click(row("tire-front"));
 
@@ -1084,7 +1123,7 @@ describe("P5 — what did not change", () => {
     await user.tab();
     expect(status("etrto-width")).toBe("Enregistrement…");
     expect(field("etrto-width")).toBeDisabled();
-    await settle(120);
+    await world.answer!();
     expect(status("etrto-width")).toBe("Enregistré");
     expect(field("etrto-width")).not.toBeDisabled();
     expect(field("etrto-width").value).toBe("45");
@@ -1194,25 +1233,26 @@ describe("what the review found — a value typed while an earlier write of the 
    * "unchanged" — and a moment later the bike holds 45.
    */
   it("45 typed and the tab pressed, back on the tyre, 42 typed again and the field LEFT: the bike ends at 42, and the field never shows the 45 it is not saving", async () => {
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 300, queued: true });
+    const world = savedWorld("gravel-1x11", undefined, { held: true, queued: true });
     const { user } = await open(world);
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "45");
     await user.click(screen.getByRole("tab", { name: "Pièces" })); // rule 3: 45 is in flight
     await user.click(row("tire-front"));
 
+    // The whole case: the 45 has NOT answered when the 42 is typed and left.
     await typeInto(user, "etrto-width", "42");
-    // The whole case: the 45 has NOT answered when the 42 is left.
     expect(world.stored("tire-front", "etrto-width")).toBe(42);
     await user.tab();
     expect(status("etrto-width")).toBe("Enregistrement…");
 
     // The 45 answers first. The field goes on showing what it is saving.
-    await waitFor(() => expect(world.stored("tire-front", "etrto-width")).toBe(45));
+    await world.answer!();
+    expect(world.stored("tire-front", "etrto-width")).toBe(45);
     expect(field("etrto-width").value).toBe("42");
     expect(status("etrto-width")).toBe("Enregistrement…");
 
-    await settle(450);
+    await world.answer!();
     expect(world.writes).toEqual([
       { partId: "tire-front", key: "etrto-width", value: 45 },
       { partId: "tire-front", key: "etrto-width", value: 42 },
@@ -1224,7 +1264,7 @@ describe("what the review found — a value typed while an earlier write of the 
   });
 
   it("the same with the field LEFT first (an ordinary save in flight), another part picked and the first picked again", async () => {
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 300, queued: true });
+    const world = savedWorld("gravel-1x11", undefined, { held: true, queued: true });
     const { user, store } = await open(world);
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "45");
@@ -1237,14 +1277,18 @@ describe("what the review found — a value typed while an earlier write of the 
     await typeInto(user, "etrto-width", "42");
     expect(world.stored("tire-front", "etrto-width")).toBe(42);
     await user.tab();
-    await settle(800);
+    await world.answer!(2);
 
+    expect(world.writes).toEqual([
+      { partId: "tire-front", key: "etrto-width", value: 45 },
+      { partId: "tire-front", key: "etrto-width", value: 42 },
+    ]);
     expect(world.stored("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
     expect(field("etrto-width").value).toBe("42");
   });
 
   it("the same with the 42 NOT left: the tab pressed twice, 45 then 42", async () => {
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 300, queued: true });
+    const world = savedWorld("gravel-1x11", undefined, { held: true, queued: true });
     const { user } = await open(world);
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "45");
@@ -1253,7 +1297,7 @@ describe("what the review found — a value typed while an earlier write of the 
     await typeInto(user, "etrto-width", "42");
     expect(world.stored("tire-front", "etrto-width")).toBe(42);
     await user.click(screen.getByRole("tab", { name: "Pièces" }));
-    await settle(800);
+    await world.answer!(2);
 
     expect(world.writes).toEqual([
       { partId: "tire-front", key: "etrto-width", value: 45 },
@@ -1263,19 +1307,19 @@ describe("what the review found — a value typed while an earlier write of the 
   });
 
   it("once the earlier write has answered, a value typed back to what is stored is a no-op again", async () => {
-    const world = savedWorld("gravel-1x11", undefined, { latencyMs: 30, queued: true });
+    const world = savedWorld("gravel-1x11", undefined, { held: true, queued: true });
     const { user } = await open(world);
     await user.click(row("tire-front"));
     await typeInto(user, "etrto-width", "45");
     await user.click(screen.getByRole("tab", { name: "Pièces" }));
-    await settle(120);
+    await world.answer!();
     await user.click(row("tire-front"));
     expect(field("etrto-width").value).toBe("45");
 
     await typeInto(user, "etrto-width", "46");
     await typeInto(user, "etrto-width", "45");
     await user.tab();
-    await settle(120);
+    await settle();
 
     expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
     expect(status("etrto-width")).toBe("");

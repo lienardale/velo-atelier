@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readLocalBike, writeLocalBike } from "@/lib/bike/local-bike";
@@ -567,10 +567,9 @@ describe.each(LAYOUTS)("what the review found, panel $layout", ({ desktop }) => 
     notice.unavailable = true;
 
     await user.click(screen.getByRole("tab", { name: "Pièces" }));
-    await settle();
 
+    const said = await screen.findByTestId("unsaved-notices");
     expect(notice.error).not.toHaveBeenCalled();
-    const said = screen.getByTestId("unsaved-notices");
     expect(said).toHaveAttribute("role", "alert");
     expect(said).toHaveTextContent(`${UNSAVED_WIDTH} ${NOT_POSSIBLE}`);
     // Outside the panel: it is still there when the panel is rebuilt in its other layout.
@@ -590,9 +589,8 @@ describe("what the review found — a saved bike whose write does not answer", (
     await typeInto(user, "etrto-width", "45");
 
     await user.click(screen.getByRole("tab", { name: "Pièces" }));
-    await settle();
 
-    expect(notice.error).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(notice.error).toHaveBeenCalledTimes(1));
     expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
     expect(notice.error.mock.calls[0][1]?.description).toBeUndefined();
     expect(screen.queryByTestId("unsaved-notices")).toBeNull();
@@ -608,10 +606,9 @@ describe("what the review found — a saved bike whose write does not answer", (
     await typeInto(user, "etrto-width", "45");
 
     historyMoveTo("tire-rear");
-    await settle(20);
 
+    expect(await screen.findByTestId("unsaved-notices")).toHaveTextContent(UNSAVED_WIDTH);
     expect(title()).toBe("Pneu arrière");
-    expect(screen.getByTestId("unsaved-notices")).toHaveTextContent(UNSAVED_WIDTH);
     expect(screen.getByTestId("unsaved-notices")).not.toHaveTextContent(NOT_POSSIBLE);
     expect(notice.error).not.toHaveBeenCalled();
     process.off("unhandledRejection", unhandled);
