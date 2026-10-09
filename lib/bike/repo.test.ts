@@ -198,4 +198,32 @@ describe("bikeRepoFor", () => {
   it("refuses to build a db repo without the things only the page knows", () => {
     expect(() => bikeRepoFor("db", {})).toThrow(/bikeId/);
   });
+
+  /**
+   * `BikeWorkspace` builds a repo each time it mounts, so "the same bike" can
+   * never be "the same object": whatever outlives a mount is keyed by
+   * `bikeParam` (`components/bike/PartEditForm.tsx`, `.debug/017` §5.8).
+   */
+  it("names the bike it writes by its `[id]` segment — the same for every repo built over that bike", () => {
+    const actions = { updatePart: vi.fn(), updateFit: vi.fn() } as unknown as RemoteBikeActions;
+    const otherActions = {
+      updatePart: vi.fn(),
+      updateFit: vi.fn(),
+    } as unknown as RemoteBikeActions;
+    const first = bikeRepoFor("db", { bikeId: BIKE_ID, actions });
+    const again = bikeRepoFor("db", { bikeId: BIKE_ID, actions: otherActions });
+    expect(again).not.toBe(first);
+    expect(first.bikeParam).toBe(BIKE_ID);
+    expect(again.bikeParam).toBe(BIKE_ID);
+
+    const other = bikeRepoFor("db", { bikeId: "9b2d7c1a-5e3f-4a8b-b6c4-0d1e2f3a4b5c", actions });
+    expect(other.bikeParam).not.toBe(first.bikeParam);
+
+    // The two bikes that live in the browser are the words their URLs use.
+    expect(bikeRepoFor("demo", {}).bikeParam).toBe("demo");
+    expect(demoBikeRepo().bikeParam).toBe("demo");
+    expect(bikeRepoFor("local", { storage }).bikeParam).toBe("local");
+    expect(localBikeRepo({ storage: new MemoryStorage() }).bikeParam).toBe("local");
+    expect(remoteBikeRepo(BIKE_ID, actions).bikeParam).toBe(BIKE_ID);
+  });
 });

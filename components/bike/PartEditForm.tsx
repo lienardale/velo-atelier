@@ -119,6 +119,12 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * navigation arrives; the navigation takes the pending action's turn and the
  * next one goes at once. `updateBikePartAction` therefore takes the bike row's
  * lock before it reads (its header says how) — nothing here orders the two.
+ *
+ * And it is a write that can still be in flight when the visitor is BACK on
+ * the bike, in a workspace mounted again: what this form knows of writes in
+ * flight is therefore kept per bike, not per mount ({@link unanswered}). Two
+ * writes of ONE field in transit together are still not ordered by anything:
+ * the server applies them as they arrive (`docs/backlog.md`).
  */
 export interface PartEditFormProps {
   build: BikeBuild;
@@ -152,8 +158,8 @@ const UNREADABLE_KEY = "bike.errors.invalid-value";
 const UNSAVED_NOTICE_MS = 20_000;
 
 /**
- * Writes that were sent and have not answered yet: per repo, how many for
- * each `part:key`.
+ * Writes that were sent and have not answered yet: how many, per bike and
+ * `part:key`.
  *
  * Rule 2 compares what was typed with what is stored — and "stored" is what
  * the form was last handed, which a write in flight is about to change. With
@@ -165,21 +171,29 @@ const UNSAVED_NOTICE_MS = 20_000;
  * the same field is unanswered an edit is sent whatever it compares to.
  *
  * Module-level, because the form that sent the write is usually gone when the
- * question is asked; keyed by the repo, which `BikeWorkspace` keeps for as
- * long as the bike is on the page. A guest bike's write is in storage before
+ * question is asked — and keyed by the BIKE (`repo.bikeParam`), never by the
+ * repo object. It was keyed by the object at first, on the understanding that
+ * `BikeWorkspace` keeps its repo for as long as it is mounted. It does, and a
+ * mount is not long enough: a route left with 45 typed (the removal sends it)
+ * and come straight back to is the workspace mounted AGAIN, with a new repo,
+ * over a page that still says 42 — and 42 typed there was "unchanged" once
+ * more, the bike ending at 45 (measured, jsdom and Chromium 153 on a saved
+ * bike; `.debug/017` §5.8, "Second review").
+ *
+ * It knows what THIS document sent, and nothing else: not a write from
+ * another tab, and nothing once the page is reloaded. An entry lasts until its
+ * write answers or fails. A guest bike's write is in storage before
  * `setAttribute` returns, and its entry lasts one microtask.
  */
-const unanswered = new WeakMap<BikeRepo, Map<string, number>>();
+const unanswered = new Map<string, number>();
 
 /** Send one write, counted in {@link unanswered} from before it leaves until it answers or fails. */
-function sendTracked<T>(repo: BikeRepo, field: string, send: () => Promise<T>): Promise<T> {
-  const fields = unanswered.get(repo) ?? new Map<string, number>();
-  unanswered.set(repo, fields);
-  fields.set(field, (fields.get(field) ?? 0) + 1);
+function sendTracked<T>(field: string, send: () => Promise<T>): Promise<T> {
+  unanswered.set(field, (unanswered.get(field) ?? 0) + 1);
   return send().finally(() => {
-    const left = (fields.get(field) ?? 1) - 1;
-    if (left > 0) fields.set(field, left);
-    else fields.delete(field);
+    const left = (unanswered.get(field) ?? 1) - 1;
+    if (left > 0) unanswered.set(field, left);
+    else unanswered.delete(field);
   });
 }
 
@@ -247,11 +261,18 @@ function PartFields({
       });
   };
 
-  const fieldOf = (attribute: AttributeDef): string => `${partId}:${attribute.key}`;
+  /**
+   * This field of this BIKE — the key of {@link unanswered}. A bike is `demo`,
+   * `local` or a UUID; a part id and an attribute key are the domain's ids
+   * (`ID_PATTERN`: lower-case letters, digits, hyphens). None of the three can
+   * hold the `/` or the `:` that keep them apart.
+   */
+  const fieldOf = (attribute: AttributeDef): string =>
+    `${repo.bikeParam}/${partId}:${attribute.key}`;
 
   /** The one way a write leaves this form. The call itself is synchronous. */
   const write = (attribute: AttributeDef, value: AttributeValue | null) =>
-    sendTracked(repo, fieldOf(attribute), () =>
+    sendTracked(fieldOf(attribute), () =>
       repo.setAttribute(build, { partId, key: attribute.key, value }),
     );
 
@@ -330,7 +351,7 @@ function PartFields({
               disabled={!repo.canEdit || state.status === "saving"}
               saving={state.status === "saving"}
               refused={state.status === "error"}
-              isUnanswered={() => (unanswered.get(repo)?.get(fieldOf(attribute)) ?? 0) > 0}
+              isUnanswered={() => unanswered.has(fieldOf(attribute))}
               onCommit={(next) => save(attribute, next)}
               onCommitOnRemoval={(next) => saveOnRemoval(attribute, next)}
               onUnreadableOnRemoval={() => reportUnsaved(attribute, UNREADABLE_KEY)}
@@ -369,7 +390,7 @@ interface AttributeControlProps {
   saving: boolean;
   /** The last commit of this field was refused, and it still shows that text. */
   refused: boolean;
-  /** Has a write of this field — by this form or by one that is gone — not answered yet? */
+  /** Has a write of this field of this bike — by this form or by one that is gone — not answered yet? */
   isUnanswered: () => boolean;
   onCommit: (value: AttributeValue | null) => void;
   /** As `onCommit`, for text the field still held when it was removed. */

@@ -449,6 +449,40 @@ on every keystroke; `tests/e2e/part-panel.spec.ts` has the helper that types
 the real thing, and jsdom needs the state given to the node
 (`typeUnreadableInto`).
 
+#### Two writes of one field of a saved bike can be in transit together, and the last to ARRIVE wins
+
+While the page stays put Next's client sends one server action at a time
+(read, in its documentation and its source), so two writes of one field land
+in the order they were typed. After a navigation it sends the next one at
+once. The part form's write on removal is dispatched on a route change; if
+the visitor comes straight back and edits the same field while that write is
+still on its way, the second write leaves too (measured on 2026-10-10,
+Chromium 153, `desktop-chromium` and `mobile-chromium`: two POSTs in transit
+together, 16 runs of 16).
+`updateBikePartAction` applies them in the order they reach the bike row's
+lock. Delivered in the order sent, the bike ends at the last value typed.
+Delivered the other way round — produced by holding the requests in
+Playwright; no network was seen to do it — the bike ended at the FIRST value
+typed, and the page ended saying so: the field and the read-only line showed
+it, under a status still reading "Enregistré" from the other write, with no
+notice (8 runs of 8; `.debug/017` §5.8, "Second review").
+
+_Why deferred_ (the second review of the part-form fix, 2026-10-10): the
+finding under repair was that the second write was not SENT; it is now.
+Ordering the two is a change to how the form writes, with a price, and not a
+repair of that. **Awaiting the maintainer's ruling.**
+
+_To pick up_: if ruled "one write of a field at a time", keep a later write
+of the same bike, part and key back until the earlier one has answered or
+failed — the form already counts them under that key (`unanswered`,
+`components/bike/PartEditForm.tsx`). The price to weigh: a field then waits
+for as long as an earlier write of it hangs, which today only happens while
+the page stays put (Next's own queue). The write on removal must stay
+synchronous when nothing is in flight: a guest bike is in storage before the
+teardown returns, and a test holds it. The alternative is on the server — a
+sequence number per field, the older write refused — and needs the action's
+`.strict()` input to grow.
+
 #### The part form saves nothing when the page is unloaded with the caret in a field
 
 A value typed and not left is committed when its field is removed — another

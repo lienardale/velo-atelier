@@ -44,6 +44,19 @@ export interface AttributeEdit {
 
 export interface BikeRepo {
   readonly kind: BikeRefKind;
+  /**
+   * WHICH bike this repo writes, as the `[id]` segment names it: `demo`,
+   * `local`, or a saved bike's UUID.
+   *
+   * A repo object is not that. `BikeWorkspace` builds one each time it mounts,
+   * so a route left and come back to is two objects over one bike — and a
+   * write the first one sent can still be on its way when the second is asked
+   * to send the next. Whatever has to be remembered about a BIKE between two
+   * mounts is keyed by this, never by the object: the part form's record of
+   * writes in flight was keyed by the object at first, and lost a typed value
+   * that way (`components/bike/PartEditForm.tsx`, `.debug/017` §5.8).
+   */
+  readonly bikeParam: string;
   /** `false` for the demo bike: the UI shows the fork CTA instead of a form. */
   readonly canEdit: boolean;
   /** Apply one attribute edit and persist the whole build. */
@@ -68,6 +81,7 @@ export function demoBikeRepo(): BikeRepo {
   const refuse = async (): Promise<ActionResult<never>> => fail("FORBIDDEN");
   return {
     kind: "demo",
+    bikeParam: "demo",
     canEdit: false,
     setAttribute: refuse,
     setFit: refuse,
@@ -107,6 +121,8 @@ export function localBikeRepo(options: LocalRepoOptions = {}): BikeRepo {
 
   return {
     kind: "local",
+    // One guest bike per browser, whichever `storage` this repo was given.
+    bikeParam: "local",
     canEdit: true,
 
     async setAttribute(build, edit) {
@@ -167,6 +183,7 @@ export interface RemoteBikeActions {
 export function remoteBikeRepo(bikeId: string, actions: RemoteBikeActions): BikeRepo {
   return {
     kind: "db",
+    bikeParam: bikeId,
     canEdit: true,
     setAttribute: (_build, edit) =>
       actions.updatePart({ bikeId, partId: edit.partId, attributes: { [edit.key]: edit.value } }),
