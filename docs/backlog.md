@@ -475,7 +475,7 @@ repair of that. **Awaiting the maintainer's ruling.**
 _To pick up_: if ruled "one write of a field at a time", keep a later write
 of the same bike, part and key back until the earlier one has answered or
 failed — the form already keeps them on record under that key
-(`lib/bike/unsettled-writes.ts`). The price to weigh: a field then waits
+(`lib/bike/own-writes.ts`). The price to weigh: a field then waits
 for as long as an earlier write of it hangs, which today only happens while
 the page stays put (Next's own queue). The write on removal must stay
 synchronous when nothing is in flight: a guest bike is in storage before the
