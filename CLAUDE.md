@@ -848,7 +848,12 @@ docs/                contributor and operator docs — every one is linked from 
   is never replaced. NOT covered: the
   page unloaded with the caret in the field (a reload, a closed tab) — nothing
   is unmounted, and a saved bike's write would be a request the browser may
-  drop. **Any form that edits "the selected X" inside a container that
+  drop. Nor a guest bike replaced from ANOTHER TAB under a field that holds
+  typed text: the guest repo writes whichever bike is in the slot, so the
+  field's removal writes that text to the NEW bike's part (in jsdom, with
+  the `storage` event dispatched; not seen in a browser, where the other tab
+  has to take the focus first — `docs/backlog.md`, for a ruling). **Any form
+  that edits "the selected X" inside a container that
   outlives the selection follows the same three rules, and is tested through
   that container** — `PartInfo.test.tsx` rendered the form with a part set by
   hand and could not see any of this — **and its number fields are tried with

@@ -116,6 +116,12 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * still in the field (a reload, a closed tab): nothing is unmounted then, and
  * a saved bike's write would be a request the browser is free to drop.
  *
+ * And it sends to the bike the REPO writes, which for a guest bike is
+ * whichever one is in storage at that moment. Should another tab put a new
+ * guest bike there while a field here still holds typed text, the workspace
+ * is mounted again for the new bike and this field's removal writes its text
+ * to THAT bike (in jsdom; not seen in a browser — `docs/backlog.md`).
+ *
  * On a route change the flush is one more thing: a write sent WHILE ANOTHER IS
  * IN FLIGHT. Next's client sends server actions one at a time until a
  * navigation arrives; the navigation takes the pending action's turn and the
