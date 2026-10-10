@@ -42,6 +42,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { builtinEnvironments } from "vitest/runtime";
 
+import { forgetWrites } from "@/lib/bike/unsettled-writes";
 import { prisma } from "@/lib/db/prisma";
 import {
   sameOriginHeaders,
@@ -190,6 +191,8 @@ const drawn = (partId: string): HTMLElement =>
 
 beforeEach(() => {
   posted.length = 0;
+  // Each case is a document of its own (`lib/bike/unsettled-writes.ts`).
+  forgetWrites();
   notice.error.mockClear();
   setRequestHeaders(sameOriginHeaders());
 });
@@ -354,5 +357,100 @@ describe("the part form of a saved bike, through the real action, on PostgreSQL"
     expect(notice.error.mock.calls[0][1]?.description).toBe(
       "Cette valeur n’est pas possible pour cette caractéristique.",
     );
+  }, 60_000);
+
+  /**
+   * What the second review found (`.debug/017` §5.8). The removal's write on a
+   * ROUTE change is answered to a workspace that is gone, and the workspace
+   * mounted again is the page the router KEPT: the element rendered before
+   * the write, which still says 42. With nothing in flight any more, 42 typed
+   * there compared as "unchanged" and was not sent — the bike stayed at 45.
+   */
+  it("45 typed and not left, the route left and come back to: the real action has answered, the page the router kept still says 42, 42 typed and the field left — the 42 is sent, and PostgreSQL ends at 42", async () => {
+    await signedInUser("part-form-6@velo-atelier.test");
+    const bikeId = await ownBike("gravel-1x11");
+    window.history.replaceState(null, "", `/fr/velo/${bikeId}`);
+    // Rendered now, while the bike holds 42: this is what the router keeps.
+    const kept = await pageElement(bikeId);
+
+    const before = await open(bikeId);
+    await before.user.click(row("tire-front"));
+    await before.user.clear(field("etrto-width"));
+    await before.user.type(field("etrto-width"), "45");
+    before.unmount(); // history back: the removal sends 45
+    await before.answered(1);
+    expect(await inDatabase(bikeId, "tire-front", "etrto-width")).toBe(45);
+
+    // Forward again, before Next has fetched the page again.
+    const { user } = await renderWithIntl(kept);
+    await settle();
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    await user.clear(field("etrto-width"));
+    await user.type(field("etrto-width"), "42");
+    await user.tab();
+    await before.answered(2);
+
+    expect(posted).toEqual([
+      {
+        input: { bikeId, partId: "tire-front", attributes: { "etrto-width": 45 } },
+        result: "ok",
+      },
+      {
+        input: { bikeId, partId: "tire-front", attributes: { "etrto-width": 42 } },
+        result: "ok",
+      },
+    ]);
+    expect(await inDatabase(bikeId, "tire-front", "etrto-width")).toBe(42);
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(notice.error).not.toHaveBeenCalled();
+  }, 60_000);
+
+  /**
+   * A write stays on the form's record until the form is handed what it
+   * left. A CLEAR leaves nothing — which the build it answers with says by
+   * having no such attribute, and the page that runs again by showing the
+   * catalogue's default, the bike being derived again from its answers. Both
+   * are "handed what it left": otherwise the record never empties, and the
+   * default typed back, which changes nothing, is written.
+   */
+  it("the owner's 45 emptied and not left, then the 'Pièces' tab: cleared; the page run again says the default — and the default typed back there is not a write", async () => {
+    await signedInUser("part-form-7@velo-atelier.test");
+    const bikeId = await ownBike("gravel-1x11");
+    const seeded = await realUpdateBikePart({
+      bikeId,
+      partId: "tire-front",
+      attributes: { "etrto-width": 45 },
+    });
+    if (!seeded.ok) throw new Error("updateBikePartAction refused the setup");
+    posted.length = 0;
+    const { user, answered, refreshPage } = await open(bikeId);
+
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("45");
+    await user.clear(field("etrto-width"));
+    expect(document.activeElement).toBe(field("etrto-width"));
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await answered(1);
+    expect(await inDatabase(bikeId, "tire-front", "etrto-width")).toBeUndefined();
+
+    await refreshPage();
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    await user.clear(field("etrto-width"));
+    await user.type(field("etrto-width"), "43");
+    await user.clear(field("etrto-width"));
+    await user.type(field("etrto-width"), "42");
+    await user.tab();
+    await settle(300);
+
+    expect(posted).toEqual([
+      {
+        input: { bikeId, partId: "tire-front", attributes: { "etrto-width": null } },
+        result: "ok",
+      },
+    ]);
+    expect(status("etrto-width")).toBe("");
+    expect(await inDatabase(bikeId, "tire-front", "etrto-width")).toBeUndefined();
   }, 60_000);
 });

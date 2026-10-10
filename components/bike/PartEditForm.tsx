@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { loadToast } from "@/components/ui-ext/Notices";
 import type { ActionFailure } from "@/lib/actions/result";
 import type { BikeRepo } from "@/lib/bike/repo";
+import { fieldOf, handed, isUnsettled, sendTracked } from "@/lib/bike/unsettled-writes";
 import { partDefinition } from "@/lib/domain/data/parts";
-import { isAttributePresent } from "@/lib/domain/engine/parts-for-spec";
+import { defaultAttributeValue, isAttributePresent } from "@/lib/domain/engine/parts-for-spec";
 import type { AttributeDef, AttributeValue, BikeBuild } from "@/lib/domain/schema/part";
 import { cn } from "@/lib/utils";
 
@@ -62,8 +63,9 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  *      stored. Focusing a field and leaving it sends nothing. (It used to send
  *      whatever the DOM held, which is how a stale field became a write.)
  *      "What is stored" is only what this form was last TOLD: while a write of
- *      the same field has not answered yet it is about to change, so the
- *      comparison is not made and the edit is sent ({@link unanswered}).
+ *      the same field is in flight, or has answered without this form having
+ *      been handed what it left, the comparison is not made and the edit is
+ *      sent (`lib/bike/unsettled-writes.ts`).
  *   3. **Typed text is committed when the field goes away.** React runs no
  *      `onBlur` for a node it removes — and a browser that does fire `blur`
  *      during the removal (Chromium 153 does: measured) fires it inside React's
@@ -120,9 +122,11 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * next one goes at once. `updateBikePartAction` therefore takes the bike row's
  * lock before it reads (its header says how) — nothing here orders the two.
  *
- * And it is a write that can still be in flight when the visitor is BACK on
- * the bike, in a workspace mounted again: what this form knows of writes in
- * flight is therefore kept per bike, not per mount ({@link unanswered}). Two
+ * And it is a write whose answer may find the visitor BACK on the bike, in a
+ * workspace mounted again over a page that has not been told: still in
+ * flight, or answered to a workspace that is gone. What this form knows of
+ * its own writes is therefore kept per bike, not per mount, and until the
+ * form has been handed what a write left (`lib/bike/unsettled-writes.ts`). Two
  * writes of ONE field in transit together are still not ordered by anything:
  * the server applies them as they arrive (`docs/backlog.md`).
  */
@@ -158,43 +162,21 @@ const UNREADABLE_KEY = "bike.errors.invalid-value";
 const UNSAVED_NOTICE_MS = 20_000;
 
 /**
- * Writes that were sent and have not answered yet: how many, per bike and
- * `part:key`.
+ * What a page says of a field, whether the bike holds a value for it or not.
  *
- * Rule 2 compares what was typed with what is stored — and "stored" is what
- * the form was last handed, which a write in flight is about to change. With
- * 45 on its way for the front tyre (rule 3's write, the tab pressed), the
- * visitor back on the tyre sees 42 still shown, types 42 to be sure and leaves
- * the field: compared with the stale 42 that is "unchanged", nothing is sent,
- * and a moment later the field and the database say 45 (measured, a saved
- * bike on a slow connection; `.debug/017` §5.8, "Review of the fix"). So while a write of
- * the same field is unanswered an edit is sent whatever it compares to.
- *
- * Module-level, because the form that sent the write is usually gone when the
- * question is asked — and keyed by the BIKE (`repo.bikeParam`), never by the
- * repo object. It was keyed by the object at first, on the understanding that
- * `BikeWorkspace` keeps its repo for as long as it is mounted. It does, and a
- * mount is not long enough: a route left with 45 typed (the removal sends it)
- * and come straight back to is the workspace mounted AGAIN, with a new repo,
- * over a page that still says 42 — and 42 typed there was "unchanged" once
- * more, the bike ending at 45 (measured, jsdom and Chromium 153 on a saved
- * bike; `.debug/017` §5.8, "Second review").
- *
- * It knows what THIS document sent, and nothing else: not a write from
- * another tab, and nothing once the page is reloaded. An entry lasts until its
- * write answers or fails. A guest bike's write is in storage before
- * `setAttribute` returns, and its entry lasts one microtask.
+ * A field that was CLEARED holds nothing — and that is said in two ways: the
+ * build a write answers with has no such attribute, and a page rendered later
+ * has the catalogue's default there, because a bike is derived again from its
+ * answers each time it is loaded (`mergeAttributes`, `lib/bike/rules.ts`). To
+ * tell whether the form has been handed what a write left, the two are the
+ * same thing.
  */
-const unanswered = new Map<string, number>();
-
-/** Send one write, counted in {@link unanswered} from before it leaves until it answers or fails. */
-function sendTracked<T>(field: string, send: () => Promise<T>): Promise<T> {
-  unanswered.set(field, (unanswered.get(field) ?? 0) + 1);
-  return send().finally(() => {
-    const left = (unanswered.get(field) ?? 1) - 1;
-    if (left > 0) unanswered.set(field, left);
-    else unanswered.delete(field);
-  });
+function asPagesSayIt(
+  attribute: AttributeDef,
+  build: BikeBuild,
+  value: AttributeValue | undefined,
+): AttributeValue | undefined {
+  return value ?? defaultAttributeValue(attribute, build.spec) ?? undefined;
 }
 
 /** Rule 1: one instance per part. The key belongs here — see the header. */
@@ -231,6 +213,20 @@ function PartFields({
     };
   }, []);
 
+  // What this render was handed is what the form has been TOLD: a write of
+  // one of these fields that answered and left exactly that is settled, and
+  // rule 2 compares again (`lib/bike/unsettled-writes.ts`). After every
+  // render, and before any event can follow it.
+  useLayoutEffect(() => {
+    if (part === undefined) return;
+    for (const attribute of definition?.attributes ?? []) {
+      handed(
+        fieldOf(repo.bikeParam, partId, attribute.key),
+        asPagesSayIt(attribute, build, part.attributes[attribute.key]),
+      );
+    }
+  });
+
   if (definition === undefined || part === undefined) return null;
 
   const editable = definition.attributes.filter(
@@ -262,18 +258,26 @@ function PartFields({
   };
 
   /**
-   * This field of this BIKE — the key of {@link unanswered}. A bike is `demo`,
-   * `local` or a UUID; a part id and an attribute key are the domain's ids
-   * (`ID_PATTERN`: lower-case letters, digits, hyphens). None of the three can
-   * hold the `/` or the `:` that keep them apart.
+   * The one way a write leaves this form: on record until it is settled. The
+   * call itself is synchronous.
    */
-  const fieldOf = (attribute: AttributeDef): string =>
-    `${repo.bikeParam}/${partId}:${attribute.key}`;
-
-  /** The one way a write leaves this form. The call itself is synchronous. */
   const write = (attribute: AttributeDef, value: AttributeValue | null) =>
-    sendTracked(fieldOf(attribute), () =>
-      repo.setAttribute(build, { partId, key: attribute.key, value }),
+    sendTracked(
+      fieldOf(repo.bikeParam, partId, attribute.key),
+      () => repo.setAttribute(build, { partId, key: attribute.key, value }),
+      // What the write left in the field, as the build it answered with says it.
+      (answer) =>
+        answer.ok
+          ? {
+              value: asPagesSayIt(
+                attribute,
+                answer.data,
+                answer.data.parts.find((candidate) => candidate.partId === partId)?.attributes[
+                  attribute.key
+                ],
+              ),
+            }
+          : null,
     );
 
   const save = (attribute: AttributeDef, value: AttributeValue | null): void => {
@@ -351,7 +355,7 @@ function PartFields({
               disabled={!repo.canEdit || state.status === "saving"}
               saving={state.status === "saving"}
               refused={state.status === "error"}
-              isUnanswered={() => unanswered.has(fieldOf(attribute))}
+              isUnsettled={() => isUnsettled(fieldOf(repo.bikeParam, partId, attribute.key))}
               onCommit={(next) => save(attribute, next)}
               onCommitOnRemoval={(next) => saveOnRemoval(attribute, next)}
               onUnreadableOnRemoval={() => reportUnsaved(attribute, UNREADABLE_KEY)}
@@ -390,8 +394,12 @@ interface AttributeControlProps {
   saving: boolean;
   /** The last commit of this field was refused, and it still shows that text. */
   refused: boolean;
-  /** Has a write of this field of this bike — by this form or by one that is gone — not answered yet? */
-  isUnanswered: () => boolean;
+  /**
+   * Has this field of this bike a write — by this form or by one that is gone
+   * — that is in flight, or that answered without the form being handed what
+   * it left? `value` is then not to be compared with.
+   */
+  isUnsettled: () => boolean;
   onCommit: (value: AttributeValue | null) => void;
   /** As `onCommit`, for text the field still held when it was removed. */
   onCommitOnRemoval: (value: AttributeValue | null) => void;
@@ -483,7 +491,7 @@ function TypedControl({
   disabled,
   saving,
   refused,
-  isUnanswered,
+  isUnsettled,
   onCommit,
   onCommitOnRemoval,
   onUnreadableOnRemoval,
@@ -512,7 +520,7 @@ function TypedControl({
     attribute,
     value,
     saving,
-    isUnanswered,
+    isUnsettled,
     onCommitOnRemoval,
     onUnreadableOnRemoval,
   });
@@ -521,7 +529,7 @@ function TypedControl({
       attribute,
       value,
       saving,
-      isUnanswered,
+      isUnsettled,
       onCommitOnRemoval,
       onUnreadableOnRemoval,
     };
@@ -552,7 +560,7 @@ function TypedControl({
       // Never a clear: the empty `text` is the browser's, not the visitor's.
       if (edit.unreadable) return last.onUnreadableOnRemoval();
       const next = typedValue(last.attribute, edit.text);
-      if (last.isUnanswered() || !isStored(next, last.value)) last.onCommitOnRemoval(next);
+      if (last.isUnsettled() || !isStored(next, last.value)) last.onCommitOnRemoval(next);
     },
     [],
   );
@@ -577,7 +585,7 @@ function TypedControl({
         // Rule 2: nothing typed, nothing sent.
         if (!edited && !refused) return;
         const next = typedValue(attribute, event.currentTarget.value);
-        if (!isUnanswered() && isStored(next, value)) return onUnchanged();
+        if (!isUnsettled() && isStored(next, value)) return onUnchanged();
         onCommit(next);
       }}
     />
