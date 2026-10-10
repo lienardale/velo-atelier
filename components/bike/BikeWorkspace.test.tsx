@@ -935,6 +935,180 @@ describe("what the second review found — the workspace mounted again before it
   });
 });
 
+describe("what the third review found — the guest bike under `/velo/local` replaced by another, in one document", () => {
+  /**
+   * `/velo/local` names a slot. The bike in it has an id of its own, and is
+   * replaced by a NEW one — `writeLocalBike` with no id — when the visitor
+   * takes the demo's local copy or generates a bike again from the tree;
+   * neither loads the document again, and the workspace itself is keyed on
+   * that id. The form's record of its own writes was keyed by the word
+   * `local`: bike B inherited what this document had written to bike A, its
+   * 42 was "in doubt" against A's 45, and 42 typed back into B was SENT —
+   * "Enregistré", `updatedAt` moved, on a bike this document had never
+   * written (`.debug/017` §5.8, "Third review"; in jsdom here, and in
+   * Chromium). The record is the bike's: `repo.bikeKey()`.
+   *
+   * No `forgetWrites()` between the two bikes — that is the whole case.
+   */
+
+  /** Guest bike A: its front width set to 45, the field left, then the route. */
+  async function setTo45AndLeaveTheRoute(): Promise<string> {
+    const first = await openGuest("gravel-1x11", true);
+    await first.user.click(row("tire-front"));
+    await typeInto(first.user, "etrto-width", "45");
+    await first.user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(local("tire-front", "etrto-width")).toBe(45);
+    const id = readLocalBike()!.id;
+    first.unmount();
+    return id;
+  }
+
+  /** "Modifier ce vélo", by the demo bike's own button: `forkDemoToLocal`, then `router.push`. */
+  async function takeTheDemosLocalCopy(): Promise<void> {
+    setMediaQuery(MEDIA.desktop, true);
+    window.history.replaceState(null, "", "/fr/velo/demo");
+    const demo = await renderWithIntl(
+      <BikeWorkspace
+        locale="fr"
+        refKind="demo"
+        bikeParam="demo"
+        bikeId={null}
+        name={null}
+        build={presetBuild("gravel-1x11")}
+        answers={BIKE_PRESETS["gravel-1x11"]}
+        guides={[]}
+        resume={null}
+        description="un vélo"
+      />,
+    );
+    await settle();
+    await demo.user.click(row("tire-front"));
+    await demo.user.click(
+      screen.getByTestId("part-panel-fork").querySelector<HTMLButtonElement>("button")!,
+    );
+    await settle();
+    demo.unmount();
+  }
+
+  /** What the tree's summary stores once the visitor has confirmed: answers, and no id. */
+  async function generateAgainFromTheTree(): Promise<void> {
+    expect(writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] })).not.toBeNull();
+  }
+
+  /** Every write of the guest bike from here on: each is exactly one `setItem`. */
+  function guestWrites(): () => number {
+    const spy = vi.spyOn(Storage.prototype, "setItem");
+    restore.push(() => spy.mockRestore());
+    return () => spy.mock.calls.filter(([key]) => key === LOCAL_BIKE_KEY).length;
+  }
+  const restore: (() => void)[] = [];
+  afterEach(() => {
+    for (const undo of restore.splice(0)) undo();
+  });
+
+  const REPLACED = [
+    { how: 'the demo\'s local copy is taken ("Modifier ce vélo")', replace: takeTheDemosLocalCopy },
+    { how: "a bike is generated again from the tree", replace: generateAgainFromTheTree },
+  ] as const;
+  const EXITS = ["the field is left", "the 'Pièces' tab is pressed"] as const;
+
+  it.each(REPLACED.flatMap((replaced) => EXITS.map((exit) => ({ ...replaced, exit }))))(
+    "guest bike A's width set to 45; $how — guest bike B, a fresh id, stock 42; on B, 43 and then 42 typed and $exit: not one write",
+    async ({ replace, exit }) => {
+      const idOfA = await setTo45AndLeaveTheRoute();
+      await replace();
+      const b = readLocalBike()!;
+      expect(b.id, "a NEW guest bike").not.toBe(idOfA);
+      expect(local("tire-front", "etrto-width"), "B is the stock bike").toBe(42);
+
+      const { user } = await mountGuest(true);
+      await user.click(row("tire-front"));
+      expect(field("etrto-width").value).toBe("42");
+      const writes = guestWrites();
+
+      // Entered and left: never a write, whatever is on record.
+      await user.click(field("etrto-width"));
+      await user.tab();
+      await settle();
+      expect(writes(), "entered and left").toBe(0);
+
+      // Typed away, and back to what B holds. This document never wrote B.
+      await typeInto(user, "etrto-width", "43");
+      await typeInto(user, "etrto-width", "42");
+      if (exit === "the field is left") {
+        await user.tab();
+        await settle();
+        expect(status("etrto-width"), "42 typed back into a bike that holds 42").toBe("");
+      } else {
+        await user.click(screen.getByRole("tab", { name: "Pièces" }));
+        await settle();
+      }
+
+      expect(writes()).toBe(0);
+      // Not one byte of B moved — `updatedAt` included.
+      expect(readLocalBike()).toEqual(b);
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+
+  /**
+   * The other side of the same key: a guest bike IS on its own record, by its
+   * id, for as long as it is that bike — and so pays what a saved bike pays
+   * (the case two blocks up), pinned here so that it stays a decision: its
+   * field changed by ANOTHER TAB since this document wrote it, the first
+   * value typed back to what the page shows is sent, although it changes
+   * nothing. With guest bikes on no record at all, this case fails.
+   */
+  it("the SAME guest bike stays on its own record: its width changed in another tab since this document wrote it, a value typed back to what the page says is sent once, and not twice", async () => {
+    const { user } = await openGuest("gravel-1x11", true);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+    expect(local("tire-front", "etrto-width")).toBe(45);
+
+    // Another tab: the same bike — its id kept — and the width at 50.
+    const bike = readLocalBike()!;
+    const elsewhere = setAttribute(
+      { spec: bike.spec, parts: bike.parts },
+      "tire-front",
+      "etrto-width",
+      50,
+    );
+    if (!elsewhere.ok) throw new Error("the domain refused the seed");
+    writeLocalBike({
+      id: bike.id,
+      answers: bike.answers,
+      parts: elsewhere.build.parts,
+      fit: bike.fit,
+    });
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+    });
+    await settle();
+    expect(readLocalBike()!.id).toBe(bike.id);
+    expect(field("etrto-width").value, "the untouched field follows the other tab").toBe("50");
+
+    const writes = guestWrites();
+    await typeInto(user, "etrto-width", "51");
+    await typeInto(user, "etrto-width", "50");
+    await user.tab();
+    await settle();
+    expect(writes()).toBe(1);
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(local("tire-front", "etrto-width")).toBe(50);
+
+    await typeInto(user, "etrto-width", "51");
+    await typeInto(user, "etrto-width", "50");
+    await user.tab();
+    await settle();
+    expect(writes()).toBe(1);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+});
+
 describe("the demo bike", () => {
   it("still shows no form, on whichever part is picked on the drawing", async () => {
     setMediaQuery(MEDIA.desktop, true);

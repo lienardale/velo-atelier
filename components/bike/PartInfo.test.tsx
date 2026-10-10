@@ -85,8 +85,10 @@ function renderInfo(
 beforeEach(() => {
   storage = new MemoryStorage();
   writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage });
-  // A new guest bike under the same name: what the form remembers of its own
-  // writes is the previous case's (`lib/bike/own-writes.ts`).
+  // Each case is a document of its own (`lib/bike/own-writes.ts`). The guest
+  // bike above is a new one with a key of its own, so no case here leans on
+  // this (13 of 13 pass without it); every file that renders the form starts
+  // from an empty record all the same.
   forgetWrites();
 });
 

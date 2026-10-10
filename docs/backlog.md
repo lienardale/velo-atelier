@@ -501,6 +501,35 @@ _To pick up_: decide whether a guest-only save is wanted; for a saved bike,
 `fetch(…, { keepalive: true })` to a route handler rather than a server
 action, and a way to say on the next visit that the last edit did not land.
 
+#### A guest bike replaced from another tab under a field that holds typed text: the text is written to the new bike
+
+The guest repo reads `va:bike:local` before every write and writes whichever
+bike is there (`lib/bike/repo.ts`). With a guest bike on screen, 45 typed for
+its front tyre and the field NOT left, a NEW guest bike stored by another tab
+and the `storage` event delivered, the workspace is mounted again for the new
+bike, the old field is removed, and its removal writes the 45 to the NEW
+bike's front tyre, with no notice (measured on 2026-10-10 in jsdom, through
+the real `BikeWorkspace`, by a probe outside the repository; with nothing
+typed the new bike keeps its 42; `.debug/017` §5.8, "Third review"). Not seen
+in a browser, and reasoned to be out of a person's reach: the other tab has
+to be given the focus before it can store a bike, and a field that loses the
+focus commits its text to the bike that is still there. A script, or two
+pages driven at once, can do it.
+
+_Why deferred_ (the third review of the part-form fix, 2026-10-10): the
+finding under repair was the record of the form's own writes, which this is
+not — it is the form's commit on removal meeting a repo that follows the
+slot. Making the repo refuse is a change to what the guest repo does.
+**Awaiting the maintainer's ruling.**
+
+_To pick up_: if ruled "a guest repo writes ONE bike", give `localBikeRepo`
+the id of the bike it is built for (`BikeWorkspace` has it: it keys its
+viewer on it) and answer `NOT_FOUND` once the slot holds another — the
+removal's write then ends in the "not saved" notice, which names the part and
+the field. `bikeKey()` already tells the two bikes apart. `MeasurementForm`
+builds a guest repo too, with an explicit save and no commit on removal:
+decide whether it is bound as well.
+
 #### The guides list is built twice, and a card clicked during the swap does nothing
 
 `/guides` wraps `GuideFilters` — a client component that calls

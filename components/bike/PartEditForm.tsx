@@ -126,7 +126,9 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * workspace mounted again over a page that has not been told: still in
  * flight, or answered to a workspace that is gone. What this form knows of
  * its own writes is therefore kept per bike, not per mount, and past their
- * answers (`lib/bike/own-writes.ts`). Two writes of ONE field in transit
+ * answers (`lib/bike/own-writes.ts`) — per BIKE, which `repo.bikeKey()`
+ * names: a guest bike by its own id, not by the `local` of its route, where
+ * the next guest bike will be found. Two writes of ONE field in transit
  * together are still not ordered by anything: the server applies them as
  * they arrive (`docs/backlog.md`).
  */
@@ -245,7 +247,7 @@ function PartFields({
   /** The one way a write leaves this form, and onto its record. The call itself is synchronous. */
   const write = (attribute: AttributeDef, value: AttributeValue | null) =>
     sendTracked(
-      fieldOf(repo.bikeParam, partId, attribute.key),
+      fieldOf(repo.bikeKey(), partId, attribute.key),
       () => repo.setAttribute(build, { partId, key: attribute.key, value }),
       // What the write left in the field, as the build it answered with says it.
       (answer) =>
@@ -339,7 +341,7 @@ function PartFields({
               refused={state.status === "error"}
               isInDoubt={() =>
                 isInDoubt(
-                  fieldOf(repo.bikeParam, partId, attribute.key),
+                  fieldOf(repo.bikeKey(), partId, attribute.key),
                   asPagesSayIt(attribute, build, value),
                 )
               }

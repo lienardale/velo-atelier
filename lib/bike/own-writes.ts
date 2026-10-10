@@ -23,9 +23,22 @@
  * it left. Not "until the page has said it once": a page rendered before a
  * write can be delivered after the one that was rendered after it.
  *
- * Keyed by the BIKE (`BikeRepo.bikeParam`), never by a repo object or a
- * component: the form that asks is not the form that sent, and after a route
- * change neither is its workspace or its repo.
+ * Keyed by the BIKE (`BikeRepo.bikeKey()`), and by nothing that merely leads
+ * to one:
+ *
+ *   - not a repo object or a component. The form that asks is not the form
+ *     that sent, and after a route change neither is its workspace or its
+ *     repo;
+ *   - not the `[id]` segment of the route. `/velo/local` is a slot: the guest
+ *     bike in it is replaced by another — the demo's local copy, a bike
+ *     generated again from the tree — without the document being loaded
+ *     again. Keyed by the word `local`, as it was until the third review, the
+ *     new bike inherited what had been written to the one before it. A guest
+ *     bike's key holds its own id.
+ *
+ * A write that has no bike to go to (`bikeKey()` answers `null`: the slot
+ * holds no guest bike that can be read) is on no record at all: it is sent,
+ * and nothing is kept of it.
  *
  * ## What this costs, and what it cannot know
  *
@@ -63,13 +76,16 @@ const written = new Map<string, Written>();
 let sent = 0;
 
 /**
- * One field of one bike. A bike is `demo`, `local` or a UUID; a part id and
- * an attribute key are the domain's ids (`ID_PATTERN`: lower-case letters,
- * digits, hyphens). None of the three can hold the `/` or the `:` that keep
- * them apart.
+ * One field of one bike — or `null`, a field of no bike.
+ *
+ * `bikeKey` is `BikeRepo.bikeKey()`: `demo`, a saved bike's UUID, or `local:`
+ * and a guest bike's UUID. None of them holds a `/`. A part id and an
+ * attribute key are the domain's ids (`ID_PATTERN`: lower-case letters,
+ * digits, hyphens): neither holds a `/` or a `:`. So the first `/` ends the
+ * bike and the `:` after it ends the part — two fields never share a name.
  */
-export function fieldOf(bikeParam: string, partId: string, key: string): string {
-  return `${bikeParam}/${partId}:${key}`;
+export function fieldOf(bikeKey: string | null, partId: string, key: string): string | null {
+  return bikeKey === null ? null : `${bikeKey}/${partId}:${key}`;
 }
 
 function answered(field: string, order: number, wrote: Left | null): void {
@@ -85,17 +101,19 @@ function answered(field: string, order: number, wrote: Left | null): void {
 }
 
 /**
- * Send one write of `field`, on record from before it leaves.
+ * Send one write of `field`, on record from before it leaves — on no record
+ * for a field of no bike (`null`), which is only sent.
  *
  * `left` reads from an answer what the write left in the field, or `null` for
  * an answer that wrote nothing (a refusal). `send` is called synchronously,
  * and the promise handed back settles exactly as its own does.
  */
 export function sendTracked<T>(
-  field: string,
+  field: string | null,
   send: () => Promise<T>,
   left: (answer: T) => Left | null,
 ): Promise<T> {
+  if (field === null) return send();
   const entry = written.get(field) ?? { inFlight: 0 };
   entry.inFlight += 1;
   written.set(field, entry);
@@ -116,9 +134,10 @@ export function sendTracked<T>(
 /**
  * Is `shown` — what the form was handed for `field` — in doubt? While a write
  * of the field is in flight, and for as long as `shown` is not what this
- * document's last write of it left.
+ * document's last write of it left. Never, for a field of no bike.
  */
-export function isInDoubt(field: string, shown: AttributeValue | undefined): boolean {
+export function isInDoubt(field: string | null, shown: AttributeValue | undefined): boolean {
+  if (field === null) return false;
   const entry = written.get(field);
   if (entry === undefined) return false;
   return entry.inFlight > 0 || (entry.last !== undefined && entry.last.value !== shown);

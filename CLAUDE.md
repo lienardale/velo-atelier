@@ -781,13 +781,29 @@ docs/                contributor and operator docs — every one is linked from 
   whatever it compares to — while a write of it is in flight, and for as long
   as the page does not say what this document's last write of it left. With
   45 on its way, 42 typed back into a field still showing 42 used to be
-  "unchanged", and the bike ended at 45. Three things about that record were
-  each wrong once, and the first two lost that 42 again on a route left and
-  come straight back to (`.debug/017` §5.8, "Second review"). **It is keyed by
-  `repo.bikeParam`, never by the repo object**: `BikeWorkspace` builds its
-  repo when it mounts, so the page come back to is a second object over the
-  same bike while the first one's write is still on its way (8 runs of 8 in
-  Chromium, keyed by the object). **It is not emptied by a write's ANSWER**:
+  "unchanged", and the bike ended at 45. Four things about that record were
+  each wrong once; two of them — the object it was keyed by, and its being
+  emptied by an answer — lost that 42 again on a route left and come straight
+  back to (`.debug/017` §5.8, "Second review" and "Third review"). **It is
+  keyed by the BIKE — `repo.bikeKey()` — never by the repo
+  object**: `BikeWorkspace` builds its repo when it mounts, so the page come
+  back to is a second object over the same bike while the first one's write
+  is still on its way (8 runs of 8 in Chromium, keyed by the object). **Nor
+  by the route's `[id]` segment**, which it was keyed by next: `/velo/local`
+  names a SLOT, and the guest bike in it is replaced by a new one, with an id
+  of its own, when the visitor takes the demo's local copy or generates a
+  bike again from the tree — in the same document. Keyed by the word `local`,
+  the new bike inherited what had been written to the one before it: its
+  width typed away and back was sent, "Enregistré" under a field nothing had
+  changed (after the demo's copy: 8 runs of 8 in Chromium on the build of
+  `19ab8b8`, both projects; after the tree: in jsdom only, through the call
+  its summary makes; harmless — the value sent is the one the bike holds —
+  and untrue of every sentence here that said "per bike"). A guest bike's key is `local:` and ITS
+  id, read from storage each time it is asked (`peekLocalBikeId`, which
+  removes nothing, unlike the read: it is asked when a field is left); it is
+  `null` when the slot holds no bike that can be read, and a field of no bike
+  is on no record — the write is sent and nothing is kept of it. **It is not
+  emptied by a write's ANSWER**:
   the answer's build is handed to the workspace that sent the write
   (`onSaved`), which after a route change is gone, and the one mounted again
   goes on showing the page the router kept until Next has fetched it again —
@@ -801,17 +817,24 @@ docs/                contributor and operator docs — every one is linked from 
   writes of one field it is what the last one SENT left, since an earlier
   answer can come back later. Kept by name and for good, the record needs
   what an object dropped at the answer gave for free, each with a test:
-  another bike's write is not this bike's; a write that failed or was refused
-  leaves nothing on it; one that answered casts no doubt on a page that says
-  what it left. **Its price is a write too many — doubt is resolved towards
-  sending**: when a field this document has written was changed since by
-  something else (another tab, another device), the first value typed back
-  to what the page shows is sent although it changes nothing — pinned by a
-  case, so that it stays a decision. Focusing a field and leaving it is still
-  never a write. **Every case of a test file that renders the form starts
-  from an empty record** (`forgetWrites()` in `beforeEach`): the record is
-  one document's, the module is shared by the file's cases, and two cases
-  share the bikes' names (`local`, a fixed UUID) and nothing else. What the
+  another bike's write is not this bike's — two saved bikes, and two guest
+  bikes one after the other under `/velo/local`; a write that failed or was
+  refused leaves nothing on it; one that answered casts no doubt on a page
+  that says what it left. **Its price is a write too many — doubt is resolved
+  towards sending**: when a field this document has written was changed
+  since by something else (another tab, another device), the first value
+  typed back to what the page shows is sent although it changes nothing —
+  pinned by a case for a saved bike and one for a guest bike, so that it
+  stays a decision. Focusing a field and leaving it is still never a write.
+  **Every case of a test file that renders the form starts from an empty
+  record** (`forgetWrites()` in `beforeEach`): the record is one document's,
+  the module is shared by the file's cases, and two cases share a saved
+  bike's fixed UUID and nothing else (a guest bike has a new id in every
+  case: without the reset, the 2 cases of `PartsPanel.test.tsx` that then
+  fail are both a saved bike's). **A case about TWO bikes of one document
+  calls no `forgetWrites()` between them** — that reset is what a browser
+  does not have, and it is what kept the guest bikes' shared name from ever
+  showing in the suite. What the
   record does NOT do is order two writes: after a navigation Next's client
   has both in transit together (measured), the server applies them in the
   order they arrive, and delivered the other way round the bike ends at the
@@ -894,10 +917,14 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   alike. `lib/bike/repo.ts` is the one interface over the three destinations
   (demo = read-only, local = `localStorage`, db = server actions), so no
   component branches on the ref kind. **A repo says which bike it writes —
-  `bikeParam`: `demo`, `local`, or the UUID — because a repo OBJECT is not
-  the bike**: `BikeWorkspace` builds one each time it mounts, so whatever is
-  remembered about a bike from one mount to the next is keyed by that name,
-  never by the object (the part form's record of its own writes, above).
+  `bikeKey()`: `demo`, a saved bike's UUID, or `local:` and the id of the
+  guest bike in storage when it is asked (`null` when there is none) —
+  because neither a repo OBJECT nor the route's `[id]` segment is the bike**:
+  `BikeWorkspace` builds a repo each time it mounts, and `/velo/local` is a
+  slot whose bike is replaced by another while the document lives. Whatever
+  is remembered about a bike from one mount to the next is keyed by that
+  key, never by the object and never by the segment (the part form's record
+  of its own writes, above, was keyed by each in turn).
 - **The guest import is a contract, not three storage shapes forwarded — and a
   checkup travels as ANSWERS, never as steps.** `/import` is a server page
   (`auth()` + `buildMetadata`, like its `(protected)` siblings) wrapping one

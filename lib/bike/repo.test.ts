@@ -4,6 +4,7 @@ import { BIKE_PRESETS } from "@/lib/domain/data/presets";
 import { findPart } from "@/lib/domain/engine/parts-for-spec";
 
 import { readLocalBike, writeLocalBike, type KeyValueStorage } from "./local-bike";
+import { LOCAL_BIKE_KEY } from "./storage-keys";
 import {
   bikeRepoFor,
   demoBikeRepo,
@@ -198,14 +199,21 @@ describe("bikeRepoFor", () => {
   it("refuses to build a db repo without the things only the page knows", () => {
     expect(() => bikeRepoFor("db", {})).toThrow(/bikeId/);
   });
+});
 
-  /**
-   * `BikeWorkspace` builds a repo each time it mounts, so "the same bike" can
-   * never be "the same object": whatever outlives a mount is keyed by
-   * `bikeParam` (`components/bike/PartEditForm.tsx`, `.debug/017` §5.8).
-   */
-  it("names the bike it writes by its `[id]` segment — the same for every repo built over that bike", () => {
-    const actions = { updatePart: vi.fn(), updateFit: vi.fn() } as unknown as RemoteBikeActions;
+/**
+ * What outlives a mount is keyed by the BIKE (`components/bike/PartEditForm.tsx`,
+ * `lib/bike/own-writes.ts`, `.debug/017` §5.8) — and two things that lead to a
+ * bike are not one. A repo object: `BikeWorkspace` builds one each time it
+ * mounts. The `[id]` segment of the route: `/velo/local` is a slot, and the
+ * guest bike in it is replaced by another without the document being loaded
+ * again.
+ */
+describe("bikeKey — WHICH bike a repo writes", () => {
+  const actions = { updatePart: vi.fn(), updateFit: vi.fn() } as unknown as RemoteBikeActions;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+  it("a saved bike is its id, the same for every repo built over it, and another bike's is another", () => {
     const otherActions = {
       updatePart: vi.fn(),
       updateFit: vi.fn(),
@@ -213,17 +221,112 @@ describe("bikeRepoFor", () => {
     const first = bikeRepoFor("db", { bikeId: BIKE_ID, actions });
     const again = bikeRepoFor("db", { bikeId: BIKE_ID, actions: otherActions });
     expect(again).not.toBe(first);
-    expect(first.bikeParam).toBe(BIKE_ID);
-    expect(again.bikeParam).toBe(BIKE_ID);
+    expect(first.bikeKey()).toBe(BIKE_ID);
+    expect(again.bikeKey()).toBe(BIKE_ID);
+    expect(remoteBikeRepo(BIKE_ID, actions).bikeKey()).toBe(BIKE_ID);
 
     const other = bikeRepoFor("db", { bikeId: "9b2d7c1a-5e3f-4a8b-b6c4-0d1e2f3a4b5c", actions });
-    expect(other.bikeParam).not.toBe(first.bikeParam);
+    expect(other.bikeKey()).not.toBe(first.bikeKey());
+  });
 
-    // The two bikes that live in the browser are the words their URLs use.
-    expect(bikeRepoFor("demo", {}).bikeParam).toBe("demo");
-    expect(demoBikeRepo().bikeParam).toBe("demo");
-    expect(bikeRepoFor("local", { storage }).bikeParam).toBe("local");
-    expect(localBikeRepo({ storage: new MemoryStorage() }).bikeParam).toBe("local");
-    expect(remoteBikeRepo(BIKE_ID, actions).bikeParam).toBe(BIKE_ID);
+  it("the demo bike is the one demo bike", () => {
+    expect(bikeRepoFor("demo", {}).bikeKey()).toBe("demo");
+    expect(demoBikeRepo().bikeKey()).toBe("demo");
+  });
+
+  it("a guest bike is the bike in storage, by its own id — the same for every repo built over it, and across its own writes", async () => {
+    const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+    const first = localBikeRepo({ storage });
+    const again = bikeRepoFor("local", { storage });
+    expect(again).not.toBe(first);
+    expect(first.bikeKey()).toBe(`local:${bike.id}`);
+    expect(again.bikeKey()).toBe(`local:${bike.id}`);
+
+    // A write keeps the bike's id: it is still that bike.
+    const result = await first.setAttribute(
+      { spec: bike.spec, parts: bike.parts },
+      { partId: "saddle", key: "saddle-width", value: 155 },
+    );
+    expect(result.ok).toBe(true);
+    await first.setFit({ riderKg: 72 });
+    expect(first.bikeKey()).toBe(`local:${bike.id}`);
+  });
+
+  /**
+   * The demo's "Modifier ce vélo" and the tree's "Générer mon vélo" both store
+   * a guest bike WITHOUT an id — a new bike — in the slot the previous one was
+   * in. Until the third review every guest bike was named `local`, and the
+   * new one was taken for the old.
+   */
+  it.each([
+    [
+      "the demo's local copy",
+      () => forkDemoToLocal({ answers: BIKE_PRESETS["gravel-1x11"] }, storage),
+    ],
+    [
+      "a bike generated again from the tree",
+      () => writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage }),
+    ],
+  ] as const)(
+    "a guest bike REPLACED in the slot — %s — is another bike, to the very repo that was built over the first",
+    (_how, replace) => {
+      const first = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+      const repo = localBikeRepo({ storage });
+      const before = repo.bikeKey();
+      expect(before).toBe(`local:${first.id}`);
+
+      const second = replace();
+      expect(second).not.toBeNull();
+      expect(second!.id).not.toBe(first.id);
+      expect(repo.bikeKey()).toBe(`local:${second!.id}`);
+      expect(repo.bikeKey()).not.toBe(before);
+    },
+  );
+
+  it("no two kinds of bike can share a key: a guest bike's is not a UUID, and not the slot's name", () => {
+    const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+    const key = localBikeRepo({ storage }).bikeKey()!;
+    expect(bike.id).toMatch(UUID);
+    expect(key).not.toMatch(UUID);
+    expect(key).not.toBe("local");
+    expect(key).not.toBe("demo");
+    // What the record's field names are built on (`fieldOf`).
+    expect(key).not.toContain("/");
+    expect(BIKE_ID).toMatch(UUID);
+  });
+
+  it("there is no key where there is no bike to write: no storage, an empty slot, a value that does not parse", () => {
+    expect(localBikeRepo({ storage: null }).bikeKey()).toBeNull();
+    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+    expect(bikeRepoFor("local", { storage }).bikeKey()).toBeNull();
+
+    storage.setItem(LOCAL_BIKE_KEY, "{ not json");
+    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+    storage.setItem(LOCAL_BIKE_KEY, JSON.stringify({ version: 1, id: "not-a-uuid" }));
+    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+
+    const throwing: KeyValueStorage = {
+      getItem: () => {
+        throw new DOMException("blocked", "SecurityError");
+      },
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    };
+    expect(localBikeRepo({ storage: throwing }).bikeKey()).toBeNull();
+  });
+
+  /**
+   * It is asked when a field is left. `readLocalBike` REMOVES a value it
+   * cannot parse; asking which bike is there must not.
+   */
+  it("asking removes nothing from storage, readable or not", () => {
+    storage.setItem(LOCAL_BIKE_KEY, "{ not json");
+    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+    expect(storage.getItem(LOCAL_BIKE_KEY)).toBe("{ not json");
+
+    writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage });
+    const raw = storage.getItem(LOCAL_BIKE_KEY);
+    localBikeRepo({ storage }).bikeKey();
+    expect(storage.getItem(LOCAL_BIKE_KEY)).toBe(raw);
   });
 });
