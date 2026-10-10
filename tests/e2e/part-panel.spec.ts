@@ -1077,7 +1077,15 @@ forEachLocale((locale) => {
           await expect
             .poll(() => savedAttribute(bikeId, "tire-front", "etrto-width"), { timeout: 15_000 })
             .toBe(45);
-          await expect.poll(() => heldFetches, { timeout: 15_000 }).toBeGreaterThan(0);
+          // This half rests on HOW the page is told: by a fetch Next issues
+          // once the answer is in. Should a later Next tell it some other
+          // way, this is where the case stops — to be measured again.
+          await expect
+            .poll(() => heldFetches, {
+              timeout: 15_000,
+              message: "a fetch issued after the answer, and held",
+            })
+            .toBeGreaterThan(0);
           await expect(width).toHaveValue("42");
         }
 
