@@ -13,6 +13,7 @@ import {
   hasLocalBike,
   newLocalBikeId,
   parseLocalBike,
+  peekLocalBikeId,
   readLocalBike,
   writeLocalBike,
   type KeyValueStorage,
@@ -206,6 +207,66 @@ describe("readLocalBike / parseLocalBike", () => {
     expect(() => clearLocalBike(brokenStorage)).not.toThrow();
     expect(() => clearLocalBike(null)).not.toThrow();
   });
+});
+
+describe("peekLocalBikeId — WHICH guest bike is stored", () => {
+  it("is the stored bike's id, for as long as it is that bike: an update keeps it", () => {
+    const storage = new MemoryStorage();
+    const bike = writeLocalBike({ answers: gravel }, { storage })!;
+    expect(peekLocalBikeId(storage)).toBe(bike.id);
+
+    writeLocalBike({ id: bike.id, answers: gravel, fit: { saddleHeightMm: 742 } }, { storage });
+    expect(peekLocalBikeId(storage)).toBe(bike.id);
+  });
+
+  it("changes when the bike in the slot is replaced by a new one", () => {
+    const storage = new MemoryStorage();
+    const first = writeLocalBike({ answers: gravel }, { storage })!;
+    // No `id`: a NEW bike, as the tree and the demo's local copy store one.
+    const second = writeLocalBike({ answers: gravel }, { storage })!;
+    expect(second.id).not.toBe(first.id);
+    expect(peekLocalBikeId(storage)).toBe(second.id);
+  });
+
+  it("uses window.localStorage by default", () => {
+    window.localStorage.clear();
+    expect(peekLocalBikeId()).toBeNull();
+    const bike = writeLocalBike({ answers: gravel })!;
+    expect(peekLocalBikeId()).toBe(bike.id);
+    window.localStorage.clear();
+  });
+
+  it("is null where there is no bike to read: no storage, storage that throws, an absent key", () => {
+    expect(peekLocalBikeId(null)).toBeNull();
+    expect(peekLocalBikeId(brokenStorage)).toBeNull();
+    expect(peekLocalBikeId(new MemoryStorage())).toBeNull();
+  });
+
+  /**
+   * Where `readLocalBike` hands back no bike, this names none — and, unlike
+   * it, LEAVES the value there: it is asked when a field is left.
+   */
+  it.each([
+    ["not JSON", "{oops"],
+    ["wrong version", { version: 2 }],
+    ["id not a uuid", { id: "abc" }],
+    ["parts not an array", { parts: {} }],
+    ["date not ISO", { updatedAt: "yesterday" }],
+  ])(
+    "is null for a stored value that does not parse (%s), and removes nothing",
+    (_label, change) => {
+      const storage = new MemoryStorage();
+      writeLocalBike({ answers: gravel }, { storage });
+      const raw =
+        typeof change === "string" ? change : JSON.stringify({ ...stored(storage), ...change });
+      storage.setItem(LOCAL_BIKE_KEY, raw);
+
+      expect(peekLocalBikeId(storage)).toBeNull();
+      expect(storage.items.get(LOCAL_BIKE_KEY)).toBe(raw);
+      // …which is exactly where the read hands back nothing.
+      expect(readLocalBike(storage)).toBeNull();
+    },
+  );
 });
 
 describe("newLocalBikeId", () => {

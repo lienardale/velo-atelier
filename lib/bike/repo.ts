@@ -26,6 +26,7 @@ import type { AttributeValue, BikeBuild } from "@/lib/domain/schema/part";
 
 import {
   parseLocalBike,
+  peekLocalBikeId,
   readLocalBike,
   writeLocalBike,
   type KeyValueStorage,
@@ -45,18 +46,31 @@ export interface AttributeEdit {
 export interface BikeRepo {
   readonly kind: BikeRefKind;
   /**
-   * WHICH bike this repo writes, as the `[id]` segment names it: `demo`,
-   * `local`, or a saved bike's UUID.
+   * WHICH bike a write through this repo goes to, asked when it is needed —
+   * or `null` when there is no bike for one to go to.
    *
-   * A repo object is not that. `BikeWorkspace` builds one each time it mounts,
-   * so a route left and come back to is two objects over one bike — and a
-   * write the first one sent can still be on its way when the second is asked
-   * to send the next. Whatever has to be remembered about a BIKE between two
-   * mounts is keyed by this, never by the object: the part form's record of
-   * its own writes was keyed by the object at first, and lost a typed value
-   * that way (`lib/bike/own-writes.ts`, `.debug/017` §5.8).
+   *   demo    `demo`.
+   *   db      the bike's UUID.
+   *   local   `local:` and the id of the guest bike that is in storage NOW.
+   *           Not the word `local`: that is the `[id]` segment of a route,
+   *           and it names a SLOT. The bike in it is replaced by another one,
+   *           with an id of its own, when the visitor takes the demo's local
+   *           copy or generates a bike again from the tree — and neither
+   *           loads the document again.
+   *
+   * A repo object is not a bike either. `BikeWorkspace` builds one each time
+   * it mounts, so a route left and come back to is two objects over one bike
+   * — and a write the first one sent can still be on its way when the second
+   * is asked to send the next.
+   *
+   * Whatever has to be remembered about a BIKE between two mounts is keyed by
+   * this, never by the object and never by the route's segment. The part
+   * form's record of its own writes was keyed by each of them in turn: by the
+   * object it lost a typed value, and by the segment a new guest bike
+   * inherited the record of the one before it (`lib/bike/own-writes.ts`,
+   * `.debug/017` §5.8).
    */
-  readonly bikeParam: string;
+  bikeKey(): string | null;
   /** `false` for the demo bike: the UI shows the fork CTA instead of a form. */
   readonly canEdit: boolean;
   /** Apply one attribute edit and persist the whole build. */
@@ -81,7 +95,7 @@ export function demoBikeRepo(): BikeRepo {
   const refuse = async (): Promise<ActionResult<never>> => fail("FORBIDDEN");
   return {
     kind: "demo",
-    bikeParam: "demo",
+    bikeKey: () => "demo",
     canEdit: false,
     setAttribute: refuse,
     setFit: refuse,
@@ -121,8 +135,13 @@ export function localBikeRepo(options: LocalRepoOptions = {}): BikeRepo {
 
   return {
     kind: "local",
-    // One guest bike per browser, whichever `storage` this repo was given.
-    bikeParam: "local",
+    // The bike in the slot when this is asked: the one `setAttribute` below
+    // reads, and writes back under the same id, in the same turn.
+    bikeKey() {
+      const id =
+        options.storage === undefined ? peekLocalBikeId() : peekLocalBikeId(options.storage);
+      return id === null ? null : `local:${id}`;
+    },
     canEdit: true,
 
     async setAttribute(build, edit) {
@@ -183,7 +202,7 @@ export interface RemoteBikeActions {
 export function remoteBikeRepo(bikeId: string, actions: RemoteBikeActions): BikeRepo {
   return {
     kind: "db",
-    bikeParam: bikeId,
+    bikeKey: () => bikeId,
     canEdit: true,
     setAttribute: (_build, edit) =>
       actions.updatePart({ bikeId, partId: edit.partId, attributes: { [edit.key]: edit.value } }),

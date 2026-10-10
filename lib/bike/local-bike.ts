@@ -157,6 +157,30 @@ export function hasLocalBike(storage: KeyValueStorage | null = defaultStorage())
   return readLocalBike(storage) !== null;
 }
 
+/**
+ * WHICH guest bike is stored: its id, or `null` where {@link readLocalBike}
+ * would hand back no bike.
+ *
+ * `va:bike:local` is a slot, and the bike in it can be replaced by another
+ * one — {@link writeLocalBike} without an `id` — while the page lives: the
+ * demo's local copy, a bike generated again from the tree. The id is what
+ * tells the two apart (`BikeRepo.bikeKey`, `lib/bike/repo.ts`).
+ *
+ * A look, not a read: a value that does not parse is LEFT where it is. This
+ * is asked when a field is left, and leaving a field must not be what removes
+ * something from storage.
+ */
+export function peekLocalBikeId(storage: KeyValueStorage | null = defaultStorage()): string | null {
+  if (storage === null) return null;
+  let raw: string | null;
+  try {
+    raw = storage.getItem(LOCAL_BIKE_KEY);
+  } catch {
+    return null;
+  }
+  return parseLocalBike(raw)?.id ?? null;
+}
+
 export interface WriteLocalBikeInput {
   answers: Answers;
   /** Kept when valid for the new spec (attribute edits); otherwise rebuilt from the spec. */

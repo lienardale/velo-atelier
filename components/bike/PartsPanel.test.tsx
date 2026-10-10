@@ -55,8 +55,9 @@ import { PartsPanel, type PanelTab } from "./PartsPanel";
  *
  * The blocks after P5, "what the review found", are one case per defect a
  * review of the first version of the fix reproduced (`.debug/017` §5.8,
- * "Review of the fix"), and "what the second review found" one per defect its
- * repair left reachable ("Second review").
+ * "Review of the fix"), "what the second review found" one per defect its
+ * repair left reachable ("Second review"), and "what the third review found"
+ * the one the second repair's record had for guest bikes ("Third review").
  */
 
 const notice = vi.hoisted(() => ({
@@ -95,7 +96,10 @@ interface Write {
 /** A bike somewhere, the repo that writes to it, and everything that was asked of that repo. */
 interface World {
   kind: "guest" | "saved";
-  /** The `[id]` segment the bike is addressed by: `local`, or a saved bike's id. */
+  /**
+   * The `[id]` segment the bike is addressed by: `local`, or a saved bike's id.
+   * For a guest bike that is the name of a SLOT, not of the bike: see `replaced`.
+   */
   bikeParam: string;
   repo: BikeRepo;
   build: BikeBuild;
@@ -104,6 +108,13 @@ interface World {
   stored(partId: string, key: string): AttributeValue | undefined;
   /** Guest bike only: from now on the browser's storage is full. */
   fill?: () => void;
+  /**
+   * Guest bike only: this browser again, its guest bike REPLACED by a new one
+   * — the same storage, the same `local`, another id. It is what the demo's
+   * "Modifier ce vélo" and the tree's "Générer mon vélo" both do
+   * (`writeLocalBike` with no id), without the document being loaded again.
+   */
+  replaced?: (preset: PresetId) => World;
   /** A `held` saved bike only: let the oldest `count` writes in flight be answered. */
   answer?: (count?: number) => Promise<void>;
   /**
@@ -118,7 +129,8 @@ interface World {
 function recording(inner: BikeRepo, writes: Write[]): BikeRepo {
   return {
     kind: inner.kind,
-    bikeParam: inner.bikeParam,
+    // Asked of the real repo each time: a guest bike's key is read from storage.
+    bikeKey: () => inner.bikeKey(),
     canEdit: inner.canEdit,
     setAttribute: (build, edit) => {
       writes.push({ partId: edit.partId, key: edit.key, value: edit.value });
@@ -128,8 +140,12 @@ function recording(inner: BikeRepo, writes: Write[]): BikeRepo {
   };
 }
 
-function guestWorld(preset: PresetId, build: BikeBuild = presetBuild(preset)): World {
-  const storage = new MemoryStorage();
+function guestWorld(
+  preset: PresetId,
+  build: BikeBuild = presetBuild(preset),
+  storage: MemoryStorage = new MemoryStorage(),
+): World {
+  // No id: a NEW guest bike, whatever the storage held.
   // eslint-disable-next-line security/detect-object-injection -- a key of the presets table
   writeLocalBike({ answers: BIKE_PRESETS[preset], parts: build.parts }, { storage });
   const writes: Write[] = [];
@@ -142,6 +158,7 @@ function guestWorld(preset: PresetId, build: BikeBuild = presetBuild(preset)): W
     fill: () => {
       storage.full = true;
     },
+    replaced: (next) => guestWorld(next, presetBuild(next), storage),
     stored: (partId, key) => {
       const bike = readLocalBike(storage);
       if (bike === null) throw new Error("the guest bike is gone");
@@ -1602,6 +1619,95 @@ describe("what the second review found — the write in flight was sent by a wor
     expect(status("etrto-width")).toBe("");
     await other.answer!();
     expect(other.stored("tire-front", "etrto-width")).toBe(45);
+  });
+});
+
+describe("what the third review found — `local` names a slot, and the guest bike in it is replaced by another", () => {
+  /**
+   * The form's record of its own writes was keyed by `repo.bikeParam`, and for
+   * every guest bike that was the word `local`. But a guest bike has an id of
+   * its own, and the one under `/velo/local` is replaced by a NEW one — the
+   * demo's local copy, a bike generated again from the tree — in the same
+   * document. The new bike inherited the record: 45 written to bike A cast
+   * doubt on bike B's 42, and 42 typed back into B was sent, "Enregistré"
+   * under a field nothing had changed (`.debug/017` §5.8, "Third review" — in
+   * jsdom, and in Chromium). The record is the BIKE's: `repo.bikeKey()`.
+   *
+   * No `forgetWrites()` between the two bikes: they are one document's.
+   */
+  const leaves = ["the field is LEFT", "the 'Pièces' tab is pressed"] as const;
+
+  it.each(leaves)(
+    "guest bike A's front width set to 45; a NEW guest bike in its place, stock; 43 and then 42 typed there and %s: not a write",
+    async (leave) => {
+      const first = guestWorld("gravel-1x11");
+      const before = await open(first);
+      await before.user.click(row("tire-front"));
+      await typeInto(before.user, "etrto-width", "45");
+      await before.user.tab();
+      await settle();
+      expect(status("etrto-width")).toBe("Enregistré");
+      expect(first.stored("tire-front", "etrto-width")).toBe(45);
+      const keyOfA = first.repo.bikeKey();
+      before.unmount();
+
+      const world = first.replaced!("gravel-1x11");
+      expect(world.repo.bikeKey(), "another bike").not.toBe(keyOfA);
+      expect(world.stored("tire-front", "etrto-width")).toBe(42);
+      const { user } = await open(world);
+      await user.click(row("tire-front"));
+      expect(field("etrto-width").value).toBe("42");
+
+      // Entered and left: never a write, whatever is on record.
+      await user.click(field("etrto-width"));
+      await user.tab();
+      await settle();
+      expect(world.writes).toEqual([]);
+
+      // Typed away and back to what THIS bike holds.
+      await typeInto(user, "etrto-width", "43");
+      await typeInto(user, "etrto-width", "42");
+      if (leave === "the field is LEFT") {
+        await user.tab();
+        await settle();
+        expect(status("etrto-width")).toBe("");
+      } else {
+        await user.click(screen.getByRole("tab", { name: "Pièces" }));
+        await settle();
+      }
+
+      expect(world.writes).toEqual([]);
+      expect(world.stored("tire-front", "etrto-width")).toBe(42);
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a real edit of the bike that took its place is still one write, to that bike — and typed away and back after it, nothing more", async () => {
+    const first = guestWorld("gravel-1x11");
+    const before = await open(first);
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    await before.user.tab();
+    await settle();
+    expect(first.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+    before.unmount();
+
+    const world = first.replaced!("gravel-1x11");
+    const { user } = await open(world);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "47");
+    await user.tab();
+    await settle();
+    const SENT_47 = { partId: "tire-front", key: "etrto-width", value: 47 };
+    expect(world.writes).toEqual([SENT_47]);
+    expect(world.stored("tire-front", "etrto-width")).toBe(47);
+    expect(status("etrto-width")).toBe("Enregistré");
+
+    await typeInto(user, "etrto-width", "48");
+    await typeInto(user, "etrto-width", "47");
+    await user.tab();
+    await settle();
+    expect(world.writes).toEqual([SENT_47]);
   });
 });
 
