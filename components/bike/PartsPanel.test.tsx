@@ -10,7 +10,7 @@ import {
 import { fail, ok, type ActionErrorCode } from "@/lib/actions/result";
 import { readLocalBike, writeLocalBike, type KeyValueStorage } from "@/lib/bike/local-bike";
 import { bikeRepoFor, localBikeRepo, type BikeRepo, type RemoteBikeActions } from "@/lib/bike/repo";
-import { forgetWrites } from "@/lib/bike/unsettled-writes";
+import { forgetWrites } from "@/lib/bike/own-writes";
 import { hasMesh, partDefinition, type PartId } from "@/lib/domain/data/parts";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import { setAttribute } from "@/lib/domain/engine/validate-build";
@@ -1477,8 +1477,9 @@ describe("what the second review found — the write in flight was sent by a wor
    * again still says 42 until Next has fetched it again: for as long as that
    * takes, 42 typed there was "unchanged" too (`.debug/017` §5.8, "Second
    * review": one run of twelve of the reviewer's own probe on the first
-   * repair of this, and every run with that fetch held). A write is on record
-   * until the form has been handed what it left.
+   * repair of this, and every run with that fetch held). What a write left
+   * stays on record past its answer, and a page that does not say it is not
+   * compared with.
    */
   it.each(leaves)(
     "the 45 ANSWERED while nobody was there to be told, the page mounted again still says 42, then 42 typed and %s: the 42 is sent, and the bike ends at 42",

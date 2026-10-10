@@ -1,6 +1,6 @@
 /**
- * The part form's record of its own writes: which fields of which bike this
- * document has written and the form may not have been told about yet
+ * The part form's record of its own writes: what this document has sent for
+ * each field of each bike, and what the last of them left there
  * (`components/bike/PartEditForm.tsx`; `.debug/017` §5.8, "Review of the fix"
  * and "Second review"). Plain TS: no React, nothing of the form's.
  *
@@ -17,10 +17,11 @@
  *     the page the router kept until Next has fetched it again — a whole
  *     request later, on the slow connection this is about.
  *
- * So a write is on record from before it leaves until it is SETTLED: it failed
- * or was refused (it wrote nothing), or the form has been handed, for that
- * field, exactly what it left there. While a field has an unsettled write, an
- * edit of it is sent whatever it compares to.
+ * So what the form is handed for a field is IN DOUBT, and an edit of that
+ * field is sent whatever it compares to, while a write of it is in flight —
+ * and for as long as the page does not say what this document's last write of
+ * it left. Not "until the page has said it once": a page rendered before a
+ * write can be delivered after the one that was rendered after it.
  *
  * Keyed by the BIKE (`BikeRepo.bikeParam`), never by a repo object or a
  * component: the form that asks is not the form that sent, and after a route
@@ -28,14 +29,12 @@
  *
  * ## What this costs, and what it cannot know
  *
- * Sending is the safe side — it is what the visitor typed and left — so the
- * doubt is resolved towards one write too many. That happens when the form is
- * never handed what this document's last write of a field left: the write
- * answered while that part's form was not on screen, and the field was changed
- * by SOMETHING ELSE (another tab, another device) before it was shown again.
- * The record stays, and the first value typed back to what the page shows is
- * sent although it changes nothing. Its answer is what the page says, and that
- * settles it.
+ * Sending is the safe side — it is what the visitor typed and left — so doubt
+ * is resolved towards one write too many. That happens when a field this
+ * document has written was changed since by SOMETHING ELSE (another tab,
+ * another device): the page no longer says what the record holds, and the
+ * first value typed back to what the page shows is sent although it changes
+ * nothing. Its answer is what the page says, and the doubt ends there.
  *
  * It knows what THIS document sent, and nothing else: not a write from another
  * tab, and nothing once the page is reloaded. And it orders nothing: two
@@ -49,15 +48,19 @@ export interface Left {
   value: AttributeValue | undefined;
 }
 
-interface Unsettled {
+interface Written {
   /** Writes sent and not answered yet. */
   inFlight: number;
-  /** What the last write to be answered left in the field — until the form is handed it. */
-  left?: Left;
+  /**
+   * What was left by the write sent LAST, among those that have answered.
+   * By the order they were sent in, not the order their answers came back
+   * in: the answer of an earlier write can arrive after a later one's.
+   */
+  last?: Left & { sent: number };
 }
 
-/** An entry exists for as long as its field has an unsettled write, and no longer. */
-const unsettled = new Map<string, Unsettled>();
+const written = new Map<string, Written>();
+let sent = 0;
 
 /**
  * One field of one bike. A bike is `demo`, `local` or a UUID; a part id and
@@ -69,13 +72,16 @@ export function fieldOf(bikeParam: string, partId: string, key: string): string 
   return `${bikeParam}/${partId}:${key}`;
 }
 
-function answered(field: string, wrote: Left | null): void {
-  const entry = unsettled.get(field);
+function answered(field: string, order: number, wrote: Left | null): void {
+  const entry = written.get(field);
   // Gone only if the record was emptied meanwhile (`forgetWrites`).
   if (entry === undefined) return;
   entry.inFlight -= 1;
-  if (wrote !== null) entry.left = wrote;
-  if (entry.inFlight === 0 && entry.left === undefined) unsettled.delete(field);
+  if (wrote !== null && (entry.last === undefined || order > entry.last.sent)) {
+    entry.last = { value: wrote.value, sent: order };
+  }
+  // A field whose every write failed or was refused holds nothing of ours.
+  if (entry.inFlight === 0 && entry.last === undefined) written.delete(field);
 }
 
 /**
@@ -90,35 +96,32 @@ export function sendTracked<T>(
   send: () => Promise<T>,
   left: (answer: T) => Left | null,
 ): Promise<T> {
-  const entry = unsettled.get(field) ?? { inFlight: 0 };
+  const entry = written.get(field) ?? { inFlight: 0 };
   entry.inFlight += 1;
-  unsettled.set(field, entry);
+  written.set(field, entry);
+  sent += 1;
+  const order = sent;
   return send().then(
     (answer) => {
-      answered(field, left(answer));
+      answered(field, order, left(answer));
       return answer;
     },
     (error: unknown) => {
-      answered(field, null);
+      answered(field, order, null);
       throw error;
     },
   );
 }
 
-/** Has `field` a write that is in flight, or that answered and the form was not handed yet? */
-export function isUnsettled(field: string): boolean {
-  return unsettled.has(field);
-}
-
 /**
- * The form has been handed `shown` for `field`. A write that answered and
- * left exactly that is settled; anything else stays on record.
+ * Is `shown` — what the form was handed for `field` — in doubt? While a write
+ * of the field is in flight, and for as long as `shown` is not what this
+ * document's last write of it left.
  */
-export function handed(field: string, shown: AttributeValue | undefined): void {
-  const entry = unsettled.get(field);
-  if (entry?.left === undefined || entry.left.value !== shown) return;
-  delete entry.left;
-  if (entry.inFlight === 0) unsettled.delete(field);
+export function isInDoubt(field: string, shown: AttributeValue | undefined): boolean {
+  const entry = written.get(field);
+  if (entry === undefined) return false;
+  return entry.inFlight > 0 || (entry.last !== undefined && entry.last.value !== shown);
 }
 
 /**
@@ -126,5 +129,5 @@ export function handed(field: string, shown: AttributeValue | undefined): void {
  * file every case is a document of its own while the module is the same one.
  */
 export function forgetWrites(): void {
-  unsettled.clear();
+  written.clear();
 }

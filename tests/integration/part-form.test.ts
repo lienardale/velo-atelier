@@ -42,7 +42,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { builtinEnvironments } from "vitest/runtime";
 
-import { forgetWrites } from "@/lib/bike/unsettled-writes";
+import { forgetWrites } from "@/lib/bike/own-writes";
 import { prisma } from "@/lib/db/prisma";
 import {
   sameOriginHeaders,
@@ -191,7 +191,7 @@ const drawn = (partId: string): HTMLElement =>
 
 beforeEach(() => {
   posted.length = 0;
-  // Each case is a document of its own (`lib/bike/unsettled-writes.ts`).
+  // Each case is a document of its own (`lib/bike/own-writes.ts`).
   forgetWrites();
   notice.error.mockClear();
   setRequestHeaders(sameOriginHeaders());
@@ -407,12 +407,13 @@ describe("the part form of a saved bike, through the real action, on PostgreSQL"
   }, 60_000);
 
   /**
-   * A write stays on the form's record until the form is handed what it
-   * left. A CLEAR leaves nothing — which the build it answers with says by
-   * having no such attribute, and the page that runs again by showing the
-   * catalogue's default, the bike being derived again from its answers. Both
-   * are "handed what it left": otherwise the record never empties, and the
-   * default typed back, which changes nothing, is written.
+   * What a write left in a field stays on the form's record, and a page that
+   * does not say it is not compared with. A CLEAR leaves nothing — which the
+   * build it answers with says by having no such attribute, and the page that
+   * runs again by showing the catalogue's default, the bike being derived
+   * again from its answers. Both say what the clear left: otherwise that page
+   * is in doubt for good, and the default typed back, which changes nothing,
+   * is written.
    */
   it("the owner's 45 emptied and not left, then the 'Pièces' tab: cleared; the page run again says the default — and the default typed back there is not a write", async () => {
     await signedInUser("part-form-7@velo-atelier.test");

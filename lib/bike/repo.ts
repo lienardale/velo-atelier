@@ -54,7 +54,7 @@ export interface BikeRepo {
    * to send the next. Whatever has to be remembered about a BIKE between two
    * mounts is keyed by this, never by the object: the part form's record of
    * its own writes was keyed by the object at first, and lost a typed value
-   * that way (`lib/bike/unsettled-writes.ts`, `.debug/017` §5.8).
+   * that way (`lib/bike/own-writes.ts`, `.debug/017` §5.8).
    */
   readonly bikeParam: string;
   /** `false` for the demo bike: the UI shows the fork CTA instead of a form. */

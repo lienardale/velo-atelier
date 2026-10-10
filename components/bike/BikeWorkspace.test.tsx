@@ -101,7 +101,7 @@ vi.mock("@/app/[locale]/velo/[id]/reglages/actions", () => ({
 }));
 
 const { BikeWorkspace } = await import("./BikeWorkspace");
-const { forgetWrites } = await import("@/lib/bike/unsettled-writes");
+const { forgetWrites } = await import("@/lib/bike/own-writes");
 
 const BIKE_ID = "3f0c1f0e-6f0a-4c56-9d3b-1c2d3e4f5a6b";
 
@@ -220,10 +220,17 @@ async function mountSaved(preset: PresetId, shown: BikeBuild) {
     <BikeWorkspace {...savedProps(preset)} build={structuredClone(shown)} />,
   );
   await settle();
-  /** What `revalidatePath` makes Next do after a write: the page runs again. */
-  const refreshPage = async (): Promise<void> => {
+  /**
+   * What `revalidatePath` makes Next do after a write: the page runs again.
+   * Given `rendered`, it is a page that ran EARLIER which is delivered now —
+   * a fetch that left before a write and comes back after it.
+   */
+  const refreshPage = async (rendered?: BikeBuild): Promise<void> => {
     const selected = new URL(window.location.href).searchParams.get("part") as PartId | null;
-    view.rerender(<BikeWorkspace {...savedProps(preset, selected)} />);
+    const props = savedProps(preset, selected);
+    view.rerender(
+      <BikeWorkspace {...props} build={rendered ? structuredClone(rendered) : props.build} />,
+    );
     await settle();
   };
   return { ...view, refreshPage };
@@ -251,7 +258,7 @@ const UNSAVED_WIDTH = "Pneu avant · Largeur du pneu : votre saisie n’a pas é
 const NOT_POSSIBLE = "Cette valeur n’est pas possible pour cette caractéristique.";
 
 beforeEach(() => {
-  // Each case is a document of its own: see `lib/bike/unsettled-writes.ts`.
+  // Each case is a document of its own: see `lib/bike/own-writes.ts`.
   forgetWrites();
   notice.error.mockClear();
   notice.unavailable = false;
@@ -786,11 +793,45 @@ describe("what the second review found — the workspace mounted again before it
   });
 
   /**
+   * Why the record is KEPT once the page has said what a write left, and not
+   * dropped there: a page rendered before the write can be delivered after
+   * the one rendered after it. The field then says 42 again over a bike that
+   * holds 45 — and 42 typed there is the same "unchanged" a third time.
+   */
+  it("a page rendered BEFORE the write, delivered after the form was told of it: the field follows it, and what is typed back to it is sent", async () => {
+    const { user, refreshPage } = await openSaved("gravel-1x11");
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(saved("tire-front", "etrto-width")).toBe(45);
+    await refreshPage(); // the page run after the write: 45, as the form says
+    // A value typed back to that is not a write — and having agreed once
+    // takes nothing off the record.
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+    expect(server.payloads).toEqual([SENT_45]);
+
+    await refreshPage(STOCK); // …and then the page that ran before the write
+    expect(field("etrto-width").value).toBe("42");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    await settle();
+
+    expect(server.payloads).toEqual([SENT_45, SENT_42]);
+    expect(saved("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
+    expect(status("etrto-width")).toBe("Enregistré");
+  });
+
+  /**
    * What the record costs, pinned so that it stays a decision: when the page
-   * never says what this document's last write left — the field was changed
-   * by something else since — the first value typed back to what the page
-   * shows is SENT, although it changes nothing. Sending is the safe side. Its
-   * own answer settles it.
+   * does not say what this document's last write of a field left — the field
+   * was changed by something else since — the first value typed back to what
+   * the page shows is SENT, although it changes nothing. Sending is the safe
+   * side. Its own answer is what the page says, and the doubt ends there.
    */
   it("the field changed by another device since this document wrote it: a value typed back to what the page says is sent once, and not twice", async () => {
     const { user, refreshPage } = await openSaved("gravel-1x11");
@@ -827,7 +868,7 @@ describe("what the second review found — the workspace mounted again before it
    * A CLEAR leaves nothing in the field, and pages say that in two ways: the
    * build the write answers with has no such attribute; a page rendered later
    * shows the catalogue's default, the bike being derived again from its
-   * answers. Handed either, the form has been told (the real page is
+   * answers. Either says what the clear left (the real page is
    * `tests/integration/part-form.test.ts`).
    */
   it("the owner's 45 emptied and not left, the tab pressed: cleared. The page run again shows the default there — and the default typed back is not a write", async () => {
@@ -843,6 +884,17 @@ describe("what the second review found — the workspace mounted again before it
     const CLEARED = { ...SENT_45, attributes: { "etrto-width": null } };
     expect(server.payloads).toEqual([CLEARED]);
     expect(saved("tire-front", "etrto-width")).toBeUndefined();
+
+    // The build the clear answered with: no width at all. Text typed there and
+    // deleted again leaves the field as the clear left it — not a write.
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("");
+    await typeInto(user, "etrto-width", "43");
+    await user.clear(field("etrto-width"));
+    await user.tab();
+    await settle();
+    expect(server.payloads).toEqual([CLEARED]);
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
 
     // As the real page hands it down: the bike derived again, the default back.
     server.build = buildOf(
