@@ -985,107 +985,146 @@ function gate(): { passed: Promise<void>; open: () => void } {
 
 forEachLocale((locale) => {
   /**
-   * The write a field's removal sends on a ROUTE change is still in transit
-   * when the visitor is back on the bike — a slow connection, a cold function.
-   * The workspace was mounted again, the page the router kept still says 42,
-   * and the visitor types 42 to put the 45 right. The form's record of writes
-   * in flight was kept per repo OBJECT, and a workspace mounted again builds a
-   * new one: the 42 compared as "unchanged", nothing was sent, no status
-   * appeared, and the bike ended at 45 (nine runs of fourteen with every POST
-   * delayed 2.5 s, on the build of `faf4040`).
+   * The write a field's removal sends on a ROUTE change, and the visitor
+   * straight back on the bike — a slow connection, a cold function. The
+   * workspace was mounted again, the page the router kept still says 42, and
+   * the visitor types 42 to put the 45 right. Twice the form took that for
+   * "unchanged" and sent nothing, so that the bike ended at 45:
    *
-   * Both POSTs are held by the case and let through in the order they were
-   * sent, the second only once the first is in PostgreSQL. What is under test
-   * is that the second is SENT. What a network does with the two is not: after
-   * a navigation Next's client has both in transit together (measured), and
-   * delivered the other way round the bike ends at 45 (`.debug/017` §5.8).
+   *   - while the 45 was still IN TRANSIT. The form's record of writes in
+   *     flight was kept per repo OBJECT, and a workspace mounted again builds a
+   *     new one (nine runs of fourteen with every POST delayed 2.5 s, on the
+   *     build of `faf4040`);
+   *   - once the 45 had ANSWERED, for as long as the page had not been fetched
+   *     again: the answer's build goes to the workspace that sent the write,
+   *     which is gone (one run of twelve of that same probe on the first
+   *     repair's build, `761d602` — and every run with the fetch held).
+   *
+   * Nothing is timed. Each POST waits at a gate the case opens, in the order
+   * they were sent; in the second half every RSC fetch issued after the first
+   * write is let through is held as well, which is what keeps the page from
+   * being told. What is under test is that the second write is SENT. What a
+   * network does with two in transit is not: after a navigation Next's client
+   * has both on their way together (measured), and delivered the other way
+   * round the bike ends at 45 (`.debug/017` §5.8).
    */
-  for (const leave of ["the field is left", "the parts tab is pressed"] as const) {
-    test(`a width typed and not left, history back and forward while its write is in transit, the stored width typed again and ${leave}: the bike ends at what was typed last — saved bike (${locale})`, async ({
-      page,
-      hasTouch,
-      signedInContext,
-    }, testInfo) => {
-      const { user, bikeId } = await ownBike(
-        `again-${leave === "the field is left" ? "blur" : "tab"}-${testInfo.project.name}-${locale}-${testInfo.repeatEachIndex}`,
-        locale,
-        "gravel-1x11",
-      );
-      await signedInContext(user);
-      // Reached by its link, so that "back" is a navigation inside the app.
-      await page.goto(href(locale, "/mes-velos"));
-      await page.locator(`[data-testid=my-bikes-list] a[href$="/${bikeId}"]`).first().click();
-      await page.waitForURL((url) => url.pathname.endsWith(`/${bikeId}`));
-      await clickRow(page, "tire-front");
-      await expandSheetIfPresent(page);
-      const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
-      await expect(width).toHaveValue("42");
-
-      const sent: string[] = [];
-      const gates = [gate(), gate()];
-      await page.route(
-        () => true,
-        async (route) => {
-          if (route.request().method() !== "POST") return route.continue();
-          const mine = gates.at(sent.length);
-          sent.push(new URL(route.request().url()).pathname);
-          await mine?.passed;
-          await route.continue();
-        },
-      );
-
-      await typeAndStay(page, width, "45");
-      await page.goBack();
-      await page.waitForURL((url) => url.pathname === href(locale, "/mes-velos"));
-      // The removal's write: on its way, and going nowhere until the case says so.
-      await expect.poll(() => sent.length).toBe(1);
-
-      await page.goForward();
-      await page.waitForURL((url) => url.pathname.endsWith(`/${bikeId}`));
-      await clickRow(page, "tire-front");
-      await expandSheetIfPresent(page);
-      await expect(width).toHaveValue("42");
-      expect(await savedAttribute(bikeId, "tire-front", "etrto-width")).toBe(42);
-
-      await typeAndStay(page, width, "42");
-      const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
-      if (leave === "the field is left") {
-        await page.keyboard.press("Tab");
-        // Sent: until the review nothing was, and this line stayed empty.
-        await expect(page.getByTestId("attr-status-etrto-width")).toHaveText(
-          locale === "fr" ? frBike.panel.saving : enBike.panel.saving,
+  const halves = [
+    { when: "in transit", answered: false },
+    { when: "answered, the page not fetched again yet", answered: true },
+  ] as const;
+  for (const { when, answered } of halves) {
+    for (const leave of ["the field is left", "the parts tab is pressed"] as const) {
+      test(`a width typed and not left, history back and forward, its write ${when}; the width the page still shows typed again and ${leave}: the bike ends at what was typed last — saved bike (${locale})`, async ({
+        page,
+        hasTouch,
+        signedInContext,
+      }, testInfo) => {
+        const { user, bikeId } = await ownBike(
+          `again-${answered ? "told" : "sent"}-${leave === "the field is left" ? "blur" : "tab"}-${testInfo.project.name}-${locale}-${testInfo.repeatEachIndex}`,
+          locale,
+          "gravel-1x11",
         );
-      } else {
-        if (hasTouch) await partsTab.tap();
-        else await partsTab.click();
-        await expect(page.getByTestId("parts-list")).toBeVisible();
-      }
-
-      // The first write was in transit all along: it lands now, and only now.
-      gates[0].open();
-      await expect
-        .poll(() => savedAttribute(bikeId, "tire-front", "etrto-width"), { timeout: 15_000 })
-        .toBe(45);
-      gates[1].open();
-      await expect
-        .poll(
-          async () => ({
-            width: await savedAttribute(bikeId, "tire-front", "etrto-width"),
-            sent: sent.length,
-          }),
-          { timeout: 15_000 },
-        )
-        .toEqual({ width: 42, sent: 2 });
-
-      if (leave === "the field is left") {
-        await expect(page.getByTestId("attr-status-etrto-width")).toHaveText(
-          locale === "fr" ? frBike.panel.saved : enBike.panel.saved,
-        );
-      } else {
+        await signedInContext(user);
+        // Reached by its link, so that "back" is a navigation inside the app.
+        await page.goto(href(locale, "/mes-velos"));
+        await page.locator(`[data-testid=my-bikes-list] a[href$="/${bikeId}"]`).first().click();
+        await page.waitForURL((url) => url.pathname.endsWith(`/${bikeId}`));
         await clickRow(page, "tire-front");
-      }
-      await expect(width).toHaveValue("42");
-      await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
-    });
+        await expandSheetIfPresent(page);
+        const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+        const status = page.getByTestId("attr-status-etrto-width");
+        await expect(width).toHaveValue("42");
+
+        const sent: string[] = [];
+        const posts = [gate(), gate()];
+        const fetches = gate();
+        let holdFetches = false;
+        let heldFetches = 0;
+        await page.route(
+          () => true,
+          async (route) => {
+            const request = route.request();
+            if (request.method() === "POST") {
+              const mine = posts.at(sent.length);
+              sent.push(new URL(request.url()).pathname);
+              await mine?.passed;
+            } else if (holdFetches && request.headers().rsc !== undefined) {
+              heldFetches += 1;
+              await fetches.passed;
+            }
+            await route.continue();
+          },
+        );
+
+        await typeAndStay(page, width, "45");
+        await page.goBack();
+        await page.waitForURL((url) => url.pathname === href(locale, "/mes-velos"));
+        // The removal's write: on its way, and going nowhere until the case says so.
+        await expect.poll(() => sent.length).toBe(1);
+
+        await page.goForward();
+        await page.waitForURL((url) => url.pathname.endsWith(`/${bikeId}`));
+        await clickRow(page, "tire-front");
+        await expandSheetIfPresent(page);
+        await expect(width).toHaveValue("42");
+        expect(await savedAttribute(bikeId, "tire-front", "etrto-width")).toBe(42);
+
+        if (answered) {
+          // The 45 lands and answers. Whatever would tell the page is held:
+          // the first fetch Next issues once the answer is in.
+          holdFetches = true;
+          posts[0].open();
+          await expect
+            .poll(() => savedAttribute(bikeId, "tire-front", "etrto-width"), { timeout: 15_000 })
+            .toBe(45);
+          await expect.poll(() => heldFetches, { timeout: 15_000 }).toBeGreaterThan(0);
+          await expect(width).toHaveValue("42");
+        }
+
+        await typeAndStay(page, width, "42");
+        if (leave === "the field is left") {
+          await page.keyboard.press("Tab");
+          // Sent: until the review nothing was, and this line stayed empty.
+          await expect(status).toHaveText(
+            locale === "fr" ? frBike.panel.saving : enBike.panel.saving,
+          );
+        } else {
+          const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
+          if (hasTouch) await partsTab.tap();
+          else await partsTab.click();
+          await expect(page.getByTestId("parts-list")).toBeVisible();
+        }
+
+        if (!answered) {
+          // The first write was in transit all along: it lands now, and only now.
+          posts[0].open();
+          await expect
+            .poll(() => savedAttribute(bikeId, "tire-front", "etrto-width"), { timeout: 15_000 })
+            .toBe(45);
+        }
+        holdFetches = false;
+        fetches.open();
+        posts[1].open();
+        await expect
+          .poll(
+            async () => ({
+              width: await savedAttribute(bikeId, "tire-front", "etrto-width"),
+              sent: sent.length,
+            }),
+            { timeout: 15_000 },
+          )
+          .toEqual({ width: 42, sent: 2 });
+
+        if (leave === "the field is left") {
+          await expect(status).toHaveText(
+            locale === "fr" ? frBike.panel.saved : enBike.panel.saved,
+          );
+        } else {
+          await clickRow(page, "tire-front");
+        }
+        await expect(width).toHaveValue("42");
+        await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+      });
+    }
   }
 });

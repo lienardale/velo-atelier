@@ -10,6 +10,7 @@ import {
 import { fail, ok, type ActionErrorCode } from "@/lib/actions/result";
 import { readLocalBike, writeLocalBike, type KeyValueStorage } from "@/lib/bike/local-bike";
 import { bikeRepoFor, localBikeRepo, type BikeRepo, type RemoteBikeActions } from "@/lib/bike/repo";
+import { forgetWrites } from "@/lib/bike/unsettled-writes";
 import { hasMesh, partDefinition, type PartId } from "@/lib/domain/data/parts";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import { setAttribute } from "@/lib/domain/engine/validate-build";
@@ -395,6 +396,10 @@ function withWidth(partId: "tire-front" | "tire-rear", width: number): BikeBuild
 
 beforeEach(() => {
   notice.error.mockClear();
+  // Each case is a document of its own, and the form's record of what it has
+  // written is one document's: two cases share the bikes' NAMES (`local`,
+  // `BIKE_ID`) and nothing else.
+  forgetWrites();
 });
 
 afterEach(async () => {
@@ -1464,6 +1469,70 @@ describe("what the second review found — the write in flight was sent by a wor
       expect(notice.error).not.toHaveBeenCalled();
     },
   );
+
+  /**
+   * The other half of the same absence. The 45 ANSWERS — while the visitor is
+   * away, or just back — and its build is handed to the workspace that sent
+   * it, which is gone. Nothing is in flight any more, and the page mounted
+   * again still says 42 until Next has fetched it again: for as long as that
+   * takes, 42 typed there was "unchanged" too (`.debug/017` §5.8, "Second
+   * review": one run of twelve of the reviewer's own probe on the first
+   * repair of this, and every run with that fetch held). A write is on record
+   * until the form has been handed what it left.
+   */
+  it.each(leaves)(
+    "the 45 ANSWERED while nobody was there to be told, the page mounted again still says 42, then 42 typed and %s: the 42 is sent, and the bike ends at 42",
+    async (leave) => {
+      const world = savedWorld("gravel-1x11", undefined, { held: true });
+      const before = await open(world);
+      await before.user.click(row("tire-front"));
+      await typeInto(before.user, "etrto-width", "45");
+      before.unmount();
+      await world.answer!(); // the 45 is in the bike; the workspace it answers to is gone
+      expect(world.stored("tire-front", "etrto-width")).toBe(45);
+
+      // The page the router kept: it has not been fetched again yet.
+      const { user } = await open(world.mountedAgain!());
+      await user.click(row("tire-front"));
+      expect(field("etrto-width").value).toBe("42");
+      await typeInto(user, "etrto-width", "42");
+      if (leave === "the field is LEFT") {
+        await user.tab();
+        expect(status("etrto-width")).toBe("Enregistrement…");
+      } else {
+        await user.click(screen.getByRole("tab", { name: "Pièces" }));
+      }
+      expect(world.writes.map((write) => write.value)).toEqual([45, 42]);
+
+      await world.answer!();
+      expect(world.stored("tire-front", "etrto-width"), "the last value typed").toBe(42);
+      if (leave === "the field is LEFT") {
+        expect(field("etrto-width").value).toBe("42");
+        expect(status("etrto-width")).toBe("Enregistré");
+      }
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+
+  it("an untouched field of that page is still only visited: the 45 answered, the page says 42, the field entered and left — nothing is sent", async () => {
+    // Rule 2's first half does not move: no edit, no write — whatever is on record.
+    const world = savedWorld("gravel-1x11", undefined, { held: true });
+    const before = await open(world);
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    await world.answer!();
+
+    const { user } = await open(world.mountedAgain!());
+    await user.click(row("tire-front"));
+    await user.click(field("etrto-width"));
+    await user.tab();
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    expect(world.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+    expect(world.stored("tire-front", "etrto-width")).toBe(45);
+  });
 
   it("once that write has answered, the new workspace's field is back to rule 2: a value typed back to what is stored is not a write", async () => {
     const world = savedWorld("gravel-1x11", undefined, { held: true });

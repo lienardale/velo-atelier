@@ -774,28 +774,50 @@ docs/                contributor and operator docs — every one is linked from 
   unreadable text sends NOTHING and raises the notice. LEAVING such a field
   still clears the attribute, as on `main`: that exit awaits a ruling
   (`docs/backlog.md`) — do not read a rule out of it. **"What is stored", in
-  rule 2, is only what the form was last told**: writes sent and not yet
-  answered are counted at module level, per BIKE and `part:key`, and while
-  that count is not zero an edit is sent whatever it compares to — with 45 on
-  its way, 42 typed back into a field still showing 42 used to be "unchanged",
-  and the bike ended at 45. **The count is keyed by `repo.bikeParam`, never by
-  the repo object**: `BikeWorkspace` builds its repo when it mounts, so a
-  route left and come straight back to is a second object over the same bike
-  while the first one's write is still on its way — keyed by the object, as
-  it first was, the same 42 was "unchanged" again (8 runs of 8 in Chromium on
-  that build; found by the second review). Keyed by a name, three things an
-  object gave for free need a test each, and have one: another bike's write
-  is not this bike's, and a write that failed, or answered, is no longer in
-  flight. What the count does NOT do is order two writes: after a navigation
-  Next's client has both in transit together (measured), the server applies
-  them in the order they arrive, and delivered the other way round the bike
-  ends at the first one typed — with the page saying so in the end
-  (`.debug/017` §5.8, "Second review"; `docs/backlog.md`). A write that
-  answers after its form is gone hands
-  its build up (`onSaved`) and reports a refusal as a notice naming the part
-  and the field (`bike.panel.unsaved`), never under another part's field; an
-  untouched field follows the stored value when it changes under it, and text
-  being typed — or a value being saved — is never replaced. NOT covered: the
+  rule 2, is only what the form was last told**, so the form keeps a record
+  of its own writes (`lib/bike/unsettled-writes.ts`): a write is on it from
+  before it leaves until it is SETTLED — it failed or was refused, or the
+  form has been HANDED, for that field, what it left there — and while a
+  field has an unsettled write an edit of it is sent whatever it compares to.
+  With 45 on its way, 42 typed back into a field still showing 42 used to be
+  "unchanged", and the bike ended at 45. Two things about that record were
+  each wrong once, and each lost that 42 again on a route left and come
+  straight back to (`.debug/017` §5.8, "Second review"). **It is keyed by
+  `repo.bikeParam`, never by the repo object**: `BikeWorkspace` builds its
+  repo when it mounts, so the page come back to is a second object over the
+  same bike while the first one's write is still on its way (8 runs of 8 in
+  Chromium, keyed by the object). **And a write is not settled by its
+  ANSWER**: the answer's build is handed to the workspace that sent the
+  write (`onSaved`), which after a route change is gone, and the one mounted
+  again goes on showing the page the router kept until Next has fetched it
+  again — one more request, on the connection that made the write slow (8
+  runs of 8 with that fetch held; 1 of 12 without). The form says what it is
+  handed after every render (a layout effect in `PartFields`), compared as
+  pages say it: a clear leaves nothing, which the answered build says by
+  having no such attribute and a page rendered later by showing the
+  catalogue's default. Kept by name and past the answer, the record needs
+  what an object dropped at the answer gave for free, each with a test:
+  another bike's write is not this bike's; a write that failed is off it;
+  one that answered is off it once the form is handed what it left, and not
+  before. **Its price is one write too many, never one too few**: when the
+  form is never handed what this document's last write left (it answered
+  with that part's form off screen, and something else changed the field
+  before it was shown again), the first value typed back to what the page
+  shows is sent although it changes nothing — pinned by a case, so that it
+  stays a decision. Focusing a field and leaving it is still never a write.
+  **Every case of a test file that renders the form starts from an empty
+  record** (`forgetWrites()` in `beforeEach`): the record is one document's,
+  the module is shared by the file's cases, and two cases share the bikes'
+  names (`local`, a fixed UUID) and nothing else. What the record does NOT do
+  is order two writes: after a navigation Next's client has both in transit
+  together (measured), the server applies them in the order they arrive, and
+  delivered the other way round the bike ends at the first one typed — with
+  the page saying so in the end (`docs/backlog.md`). A write that answers
+  after its form is gone hands its build up (`onSaved`) and reports a refusal
+  as a notice naming the part and the field (`bike.panel.unsaved`), never
+  under another part's field; an untouched field follows the stored value
+  when it changes under it, and text being typed — or a value being saved —
+  is never replaced. NOT covered: the
   page unloaded with the caret in the field (a reload, a closed tab) — nothing
   is unmounted, and a saved bike's write would be a request the browser may
   drop. **Any form that edits "the selected X" inside a container that
@@ -870,7 +892,7 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `bikeParam`: `demo`, `local`, or the UUID — because a repo OBJECT is not
   the bike**: `BikeWorkspace` builds one each time it mounts, so whatever is
   remembered about a bike from one mount to the next is keyed by that name,
-  never by the object (the part form's writes in flight, above).
+  never by the object (the part form's record of its own writes, above).
 - **The guest import is a contract, not three storage shapes forwarded — and a
   checkup travels as ANSWERS, never as steps.** `/import` is a server page
   (`auth()` + `buildMetadata`, like its `(protected)` siblings) wrapping one

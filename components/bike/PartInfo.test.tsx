@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createViewerStore, ViewerStoreProvider } from "@/components/bike3d/store";
 import type { GuideRef } from "@/lib/bike/queries";
 import { demoBikeRepo, localBikeRepo } from "@/lib/bike/repo";
+import { forgetWrites } from "@/lib/bike/unsettled-writes";
 import { buildOf, deriveBike } from "@/lib/bike/rules";
 import { writeLocalBike, type KeyValueStorage } from "@/lib/bike/local-bike";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
@@ -84,6 +85,9 @@ function renderInfo(
 beforeEach(() => {
   storage = new MemoryStorage();
   writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage });
+  // A new guest bike under the same name: what the form remembers of its own
+  // writes is the previous case's (`lib/bike/unsettled-writes.ts`).
+  forgetWrites();
 });
 
 describe("with no part selected", () => {

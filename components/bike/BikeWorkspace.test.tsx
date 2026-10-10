@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readLocalBike, writeLocalBike } from "@/lib/bike/local-bike";
 import { resetLocalBikeSnapshotCache } from "@/lib/bike/repo";
+import { buildOf, deriveBike } from "@/lib/bike/rules";
 import { LOCAL_BIKE_KEY } from "@/lib/bike/storage-keys";
 import type { PartId } from "@/lib/domain/data/parts";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
@@ -100,6 +101,7 @@ vi.mock("@/app/[locale]/velo/[id]/reglages/actions", () => ({
 }));
 
 const { BikeWorkspace } = await import("./BikeWorkspace");
+const { forgetWrites } = await import("@/lib/bike/unsettled-writes");
 
 const BIKE_ID = "3f0c1f0e-6f0a-4c56-9d3b-1c2d3e4f5a6b";
 
@@ -153,9 +155,14 @@ function historyMoveTo(partId: PartId): void {
 }
 
 async function openGuest(preset: PresetId, desktop: boolean, build = presetBuild(preset)) {
-  setMediaQuery(MEDIA.desktop, desktop);
   // eslint-disable-next-line security/detect-object-injection -- a key of the presets table
   writeLocalBike({ answers: BIKE_PRESETS[preset], parts: build.parts });
+  return mountGuest(desktop);
+}
+
+/** `/velo/local` over whatever guest bike the browser's storage holds. */
+async function mountGuest(desktop: boolean) {
+  setMediaQuery(MEDIA.desktop, desktop);
   resetLocalBikeSnapshotCache();
   window.history.replaceState(null, "", "/fr/velo/local");
   const view = await renderWithIntl(
@@ -196,10 +203,22 @@ function savedProps(preset: PresetId, initialPartId: PartId | null = null) {
 }
 
 async function openSaved(preset: PresetId, build = presetBuild(preset)) {
-  setMediaQuery(MEDIA.desktop, true);
   server.build = build;
+  return mountSaved(preset, build);
+}
+
+/**
+ * The saved bike's workspace over a page that says `shown` — whatever the
+ * server holds. A page the router KEPT across a route change is one that says
+ * what the bike held when it was rendered; `refreshPage()` is Next fetching it
+ * again.
+ */
+async function mountSaved(preset: PresetId, shown: BikeBuild) {
+  setMediaQuery(MEDIA.desktop, true);
   window.history.replaceState(null, "", `/fr/velo/${BIKE_ID}`);
-  const view = await renderWithIntl(<BikeWorkspace {...savedProps(preset)} />);
+  const view = await renderWithIntl(
+    <BikeWorkspace {...savedProps(preset)} build={structuredClone(shown)} />,
+  );
   await settle();
   /** What `revalidatePath` makes Next do after a write: the page runs again. */
   const refreshPage = async (): Promise<void> => {
@@ -232,6 +251,8 @@ const UNSAVED_WIDTH = "Pneu avant · Largeur du pneu : votre saisie n’a pas é
 const NOT_POSSIBLE = "Cette valeur n’est pas possible pour cette caractéristique.";
 
 beforeEach(() => {
+  // Each case is a document of its own: see `lib/bike/unsettled-writes.ts`.
+  forgetWrites();
   notice.error.mockClear();
   notice.unavailable = false;
   server.payloads.length = 0;
@@ -659,7 +680,11 @@ describe("what the review found — a saved bike whose write does not answer", (
   });
 });
 
-describe("what the second review found — the workspace mounted again while its own write is in flight", () => {
+describe("what the second review found — the workspace mounted again before it could be told of its own write", () => {
+  const STOCK = presetBuild("gravel-1x11");
+  const SENT_45 = { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 45 } };
+  const SENT_42 = { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 42 } };
+
   /**
    * A route change and straight back, as the real workspace lives it: it is
    * unmounted with 45 typed and not left (the removal sends it), and mounted
@@ -675,12 +700,10 @@ describe("what the second review found — the workspace mounted again while its
     await before.user.click(row("tire-front"));
     await typeInto(before.user, "etrto-width", "45");
     before.unmount();
-    expect(server.payloads).toEqual([
-      { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 45 } },
-    ]);
+    expect(server.payloads).toEqual([SENT_45]);
     expect(saved("tire-front", "etrto-width")).toBe(42);
 
-    const { user } = await openSaved("gravel-1x11");
+    const { user } = await mountSaved("gravel-1x11", STOCK);
     await user.click(row("tire-front"));
     expect(field("etrto-width").value).toBe("42");
     await typeInto(user, "etrto-width", "42");
@@ -691,14 +714,172 @@ describe("what the second review found — the workspace mounted again while its
     expect(saved("tire-front", "etrto-width")).toBe(45);
     await answerHeld();
 
-    expect(server.payloads).toEqual([
-      { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 45 } },
-      { bikeId: BIKE_ID, partId: "tire-front", attributes: { "etrto-width": 42 } },
-    ]);
+    expect(server.payloads).toEqual([SENT_45, SENT_42]);
     expect(saved("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
     expect(field("etrto-width").value).toBe("42");
     expect(status("etrto-width")).toBe("Enregistré");
     expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The same absence once the 45 has ANSWERED. Its build is handed to the
+   * workspace that sent it, which is gone; the one mounted again goes on
+   * saying 42 until the page has been fetched again, and with nothing in
+   * flight any more the 42 typed there was "unchanged" too — for a whole
+   * request, on the connection that made the first write slow.
+   */
+  it("the 45 ANSWERED to a workspace that is gone, the page mounted again still says 42, 42 typed and the field left: the 42 is sent, and the bike ends at 42", async () => {
+    server.hold = true;
+    const before = await openSaved("gravel-1x11");
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    await answerHeld();
+    expect(saved("tire-front", "etrto-width")).toBe(45);
+
+    const { user, refreshPage } = await mountSaved("gravel-1x11", STOCK);
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    expect(status("etrto-width")).toBe("Enregistrement…");
+    await answerHeld();
+
+    expect(server.payloads).toEqual([SENT_45, SENT_42]);
+    expect(saved("tire-front", "etrto-width"), "the last value typed and left").toBe(42);
+    expect(field("etrto-width").value).toBe("42");
+    expect(status("etrto-width")).toBe("Enregistré");
+
+    // The page runs again and says 42, as the form does: from here a value
+    // typed back to what is stored is not a write any more.
+    server.hold = false;
+    await refreshPage();
+    await typeInto(user, "etrto-width", "43");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    await settle();
+    expect(server.payloads).toEqual([SENT_45, SENT_42]);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  it("…and when nothing is typed there, the page fetched again says 45: the untouched field follows it, and 45 typed back is not a write", async () => {
+    server.hold = true;
+    const before = await openSaved("gravel-1x11");
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+    await answerHeld();
+
+    const { user, refreshPage } = await mountSaved("gravel-1x11", STOCK);
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+
+    await refreshPage(); // Next has fetched the page again
+    expect(field("etrto-width").value).toBe("45");
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+
+    expect(server.payloads).toEqual([SENT_45]);
+    expect(status("etrto-width")).toBe("");
+  });
+
+  /**
+   * What the record costs, pinned so that it stays a decision: when the page
+   * never says what this document's last write left — the field was changed
+   * by something else since — the first value typed back to what the page
+   * shows is SENT, although it changes nothing. Sending is the safe side. Its
+   * own answer settles it.
+   */
+  it("the field changed by another device since this document wrote it: a value typed back to what the page says is sent once, and not twice", async () => {
+    const { user, refreshPage } = await openSaved("gravel-1x11");
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.click(screen.getByRole("tab", { name: "Pièces" })); // the removal writes 45
+    await settle();
+    expect(saved("tire-front", "etrto-width")).toBe(45);
+
+    const elsewhere = setAttribute(server.build as BikeBuild, "tire-front", "etrto-width", 50);
+    if (!elsewhere.ok) throw new Error("the domain refused the seed");
+    server.build = elsewhere.build;
+    await refreshPage();
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("50");
+
+    const SENT_50 = { ...SENT_45, attributes: { "etrto-width": 50 } };
+    await typeInto(user, "etrto-width", "51");
+    await typeInto(user, "etrto-width", "50");
+    await user.tab();
+    await settle();
+    expect(server.payloads).toEqual([SENT_45, SENT_50]);
+    expect(status("etrto-width")).toBe("Enregistré");
+
+    await typeInto(user, "etrto-width", "51");
+    await typeInto(user, "etrto-width", "50");
+    await user.tab();
+    await settle();
+    expect(server.payloads).toEqual([SENT_45, SENT_50]);
+    expect(saved("tire-front", "etrto-width")).toBe(50);
+  });
+
+  /**
+   * A CLEAR leaves nothing in the field, and pages say that in two ways: the
+   * build the write answers with has no such attribute; a page rendered later
+   * shows the catalogue's default, the bike being derived again from its
+   * answers. Handed either, the form has been told (the real page is
+   * `tests/integration/part-form.test.ts`).
+   */
+  it("the owner's 45 emptied and not left, the tab pressed: cleared. The page run again shows the default there — and the default typed back is not a write", async () => {
+    const own = setAttribute(STOCK, "tire-front", "etrto-width", 45);
+    if (!own.ok) throw new Error("the domain refused the seed");
+    const { user, refreshPage } = await openSaved("gravel-1x11", own.build);
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("45");
+    await user.clear(field("etrto-width"));
+    expect(document.activeElement).toBe(field("etrto-width"));
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+    const CLEARED = { ...SENT_45, attributes: { "etrto-width": null } };
+    expect(server.payloads).toEqual([CLEARED]);
+    expect(saved("tire-front", "etrto-width")).toBeUndefined();
+
+    // As the real page hands it down: the bike derived again, the default back.
+    server.build = buildOf(
+      deriveBike(BIKE_PRESETS["gravel-1x11"], (server.build as BikeBuild).parts),
+    );
+    await refreshPage();
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    await typeInto(user, "etrto-width", "43");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    await settle();
+
+    expect(server.payloads).toEqual([CLEARED]);
+    expect(status("etrto-width")).toBe("");
+  });
+
+  it("the guest bike after a route change and back: the field says what the removal wrote, and typing it back writes nothing", async () => {
+    // Its write is in storage before the teardown returns, and the workspace
+    // mounted again reads storage: it is told at once, whatever is on record.
+    const before = await openGuest("gravel-1x11", true);
+    await before.user.click(row("tire-front"));
+    await typeInto(before.user, "etrto-width", "45");
+    before.unmount();
+
+    const { user } = await mountGuest(true);
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("45");
+    const stored = window.localStorage.getItem(LOCAL_BIKE_KEY);
+    await typeInto(user, "etrto-width", "46");
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+
+    // Not one byte of the stored bike moved — `updatedAt` included.
+    expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(stored);
+    expect(status("etrto-width")).toBe("");
   });
 });
 
