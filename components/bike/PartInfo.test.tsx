@@ -60,6 +60,8 @@ class MemoryStorage implements KeyValueStorage {
 }
 
 let storage: MemoryStorage;
+/** The guest bike `beforeEach` stores: a guest repo is built for ONE bike, by its id. */
+let bikeId: string;
 
 function renderInfo(
   props: Partial<React.ComponentProps<typeof PartInfo>> = {},
@@ -73,7 +75,7 @@ function renderInfo(
       <PartInfo
         build={build}
         partId="cassette"
-        repo={localBikeRepo({ storage })}
+        repo={localBikeRepo(bikeId, { storage })}
         guides={GUIDES}
         bikeParam="local"
         {...props}
@@ -84,7 +86,7 @@ function renderInfo(
 
 beforeEach(() => {
   storage = new MemoryStorage();
-  writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage });
+  bikeId = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!.id;
   // Each case is a document of its own (`lib/bike/own-writes.ts`). The guest
   // bike above is a new one with a key of its own, so no case here leans on
   // this (13 of 13 pass without it); every file that renders the form starts
@@ -146,7 +148,7 @@ describe("the guide links", () => {
   });
 
   it("offers a different one for a bike with inner tubes", async () => {
-    await renderInfo({ partId: "tire-front", repo: localBikeRepo({ storage }) }, roadRim);
+    await renderInfo({ partId: "tire-front", repo: localBikeRepo(bikeId, { storage }) }, roadRim);
     expect(
       screen.getByTestId("part-panel").querySelector("[data-guide-action=replace]"),
     ).toHaveTextContent("replace-tube-tire");
@@ -185,7 +187,7 @@ describe("editing", () => {
   });
 
   it("says so when the write is refused", async () => {
-    const { user } = await renderInfo({ repo: localBikeRepo({ storage: null }) });
+    const { user } = await renderInfo({ repo: localBikeRepo(bikeId, { storage: null }) });
     await user.selectOptions(document.querySelector('[data-attr="range"]')!, "11-36");
     expect(await screen.findByText("Introuvable.")).toBeInTheDocument();
   });

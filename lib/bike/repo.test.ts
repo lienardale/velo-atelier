@@ -16,6 +16,8 @@ import {
 import { buildOf, deriveBike } from "./rules";
 
 const BIKE_ID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+/** The id of a guest bike that is in no storage. */
+const GONE_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
 class MemoryStorage implements KeyValueStorage {
   private readonly map = new Map<string, string>();
@@ -66,12 +68,15 @@ describe("the demo repo", () => {
 });
 
 describe("the local repo", () => {
+  /** The guest bike in storage: a guest repo is built for ONE bike, by its id. */
+  let bikeId: string;
+
   beforeEach(() => {
-    writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage });
+    bikeId = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!.id;
   });
 
   it("persists an attribute edit and keeps it across a reload", async () => {
-    const repo = localBikeRepo({ storage });
+    const repo = localBikeRepo(bikeId, { storage });
     const before = readLocalBike(storage)!;
     const result = await repo.setAttribute(
       { spec: before.spec, parts: before.parts },
@@ -80,10 +85,11 @@ describe("the local repo", () => {
 
     expect(result.ok).toBe(true);
     expect(findPart(readLocalBike(storage)!, "saddle")?.attributes["saddle-width"]).toBe(155);
+    expect(readLocalBike(storage)!.id, "still that bike").toBe(bikeId);
   });
 
   it("re-reads storage before writing, so a stale build cannot clobber a newer edit", async () => {
-    const repo = localBikeRepo({ storage });
+    const repo = localBikeRepo(bikeId, { storage });
     const stale = readLocalBike(storage)!;
 
     // Another tab changes the saddle…
@@ -103,7 +109,7 @@ describe("the local repo", () => {
   });
 
   it("merges a fit patch rather than replacing the whole object", async () => {
-    const repo = localBikeRepo({ storage });
+    const repo = localBikeRepo(bikeId, { storage });
     await repo.setFit({ riderKg: 72 });
     const result = await repo.setFit({ saddleHeightMm: 742 });
 
@@ -112,7 +118,7 @@ describe("the local repo", () => {
   });
 
   it("answers NOT_FOUND when there is no guest bike at all", async () => {
-    const empty = localBikeRepo({ storage: new MemoryStorage() });
+    const empty = localBikeRepo(bikeId, { storage: new MemoryStorage() });
     await expect(
       empty.setAttribute(buildOf(deriveBike(BIKE_PRESETS["gravel-1x11"])), {
         partId: "saddle",
@@ -127,7 +133,7 @@ describe("the local repo", () => {
   });
 
   it("says so when storage refuses the write", async () => {
-    const repo = localBikeRepo({ storage });
+    const repo = localBikeRepo(bikeId, { storage });
     storage.full = true;
     const result = await repo.setFit({ riderKg: 72 });
     expect(result).toMatchObject({
@@ -138,7 +144,7 @@ describe("the local repo", () => {
   });
 
   it("refuses an edit the domain refuses, with the key as the field", async () => {
-    const repo = localBikeRepo({ storage });
+    const repo = localBikeRepo(bikeId, { storage });
     const bike = readLocalBike(storage)!;
     await expect(
       repo.setAttribute(
@@ -157,6 +163,123 @@ describe("the local repo", () => {
         { partId: "e-motor", key: "torque", value: 85 },
       ),
     ).resolves.toMatchObject({ ok: false, code: "NOT_FOUND" });
+  });
+});
+
+/**
+ * `va:bike:local` is a slot. The guest bike in it is replaced by a NEW one —
+ * a new id — by the demo's "Modifier ce vélo" and by the tree's "Générer mon
+ * vélo", and a page showing the first can still be open: another tab, or this
+ * one a moment before it hears of it. Until 2026-10-12 the guest repo read
+ * the slot before every write and wrote back under whatever id it found, so
+ * a write made for bike A landed on bike B: 45 typed for A's front tyre and
+ * not left was written to B's by the field's removal (`.debug/017` §5.8,
+ * "Fourth review"). A guest repo is for ONE bike.
+ */
+describe("the local repo writes the bike it was built for, and no other", () => {
+  const WIDTH_45 = { partId: "tire-front", key: "etrto-width", value: 45 } as const;
+  const frontWidth = () =>
+    findPart(readLocalBike(storage)!, "tire-front")?.attributes["etrto-width"];
+
+  const REPLACED = [
+    [
+      "the demo's local copy",
+      () => forkDemoToLocal({ answers: BIKE_PRESETS["gravel-1x11"] }, storage),
+    ],
+    [
+      "a bike generated again from the tree",
+      () => writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage }),
+    ],
+  ] as const;
+
+  it.each(REPLACED)(
+    "guest bike A replaced in the slot by %s: an attribute edit and a fit, both made through A's repo, write nothing and answer NOT_FOUND",
+    async (_how, replace) => {
+      const a = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+      const repo = localBikeRepo(a.id, { storage });
+      const build = { spec: a.spec, parts: a.parts };
+
+      const b = replace()!;
+      expect(b.id).not.toBe(a.id);
+      const bytes = storage.getItem(LOCAL_BIKE_KEY);
+
+      await expect(repo.setAttribute(build, WIDTH_45)).resolves.toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+      });
+      await expect(repo.setFit({ riderKg: 72 })).resolves.toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+      });
+
+      // Not one byte of B moved — `updatedAt` included.
+      expect(storage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
+      expect(frontWidth()).toBe(42);
+      expect(readLocalBike(storage)!.fit).toBeNull();
+
+      // B is written by the repo built for B.
+      const next = localBikeRepo(b.id, { storage });
+      await expect(
+        next.setAttribute({ spec: b.spec, parts: b.parts }, WIDTH_45),
+      ).resolves.toMatchObject({ ok: true });
+      await expect(next.setFit({ riderKg: 72 })).resolves.toMatchObject({ ok: true });
+      expect(frontWidth()).toBe(45);
+      expect(readLocalBike(storage)!.id).toBe(b.id);
+      // …and A's repo is no nearer to it for that.
+      await expect(repo.setAttribute(build, { ...WIDTH_45, value: 47 })).resolves.toMatchObject({
+        ok: false,
+        code: "NOT_FOUND",
+      });
+      expect(frontWidth()).toBe(45);
+    },
+  );
+
+  it("the SAME bike written again under its id — another tab's edit, this repo's own — is still its bike", async () => {
+    const a = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+    const repo = localBikeRepo(a.id, { storage });
+    // Another tab: the same bike, a fit added.
+    writeLocalBike(
+      { id: a.id, answers: a.answers, parts: a.parts, fit: { riderKg: 70 } },
+      { storage },
+    );
+
+    await expect(
+      repo.setAttribute({ spec: a.spec, parts: a.parts }, WIDTH_45),
+    ).resolves.toMatchObject({ ok: true });
+    expect(frontWidth()).toBe(45);
+    expect(readLocalBike(storage)).toMatchObject({ id: a.id, fit: { riderKg: 70 } });
+  });
+
+  it("a repo of NO bike refuses every write, whatever the slot holds, and touches nothing", async () => {
+    const stored = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+    const bytes = storage.getItem(LOCAL_BIKE_KEY);
+    const build = { spec: stored.spec, parts: stored.parts };
+
+    for (const repo of [localBikeRepo(null, { storage }), bikeRepoFor("local", { storage })]) {
+      await expect(repo.setAttribute(build, WIDTH_45)).resolves.toEqual({
+        ok: false,
+        code: "NOT_FOUND",
+      });
+      await expect(repo.setFit({ riderKg: 72 })).resolves.toEqual({ ok: false, code: "NOT_FOUND" });
+      expect(repo.canEdit).toBe(true);
+    }
+    expect(storage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
+
+    // Not even a value it could not have parsed: it does not read at all.
+    storage.setItem(LOCAL_BIKE_KEY, "{ not json");
+    await localBikeRepo(null, { storage }).setFit({ riderKg: 72 });
+    expect(storage.getItem(LOCAL_BIKE_KEY)).toBe("{ not json");
+  });
+
+  it("a guest bike that is in no storage is not written into being", async () => {
+    const stored = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+    const bytes = storage.getItem(LOCAL_BIKE_KEY);
+    const repo = localBikeRepo(GONE_ID, { storage });
+
+    await expect(
+      repo.setAttribute({ spec: stored.spec, parts: stored.parts }, WIDTH_45),
+    ).resolves.toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(storage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
   });
 });
 
@@ -188,6 +311,7 @@ describe("bikeRepoFor", () => {
   it("picks the repo from the ref kind", () => {
     expect(bikeRepoFor("demo", {}).canEdit).toBe(false);
     expect(bikeRepoFor("local", { storage }).kind).toBe("local");
+    expect(bikeRepoFor("local", { bikeId: GONE_ID, storage }).kind).toBe("local");
     expect(
       bikeRepoFor("db", {
         bikeId: BIKE_ID,
@@ -199,6 +323,20 @@ describe("bikeRepoFor", () => {
   it("refuses to build a db repo without the things only the page knows", () => {
     expect(() => bikeRepoFor("db", {})).toThrow(/bikeId/);
   });
+
+  it("builds a guest repo for the guest bike it is given: that one is written, and a repo given another's id writes nothing", async () => {
+    const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+
+    await expect(
+      bikeRepoFor("local", { bikeId: GONE_ID, storage }).setFit({ riderKg: 72 }),
+    ).resolves.toMatchObject({ ok: false, code: "NOT_FOUND" });
+    expect(readLocalBike(storage)!.fit).toBeNull();
+
+    await expect(
+      bikeRepoFor("local", { bikeId: bike.id, storage }).setFit({ riderKg: 72 }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(readLocalBike(storage)).toMatchObject({ id: bike.id, fit: { riderKg: 72 } });
+  });
 });
 
 /**
@@ -208,6 +346,10 @@ describe("bikeRepoFor", () => {
  * mounts. The `[id]` segment of the route: `/velo/local` is a slot, and the
  * guest bike in it is replaced by another without the document being loaded
  * again.
+ *
+ * And the key says where a write through the repo GOES: for a guest repo, its
+ * own bike while that bike is in the slot, and nothing (`null`) once it is
+ * not — never the bike that took its place.
  */
 describe("bikeKey — WHICH bike a repo writes", () => {
   const actions = { updatePart: vi.fn(), updateFit: vi.fn() } as unknown as RemoteBikeActions;
@@ -234,10 +376,10 @@ describe("bikeKey — WHICH bike a repo writes", () => {
     expect(demoBikeRepo().bikeKey()).toBe("demo");
   });
 
-  it("a guest bike is the bike in storage, by its own id — the same for every repo built over it, and across its own writes", async () => {
+  it("a guest bike is the bike its repo was built for, by its own id — the same for every repo built over it, and across its own writes", async () => {
     const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
-    const first = localBikeRepo({ storage });
-    const again = bikeRepoFor("local", { storage });
+    const first = localBikeRepo(bike.id, { storage });
+    const again = bikeRepoFor("local", { bikeId: bike.id, storage });
     expect(again).not.toBe(first);
     expect(first.bikeKey()).toBe(`local:${bike.id}`);
     expect(again.bikeKey()).toBe(`local:${bike.id}`);
@@ -256,7 +398,9 @@ describe("bikeKey — WHICH bike a repo writes", () => {
    * The demo's "Modifier ce vélo" and the tree's "Générer mon vélo" both store
    * a guest bike WITHOUT an id — a new bike — in the slot the previous one was
    * in. Until the third review every guest bike was named `local`, and the
-   * new one was taken for the old.
+   * new one was taken for the old. Between that review and the fourth the
+   * repo built over the first NAMED THE SECOND from then on — and wrote it.
+   * Now it names no bike at all: its own is gone, and it has none to write.
    */
   it.each([
     [
@@ -268,24 +412,38 @@ describe("bikeKey — WHICH bike a repo writes", () => {
       () => writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage }),
     ],
   ] as const)(
-    "a guest bike REPLACED in the slot — %s — is another bike, to the very repo that was built over the first",
+    "a guest bike REPLACED in the slot — %s — is another bike: the repo built over the first names none from then on, and the second's names the second",
     (_how, replace) => {
       const first = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
-      const repo = localBikeRepo({ storage });
+      const repo = localBikeRepo(first.id, { storage });
       const before = repo.bikeKey();
       expect(before).toBe(`local:${first.id}`);
 
       const second = replace();
       expect(second).not.toBeNull();
       expect(second!.id).not.toBe(first.id);
-      expect(repo.bikeKey()).toBe(`local:${second!.id}`);
-      expect(repo.bikeKey()).not.toBe(before);
+      // Neither the first bike's key — it is not there to be written — nor,
+      // above all, the key of the bike that took its place.
+      expect(repo.bikeKey()).toBeNull();
+
+      const next = localBikeRepo(second!.id, { storage });
+      expect(next.bikeKey()).toBe(`local:${second!.id}`);
+      expect(next.bikeKey()).not.toBe(before);
     },
   );
 
+  it("a repo built for a guest bike that is not the one in the slot names no bike, and one built for none names none", () => {
+    const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
+    expect(bikeRepoFor("local", { bikeId: GONE_ID, storage }).bikeKey()).toBeNull();
+    expect(localBikeRepo(null, { storage }).bikeKey()).toBeNull();
+    expect(bikeRepoFor("local", { storage }).bikeKey()).toBeNull();
+    expect(localBikeRepo(bike.id, { storage }).bikeKey()).toBe(`local:${bike.id}`);
+  });
+
   it("no two kinds of bike can share a key: a guest bike's is not a UUID, and not the slot's name", () => {
     const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
-    const key = localBikeRepo({ storage }).bikeKey()!;
+    const key = localBikeRepo(bike.id, { storage }).bikeKey()!;
     expect(bike.id).toMatch(UUID);
     expect(key).not.toMatch(UUID);
     expect(key).not.toBe("local");
@@ -296,14 +454,17 @@ describe("bikeKey — WHICH bike a repo writes", () => {
   });
 
   it("there is no key where there is no bike to write: no storage, an empty slot, a value that does not parse", () => {
-    expect(localBikeRepo({ storage: null }).bikeKey()).toBeNull();
-    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
-    expect(bikeRepoFor("local", { storage }).bikeKey()).toBeNull();
+    expect(localBikeRepo(GONE_ID, { storage: null }).bikeKey()).toBeNull();
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
+    expect(bikeRepoFor("local", { bikeId: GONE_ID, storage }).bikeKey()).toBeNull();
 
     storage.setItem(LOCAL_BIKE_KEY, "{ not json");
-    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
+    // Not even when the unreadable value carries the very id the repo is for.
+    storage.setItem(LOCAL_BIKE_KEY, JSON.stringify({ version: 1, id: GONE_ID }));
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
     storage.setItem(LOCAL_BIKE_KEY, JSON.stringify({ version: 1, id: "not-a-uuid" }));
-    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
 
     const throwing: KeyValueStorage = {
       getItem: () => {
@@ -312,7 +473,7 @@ describe("bikeKey — WHICH bike a repo writes", () => {
       setItem: () => undefined,
       removeItem: () => undefined,
     };
-    expect(localBikeRepo({ storage: throwing }).bikeKey()).toBeNull();
+    expect(localBikeRepo(GONE_ID, { storage: throwing }).bikeKey()).toBeNull();
   });
 
   /**
@@ -321,12 +482,13 @@ describe("bikeKey — WHICH bike a repo writes", () => {
    */
   it("asking removes nothing from storage, readable or not", () => {
     storage.setItem(LOCAL_BIKE_KEY, "{ not json");
-    expect(localBikeRepo({ storage }).bikeKey()).toBeNull();
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
     expect(storage.getItem(LOCAL_BIKE_KEY)).toBe("{ not json");
 
-    writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage });
+    const bike = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
     const raw = storage.getItem(LOCAL_BIKE_KEY);
-    localBikeRepo({ storage }).bikeKey();
+    expect(localBikeRepo(bike.id, { storage }).bikeKey()).toBe(`local:${bike.id}`);
+    expect(localBikeRepo(GONE_ID, { storage }).bikeKey()).toBeNull();
     expect(storage.getItem(LOCAL_BIKE_KEY)).toBe(raw);
   });
 });

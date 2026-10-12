@@ -73,29 +73,36 @@ export function MeasurementForm({
 }: MeasurementFormProps): React.JSX.Element | null {
   const t = useTranslations("bike");
   const actionText = useBikeActionText();
+  // A guest bike's fit lives in `localStorage`, which the server could not read;
+  // a saved bike's arrived as a prop. Either way `known` is the value on record.
+  const snapshot = useLocalBikeSnapshot();
+  const guestBike = refKind === "local" && snapshot !== LOCAL_BIKE_PENDING ? snapshot : null;
+  const known = useMemo(
+    () => (guestBike !== null ? coerceFit(guestBike.fit) : fit),
+    [guestBike, fit],
+  );
+
   // Built here rather than passed in: a repo holds functions, and the fit page
   // is a Server Component, which can only hand a client one serialisable props.
+  //
+  // For a guest bike it is built for THE bike whose fit the inputs were seeded
+  // from, by its id: a save goes to that bike or nowhere. `va:bike:local` is a
+  // slot, and another page can put a new guest bike in it; until this page
+  // has heard of it (the `storage` event, which re-seeds the inputs and builds
+  // the repo again), what is typed here was typed for the first bike, and a
+  // save is refused — "Introuvable." — rather than written into the second
+  // (`localBikeRepo`, `.debug/017` §5.8, "Fourth review").
+  const repoBikeId = refKind === "local" ? (guestBike?.id ?? null) : bikeId;
   const repo = useMemo(
     () =>
       bikeRepoFor(refKind, {
-        bikeId,
+        bikeId: repoBikeId,
         actions: {
           updatePart: (input) => updateBikePartAction(input),
           updateFit: (input) => updateBikeFitAction(input),
         },
       }),
-    [refKind, bikeId],
-  );
-
-  // A guest bike's fit lives in `localStorage`, which the server could not read;
-  // a saved bike's arrived as a prop. Either way `known` is the value on record.
-  const snapshot = useLocalBikeSnapshot();
-  const known = useMemo(
-    () =>
-      refKind === "local" && snapshot !== LOCAL_BIKE_PENDING && snapshot !== null
-        ? coerceFit(snapshot.fit)
-        : fit,
-    [refKind, snapshot, fit],
+    [refKind, repoBikeId],
   );
 
   const fields = fitFieldsFor(measureId);

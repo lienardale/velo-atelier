@@ -116,11 +116,21 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * still in the field (a reload, a closed tab): nothing is unmounted then, and
  * a saved bike's write would be a request the browser is free to drop.
  *
- * And it sends to the bike the REPO writes, which for a guest bike is
- * whichever one is in storage at that moment. Should another tab put a new
- * guest bike there while a field here still holds typed text, the workspace
- * is mounted again for the new bike and this field's removal writes its text
- * to THAT bike (in jsdom; not seen in a browser — `docs/backlog.md`).
+ * And it sends to the bike the REPO writes — for a guest bike, the ONE bike
+ * the workspace was mounted for, never whichever is in storage at that
+ * moment (`localBikeRepo(bikeId)`, `lib/bike/repo.ts`). `va:bike:local` is a
+ * slot, and another page of the same browser can put a NEW guest bike in it
+ * while a field here still holds typed text: the workspace is then mounted
+ * again for the new bike, and this field's removal used to write its text to
+ * THAT bike — 45 typed for one bike's front tyre stored for another's, and
+ * nothing said (measured in jsdom, and in Chromium with two pages of one
+ * context driven at once; a person's tab switch takes the focus out of the
+ * field first, which commits the text to the bike that is still there —
+ * `.debug/017` §5.8, "Fourth review"). Now that write is refused
+ * (`NOT_FOUND`), nothing is stored, and it ends in the notice above, naming
+ * the part and the field: the text is lost, as it was before rule 3, and the
+ * visitor is told. The same holds for an ordinary save by a form that has not
+ * yet heard its bike was replaced: refused, under its own field.
  *
  * On a route change the flush is one more thing: a write sent WHILE ANOTHER IS
  * IN FLIGHT. Next's client sends server actions one at a time until a

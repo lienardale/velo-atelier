@@ -56,8 +56,10 @@ import { PartsPanel, type PanelTab } from "./PartsPanel";
  * The blocks after P5, "what the review found", are one case per defect a
  * review of the first version of the fix reproduced (`.debug/017` §5.8,
  * "Review of the fix"), "what the second review found" one per defect its
- * repair left reachable ("Second review"), and "what the third review found"
- * the one the second repair's record had for guest bikes ("Third review").
+ * repair left reachable ("Second review"), "what the third review found"
+ * the one the second repair's record had for guest bikes ("Third review"),
+ * and "what the fourth review found" the one rule 3 had had from the start
+ * for a guest bike replaced under its form ("Fourth review").
  */
 
 const notice = vi.hoisted(() => ({
@@ -147,12 +149,14 @@ function guestWorld(
 ): World {
   // No id: a NEW guest bike, whatever the storage held.
   // eslint-disable-next-line security/detect-object-injection -- a key of the presets table
-  writeLocalBike({ answers: BIKE_PRESETS[preset], parts: build.parts }, { storage });
+  const bike = writeLocalBike({ answers: BIKE_PRESETS[preset], parts: build.parts }, { storage });
+  if (bike === null) throw new Error("the storage refused the guest bike");
   const writes: Write[] = [];
   return {
     kind: "guest",
     bikeParam: "local",
-    repo: recording(localBikeRepo({ storage }), writes),
+    // Built for THAT bike, as `BikeWorkspace` builds it: by its id.
+    repo: recording(localBikeRepo(bike.id, { storage }), writes),
     build,
     writes,
     fill: () => {
@@ -1708,6 +1712,135 @@ describe("what the third review found — `local` names a slot, and the guest bi
     await user.tab();
     await settle();
     expect(world.writes).toEqual([SENT_47]);
+  });
+});
+
+describe("what the fourth review found — a guest repo writes ONE bike, and a write made for another is refused", () => {
+  /**
+   * The guest bike can be replaced while its form is on screen: another page
+   * of the same browser stores a NEW one in the slot. The guest repo wrote
+   * back under whatever id it read there, so what was typed for bike A — a
+   * field left, or removed with its text (rule 3) — was written to bike B
+   * (`.debug/017` §5.8, "Fourth review"; through the real workspace and its
+   * `storage` event in `BikeWorkspace.test.tsx`, in Chromium in
+   * `tests/e2e/part-panel.spec.ts`). Here it is the panel over a repo built
+   * for A, as the workspace builds it, and a slot that holds B: every exit a
+   * typed value has.
+   */
+  const NOT_FOUND = "Introuvable.";
+
+  /** A's form with 45 typed for the front tyre and not left, and bike B put in A's place. */
+  async function typedForAThenReplaced() {
+    const storage = new MemoryStorage();
+    const a = guestWorld("gravel-1x11", presetBuild("gravel-1x11"), storage);
+    const view = await open(a);
+    await view.user.click(row("tire-front"));
+    await typeInto(view.user, "etrto-width", "45");
+    const b = a.replaced!("gravel-1x11");
+    expect(b.repo.bikeKey(), "another bike").not.toBeNull();
+    expect(a.repo.bikeKey(), "A's repo has no bike to write any more").toBeNull();
+    const bytes = storage.getItem();
+    return { ...view, a, b, storage, bytes };
+  }
+
+  it("the 'Pièces' tab pressed: nothing is written to the new bike, and the visitor is told which part and which field", async () => {
+    const { user, a, b, storage, bytes } = await typedForAThenReplaced();
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    // Asked of A's repo, once — and refused by it.
+    expect(a.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+    expect(b.writes).toEqual([]);
+    expect(b.stored("tire-front", "etrto-width")).toBe(42);
+    // Not one byte of B moved — `updatedAt` included.
+    expect(storage.getItem()).toBe(bytes);
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+    expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_FOUND);
+  });
+
+  it("another part picked on the bike: the same — and the rear tyre's own form says nothing of it", async () => {
+    const { store, a, b, storage, bytes } = await typedForAThenReplaced();
+
+    selectOnBike(store, "tire-rear");
+    await settle();
+
+    expect(title()).toBe("Pneu arrière");
+    expect(status("etrto-width")).toBe("");
+    expect(a.writes).toEqual([{ partId: "tire-front", key: "etrto-width", value: 45 }]);
+    expect(b.stored("tire-front", "etrto-width")).toBe(42);
+    expect(b.stored("tire-rear", "etrto-width")).toBe(42);
+    expect(storage.getItem()).toBe(bytes);
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+    expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_FOUND);
+  });
+
+  it("the field LEFT: refused under the field itself, no notice — and left again, refused again, with nothing written either time", async () => {
+    const { user, a, b, storage, bytes } = await typedForAThenReplaced();
+
+    await user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe(NOT_FOUND);
+    expect(storage.getItem()).toBe(bytes);
+
+    // The retry of a refused value, which leaving the field has always done.
+    await user.click(field("etrto-width"));
+    await user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe(NOT_FOUND);
+    expect(a.writes).toHaveLength(2);
+    expect(b.writes).toEqual([]);
+    expect(b.stored("tire-front", "etrto-width")).toBe(42);
+    expect(storage.getItem()).toBe(bytes);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  it("a select changed for A after B took its place — a control that commits at once: refused under the select, B untouched", async () => {
+    const storage = new MemoryStorage();
+    const a = guestWorld("gravel-1x11", presetBuild("gravel-1x11"), storage);
+    const { user } = await open(a);
+    await user.click(row("tire-front"));
+    const tread = formAttributes(presetBuild("gravel-1x11")).find(
+      (candidate) => candidate.partId === "tire-front" && candidate.attribute.key === "tread",
+    );
+    if (tread === undefined) throw new Error("the front tyre has no tread select");
+    const other = (tread.attribute.values ?? []).find((option) => option !== tread.value);
+    if (other === undefined) throw new Error("tread has no second option");
+    const b = a.replaced!("gravel-1x11");
+    const bytes = storage.getItem();
+
+    await user.selectOptions(field("tread"), String(other));
+    await settle();
+
+    expect(status("tread")).toBe(NOT_FOUND);
+    expect(a.writes).toEqual([{ partId: "tire-front", key: "tread", value: other }]);
+    expect(b.stored("tire-front", "tread")).toBe(tread.value);
+    expect(storage.getItem()).toBe(bytes);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  /**
+   * What the repair was asked to match: an EMPTIED slot — the guest import
+   * clears it once the bike is in the account — already ended in this notice
+   * before the repair, and still does. A pin, not a regression case.
+   */
+  it("the slot emptied instead (what the guest import does): the removal's write is refused the same way, and said the same way", async () => {
+    const storage = new MemoryStorage();
+    const a = guestWorld("gravel-1x11", presetBuild("gravel-1x11"), storage);
+    const { user } = await open(a);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    storage.removeItem();
+
+    await user.click(screen.getByRole("tab", { name: "Pièces" }));
+    await settle();
+
+    expect(storage.getItem()).toBeNull();
+    expect(notice.error).toHaveBeenCalledTimes(1);
+    expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+    expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_FOUND);
   });
 });
 

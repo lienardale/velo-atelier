@@ -234,16 +234,23 @@ function WorkspaceBody({
     setLiveBuild(build);
   }
 
+  // WHICH bike an edit made here goes to. For a guest bike that is the one
+  // this body was mounted for — `localBike.id`, which the viewer's provider is
+  // keyed on above — and never "whatever is under `va:bike:local` when the
+  // write happens": the bike in that slot can be replaced by another page
+  // while this one is still on screen, and a write made for this bike must
+  // not land on that one (`localBikeRepo`, `.debug/017` §5.8).
+  const repoBikeId = refKind === "local" ? (localBike?.id ?? null) : bikeId;
   const repo = useMemo(
     () =>
       bikeRepoFor(refKind, {
-        bikeId,
+        bikeId: repoBikeId,
         actions: {
           updatePart: (input) => updateBikePartAction(input),
           updateFit: (input) => updateBikeFitAction(input),
         },
       }),
-    [refKind, bikeId],
+    [refKind, repoBikeId],
   );
 
   /** `?spec=` for links out of a guest bike to a server-planned route (§5.4). */

@@ -27,11 +27,15 @@
  *     with the text is an ordering of mousedown, React's commit and the focus
  *     change that only a browser has.
  *
- * The three blocks after it are what three reviews of that fix found, each
- * case seen failing in a browser on the build it was found on — with two
- * exceptions, which passed there too and say so where they stand: the
- * emptied-field case of the first review, which pins a decision, and the
- * control of the third review's case.
+ * The four blocks after it are what four reviews of that fix found, each case
+ * seen failing in a browser on the build it was found on — with these
+ * exceptions, which say so where they stand: the emptied-field case of the
+ * first review, which pins a decision and passed there too; the controls of
+ * the third and of the fourth review's cases, which passed there too; and the
+ * third block's case by the TREE's way of replacing the guest bike, written
+ * with the fourth review's repair, which passes on the build that review was
+ * made on (the third review's repair is what it holds) and was seen failing
+ * on a build with that repair's key put back to the word `local`.
  */
 import AxeBuilder from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
@@ -41,13 +45,16 @@ import { guidesFor } from "../../lib/bike/queries";
 import { buildOf, deriveBike } from "../../lib/bike/rules";
 import { toSummary } from "../../lib/content/guides";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
+import type { Answers } from "../../lib/domain/schema/decision";
 import { DEMO_BIKE_GUEST_IDS, DEMO_USER } from "../../prisma/seed-data";
 import { resolveTestEnv } from "../_fakes/db";
 import { diskGuides } from "../_helpers/guides";
 import enBike from "../../messages/en/bike.json";
 import enCommon from "../../messages/en/common.json";
+import enTree from "../../messages/en/decision-tree.json";
 import frBike from "../../messages/fr/bike.json";
 import frCommon from "../../messages/fr/common.json";
+import frTree from "../../messages/fr/decision-tree.json";
 
 import {
   clickPart,
@@ -61,6 +68,7 @@ import { expect, forEachLocale, href, test, type Locale } from "./_fixtures";
 import { readStoredLocalBike, seedLocalBike } from "./_local-bike";
 
 const BIKE_T = { fr: frBike, en: enBike };
+const TREE_T = { fr: frTree, en: enTree };
 
 /** Below 1024 px the panel is inside the bottom sheet; open it fully first. */
 async function expandSheetIfPresent(page: Page): Promise<void> {
@@ -1155,6 +1163,48 @@ const homeLinkName = (locale: Locale): string =>
 const storedGuestBytes = (page: Page): Promise<string | null> =>
   page.evaluate(() => window.localStorage.getItem("va:bike:local"));
 
+/** The two controls of the site that put a NEW guest bike in the slot. */
+const REPLACED_BY = ["the demo's local copy", "the tree"] as const;
+
+/**
+ * Answer the home page's tree, one question after the other, as far as its
+ * summary — with the pointer, as a visitor does: the option's card, then
+ * "Continuer". A preset answers exactly the questions the tree asks for that
+ * bike (`lib/domain/data/presets.ts`).
+ */
+async function answerTheTree(page: Page, answers: Answers): Promise<void> {
+  await expect(page.getByTestId("decision-tree")).toHaveAttribute("data-hydrated", "true");
+  const step = page.getByTestId("question-step");
+  const summary = page.getByTestId("decision-summary");
+  const given = new Map(Object.entries(answers));
+  for (let asked = 0; asked < 20; asked += 1) {
+    // The summary is a chunk of its own: neither is on screen while it loads.
+    await expect(step.or(summary)).toBeVisible();
+    if (await summary.isVisible()) return;
+    const question = await step.getAttribute("data-question");
+    const option = question === null ? undefined : given.get(question);
+    if (option === undefined) throw new Error(`the tree asks ${question}: no answer for it`);
+    await page.locator(`[role=radio][data-option-id="${option}"]`).click();
+    await page.getByTestId("tree-continue").click();
+    // The next question or the summary: this one is gone either way.
+    await expect(
+      page.locator(`[data-testid=question-step][data-question="${question}"]`),
+    ).toHaveCount(0);
+  }
+  throw new Error("twenty questions answered and no summary");
+}
+
+/** "Générer mon vélo" on the tree's summary, over a guest bike that is already there: asked, and confirmed. */
+async function generateAndReplace(page: Page, locale: Locale): Promise<void> {
+  /* eslint-disable security/detect-object-injection -- locale-keyed message fixtures */
+  await page.getByRole("button", { name: TREE_T[locale].summary.generate }).click();
+  await page
+    .getByRole("dialog", { name: TREE_T[locale].summary.replace.title })
+    .getByRole("button", { name: TREE_T[locale].summary.replace.confirm })
+    .click();
+  /* eslint-enable security/detect-object-injection */
+}
+
 forEachLocale((locale) => {
   /**
    * `/velo/local` names a SLOT, not a bike: taking the demo's local copy (and
@@ -1163,9 +1213,9 @@ forEachLocale((locale) => {
    * its own writes was keyed by the word `local`, so the new bike inherited
    * what this document had written to the one before it: the width set to 45
    * on bike A cast doubt on bike B's 42, and 42 typed back into B was SENT —
-   * "Enregistré" under a field nothing had changed, `updatedAt` moved (this
-   * case, eight runs of eight on the build of `19ab8b8`: both projects, both
-   * languages, twice).
+   * "Enregistré" under a field nothing had changed, `updatedAt` moved (the
+   * demo's way, eight runs of eight on the build of `19ab8b8`: both projects,
+   * both languages, twice).
    *
    * The site's own controls from the first page to the last, and ONE document
    * all the way: a reload empties the record, and the case would then pass
@@ -1173,72 +1223,211 @@ forEachLocale((locale) => {
    * bike A left as it was, PASSED on that build (eight runs of eight): it is
    * not a regression case, it is what shows that the difference is A's write
    * and nothing else on the way.
+   *
+   * The TREE's way was added by the fourth review's repair: until then the
+   * only tests of it called `writeLocalBike` themselves, and nothing drove
+   * "Générer mon vélo", its dialog and its `router.push` against the record.
+   * It passes on the build of the third review's repair, which is what it
+   * holds; with a guest bike's key put back to the word `local` and the site
+   * built, it fails as the demo's did (`.debug/017` §5.8, "Fourth review").
    */
-  for (const written of [true, false] as const) {
-    test(`a guest bike${written ? " whose front width was set to 45" : " left as it was (the control)"}; home, the demo, its local copy taken — a NEW guest bike: its width typed away and back, and the field left, writes nothing — guest bike (${locale})`, async ({
-      page,
-    }) => {
-      await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
-      await page.goto(href(locale, "/velo/[id]", { id: "local" }));
-      await page.evaluate(() => {
-        (window as unknown as { sameDocument?: boolean }).sameDocument = true;
-      });
-      const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
-      const status = page.getByTestId("attr-status-etrto-width");
+  for (const how of REPLACED_BY) {
+    for (const written of [true, false] as const) {
+      const way =
+        how === "the demo's local copy"
+          ? "home, the demo, its local copy taken"
+          : 'home, the tree answered again, "Générer mon vélo" and the replacement confirmed';
+      test(`a guest bike${written ? " whose front width was set to 45" : " left as it was (the control)"}; ${way} — a NEW guest bike: its width typed away and back, and the field left, writes nothing — guest bike (${locale})`, async ({
+        page,
+      }) => {
+        await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+        await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+        await page.evaluate(() => {
+          (window as unknown as { sameDocument?: boolean }).sameDocument = true;
+        });
+        const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+        const status = page.getByTestId("attr-status-etrto-width");
 
-      await clickRow(page, "tire-front");
-      await expandSheetIfPresent(page);
-      await expect(width).toHaveValue("42");
-      if (written) {
-        await typeAndStay(page, width, "45");
+        await clickRow(page, "tire-front");
+        await expandSheetIfPresent(page);
+        await expect(width).toHaveValue("42");
+        if (written) {
+          await typeAndStay(page, width, "45");
+          await page.keyboard.press("Tab");
+          await expect(status).toHaveText(
+            locale === "fr" ? frBike.panel.saved : enBike.panel.saved,
+          );
+          expect(await guestAttribute(page, "tire-front", "etrto-width")).toBe(45);
+        }
+        const first = await readStoredLocalBike(page);
+
+        // Home by the header; then the demo by the tree's own link, and its
+        // copy — or the tree itself, answered to its summary.
+        await page
+          .locator("[data-site-header]")
+          .getByRole("link", { name: homeLinkName(locale), exact: true })
+          .click();
+        await page.waitForURL((url) => url.pathname === href(locale, "/"));
+        if (how === "the demo's local copy") {
+          await page.getByTestId("skip-to-demo").click();
+          await page.waitForURL(
+            (url) => url.pathname === href(locale, "/velo/[id]", { id: "demo" }),
+          );
+          await clickRow(page, "tire-front");
+          await expandSheetIfPresent(page);
+          await page.getByTestId("part-panel-fork").getByRole("button").click();
+        } else {
+          await answerTheTree(page, BIKE_PRESETS["gravel-1x11"]);
+          await generateAndReplace(page, locale);
+        }
+        await page.waitForURL(
+          (url) => url.pathname === href(locale, "/velo/[id]", { id: "local" }),
+        );
+
+        await clickRow(page, "tire-front");
+        await expandSheetIfPresent(page);
+        await expect(width).toHaveValue("42");
+        const second = await readStoredLocalBike(page);
+        expect(second?.id, "a NEW guest bike").not.toBe(first?.id);
+        expect(await guestAttribute(page, "tire-front", "etrto-width")).toBe(42);
+        const bytes = await storedGuestBytes(page);
+
+        // Entered and left: never a write, whatever is on record.
+        await width.click();
         await page.keyboard.press("Tab");
-        await expect(status).toHaveText(locale === "fr" ? frBike.panel.saved : enBike.panel.saved);
-        expect(await guestAttribute(page, "tire-front", "etrto-width")).toBe(45);
-      }
-      const first = await readStoredLocalBike(page);
+        await expect(width).not.toBeFocused();
+        expect(await storedGuestBytes(page), "entered and left").toBe(bytes);
 
-      // Home by the header, the demo by the tree's own link, and its copy.
-      await page
-        .locator("[data-site-header]")
-        .getByRole("link", { name: homeLinkName(locale), exact: true })
-        .click();
-      await page.waitForURL((url) => url.pathname === href(locale, "/"));
-      await page.getByTestId("skip-to-demo").click();
-      await page.waitForURL((url) => url.pathname === href(locale, "/velo/[id]", { id: "demo" }));
-      await clickRow(page, "tire-front");
-      await expandSheetIfPresent(page);
-      await page.getByTestId("part-panel-fork").getByRole("button").click();
-      await page.waitForURL((url) => url.pathname === href(locale, "/velo/[id]", { id: "local" }));
+        // 43, then 42 again — what this bike holds — and the field left. A guest
+        // bike's write is in storage before the blur returns: nothing to wait for.
+        await typeAndStay(page, width, "43");
+        await typeAndStay(page, width, "42");
+        await page.keyboard.press("Tab");
+        await expect(width).not.toBeFocused();
 
-      await clickRow(page, "tire-front");
-      await expandSheetIfPresent(page);
-      await expect(width).toHaveValue("42");
-      const second = await readStoredLocalBike(page);
-      expect(second?.id, "the copy is a NEW guest bike").not.toBe(first?.id);
-      expect(await guestAttribute(page, "tire-front", "etrto-width")).toBe(42);
-      const bytes = await storedGuestBytes(page);
-
-      // Entered and left: never a write, whatever is on record.
-      await width.click();
-      await page.keyboard.press("Tab");
-      await expect(width).not.toBeFocused();
-      expect(await storedGuestBytes(page), "entered and left").toBe(bytes);
-
-      // 43, then 42 again — what this bike holds — and the field left. A guest
-      // bike's write is in storage before the blur returns: nothing to wait for.
-      await typeAndStay(page, width, "43");
-      await typeAndStay(page, width, "42");
-      await page.keyboard.press("Tab");
-      await expect(width).not.toBeFocused();
-
-      expect(
-        await page.evaluate(
-          () => (window as unknown as { sameDocument?: boolean }).sameDocument === true,
-        ),
-        "one document from the first page to the last",
-      ).toBe(true);
-      expect(await storedGuestBytes(page), "not one byte of the new bike moved").toBe(bytes);
-      await expect(status).toHaveText("");
-    });
+        expect(
+          await page.evaluate(
+            () => (window as unknown as { sameDocument?: boolean }).sameDocument === true,
+          ),
+          "one document from the first page to the last",
+        ).toBe(true);
+        expect(await storedGuestBytes(page), "not one byte of the new bike moved").toBe(bytes);
+        await expect(status).toHaveText("");
+      });
+    }
   }
+});
+
+// ── what the fourth review found (`.debug/017` §5.8, "Fourth review") ────────
+
+const NOT_FOUND: Record<Locale, string> = {
+  fr: "Introuvable.",
+  en: "Not found.",
+};
+
+forEachLocale((locale) => {
+  /**
+   * The guest bike replaced while its form is ON SCREEN — which only another
+   * page of the same browser can do: the two controls that store a new guest
+   * bike are on other routes. This page is told by the `storage` event, its
+   * workspace is mounted again for the new bike (it is keyed on the guest
+   * bike's id), and the field that held text typed for the FIRST bike is
+   * removed — which commits that text (rule 3 of `PartEditForm`). The guest
+   * repo read the slot before every write and wrote back under whatever id it
+   * found there: 45 typed for bike A's front tyre was written to bike B's,
+   * B's own 42 gone, and nothing said (the verifier's probe, the demo's way:
+   * 4 runs of 4 on the build of `258de61`, `desktop-chromium` and
+   * `mobile-chromium`; these cases on that build: `.debug/017` §5.8). On
+   * `main` the text was dropped: rule 3 is what made it a write.
+   *
+   * TWO PAGES OF ONE CONTEXT, driven at once: Playwright emulates the focus
+   * on every page, so the field of the first keeps the caret while the second
+   * is clicked. A person's tab switch takes the focus out of the field first,
+   * and its text is then committed to the bike that is still there (measured
+   * by the verifier in the full Chromium build, not here). What is left is
+   * what these cases are: a script, an automation, two pages acting at once.
+   *
+   * A guest repo is built for ONE bike now (`localBikeRepo(bikeId)`,
+   * `lib/bike/repo.ts`): the removal's write is refused, nothing is written,
+   * and the visitor is told which part and which field was not saved.
+   *
+   * The control — nothing typed — passed before the repair too.
+   */
+  /* eslint-disable security/detect-object-injection -- locale-keyed message fixtures */
+  for (const how of REPLACED_BY) {
+    for (const typed of [true, false] as const) {
+      const replaced =
+        how === "the demo's local copy"
+          ? "takes the demo's local copy"
+          : 'presses "Générer mon vélo" on the tree and confirms the replacement';
+      test(`guest bike A on one page${typed ? ", 45 typed for its front tyre and not left" : ", nothing typed (the control)"}; another page of the same browser ${replaced} — a NEW guest bike: the first page writes nothing to it${typed ? ", and says what was not saved" : ""} — guest bike (${locale})`, async ({
+        page,
+        context,
+      }) => {
+        await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
+        await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+        const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
+        await clickRow(page, "tire-front");
+        await expandSheetIfPresent(page);
+        await expect(width).toHaveValue("42");
+        // Every write THIS page makes to the slot from here on.
+        await page.evaluate(() => {
+          const counted = window as unknown as { guestWrites: number };
+          counted.guestWrites = 0;
+          const setItem = Storage.prototype.setItem;
+          Storage.prototype.setItem = function (key: string, value: string): void {
+            if (key === "va:bike:local") counted.guestWrites += 1;
+            setItem.call(this, key, value);
+          };
+        });
+        if (typed) await typeAndStay(page, width, "45");
+        const first = await readStoredLocalBike(page);
+        expect(await guestAttribute(page, "tire-front", "etrto-width")).toBe(42);
+
+        // The same context: one `localStorage`, and a `storage` event from one
+        // page to the other.
+        const other = await context.newPage();
+        if (how === "the demo's local copy") {
+          await other.goto(href(locale, "/velo/[id]", { id: "demo" }));
+          await clickRow(other, "tire-front");
+          await expandSheetIfPresent(other);
+          await other.getByTestId("part-panel-fork").getByRole("button").click();
+        } else {
+          const answers = new URLSearchParams(Object.entries(BIKE_PRESETS["gravel-1x11"]));
+          await other.goto(`${href(locale, "/")}?${answers.toString()}`);
+          await expect(other.getByTestId("decision-summary")).toBeVisible();
+          await generateAndReplace(other, locale);
+        }
+        await other.waitForURL(
+          (url) => url.pathname === href(locale, "/velo/[id]", { id: "local" }),
+        );
+        const second = await readStoredLocalBike(other);
+        expect(second?.id, "a NEW guest bike").not.toBe(first?.id);
+
+        // The first page has been told: its workspace is the new bike's, with
+        // no part selected — the field the text was typed in is gone.
+        await expect(page.getByTestId("bike-workspace")).toBeVisible();
+        await expect(width).toHaveCount(0);
+        expect(
+          await page.evaluate(() => (window as unknown as { guestWrites: number }).guestWrites),
+          "writes of the slot by the first page",
+        ).toBe(0);
+        expect(
+          await guestAttribute(other, "tire-front", "etrto-width"),
+          "the new bike's front tyre, which nobody typed anything for",
+        ).toBe(42);
+
+        if (typed) {
+          await expect(unsavedNotices(page, locale)).toHaveCount(1);
+          await expect(unsavedNotices(page, locale)).toContainText(NOT_FOUND[locale]);
+        } else {
+          await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+        }
+        // Still so once every notice has had the time to be raised.
+        expect((await readStoredLocalBike(other))?.updatedAt).toBe(second?.updatedAt);
+        await other.close();
+      });
+    }
+  }
+  /* eslint-enable security/detect-object-injection */
 });

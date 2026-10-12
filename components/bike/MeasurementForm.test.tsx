@@ -1,9 +1,9 @@
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildOf, deriveBike } from "@/lib/bike/rules";
 import { LOCAL_BIKE_KEY } from "@/lib/bike/storage-keys";
-import { writeLocalBike } from "@/lib/bike/local-bike";
+import { readLocalBike, writeLocalBike } from "@/lib/bike/local-bike";
 import { resetLocalBikeSnapshotCache } from "@/lib/bike/repo";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
 import { renderWithIntl } from "@/tests/_helpers/intl";
@@ -180,6 +180,86 @@ describe("where the value goes", () => {
     expect(screen.queryByRole("button", { name: "Enregistrer" })).toBeNull();
     expect(screen.getByLabelText("Entrejambe (cm)")).toBeDisabled();
     expect(screen.getByTestId("measure-form-saddle-height")).toHaveTextContent("copie locale");
+  });
+});
+
+/**
+ * `va:bike:local` is a slot: the guest bike in it is replaced by a NEW one —
+ * the demo's local copy, a bike generated again from the tree — by another
+ * page of the same browser, while this one is open. The guest repo used to
+ * write back under whatever id it found there, so a fit saved before this
+ * page had heard of the replacement was bike A's measurement in bike B
+ * (`.debug/017` §5.8, "Fourth review": found for the part form, whose field
+ * commits on removal; here the same repo under the form with a button). The
+ * form's repo is built for the bike its inputs were seeded from.
+ */
+describe("a guest bike's fit goes to the bike the inputs were seeded from", () => {
+  const fitOf = () => readLocalBike(window.localStorage)?.fit ?? null;
+
+  it("the guest bike replaced by another page, and this page not told yet: the save is refused, and nothing is written to the new bike", async () => {
+    const a = readLocalBike(window.localStorage)!;
+    const { user } = await renderForm();
+    await user.type(screen.getByLabelText("Entrejambe (cm)"), "84");
+
+    // Another page stores a NEW guest bike; the `storage` event is not here yet.
+    const b = writeLocalBike(
+      { answers: BIKE_PRESETS["gravel-1x11"] },
+      { storage: window.localStorage },
+    )!;
+    expect(b.id).not.toBe(a.id);
+    const bytes = window.localStorage.getItem(LOCAL_BIKE_KEY);
+
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    // The save has answered, one way or the other.
+    const state = screen.getByTestId("measure-state-saddle-height");
+    await waitFor(() => expect(state.textContent).toMatch(/^(Enregistré|Introuvable\.)$/));
+    expect(fitOf(), "bike B's fit, which nobody typed anything for").toBeNull();
+    // Not one byte of B moved — `updatedAt` included.
+    expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
+    expect(readLocalBike(window.localStorage)!.id).toBe(b.id);
+    expect(state).toHaveTextContent("Introuvable.");
+  });
+
+  /**
+   * The other side, pinned so that it stays a decision: once this page HAS
+   * been told, its inputs are re-seeded from the new bike (as they always
+   * were: what was typed for the first is dropped), and the repo is built
+   * again for it — what is saved from then on was typed over the new bike's
+   * values, and is the new bike's.
+   */
+  it("once this page is told (the storage event), the inputs are the new bike's and a save is the new bike's", async () => {
+    const { user } = await renderForm();
+    await user.type(screen.getByLabelText("Entrejambe (cm)"), "84");
+
+    const b = writeLocalBike(
+      { answers: BIKE_PRESETS["gravel-1x11"], fit: { inseamCm: 78, saddleHeightMm: 689 } },
+      { storage: window.localStorage },
+    )!;
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+    });
+
+    const inseam = screen.getByLabelText("Entrejambe (cm)");
+    expect(inseam).toHaveValue(78);
+    await user.clear(inseam);
+    await user.type(inseam, "80");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByText("Enregistré")).toBeInTheDocument();
+    expect(readLocalBike(window.localStorage)!.id).toBe(b.id);
+    expect(fitOf()).toEqual({ inseamCm: 80, saddleHeightMm: 706 });
+  });
+
+  it("no guest bike in this browser at all: the save is refused, and none is written into being", async () => {
+    window.localStorage.clear();
+    resetLocalBikeSnapshotCache();
+    const { user } = await renderForm();
+    await user.type(screen.getByLabelText("Entrejambe (cm)"), "84");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByText("Introuvable.")).toBeInTheDocument();
+    expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBeNull();
   });
 });
 
