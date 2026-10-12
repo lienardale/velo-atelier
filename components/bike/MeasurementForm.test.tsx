@@ -251,6 +251,7 @@ describe("a guest bike's fit goes to the bike the inputs were seeded from", () =
     expect(fitOf()).toEqual({ inseamCm: 80, saddleHeightMm: 706 });
   });
 
+  // A pin: with nothing stored the save was refused before the repair too.
   it("no guest bike in this browser at all: the save is refused, and none is written into being", async () => {
     window.localStorage.clear();
     resetLocalBikeSnapshotCache();

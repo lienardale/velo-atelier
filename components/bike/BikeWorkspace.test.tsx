@@ -1255,7 +1255,9 @@ describe("what the review of the third repair found — the guest bike replaced 
   /**
    * The record of the form's own writes across a replacement that arrives
    * this way (the third review's cases unmount the first workspace first):
-   * what this document wrote to A is not B's.
+   * what this document wrote to A is not B's. It is the THIRD review's repair
+   * this holds — it passed before the fourth's, and fails with a guest bike's
+   * key put back to the word `local`.
    */
   it("A's width written (45) by this document; another page stores a NEW bike B; on B, 43 and then 42 typed and the field left: not a write", async () => {
     const { user } = await openGuest("gravel-1x11", true);
