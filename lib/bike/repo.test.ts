@@ -234,6 +234,9 @@ describe("the local repo writes the bike it was built for, and no other", () => 
     },
   );
 
+  // The other edge of the binding, so that it cannot be tightened into
+  // refusing a bike its own edits: what makes a bike "another" is its id, and
+  // nothing else that a write changes. It passed before the repair too.
   it("the SAME bike written again under its id — another tab's edit, this repo's own — is still its bike", async () => {
     const a = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }, { storage })!;
     const repo = localBikeRepo(a.id, { storage });
