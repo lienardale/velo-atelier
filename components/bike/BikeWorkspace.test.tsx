@@ -1,8 +1,8 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readLocalBike, writeLocalBike } from "@/lib/bike/local-bike";
-import { resetLocalBikeSnapshotCache } from "@/lib/bike/repo";
+import { readLocalBike, writeLocalBike, type LocalBike } from "@/lib/bike/local-bike";
+import { forkDemoToLocal, resetLocalBikeSnapshotCache } from "@/lib/bike/repo";
 import { buildOf, deriveBike } from "@/lib/bike/rules";
 import { LOCAL_BIKE_KEY } from "@/lib/bike/storage-keys";
 import type { PartId } from "@/lib/domain/data/parts";
@@ -1105,6 +1105,178 @@ describe("what the third review found — the guest bike under `/velo/local` rep
     await user.tab();
     await settle();
     expect(writes()).toBe(1);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("what the review of the third repair found — the guest bike replaced UNDER a form that is on screen", () => {
+  /**
+   * The third review's cases replace the guest bike once the first one's
+   * workspace is gone: one document, one page after the other. Here the bike
+   * is replaced while its form is ON SCREEN — by another page of the same
+   * browser, which is the only thing that can do it: the two controls that
+   * store a new guest bike (the demo's "Modifier ce vélo", the tree's
+   * "Générer mon vélo") are on other routes.
+   *
+   * This page is told by the `storage` event. Its workspace is keyed on the
+   * guest bike's id, so it is mounted again for bike B, and the field that
+   * held text typed for bike A is removed — which commits that text (rule 3
+   * of `PartEditForm`). The guest repo read the slot before every write and
+   * wrote back under whatever id it found there: A's 45 went to B's front
+   * tyre, B's own 42 was gone, and nothing was said (`.debug/017` §5.8,
+   * "Fourth review"; here, and in Chromium with two pages of one context).
+   * On `main` that text was dropped: rule 3 is what made it a write.
+   *
+   * A guest repo is now built for ONE bike (`localBikeRepo(bikeId)`), and a
+   * write through it answers `NOT_FOUND` once the slot holds another: nothing
+   * is written, and the removal's write ends where every refused late write
+   * ends — the notice naming the part and the field.
+   */
+
+  /** What another page of this browser does: it stores a guest bike, and THIS page is sent the event. */
+  function storedByAnotherPage(store: () => LocalBike | null): { bike: LocalBike; bytes: string } {
+    const bike = store();
+    if (bike === null) throw new Error("storage refused the new guest bike");
+    const bytes = window.localStorage.getItem(LOCAL_BIKE_KEY)!;
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+    });
+    return { bike, bytes };
+  }
+
+  /** The two calls that put a NEW guest bike in the slot — answers, and no id. */
+  const STORES = [
+    {
+      how: 'takes the demo\'s local copy ("Modifier ce vélo")',
+      store: () => forkDemoToLocal({ answers: BIKE_PRESETS["gravel-1x11"] }),
+    },
+    {
+      how: "generates a bike again from the tree",
+      store: () => writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }),
+    },
+  ] as const;
+
+  const NOT_FOUND = "Introuvable.";
+
+  it.each(LAYOUTS.flatMap((layout) => STORES.map((stored) => ({ ...layout, ...stored }))))(
+    "panel $layout: guest bike A on screen, 45 typed for its front tyre and NOT left; another page $how — guest bike B: not one byte of B moves, and the visitor is told what was not saved",
+    async ({ desktop, store }) => {
+      const { user } = await openGuest("gravel-1x11", desktop);
+      await user.click(row("tire-front"));
+      await typeInto(user, "etrto-width", "45");
+      const typedIn = field("etrto-width");
+      const a = readLocalBike()!;
+
+      const b = storedByAnotherPage(store);
+      await settle(20);
+
+      expect(b.bike.id, "a NEW guest bike").not.toBe(a.id);
+      // The workspace is B's now: the field A's text was typed in is gone.
+      expect(typedIn.isConnected).toBe(false);
+      expect(readLocalBike()!.id).toBe(b.bike.id);
+      expect(
+        local("tire-front", "etrto-width"),
+        "B's front tyre, which nobody typed anything for",
+      ).toBe(42);
+      // Not one byte of B moved — `updatedAt` included.
+      expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(b.bytes);
+      // Told once, of the part and the field the text was typed for.
+      await waitFor(() => expect(notice.error).toHaveBeenCalledTimes(1));
+      expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+      expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_FOUND);
+
+      // And B starts from a record of its own: nothing of A's refused write is
+      // on it. Its width typed away and back, and the field left: not a write.
+      await user.click(row("tire-front"));
+      expect(title()).toBe("Pneu avant");
+      expect(field("etrto-width").value).toBe("42");
+      await typeInto(user, "etrto-width", "43");
+      await typeInto(user, "etrto-width", "42");
+      await user.tab();
+      await settle();
+      expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(b.bytes);
+      expect(status("etrto-width")).toBe("");
+      expect(notice.error).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // The control: the same replacement under a form nothing was typed in. It
+  // passed before the repair too — it is what shows that the difference above
+  // is the typed text, and nothing else the replacement does.
+  it.each(STORES)(
+    "nothing typed (the control); another page $how: B is as it was stored, and nothing is said",
+    async ({ store }) => {
+      const { user } = await openGuest("gravel-1x11", true);
+      await user.click(row("tire-front"));
+      await user.click(field("etrto-width"));
+      const typedIn = field("etrto-width");
+
+      const b = storedByAnotherPage(store);
+      await settle(20);
+
+      expect(typedIn.isConnected).toBe(false);
+      expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(b.bytes);
+      expect(notice.error).not.toHaveBeenCalled();
+    },
+  );
+
+  /**
+   * The same bike replaced, and this page NOT told yet: a `storage` event is
+   * delivered some time after the other page's write. A field left in that
+   * window is an ordinary save, by a form that is still there — to a bike
+   * that is not. It is refused under its own field.
+   */
+  it("the bike replaced and the event not delivered yet; 45 typed and the field LEFT: refused under the field, B untouched — and nothing more once the event arrives", async () => {
+    const { user } = await openGuest("gravel-1x11", true);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    const typedIn = field("etrto-width");
+
+    const b = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] })!;
+    const bytes = window.localStorage.getItem(LOCAL_BIKE_KEY);
+    await user.tab();
+    await settle();
+
+    expect(typedIn.isConnected, "the form of A is still on screen").toBe(true);
+    expect(status("etrto-width")).toBe(NOT_FOUND);
+    expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
+    expect(notice.error).not.toHaveBeenCalled();
+
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+    });
+    await settle(20);
+    expect(typedIn.isConnected).toBe(false);
+    expect(readLocalBike()!.id).toBe(b.id);
+    expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
+    expect(notice.error).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The record of the form's own writes across a replacement that arrives
+   * this way (the third review's cases unmount the first workspace first):
+   * what this document wrote to A is not B's.
+   */
+  it("A's width written (45) by this document; another page stores a NEW bike B; on B, 43 and then 42 typed and the field left: not a write", async () => {
+    const { user } = await openGuest("gravel-1x11", true);
+    await user.click(row("tire-front"));
+    await typeInto(user, "etrto-width", "45");
+    await user.tab();
+    await settle();
+    expect(status("etrto-width")).toBe("Enregistré");
+    expect(local("tire-front", "etrto-width")).toBe(45);
+
+    const b = storedByAnotherPage(() => writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] }));
+    await settle();
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    await typeInto(user, "etrto-width", "43");
+    await typeInto(user, "etrto-width", "42");
+    await user.tab();
+    await settle();
+
+    expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(b.bytes);
+    expect(status("etrto-width")).toBe("");
     expect(notice.error).not.toHaveBeenCalled();
   });
 });

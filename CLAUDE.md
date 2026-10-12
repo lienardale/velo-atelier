@@ -796,13 +796,18 @@ docs/                contributor and operator docs — every one is linked from 
   the new bike inherited what had been written to the one before it: its
   width typed away and back was sent, "Enregistré" under a field nothing had
   changed (after the demo's copy: 8 runs of 8 in Chromium on the build of
-  `19ab8b8`, both projects; after the tree: in jsdom only, through the call
-  its summary makes; harmless — the value sent is the one the bike holds —
-  and untrue of every sentence here that said "per bike"). A guest bike's key is `local:` and ITS
-  id, read from storage each time it is asked (`peekLocalBikeId`, which
-  removes nothing, unlike the read: it is asked when a field is left); it is
-  `null` when the slot holds no bike that can be read, and a field of no bike
-  is on no record — the write is sent and nothing is kept of it. **It is not
+  `19ab8b8`, both projects; after the tree — its summary, its dialog and its
+  `router.push`, first driven in a browser by the fourth review — 4 runs of
+  4 on a build with the key put back to `local`; harmless — the value sent is
+  the one the bike holds — and untrue of every sentence here that said "per
+  bike"). A guest bike's key is `local:` and the id of the bike its repo was
+  BUILT FOR, for as long as that bike is the one in storage — looked up each
+  time it is asked (`peekLocalBikeId`, which removes nothing, unlike the
+  read: it is asked when a field is left). It is `null` once the slot holds
+  no bike that can be read, or ANOTHER guest bike, and a field of no bike is
+  on no record — the write is sent, the repo refuses it in the same turn, and
+  nothing is kept of it: a guest bike's record is only ever written by a form
+  of that very bike. **It is not
   emptied by a write's ANSWER**:
   the answer's build is handed to the workspace that sent the write
   (`onSaved`), which after a route change is gone, and the one mounted again
@@ -848,11 +853,26 @@ docs/                contributor and operator docs — every one is linked from 
   is never replaced. NOT covered: the
   page unloaded with the caret in the field (a reload, a closed tab) — nothing
   is unmounted, and a saved bike's write would be a request the browser may
-  drop. Nor a guest bike replaced from ANOTHER TAB under a field that holds
-  typed text: the guest repo writes whichever bike is in the slot, so the
-  field's removal writes that text to the NEW bike's part (in jsdom, with
-  the `storage` event dispatched; not seen in a browser, where the other tab
-  has to take the focus first — `docs/backlog.md`, for a ruling). **Any form
+  drop. **Rule 3's write goes to the bike the form was MOUNTED FOR, or
+  nowhere.** The guest bike can be replaced under a form that is on screen —
+  another page of the same browser takes the demo's copy or confirms the
+  tree's replacement — and this page is then told by the `storage` event:
+  its workspace is mounted again for the new bike (it is keyed on the guest
+  bike's id), and the field holding text typed for the FIRST bike is removed,
+  which commits it. The guest repo used to write whichever bike it found in
+  the slot, so 45 typed for bike A's front tyre was stored for bike B's, B's
+  own 42 gone, nothing said — on `main` that text was only dropped (found by
+  the fourth review; measured in jsdom and, with two pages of one context
+  driven at once, in Chromium 153: 8 runs of 8 on the build of `258de61`,
+  both projects, both languages, the new bike stored each of the two ways).
+  The repo is built for one bike now (`lib/bike/repo.ts`; three bullets
+  down, under "Bike writes"), the write is
+  refused, and it ends in the "not saved" notice naming the part and the
+  field — as it always did for an EMPTIED slot, which is what the guest
+  import leaves. A person's tab switch is not that case: it takes the focus
+  out of the field, which commits the text to the bike that is still there
+  (measured by that review's verifier in the full Chromium build; WebKit and
+  Firefox not run). **Any form
   that edits "the selected X" inside a container that
   outlives the selection follows the same three rules, and is tested through
   that container** — `PartInfo.test.tsx` rendered the form with a part set by
@@ -923,13 +943,37 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   (demo = read-only, local = `localStorage`, db = server actions), so no
   component branches on the ref kind. **A repo says which bike it writes —
   `bikeKey()`: `demo`, a saved bike's UUID, or `local:` and the id of the
-  guest bike in storage when it is asked (`null` when there is none) —
-  because neither a repo OBJECT nor the route's `[id]` segment is the bike**:
-  `BikeWorkspace` builds a repo each time it mounts, and `/velo/local` is a
-  slot whose bike is replaced by another while the document lives. Whatever
-  is remembered about a bike from one mount to the next is keyed by that
-  key, never by the object and never by the segment (the part form's record
-  of its own writes, above, was keyed by each in turn).
+  guest bike the repo was built for (`null` once that bike is not the one in
+  storage) — because neither a repo OBJECT nor the route's `[id]` segment is
+  the bike**: `BikeWorkspace` builds a repo each time it mounts, and
+  `/velo/local` is a slot whose bike is replaced by another while the
+  document lives. Whatever is remembered about a bike from one mount to the
+  next is keyed by that key, never by the object and never by the segment
+  (the part form's record of its own writes, above, was keyed by each in
+  turn). **A guest repo is built for ONE bike, and no write made for guest
+  bike A may land on guest bike B**: `localBikeRepo(bikeId)` /
+  `bikeRepoFor("local", { bikeId })` takes the id of the guest bike its
+  caller is showing — `BikeWorkspace` its `localBike.id`, `MeasurementForm`
+  the id of the snapshot its inputs were seeded from — and BOTH writes,
+  `setAttribute` and `setFit`, answer `NOT_FOUND` and write nothing once the
+  slot holds another id, exactly as for an empty slot. Until 2026-10-12 it
+  read the slot before every write and wrote back under whatever id it
+  found; the read-before-write is still there, and is still what keeps two
+  tabs editing the SAME bike from overwriting each other. There is no way to
+  build a guest repo that follows the slot: `null` for the id (the fit form
+  before storage is read, or with nothing stored) is a repo of no bike, which
+  refuses every write. The fit form is bound for the same reason and not
+  because it was seen failing in a browser: a save pressed between another
+  page's replacement and this page hearing of it was bike A's measurement in
+  bike B (in jsdom, under a mutation of the repo); once the page HAS been
+  told, its inputs are re-seeded from the new bike, the repo is built again
+  for it, and a save is the new bike's — pinned, so that it stays a
+  decision. What the binding does NOT reach is every other writer of that
+  slot: the two controls that store a NEW guest bike (that is what they are
+  for), and the guest import's clear, which removes the key and not the bike
+  it sent — a bike stored by another page during the import's round trip is
+  removed un-imported (measured in jsdom by a probe; `docs/backlog.md`, with
+  the fit page's cards and the slot's two other keys, for a ruling).
 - **The guest import is a contract, not three storage shapes forwarded — and a
   checkup travels as ANSWERS, never as steps.** `/import` is a server page
   (`auth()` + `buildMetadata`, like its `(protected)` siblings) wrapping one

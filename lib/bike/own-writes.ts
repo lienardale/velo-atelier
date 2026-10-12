@@ -36,9 +36,12 @@
  *     new bike inherited what had been written to the one before it. A guest
  *     bike's key holds its own id.
  *
- * A write that has no bike to go to (`bikeKey()` answers `null`: the slot
- * holds no guest bike that can be read) is on no record at all: it is sent,
- * and nothing is kept of it.
+ * A write that has no bike to go to (`bikeKey()` answers `null`: the guest
+ * bike the repo was built for is no longer the one in the slot — the slot is
+ * empty, holds nothing that can be read, or holds ANOTHER guest bike) is on
+ * no record at all: it is sent, the repo refuses it in the same turn, and
+ * nothing is kept of it. So a guest bike's record is only ever written by a
+ * form of that very bike: the key and the write name the same bike, or none.
  *
  * ## What this costs, and what it cannot know
  *
@@ -79,7 +82,8 @@ let sent = 0;
  * One field of one bike — or `null`, a field of no bike.
  *
  * `bikeKey` is `BikeRepo.bikeKey()`: `demo`, a saved bike's UUID, or `local:`
- * and a guest bike's UUID. None of them holds a `/`. A part id and an
+ * and the UUID of the guest bike the repo was built for. None of them holds
+ * a `/`. A part id and an
  * attribute key are the domain's ids (`ID_PATTERN`: lower-case letters,
  * digits, hyphens): neither holds a `/` or a `:`. So the first `/` ends the
  * bike and the `:` after it ends the part — two fields never share a name.

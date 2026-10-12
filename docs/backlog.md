@@ -501,34 +501,67 @@ _To pick up_: decide whether a guest-only save is wanted; for a saved bike,
 `fetch(…, { keepalive: true })` to a route handler rather than a server
 action, and a way to say on the next visit that the last edit did not land.
 
-#### A guest bike replaced from another tab under a field that holds typed text: the text is written to the new bike
+#### A guest bike replaced from another page: what still follows the slot, and not the bike
 
-The guest repo reads `va:bike:local` before every write and writes whichever
-bike is there (`lib/bike/repo.ts`). With a guest bike on screen, 45 typed for
-its front tyre and the field NOT left, a NEW guest bike stored by another tab
-and the `storage` event delivered, the workspace is mounted again for the new
-bike, the old field is removed, and its removal writes the 45 to the NEW
-bike's front tyre, with no notice (measured on 2026-10-10 in jsdom, through
-the real `BikeWorkspace`, by a probe outside the repository; with nothing
-typed the new bike keeps its 42; `.debug/017` §5.8, "Third review"). Not seen
-in a browser, and reasoned to be out of a person's reach: the other tab has
-to be given the focus before it can store a bike, and a field that loses the
-focus commits its text to the bike that is still there. A script, or two
-pages driven at once, can do it.
+`va:bike:local` is a slot. The guest bike in it is replaced by a NEW one — a
+new id — by the demo's "Modifier ce vélo" and by the tree's "Générer mon
+vélo", and another page of the same browser can still be showing the first.
+Until 2026-10-12 the guest repo wrote whichever bike it found there: 45 typed
+for bike A's front tyre and not left was written to bike B's when the
+`storage` event took A's form off the screen, with nothing said (measured in
+jsdom through the real `BikeWorkspace`, and in Chromium 153 with two pages of
+one context driven at once, the new bike stored each of the two ways;
+`.debug/017` §5.8, "Fourth review"). That is fixed: a guest repo is built for
+ONE bike (`localBikeRepo(bikeId)`, `lib/bike/repo.ts`), a write made for a
+bike that is no longer the one in the slot is refused and writes nothing —
+the part form's and the fit form's alike — and the part form says which part
+and which field was not saved. The text itself is lost, as it was before the
+form committed on removal: the bike it was typed for is no longer in storage.
 
-_Why deferred_ (the third review of the part-form fix, 2026-10-10): the
-finding under repair was the record of the form's own writes, which this is
-not — it is the form's commit on removal meeting a repo that follows the
-slot. Making the repo refuse is a change to what the guest repo does.
-**Awaiting the maintainer's ruling.**
+What that repair did NOT touch, because none of it goes through the repo:
 
-_To pick up_: if ruled "a guest repo writes ONE bike", give `localBikeRepo`
-the id of the bike it is built for (`BikeWorkspace` has it: it keys its
-viewer on it) and answer `NOT_FOUND` once the slot holds another — the
-removal's write then ends in the "not saved" notice, which names the part and
-the field. `bikeKey()` already tells the two bikes apart. `MeasurementForm`
-builds a guest repo too, with an explicit save and no commit on removal:
-decide whether it is bound as well.
+- **The guest import clears the slot by its key, not by the bike it sent.**
+  `/import` collects the guest bike, waits for the server, and then removes
+  `va:bike:local` (`settleGuestImport` → `clearGuestKeys`,
+  `lib/guest/schema.ts`). A NEW guest bike stored by another page while that
+  request is in flight is removed with it, and was never sent (measured on
+  2026-10-12 in jsdom, by a probe outside the repository: the real
+  `GuestImport`, its action a stand-in that stores a new bike before it
+  answers — afterwards the slot is empty; not looked for in a browser). The
+  window is one server round trip of a page that imports by itself on
+  arrival.
+- **The fit page keeps the first bike's cards.** They are drawn by the server
+  from `?spec=`, which names no bike. Once the page has been told of the new
+  bike, each form's inputs are re-seeded from it and a save is the new
+  bike's (`components/bike/MeasurementForm.test.tsx` pins both halves, in
+  jsdom); the cards around them are still the ones the first bike's spec
+  asked for (read in `app/[locale]/velo/[id]/reglages/page.tsx`; not
+  measured).
+- **The guest checkup and build list are keyed by the slot too**
+  (`va:checkup:local`, `va:buildlist:local`), and neither control that stores
+  a new guest bike touches them (read in `components/decision-tree/Summary.tsx`
+  and `forkDemoToLocal`). What the new bike's pages then show of them was
+  not looked at.
+
+Not measured anywhere: WebKit and Firefox. And a person's tab switch is not
+the case that was fixed: it takes the focus out of the field, which commits
+the text to the bike that is still there (measured by the fourth review's
+verifier in the full Chromium build, on the unfixed tree; not run again).
+
+_Why deferred_ (the fourth review of the part-form fix, 2026-10-12): the
+finding was a write through the guest repo, and the repo is bound. The three
+above are other writers and other keys of the same slot — the import's
+contract, a page's design, the checkup's storage — and each is a change to
+something that review did not look at. **Awaiting the maintainer's ruling.**
+
+_To pick up_: for the import, clear `va:bike:local` only while
+`peekLocalBikeId()` (`lib/bike/local-bike.ts`) still answers the `localId`
+that was collected, and tell the visitor a bike is still in this browser;
+`tests/ui/guest-import.test.tsx` has the harness, with an action that can
+store a bike before it answers. For the fit page, decide whether it should
+notice — the stored bike's `encodeSpec(answers)` against the URL's `?spec=`
+is the comparison at hand. For the checkup and the list, first look at what
+a replaced bike's pages show.
 
 #### The guides list is built twice, and a card clicked during the swap does nothing
 

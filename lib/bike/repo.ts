@@ -5,7 +5,9 @@
  *   demo    nowhere. The demo bike is read-only; the panel offers
  *           "Modifier ce vélo → copie locale" instead of a form, and the copy
  *           is a `writeLocalBike` away ({@link forkDemoToLocal}).
- *   local   `localStorage`, through `lib/bike/local-bike.ts`.
+ *   local   `localStorage`, through `lib/bike/local-bike.ts` — to the ONE
+ *           guest bike the repo was built for, and to no other that comes to
+ *           be in its place ({@link localBikeRepo}).
  *   db      a server action, injected rather than imported: this module stays
  *           React-free and plain, and the unit tests pass fakes instead of
  *           standing a server up.
@@ -51,12 +53,15 @@ export interface BikeRepo {
    *
    *   demo    `demo`.
    *   db      the bike's UUID.
-   *   local   `local:` and the id of the guest bike that is in storage NOW.
-   *           Not the word `local`: that is the `[id]` segment of a route,
-   *           and it names a SLOT. The bike in it is replaced by another one,
-   *           with an id of its own, when the visitor takes the demo's local
-   *           copy or generates a bike again from the tree — and neither
-   *           loads the document again.
+   *   local   `local:` and the id of the guest bike this repo was built for
+   *           — for as long as THAT bike is the one in storage. Not the word
+   *           `local`: that is the `[id]` segment of a route, and it names a
+   *           SLOT. The bike in it is replaced by another one, with an id of
+   *           its own, when the visitor takes the demo's local copy or
+   *           generates a bike again from the tree — and neither loads the
+   *           document again. Once the slot holds another bike, or none that
+   *           can be read, the answer is `null`: a write through this repo
+   *           would be refused in the same turn.
    *
    * A repo object is not a bike either. `BikeWorkspace` builds one each time
    * it mounts, so a route left and come back to is two objects over one bike
@@ -121,13 +126,40 @@ export interface LocalRepoOptions {
 }
 
 /**
- * The guest bike. Reads the current payload before every write, so two tabs
- * editing the same bike cannot overwrite each other with a stale snapshot held
- * in a closure.
+ * The guest bike `bikeId` — THAT bike, and no other.
+ *
+ * Reads the current payload before every write, so two tabs editing the same
+ * bike cannot overwrite each other with a stale snapshot held in a closure.
+ *
+ * And it writes only if the payload it read is still the bike it was built
+ * for. `va:bike:local` is a slot: the bike in it is replaced by a NEW one —
+ * the demo's local copy, a bike generated again from the tree — while a page
+ * showing the first is still open in another tab. Until 2026-10-12 this repo
+ * wrote back under whatever id it had just read, so a write made for bike A
+ * landed on bike B: text typed for A's front tyre and not left was committed
+ * to B's when the `storage` event took A's form off the screen
+ * (`components/bike/PartEditForm.tsx`, rule 3; `.debug/017` §5.8, "Fourth
+ * review" — measured in jsdom and in Chromium). Now a slot that holds another
+ * id is, to this repo, a bike that is gone: nothing is written and the answer
+ * is `NOT_FOUND`, exactly as for an empty slot — and the caller says so.
+ *
+ * BOTH writes, `setFit` included: the rule is the repo's, not one form's. A
+ * fit saved between another page's replacement and this page hearing of it
+ * was bike A's measurement written into bike B (in jsdom, through
+ * `MeasurementForm`; not looked for in a browser).
+ *
+ * `bikeId` is `null` when the caller has no guest bike to show — the fit form
+ * before storage has been read, or with nothing stored. That is a repo of no
+ * bike: it refuses every write. There is deliberately no way to build a guest
+ * repo that follows the slot.
  */
-export function localBikeRepo(options: LocalRepoOptions = {}): BikeRepo {
-  const read = (): LocalBike | null =>
-    options.storage === undefined ? readLocalBike() : readLocalBike(options.storage);
+export function localBikeRepo(bikeId: string | null, options: LocalRepoOptions = {}): BikeRepo {
+  /** The bike this repo is for — `null` once it is no longer the one in the slot. */
+  const read = (): LocalBike | null => {
+    if (bikeId === null) return null;
+    const stored = options.storage === undefined ? readLocalBike() : readLocalBike(options.storage);
+    return stored !== null && stored.id === bikeId ? stored : null;
+  };
   const write = (input: Parameters<typeof writeLocalBike>[0]): LocalBike | null =>
     options.storage === undefined
       ? writeLocalBike(input)
@@ -135,12 +167,15 @@ export function localBikeRepo(options: LocalRepoOptions = {}): BikeRepo {
 
   return {
     kind: "local",
-    // The bike in the slot when this is asked: the one `setAttribute` below
-    // reads, and writes back under the same id, in the same turn.
+    // This repo's bike while it is the one in the slot — which is when
+    // `setAttribute` below, reading the same slot in the same turn, writes.
+    // A look, not a read: it is asked when a field is left, and must remove
+    // nothing from storage (`peekLocalBikeId`).
     bikeKey() {
+      if (bikeId === null) return null;
       const id =
         options.storage === undefined ? peekLocalBikeId() : peekLocalBikeId(options.storage);
-      return id === null ? null : `local:${id}`;
+      return id === bikeId ? `local:${bikeId}` : null;
     },
     canEdit: true,
 
@@ -210,7 +245,12 @@ export function remoteBikeRepo(bikeId: string, actions: RemoteBikeActions): Bike
   };
 }
 
-/** The repo for a ref, given what only the caller knows (the bike id, the actions). */
+/**
+ * The repo for a ref, given what only the caller knows: the actions, and WHICH
+ * bike — a saved bike's row id for `db`, and for `local` the id of the guest
+ * bike the caller is showing (`LocalBike.id`; `null` while it has none, and
+ * the repo then refuses every write).
+ */
 export function bikeRepoFor(
   kind: BikeRefKind,
   options: {
@@ -221,7 +261,10 @@ export function bikeRepoFor(
 ): BikeRepo {
   if (kind === "demo") return demoBikeRepo();
   if (kind === "local") {
-    return localBikeRepo(options.storage === undefined ? {} : { storage: options.storage });
+    return localBikeRepo(
+      options.bikeId ?? null,
+      options.storage === undefined ? {} : { storage: options.storage },
+    );
   }
   if (!options.bikeId || !options.actions) {
     throw new Error("bikeRepoFor('db') needs a bikeId and the server actions");
