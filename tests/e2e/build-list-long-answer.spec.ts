@@ -25,10 +25,14 @@
  *      demo bike and for a guest's own; the read wrote nothing; and the next
  *      tick writes the list without the long answer.
  *
- * A paste is a REAL paste where a test may write the clipboard — Chromium,
- * every project of this suite but `mobile-webkit` — and text inserted without
- * key presses elsewhere (`keyboard.insertText`, the path an IME takes). Both
- * go through the browser's own editing, which is where `maxlength` lives.
+ * A paste is done twice. First as text inserted without key presses
+ * (`keyboard.insertText`, the path an input method takes), in every browser:
+ * that is the assertion every project makes. Then, in Chromium, as a REAL
+ * paste — the clipboard written, Ctrl/Cmd+V pressed — when the browser lets
+ * the page write the clipboard; when it does not, the test says so in an
+ * annotation and that second paste is not made (it ran on macOS, in the
+ * headless shell, when this was written; a Linux runner was not tried).
+ * Both go through the browser's own editing, which is where `maxlength` lives.
  *
  * Every test runs in FR and EN: the labels the fields are found by, and the
  * sentences asserted, are each language's own.
@@ -114,21 +118,32 @@ forEachLocale((locale) => {
   const padModel = PARTS_T[locale].attr["pad-model"].label;
   const padThickness = PARTS_T[locale].attr["pad-thickness"].label;
 
-  /** Paste `text` into the focused field — for real where the clipboard can be written. */
-  async function paste(page: Page, browserName: string, text: string): Promise<void> {
-    if (browserName !== "chromium") {
-      await page.keyboard.insertText(text);
-      return;
-    }
-    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.evaluate((value) => navigator.clipboard.writeText(value), text);
-    await page.keyboard.press("ControlOrMeta+V");
+  /**
+   * Put `text` on the clipboard and paste it into the focused field, the way
+   * a person does. `false` when this browser does not let the page write the
+   * clipboard: nothing was pasted, and the caller says so.
+   */
+  async function pasteFromTheClipboard(page: Page, text: string): Promise<boolean> {
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"])
+      .catch(() => undefined);
+    const written = await page.evaluate(
+      (value) =>
+        navigator.clipboard.writeText(value).then(
+          () => true,
+          () => false,
+        ),
+      text,
+    );
+    if (written) await page.keyboard.press("ControlOrMeta+V");
+    return written;
   }
 
   test(`a guest on the demo bike types and pastes far more than a reference: the field stops, and the list stays (${locale})`, async ({
     page,
     browserName,
-  }) => {
+  }, testInfo) => {
     // The list, made by the application: the brakes checked in the real
     // wizard, the pads found worn — front and rear, two lines.
     await page.goto(
@@ -191,10 +206,29 @@ forEachLocale((locale) => {
     const again = card(page, "brake-pads-rear").getByLabel(padModel, { exact: true });
     await again.fill("");
     await again.focus();
-    await paste(page, browserName, PRODUCT_TITLE);
+    await page.keyboard.insertText(PRODUCT_TITLE);
     await expect(again).toHaveValue(PRODUCT_TITLE.slice(0, CAP));
     await expectTheList(page, 2);
     await expect.poll(() => longestStoredAnswer(page, "demo")).toBe(CAP);
+
+    // …and the same title off the clipboard, where a test may put one there.
+    if (browserName === "chromium") {
+      await again.fill("");
+      await expect.poll(() => longestStoredAnswer(page, "demo")).toBe(0);
+      await again.focus();
+      if (await pasteFromTheClipboard(page, PRODUCT_TITLE)) {
+        await expect(again).toHaveValue(PRODUCT_TITLE.slice(0, CAP));
+        await expectTheList(page, 2);
+        await expect.poll(() => longestStoredAnswer(page, "demo")).toBe(CAP);
+      } else {
+        testInfo.annotations.push({
+          type: "clipboard",
+          description: "this browser refused the clipboard write: the real paste was not made",
+        });
+        await page.keyboard.insertText(PRODUCT_TITLE);
+        await expect(again).toHaveValue(PRODUCT_TITLE.slice(0, CAP));
+      }
+    }
 
     await page.reload();
     await expectTheList(page, 2);
