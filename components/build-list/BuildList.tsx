@@ -91,10 +91,10 @@ import { PrintButton } from "./PrintButton";
  *   an over-long key                              other answers are kept
  *
  * The last two rows are `refinementOf` (`lib/shop/refinement.ts`), the reader
- * a saved bike's loader has always applied. `BuildList.test.tsx` holds each
- * row, and — because "only the application writes it" is a claim about the
- * writers — that every line the real plan can derive, for all seven presets,
- * reads back whole.
+ * a saved bike's loader has always applied. `BuildList.long-answer.test.tsx`
+ * holds each row, and — because "only the application writes it" is a claim
+ * about the writers — that every line the real plan can derive, for all
+ * seven presets, reads back whole.
  *
  * ## A read never writes
  *
