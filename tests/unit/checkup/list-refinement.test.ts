@@ -8,12 +8,18 @@
  * buying guide's prefill, and — as a refusal of the whole LIST — in the guest
  * list's parser, with the number 64 typed in each; the guest import's
  * contract said 120, and the form's inputs said nothing. They now share
- * `lib/shop/refinement.ts`. This file holds the two halves no other tier
- * holds without a database:
+ * `lib/shop/refinement.ts` — whose reader also holds a KEY to what the list's
+ * action takes (`isRefinementKey`), where the loader asked only for 64
+ * characters. This file holds the halves no other tier holds without a
+ * database:
  *
- *   - the loader still does what it did (the saved bike is unchanged): a row
- *     holding an over-long answer — which the import wrote for an answer of 65
- *     to 120 characters until 2026-10-13 — loses that answer and nothing else;
+ *   - for a VALUE the loader still does what it did (the saved bike is
+ *     unchanged): a row holding an over-long answer — which the import wrote
+ *     for an answer of 65 to 120 characters until 2026-10-13 — loses that
+ *     answer and nothing else;
+ *   - for a KEY it no longer hands the page one the action refuses: a row the
+ *     import wrote with `constructor` among its keys loses that entry, and is
+ *     a line that can be edited again;
  *   - the places that bound an answer bound it at the SAME length: one more
  *     character is refused by the contract and dropped by every reader.
  */
@@ -29,6 +35,7 @@ import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import { shopQuestionsFor } from "@/lib/shop/questions";
 import {
   isRefinementEntry,
+  isRefinementKey,
   MAX_REFINEMENT_VALUE_LENGTH,
   refinementOf,
 } from "@/lib/shop/refinement";
@@ -43,6 +50,27 @@ import {
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 const CAP = MAX_REFINEMENT_VALUE_LENGTH;
+
+// Hoisted: a guest's work walks the catalogue and the corpus (`.debug/009`).
+const COLLECTED = JSON.stringify(
+  guestWork({
+    answers: BIKE_PRESETS["gravel-1x11"],
+    checkup: (build) => wornPadsAndChain(build, "3f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a90"),
+  }).collect().state,
+);
+
+/**
+ * The guest import's CONTRACT, asked: a payload the collector built over the
+ * wizard's own storage, its first line holding `refinement`. Never a copy of
+ * the contract's pattern — a copy goes on passing the day the contract moves.
+ */
+function contractVerdict(refinement: Record<string, string>) {
+  const payload = JSON.parse(COLLECTED) as {
+    bikes: { lists: { items: { refinement?: Record<string, string> }[] }[] }[];
+  };
+  payload.bikes[0].lists[0].items[0].refinement = refinement;
+  return parseGuestState(payload);
+}
 
 /** One list of the owner's bike whose rear pads' line holds `refinement`, read as the page reads it. */
 async function readBack(refinement: unknown) {
@@ -108,6 +136,22 @@ describe("a saved line's refinement, as the list page receives it", () => {
     },
   );
 
+  it("loses an entry under a key the list's action refuses — every key the page is handed, it can hand back", async () => {
+    // `JSON.parse`, so the two names are OWN keys, as a `jsonb` column holds
+    // them. The import's contract let both through until 2026-10-13.
+    const stored = JSON.parse(
+      '{"constructor":"x","prototype":"y","Speeds":"11","pad_model":"z","pad-thickness":"2"}',
+    ) as Record<string, string>;
+    const items = await readBack(stored);
+
+    expect(items.map((item) => [item.partId, item.done])).toEqual([
+      ["chain", true],
+      ["brake-pads-rear", false],
+    ]);
+    expect(Object.keys(items[1].refinement ?? {})).toEqual(["pad-thickness"]);
+    expect(Object.keys(items[1].refinement ?? {}).every(isRefinementKey)).toBe(true);
+  });
+
   it.each([
     ["nothing but an over-long answer", { "pad-model": PRODUCT_URL }],
     ["not an object", "pad-model=J04C"],
@@ -129,12 +173,6 @@ describe("one cap, wherever an answer is bounded", () => {
    * bike's action — which needs `@/auth` and a row to write — is
    * `tests/integration/build-lists.test.ts`'s.)
    */
-  const guest = guestWork({
-    answers: BIKE_PRESETS["gravel-1x11"],
-    checkup: (build) => wornPadsAndChain(build, "3f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a90"),
-  });
-  const collected = JSON.stringify(guest.collect().state);
-
   const readers: Record<string, (value: string) => boolean> = {
     "the one reader (`refinementOf`)": (value) =>
       refinementOf({ "pad-model": value })?.["pad-model"] === value,
@@ -144,13 +182,7 @@ describe("one cap, wherever an answer is bounded", () => {
       } as unknown as StoredBuildList;
       return lineRefinement(list, REAR_PADS.partId, "line-1")?.["pad-model"] === value;
     },
-    "the guest import's contract": (value) => {
-      const payload = JSON.parse(collected) as {
-        bikes: { lists: { items: { refinement?: Record<string, string> }[] }[] }[];
-      };
-      payload.bikes[0].lists[0].items[0].refinement = { "pad-model": value };
-      return parseGuestState(payload).ok;
-    },
+    "the guest import's contract": (value) => contractVerdict({ "pad-model": value }).ok,
   };
   it.each(Object.keys(readers))("%s takes 64 characters and not 65", (name) => {
     // eslint-disable-next-line security/detect-object-injection -- a key of the table above
@@ -170,8 +202,20 @@ describe("what the form's controls OFFER is inside the walls", () => {
    * every preset, with the price tier asked too.
    */
   const TIERS = { entry: "Entrée de gamme", mid: "Milieu de gamme", high: "Haut de gamme" };
-  /** The guest import's contract on a refinement key (`lib/guest/schema.ts`). */
-  const CONTRACT_KEY = /^[a-z0-9-]{1,40}$/;
+
+  it("the contract is asked, not copied: it refuses a key the catalogue could not have", () => {
+    // The control for the block below. Until the review of 2026-10-13 that
+    // block matched every key against a private copy of the contract's
+    // pattern, which goes on passing whatever the contract becomes.
+    expect(contractVerdict({ "pad-model": "J04C" }).ok).toBe(true);
+    const refused = contractVerdict({ "Pad Model": "J04C" });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    // …and the refusal names the line's refinement, key included.
+    expect(refused.issues.map((issue) => issue.path.join("."))).toContain(
+      "bikes.0.lists.0.items.0.refinement.Pad Model",
+    );
+  });
 
   it.each(Object.keys(BIKE_PRESETS) as PresetId[])(
     "%s: every question's key, every option's value and every part's number of questions",
@@ -188,7 +232,8 @@ describe("what the form's controls OFFER is inside the walls", () => {
         // One answer per question at most: a line's refinement fits the contract's count.
         expect(questions.length, part.id).toBeLessThanOrEqual(GUEST_CAPS.refinementEntries);
         for (const question of questions) {
-          expect(question.key, `${part.id}.${question.key}`).toMatch(CONTRACT_KEY);
+          // The key every reader keeps and the saved bike's action takes…
+          expect(isRefinementKey(question.key), `${part.id}.${question.key}`).toBe(true);
           for (const option of question.options ?? []) {
             expect(
               isRefinementEntry(question.key, option.value),
@@ -196,6 +241,16 @@ describe("what the form's controls OFFER is inside the walls", () => {
             ).toBe(true);
           }
         }
+        if (questions.length === 0) continue;
+        // …and the guest import's CONTRACT takes every one of them: the part's
+        // whole form answered at once, on a line of a real payload.
+        const verdict = contractVerdict(
+          Object.fromEntries(questions.map((question) => [question.key, "x"])),
+        );
+        expect(
+          verdict.ok ? [] : verdict.issues.map((issue) => issue.path.join(".")),
+          `${part.id}: ${questions.map((question) => question.key).join(", ")}`,
+        ).toEqual([]);
       }
       expect(asked).toBeGreaterThan(50);
     },

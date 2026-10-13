@@ -309,6 +309,50 @@ describe("the refinement", () => {
     ).toEqual({ speeds: "11", "brand-tier": "mid" });
   });
 
+  it("a row that ALREADY holds a key the action refuses is read without it — so the line can still be edited", async () => {
+    // Such a row could be written: until 2026-10-13 the guest import's
+    // contract held a key to the catalogue's shape alone, which `constructor`
+    // and `prototype` pass, and the loader handed the page every key of at
+    // most 64 characters. The page sends back the WHOLE refinement it was
+    // given with one answer changed, so this action — which has always
+    // refused those two names — answered `VALIDATION` to every edit of that
+    // line, for good (measured in review, through the real import). The row
+    // below is written past every guard, as that import left it.
+    const { user, list } = await seededList();
+    const chain = list.items.find((item) => item.partId === "chain")!;
+    const stored = JSON.parse('{"constructor":"x","prototype":"y","speeds":"11"}') as Record<
+      string,
+      string
+    >;
+    await prisma.buildListItem.update({ where: { id: chain.id }, data: { refinement: stored } });
+    expect(
+      Object.keys(
+        (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } }))
+          .refinement as object,
+      ).sort(),
+    ).toEqual(["constructor", "prototype", "speeds"]);
+
+    // The page gets the line and its real answer; the two names are not read.
+    const loaded = await loadBuildList(list.bikeId, user.id);
+    expect(loaded.items).toHaveLength(list.items.length);
+    const line = loaded.items.find((item) => item.id === chain.id);
+    expect(line?.refinement).toEqual({ speeds: "11" });
+    expect(Object.keys(line?.refinement ?? {})).toEqual(["speeds"]);
+
+    // What the form sends on the next edit — everything it was given, one
+    // answer changed — is accepted, and replaces the column.
+    expect(
+      await setBuildListItemRefinementAction({
+        itemId: chain.id,
+        refinement: { ...line?.refinement, "e-rated": "false" },
+      }),
+    ).toEqual({ ok: true, data: null });
+    const after = (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } }))
+      .refinement as Record<string, unknown>;
+    expect(after).toEqual({ speeds: "11", "e-rated": "false" });
+    expect(Object.keys(after).sort()).toEqual(["e-rated", "speeds"]);
+  });
+
   it("drops an own `__proto__` key rather than storing it (zod 4 behaviour)", async () => {
     // Verified against the installed zod 4.5.4: `z.record` SKIPS an own
     // `__proto__` key instead of failing the parse, so the payload a browser
@@ -362,6 +406,95 @@ describe("reading one line for the buying guide (`/acheter?item=`)", () => {
       ok: true,
       data: { partId: item.partId, refinement: { speeds: "11" } },
     });
+  });
+
+  /**
+   * The reader behind this action was, until 2026-10-13, its own copy of the
+   * loader's filter, and the one copy no test held: its bound set to 5 000
+   * characters, or the column handed back unfiltered, left every tier green
+   * (measured in review). It is `refinementOf` now — the loader's function —
+   * so the cases below read ONE row through both and expect one answer. The
+   * rows are written past every guard: this is a reader of a `Json` column.
+   */
+  it.each([
+    [
+      "an answer over the cap, and answers that are not strings",
+      { speeds: "11", "e-rated": "r".repeat(99), clutch: 7, nested: { a: "b" }, none: null },
+      { speeds: "11" },
+    ],
+    [
+      "an answer of exactly the cap",
+      { speeds: "11", "e-rated": "r".repeat(64) },
+      { speeds: "11", "e-rated": "r".repeat(64) },
+    ],
+    ["one character over it", { speeds: "11", "e-rated": "r".repeat(65) }, { speeds: "11" }],
+    [
+      "keys the action itself would refuse",
+      JSON.parse(
+        '{"constructor":"x","prototype":"y","Speeds":"12","speeds.nested":"13","speeds":"11"}',
+      ) as Record<string, unknown>,
+      { speeds: "11" },
+    ],
+  ])("a row holding %s is read as the list's loader reads it", async (_what, stored, expected) => {
+    const { user, list } = await seededList();
+    const item = list.items[0];
+    await prisma.buildListItem.update({
+      where: { id: item.id },
+      data: { refinement: stored as Prisma.InputJsonValue },
+    });
+
+    const viaAction = await loadBuildListItemAction({ bikeId: list.bikeId, itemId: item.id });
+    expect(viaAction).toEqual({ ok: true, data: { partId: item.partId, refinement: expected } });
+    if (!viaAction.ok) return;
+    expect(Object.keys(viaAction.data.refinement).sort()).toEqual(Object.keys(expected).sort());
+
+    // The two readers of the same column agree.
+    const viaLoader = (await loadBuildList(list.bikeId, user.id)).items.find(
+      (line) => line.id === item.id,
+    );
+    expect(viaLoader?.refinement).toEqual(viaAction.data.refinement);
+  });
+
+  it.each([
+    ["a string", "speeds=11"],
+    ["an array", ["speeds", "11"]],
+    ["a number", 11],
+    ["nothing but an over-long answer", { speeds: "r".repeat(65) }],
+  ])("a row whose refinement is %s is a line with no answers, not an error", async (_w, stored) => {
+    const { list } = await seededList();
+    const item = list.items[0];
+    await prisma.buildListItem.update({
+      where: { id: item.id },
+      data: { refinement: stored as Prisma.InputJsonValue },
+    });
+    expect(await loadBuildListItemAction({ bikeId: list.bikeId, itemId: item.id })).toEqual({
+      ok: true,
+      data: { partId: item.partId, refinement: {} },
+    });
+  });
+
+  it("answers with at most the 24 answers a line may hold, whatever the row holds", async () => {
+    // The action's own bound on a WRITE (`TOO_MANY` past 24, above) and on
+    // this answer. No path of the application writes a 25th: the import's
+    // contract stops at the same number.
+    const { user, list } = await seededList();
+    const item = list.items[0];
+    const thirty = Object.fromEntries(
+      Array.from({ length: 30 }, (_, index) => [`attr-${String(index).padStart(2, "0")}`, "x"]),
+    );
+    await prisma.buildListItem.update({ where: { id: item.id }, data: { refinement: thirty } });
+
+    const result = await loadBuildListItemAction({ bikeId: list.bikeId, itemId: item.id });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(Object.keys(result.data.refinement)).toHaveLength(24);
+    // Twenty-four of the thirty, each as stored.
+    expect(thirty).toMatchObject(result.data.refinement);
+    // The list's loader has no such bound: it is this action's own.
+    const viaLoader = (await loadBuildList(list.bikeId, user.id)).items.find(
+      (line) => line.id === item.id,
+    );
+    expect(Object.keys(viaLoader?.refinement ?? {})).toHaveLength(30);
   });
 
   it("answers NOT_FOUND for another account's line, and for a line of another bike", async () => {

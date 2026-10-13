@@ -2,9 +2,12 @@
  * `BuildListItem.chosenProduct`'s link rule (§4.4), in ONE place: the guest
  * import applies it on the way in (`lib/guest/schema.ts`, the only writer
  * besides the seed) and every reader applies it on the way out — the `/liste`
- * loader and the guest list's parser. The `Json` column and
- * `va:buildlist:<ref>` hold what some earlier version of the app (or a
- * visitor's own DevTools) put there, and "the writer checked" is not a
+ * loader, the guest list's parser, and the import's collector, which reads a
+ * stored product with {@link chosenProductOf} before it sends one (since
+ * 2026-10-13: forwarded as stored, a product the list page did not show
+ * could cost the import its whole list; `.debug/017` §5.9). The `Json`
+ * column and `va:buildlist:<ref>` hold what some earlier version of the app
+ * (or a visitor's own DevTools) put there, and "the writer checked" is not a
  * property a reader can see. A product that fails is dropped, not repaired.
  *
  * The rule: https, no credentials, and on the named retailer's own hosts —

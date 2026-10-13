@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   clipRefinementText,
   isRefinementEntry,
+  isRefinementKey,
   MAX_REFINEMENT_KEY_LENGTH,
   MAX_REFINEMENT_VALUE_LENGTH,
   refinementOf,
@@ -32,8 +33,53 @@ describe("the cap", () => {
   });
 });
 
+/**
+ * A record holding an OWN key of that name, as storage or a request body can
+ * carry one: `JSON.parse` creates it, where an object literal would set the
+ * prototype (or name the constructor) and prove nothing.
+ */
+const own = (json: string): Record<string, unknown> => JSON.parse(json) as Record<string, unknown>;
+
+describe("isRefinementKey — the one definition of a key an answer is stored under", () => {
+  it.each(["pad-model", "brand-tier", "e-rated", "speeds", "max-cog", "11", "k"])(
+    "takes an attribute key: %j",
+    (key) => {
+      expect(isRefinementKey(key)).toBe(true);
+    },
+  );
+
+  it("takes a key of exactly its cap, and not one character more — nor none at all", () => {
+    expect(isRefinementKey("k".repeat(MAX_REFINEMENT_KEY_LENGTH))).toBe(true);
+    expect(isRefinementKey("k".repeat(MAX_REFINEMENT_KEY_LENGTH + 1))).toBe(false);
+    expect(isRefinementKey("")).toBe(false);
+  });
+
+  it.each(["Speeds", "pad_model", "pad model", "speeds.nested", "pad-modèle", "a/b", "speeds\n"])(
+    "refuses a key that is not in the catalogue's shape: %j",
+    (key) => {
+      expect(isRefinementKey(key)).toBe(false);
+    },
+  );
+
+  // `constructor` and `prototype` are all-lowercase: the shape alone lets them
+  // through. The saved bike's action has always refused them by name; the
+  // import's contract did not, and a line imported with one could never be
+  // edited again (`.debug/017` §5.9, the review of the fix).
+  it.each(["__proto__", "constructor", "prototype"])(
+    "refuses %j — a name that means something to an object",
+    (key) => {
+      expect(isRefinementKey(key)).toBe(false);
+    },
+  );
+
+  it("still takes a key that merely CONTAINS one of those names", () => {
+    expect(isRefinementKey("constructor-type")).toBe(true);
+    expect(isRefinementKey("prototype-2")).toBe(true);
+  });
+});
+
 describe("isRefinementEntry", () => {
-  it("takes a string of at most the cap, under a key of at most its own", () => {
+  it("takes a string of at most the cap, under an attribute key of at most its own", () => {
     expect(isRefinementEntry("pad-model", "J04C")).toBe(true);
     expect(isRefinementEntry("pad-model", "")).toBe(true);
     expect(isRefinementEntry("pad-model", AT_CAP)).toBe(true);
@@ -90,9 +136,28 @@ describe("refinementOf — a bad entry costs that entry", () => {
     ).toEqual({ "pad-model": "J04C" });
   });
 
+  it("drops an entry under a key the account's action would refuse, and keeps the others", () => {
+    // What a reader hands the page, the page hands back whole with the next
+    // edit: an entry the writer refuses must not be read, or that line can
+    // never be edited again.
+    const read = refinementOf(
+      own(
+        '{"__proto__":"a","constructor":"b","prototype":"c","Speeds":"11","pad_model":"x","a.b":"y","":"z","pad-thickness":"2","brand-tier":"mid"}',
+      ),
+    );
+    expect(read).toEqual({ "pad-thickness": "2", "brand-tier": "mid" });
+    expect(Object.keys(read ?? {})).toEqual(["pad-thickness", "brand-tier"]);
+    // Every key it returns is one the action takes.
+    expect(Object.keys(read ?? {}).every(isRefinementKey)).toBe(true);
+    // Nothing was written anywhere but on the object returned.
+    expect(Object.getPrototypeOf(read)).toBe(Object.prototype);
+    expect(({} as Record<string, unknown>).a).toBeUndefined();
+  });
+
   it("answers undefined — no refinement, never an error — when nothing can be kept", () => {
     expect(refinementOf({ "pad-model": OVER_CAP })).toBeUndefined();
     expect(refinementOf({})).toBeUndefined();
+    expect(refinementOf(own('{"constructor":"x"}'))).toBeUndefined();
   });
 
   it.each([undefined, null, "pad-model=J04C", 64, true, ["pad-model", "J04C"]])(

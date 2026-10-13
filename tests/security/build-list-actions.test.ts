@@ -18,6 +18,13 @@
  *      the server's to write (`manual` from here, `recheck-ok` from a checkup).
  *   4. **The item read is scoped by the bike too**: a line of another of your
  *      own bikes does not pre-fill the guide you opened from this one.
+ *   5. **The item read is a reader of a `Json` column, and it is THE reader**
+ *      (`refinementOf`, `lib/shop/refinement.ts`): what it answers for a row
+ *      is what the list's loader hands the page for the same row, and never
+ *      more than 24 answers. Until 2026-10-13 it was a copy of that filter
+ *      which no test held — its bound set to 5 000 characters, or the column
+ *      returned as stored, left every tier green (`.debug/017` §5.9, the
+ *      review of the fix).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,6 +44,8 @@ const {
   clearDoneBuildListItemsAction,
   loadBuildListItemAction,
 } = await import("@/app/[locale]/velo/[id]/liste/actions");
+const { loadBuildList } = await import("@/app/[locale]/velo/[id]/liste/load");
+const { isRefinementKey, MAX_REFINEMENT_VALUE_LENGTH } = await import("@/lib/shop/refinement");
 
 interface Seeded {
   user: { id: string; email: string; name: string; locale: "fr" };
@@ -162,6 +171,76 @@ describe("ownership is in the query", () => {
       code: "NOT_FOUND",
     });
     expectScopedToUser(fakeDb.calls, me.user.id);
+  });
+});
+
+describe("the item read answers what the list's loader hands the page — a `Json` column is not trusted", () => {
+  const CAP = MAX_REFINEMENT_VALUE_LENGTH;
+
+  /** A line of my list whose column holds `refinement`, written past every guard. */
+  async function lineHolding(refinement: unknown): Promise<string> {
+    const line = (await fakeDb.seed("BuildListItem", {
+      buildListId: me.list.id,
+      partId: "brake-pads-rear",
+      action: "REPLACE",
+      reasonKey: "pad-worn",
+      sortOrder: 2,
+      refinement,
+    })) as { id: string };
+    return line.id;
+  }
+
+  it.each([
+    [
+      "an answer over the cap, and answers that are not strings",
+      { speeds: "11", "pad-model": "r".repeat(CAP + 1), clutch: 7, nested: { a: "b" }, none: null },
+      { speeds: "11" },
+    ],
+    [
+      "an answer of exactly the cap",
+      { speeds: "11", "pad-model": "r".repeat(CAP) },
+      { speeds: "11", "pad-model": "r".repeat(CAP) },
+    ],
+    ["5 000 characters", { speeds: "11", "pad-model": "r".repeat(5000) }, { speeds: "11" }],
+    [
+      // `JSON.parse`, so the two names are OWN keys, as a `jsonb` column holds them.
+      "keys the action itself refuses on a write",
+      JSON.parse(
+        '{"constructor":"x","prototype":"y","Speeds":"12","speeds.nested":"13","speeds":"11"}',
+      ) as unknown,
+      { speeds: "11" },
+    ],
+    ["a string", "speeds=11", {}],
+    ["an array", ["speeds", "11"], {}],
+    ["nothing but an over-long answer", { "pad-model": "r".repeat(CAP + 1) }, {}],
+  ])("a row holding %s", async (_what, stored, expected) => {
+    const itemId = await lineHolding(stored);
+
+    const result = await loadBuildListItemAction({ bikeId: me.bike.id, itemId });
+    expect(result).toEqual({ ok: true, data: { partId: "brake-pads-rear", refinement: expected } });
+    if (!result.ok) return;
+    expect(Object.keys(result.data.refinement).sort()).toEqual(Object.keys(expected).sort());
+    // Every key it answers is one the refinement action would take back.
+    expect(Object.keys(result.data.refinement).every(isRefinementKey)).toBe(true);
+
+    // The two readers of the same column agree.
+    const viaLoader = (await loadBuildList(me.bike.id, me.user.id)).items.find(
+      (line) => line.id === itemId,
+    );
+    expect(viaLoader?.refinement ?? {}).toEqual(result.data.refinement);
+  });
+
+  it("answers with at most the 24 answers a line may hold", async () => {
+    const thirty = Object.fromEntries(
+      Array.from({ length: 30 }, (_, index) => [`attr-${String(index).padStart(2, "0")}`, "x"]),
+    );
+    const itemId = await lineHolding(thirty);
+
+    const result = await loadBuildListItemAction({ bikeId: me.bike.id, itemId });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(Object.keys(result.data.refinement)).toHaveLength(24);
+    expect(thirty).toMatchObject(result.data.refinement);
   });
 });
 

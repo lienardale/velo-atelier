@@ -342,6 +342,17 @@ describe.each(BIKES)("$bike — a browser that ALREADY holds an over-long answer
       ...line,
       refinement: { "pad-thickness": "2", "brand-tier": "mid", "pad-model": long },
     }));
+    // The PRECONDITION of every case of this block: the storage really holds
+    // the answer no reader shows, on that line, beside the two others. A
+    // helper that wrote what the FIXED page writes — the entry already
+    // dropped — left all of them green over a storage that held no long
+    // answer at all (measured in review of the fix, 2026-10-13).
+    expect(storedLine(ref, "brake-pads-rear").refinement).toEqual({
+      "pad-thickness": "2",
+      "brand-tier": "mid",
+      "pad-model": long,
+    });
+    expect(longestStoredValue(ref)).toBe(long.length);
     return raw(ref)!;
   }
 
@@ -457,6 +468,11 @@ describe.each(BIKES)("$bike — a browser that ALREADY holds an over-long answer
       ...line,
       refinement: { "pad-model": "J04C", "pad-thickness": "1".repeat(CAP + 1) },
     }));
+    // The precondition: the 65 digits are in storage.
+    expect(storedLine(ref, "brake-pads-rear").refinement).toEqual({
+      "pad-model": "J04C",
+      "pad-thickness": "1".repeat(CAP + 1),
+    });
     await renderList(ref);
 
     expect(screenState()).toBe(WHOLE);
@@ -496,6 +512,12 @@ describe("what a bad value of a stored line costs — field by field", () => {
     ["a value that is null", { "pad-model": null, "pad-thickness": "2" }],
     ["a value that is an object", { "pad-model": { ref: "J04C" }, "pad-thickness": "2" }],
     ["an over-long key", { ["k".repeat(65)]: "J04C", "pad-thickness": "2" }],
+    ["a key that is not an attribute key", { "Pad Model": "J04C", "pad-thickness": "2" }],
+    [
+      // `JSON.parse`, so the name is an OWN key, as storage holds one.
+      "a key the saved bike's action refuses by name",
+      JSON.parse('{"constructor":"J04C","prototype":"x","pad-thickness":"2"}') as object,
+    ],
   ])("one refinement entry — %s — costs that ENTRY", (_what, refinement) => {
     const parsed = parseBuildList(withRearPads("refinement", refinement));
     expect(partIds(parsed)).toEqual(ALL);
@@ -545,9 +567,11 @@ describe("what a bad value of a stored line costs — field by field", () => {
     expect(parseBuildList(envelope(many))).toHaveLength(MAX_BUILD_LIST_ITEMS);
   });
 
-  // What only the APPLICATION writes: the list, as before. None of these is a
-  // value a control of the page can produce — the block after this one is
-  // what holds that for the writers.
+  // What only the APPLICATION gives a form to: the list, as before. None of
+  // these is a value a control of the page can produce — `done` and
+  // `doneReason` included, which the page's own tick DOES write, but only as
+  // a boolean and the word `manual`. The block after this one is what holds
+  // that for every writer, the tick among them.
   it.each([
     ["id", 7],
     ["id", "i".repeat(201)],
@@ -562,7 +586,7 @@ describe("what a bad value of a stored line costs — field by field", () => {
     ["sortOrder", "first"],
     ["sortOrder", null],
   ])(
-    "a line whose `%s` is %j costs the LIST (unchanged: only the application writes it)",
+    "a line whose `%s` is %j costs the LIST (unchanged: no control of the page can write that)",
     (field, value) => {
       expect(parseBuildList(withRearPads(field, value))).toBeNull();
     },
@@ -583,7 +607,7 @@ describe("what a bad value of a stored line costs — field by field", () => {
   });
 });
 
-describe("only the application writes the fields that cost the list — and what it writes reads back whole", () => {
+describe("only the application gives a form to the fields that cost the list — and what it writes reads back whole", () => {
   /**
    * The table above lets `id`, `stepKey`, `sourceKeys`, `action`, `reasonKey`,
    * `guideSlug` and `sortOrder` cost the list on the ground that no visitor
@@ -591,6 +615,15 @@ describe("only the application writes the fields that cost the list — and what
    * against everything `deriveBuildList` can say: the FULL plan of each of the
    * seven presets, every question answered "ça ne marche pas" with no symptom
    * picked — which lands every consequence of every step (§5.4).
+   *
+   * `done` and `doneReason` cost the list too, and for them the ground is
+   * narrower, because they have THREE writers and one of them is a control:
+   * `deriveBuildList` (`false`, no reason — the cases just described), the
+   * merge (`true` + `recheck-ok`, when a later checkup contradicts a line)
+   * and the list page's own tick (`true` + `manual`, or `false` and no
+   * reason). So each of the other two is run for real below, and everything
+   * it stores read back — until the review of 2026-10-13 this block held the
+   * first writer only, under a header that said the two others did not exist.
    */
   it.each(Object.keys(BIKE_PRESETS) as PresetId[])(
     "%s: every line a full checkup can derive is read back as written",
@@ -615,6 +648,95 @@ describe("only the application writes the fields that cost the list — and what
 
       // The page keeps a list's first 80 lines; every one of them, as written.
       expect(parsed).toEqual(derived.slice(0, MAX_BUILD_LIST_ITEMS));
+    },
+  );
+
+  it.each(Object.keys(BIKE_PRESETS) as PresetId[])(
+    "%s: every line a LATER checkup closes — the merge's `recheck-ok` — is read back as the merge wrote it",
+    (preset) => {
+      // eslint-disable-next-line security/detect-object-injection -- a key of the presets table
+      const build = buildOf(deriveBike(BIKE_PRESETS[preset]));
+      const plan = planFromDisk(build, { kind: "full" });
+      const run = (id: string, verdict: "ko" | "ok", at: string) =>
+        guestRun({
+          id,
+          build,
+          scope: { kind: "full" },
+          verdicts: Object.fromEntries(plan.map((step) => [step.key, verdict])),
+          startedAt: at,
+          completedAt: at,
+        });
+      const storage = memoryStorage();
+      // Everything broken, then — a later checkup, by the wizard's own write —
+      // everything fine: the merge closes every line the first one opened.
+      writeGuestList(storage, "local", run(FIRST_CHECKUP, "ko", "2026-09-14T08:00:00.000Z"));
+      writeGuestList(storage, "local", run(SECOND_CHECKUP, "ok", "2026-10-01T08:00:00.000Z"));
+
+      const stored = storedListLines(storage, "local");
+      expect(stored.length).toBeGreaterThan(20);
+      // What the merge stored for the two fields: one value each, on every line.
+      expect(new Set(stored.map((line) => JSON.stringify([line.done, line.doneReason])))).toEqual(
+        new Set(['[true,"recheck-ok"]']),
+      );
+      // …and the page reads every one of those lines back, closed, with its reason.
+      const parsed = parseBuildList(storage.getItem(buildListKey("local")));
+      expect(parsed).toEqual(stored.slice(0, MAX_BUILD_LIST_ITEMS));
+    },
+  );
+
+  it.each(BIKES)(
+    "$bike: the tick — made, unmade and cleared through the real page — stores a boolean and `manual` or nothing, and each list is read back whole",
+    async ({ ref }) => {
+      listFromTheWizard(ref);
+      const view = await renderList(ref);
+      const tick = (partId: string): HTMLElement =>
+        within(card(partId)).getByTestId("build-item-done");
+      /** What the page stored for the two fields, line by line. */
+      const ticks = (): unknown[] =>
+        lines(ref).map((line) => [line.partId, line.done, line.doneReason ?? null]);
+      /** The stored list, as the page's own parser reads it. */
+      const readBack = (): unknown[] | undefined =>
+        parseBuildList(raw(ref))?.map((line) => [line.partId, line.done, line.doneReason ?? null]);
+
+      // Made.
+      await view.user.click(tick("brake-pads-rear"));
+      expect(ticks()).toEqual([
+        ["brake-pads-front", false, null],
+        ["brake-pads-rear", true, "manual"],
+        ["chain", false, null],
+      ]);
+      expect(readBack()).toEqual(ticks());
+      expect(screenState()).toBe(WHOLE);
+
+      // Unmade: `false`, and no reason at all — not a reason left behind.
+      await view.user.click(tick("brake-pads-rear"));
+      expect(ticks()).toEqual([
+        ["brake-pads-front", false, null],
+        ["brake-pads-rear", false, null],
+        ["chain", false, null],
+      ]);
+      expect(Object.hasOwn(storedLine(ref, "brake-pads-rear"), "doneReason")).toBe(false);
+      expect(readBack()).toEqual(ticks());
+      expect(screenState()).toBe(WHOLE);
+
+      // Made on two lines, then "Retirer ce qui est fait": the third is all that is stored.
+      await view.user.click(tick("brake-pads-front"));
+      await view.user.click(tick("chain"));
+      expect(readBack()).toEqual([
+        ["brake-pads-front", true, "manual"],
+        ["brake-pads-rear", false, null],
+        ["chain", true, "manual"],
+      ]);
+      await view.user.click(screen.getByTestId("build-list-clear-done"));
+      expect(ticks()).toEqual([["brake-pads-rear", false, null]]);
+      expect(readBack()).toEqual(ticks());
+
+      // …and that list is on screen after a reload.
+      view.unmount();
+      await renderList(ref);
+      expect(screenState(), "after a reload").toBe(
+        "build-list=present cards=1 empty-state=absent alerts=0",
+      );
     },
   );
 });
@@ -711,6 +833,47 @@ describe("`listPageEdit` is the list page's own write", () => {
 
       expect(Object.keys(byThePage).sort()).toEqual(["items", "updatedAt", "version"]);
       expect({ ...byTheHelper, updatedAt: null }).toEqual({ ...byThePage, updatedAt: null });
+    },
+  );
+
+  /**
+   * The other half, which the case above cannot hold: its "J04C" is an answer
+   * the FIXED page writes too, so it cannot tell this helper from one that
+   * reads each line as the fixed page does before writing. "A list as the old
+   * page left it" is a list holding what the fixed page can NO LONGER write —
+   * and the helper is only that page's stand-in while it writes whatever it is
+   * handed, on the edited line and on the others.
+   */
+  it.each(BIKES)(
+    "$bike: it writes WHATEVER the edit returns — and leaves what the other lines hold",
+    ({ ref }) => {
+      listFromTheWizard(ref);
+      listPageEdit(window.localStorage, ref, FRONT_PADS, (line) => ({
+        ...line,
+        refinement: { "pad-model": PRODUCT_URL },
+        chosenProduct: { brand: "Shimano" },
+      }));
+      const NOT_AN_ANSWER = { "pad-model": PRODUCT_TITLE, "pad-thickness": 2, "Pad Model": "x" };
+      listPageEdit(window.localStorage, ref, REAR_PADS, (line) => ({
+        ...line,
+        refinement: NOT_AN_ANSWER,
+      }));
+
+      // The edited line, byte for byte what the edit returned…
+      expect(storedLine(ref, "brake-pads-rear").refinement).toEqual(NOT_AN_ANSWER);
+      expect(raw(ref)).toContain(JSON.stringify(NOT_AN_ANSWER));
+      // …and the line edited BEFORE it, untouched by the second write.
+      expect(storedLine(ref, "brake-pads-front")).toMatchObject({
+        refinement: { "pad-model": PRODUCT_URL },
+        chosenProduct: { brand: "Shimano" },
+      });
+      expect(longestStoredValue(ref)).toBe(PRODUCT_URL.length);
+      // None of which the fixed page reads: that is what makes it a fixture.
+      const read = parseBuildList(raw(ref));
+      expect(read?.find((line) => line.partId === "brake-pads-rear")?.refinement).toBeUndefined();
+      expect(read?.find((line) => line.partId === "brake-pads-front")).not.toHaveProperty(
+        "refinement",
+      );
     },
   );
 });

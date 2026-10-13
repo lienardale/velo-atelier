@@ -27,9 +27,9 @@ import { MAX_NOTE_LENGTH, MAX_SYMPTOMS } from "@/lib/checkup/reducer";
 import { readStoredCheckup, toStored, writeStoredCheckup } from "@/lib/checkup/storage";
 import { CHECKUP_STATE_VERSION } from "@/lib/checkup/types";
 import { withinJsonBudget } from "@/lib/bike/rules";
-import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import { KO_ACTIONS } from "@/lib/domain/schema/procedure";
-import { MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
+import { isRefinementKey, MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
 import {
   GUEST_NAMES,
   guestRun,
@@ -37,6 +37,8 @@ import {
   listPageEdit,
   memoryStorage,
   partsScope,
+  planFromDisk,
+  storedListLines,
 } from "@/tests/_helpers/guest-work";
 import {
   CHAIN as CHAIN_LINE,
@@ -552,6 +554,16 @@ describe("collectGuestState — a list line's refinement is collected entry by e
       refinement: { "e-rated": "non" },
     }));
     listPageEdit(guest.storage, "local", REAR_PADS, (line) => ({ ...line, refinement }));
+    // The PRECONDITION of every case of this block: the storage holds, on that
+    // line, exactly what the case says it holds. A helper that wrote what the
+    // FIXED page writes — the over-long answer already dropped — left all of
+    // them green over a storage with nothing to drop (measured in review).
+    expect(
+      JSON.stringify(
+        storedListLines(guest.storage, "local").find((line) => line.partId === REAR_PADS.partId)
+          ?.refinement,
+      ),
+    ).toBe(JSON.stringify(refinement));
     const raws = new Map(guest.storage.map);
     const { state, checkup } = guest.collect();
     const [list] = state.bikes[0].lists;
@@ -644,8 +656,11 @@ describe("collectGuestState — a list line's refinement is collected entry by e
     ["a string", "pad-model=J04C"],
     ["an array", ["pad-model", "J04C"]],
     ["null", null],
-    // Read by the list page, refused by the contract: nothing is left to send.
-    ["nothing but a key the contract does not take", { Speeds: "11" }],
+    // Read by the list page (64 characters at most), refused by the contract
+    // (40): nothing is left to send.
+    ["nothing but a key the contract does not take", { ["k".repeat(41)]: "11" }],
+    // Not an attribute key: no reader takes it, the list page's included.
+    ["nothing but a key that is not an attribute key", { Speeds: "11" }],
   ])(
     "a refinement that is %s costs that line's refinement, never the line or the list",
     (_what, refinement) => {
@@ -660,8 +675,9 @@ describe("collectGuestState — a list line's refinement is collected entry by e
     const NUL = String.fromCharCode(0);
     const { state, rear } = holding({
       // A key the list page reads (64 characters at most) and the contract
-      // does not (40, and `[a-z0-9-]` only).
+      // does not (40)…
       ["k".repeat(41)]: "x",
+      // …and two that are not attribute keys: no reader takes those.
       Speeds: "11",
       __proto__x: "x",
       // The one character PostgreSQL stores in no column.
@@ -670,6 +686,36 @@ describe("collectGuestState — a list line's refinement is collected entry by e
     });
     expect(rear?.refinement).toEqual({ "pad-thickness": "2" });
     expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+  });
+
+  it("never sends an answer under `constructor` or `prototype` — the account's action would refuse every later edit of that line", () => {
+    // The contract's key was the catalogue's SHAPE alone, which both names
+    // pass; the saved bike's action refuses both by name. A line imported
+    // with one was handed to the list page with it, and the page sends back
+    // the whole refinement it was given: "Modification non enregistrée" for
+    // every answer on that line from then on (measured in review, on
+    // PostgreSQL). `JSON.parse`, so the names are OWN keys, as storage has them.
+    const stored = JSON.parse(
+      '{"constructor":"x","prototype":"y","__proto__":"z","pad-thickness":"2","brand-tier":"mid"}',
+    ) as Record<string, unknown>;
+    expect(Object.keys(stored)).toEqual([
+      "constructor",
+      "prototype",
+      "__proto__",
+      "pad-thickness",
+      "brand-tier",
+    ]);
+    const { state, list, rear, untouched } = holding(stored);
+
+    expect(list.items).toHaveLength(3);
+    expect(Object.keys(rear?.refinement ?? {})).toEqual(["pad-thickness", "brand-tier"]);
+    // Every key the payload carries is one the account's action takes…
+    for (const line of list.items) {
+      expect(Object.keys(line.refinement ?? {}).every(isRefinementKey), line.partId).toBe(true);
+    }
+    // …and the payload is one the server takes.
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+    expect(untouched()).toBe(true);
   });
 
   it("sends at most the contract's number of answers for one line", () => {
@@ -708,6 +754,199 @@ describe("collectGuestState — a list line's refinement is collected entry by e
       "pad-thickness": "2",
     });
   });
+});
+
+// ── the collector, and a list line's chosen product ──────────────────────────
+
+describe("collectGuestState — a list line's chosen product is collected as the list page reads it", () => {
+  /**
+   * The same flaw as the refinement's, one field down the same guard, found
+   * in review of that fix (2026-10-13) and measured there. The collector's
+   * guard on the stored list typed `chosenProduct` as an object of five
+   * strings: a stored product that was not one — `null`, a string, a field
+   * missing — failed the parse of the WHOLE stored list. The list page, which
+   * reads a product leniently (`chosenProductOf`: the product is dropped, the
+   * line kept), went on showing every line; the import carried none of them;
+   * and the list's key was then cleared with the bike's. And a product the
+   * guard let through but the contract refuses — a link §4.4 forbids, a field
+   * longer than its column — was a payload refused whole, on every retry.
+   *
+   * No control of the site writes a guest's `chosenProduct` today: these are
+   * values DevTools made, or a later release. The storage below is the
+   * wizard's, the product put on the front pads' line by the list page's own
+   * write.
+   */
+  const CHOSEN = {
+    brand: "Shimano",
+    model: "J04C",
+    size: "paire",
+    vendor: "alltricks",
+    url: "https://www.alltricks.fr/C-40598-toutes-les-plaquettes",
+  };
+
+  function holdingProduct(chosenProduct: unknown) {
+    const guest = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      checkup: (build) => wornPadsAndChain(build, CHECKUP_ID),
+    });
+    // What the visitor did on the two other lines must come through untouched.
+    listPageEdit(guest.storage, "local", CHAIN_LINE, (line) => ({
+      ...line,
+      done: true,
+      doneReason: "manual",
+    }));
+    listPageEdit(guest.storage, "local", REAR_PADS, (line) => ({
+      ...line,
+      refinement: { "pad-thickness": "2" },
+    }));
+    listPageEdit(guest.storage, "local", FRONT_PADS, (line) => ({ ...line, chosenProduct }));
+    // The precondition: the storage holds, on that line, what the case says.
+    expect(
+      JSON.stringify(
+        storedListLines(guest.storage, "local").find((line) => line.partId === FRONT_PADS.partId)
+          ?.chosenProduct,
+      ),
+    ).toBe(JSON.stringify(chosenProduct));
+    const raws = new Map(guest.storage.map);
+    const collection = guest.collect();
+    const [list] = collection.state.bikes[0].lists;
+    return {
+      collection,
+      state: collection.state,
+      list,
+      front: list?.items.find((line) => line.partId === FRONT_PADS.partId),
+      untouched: () => [...raws].every(([key, raw]) => guest.storage.map.get(key) === raw),
+    };
+  }
+
+  it("sends a product the list page shows, as stored (the control)", () => {
+    const { state, list, front } = holdingProduct(CHOSEN);
+    expect(list.items).toHaveLength(3);
+    expect(front?.chosenProduct).toEqual(CHOSEN);
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+  });
+
+  it("sends a product as the list page READS it — its five fields, and not a sixth the contract would refuse", () => {
+    // The page's reader goes first, and it is not redundant with the
+    // contract: it keeps the five fields of a product and leaves the rest,
+    // where the contract — a strict object — would refuse the product for
+    // one field more. Read by the contract alone, this product would be
+    // dropped although the list page shows it.
+    const { state, front } = holdingProduct({ ...CHOSEN, note: "vu en boutique", price: 24.9 });
+    expect(front?.chosenProduct).toEqual(CHOSEN);
+    expect(Object.keys(front?.chosenProduct ?? {}).sort()).toEqual(Object.keys(CHOSEN).sort());
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+  });
+
+  it.each([
+    ["null", null],
+    ["a string", "Shimano J04C"],
+    ["an array", ["Shimano", "J04C"]],
+    ["a number", 7],
+    ["not five strings — a field missing", { brand: "Shimano" }],
+    ["not five strings — a number where one is due", { ...CHOSEN, size: 2 }],
+    [
+      "a link that is not on its vendor's site (§4.4)",
+      { ...CHOSEN, url: "https://evil.example/x" },
+    ],
+    ["a link that is not https", { ...CHOSEN, url: "http://www.alltricks.fr/C-40598" }],
+    ["a vendor this site does not know", { ...CHOSEN, vendor: "amazon" }],
+    ["a model longer than its column", { ...CHOSEN, model: "m".repeat(121) }],
+    ["a U+0000 in its model", { ...CHOSEN, model: `J04C${String.fromCharCode(0)}` }],
+  ])(
+    "a stored product that is %s costs that PRODUCT — not the line, not the list, not the import",
+    (_what, stored) => {
+      const { collection, state, list, front, untouched } = holdingProduct(stored);
+
+      // Every line is sent — the one that held the product included, without it.
+      expect(list?.items.map((line) => line.partId)).toEqual([
+        FRONT_PADS.partId,
+        REAR_PADS.partId,
+        CHAIN_LINE.partId,
+      ]);
+      expect(front).toBeDefined();
+      expect(Object.hasOwn(front as object, "chosenProduct")).toBe(false);
+      // The other lines' work is untouched.
+      expect(list.items.find((line) => line.partId === REAR_PADS.partId)?.refinement).toEqual({
+        "pad-thickness": "2",
+      });
+      expect(list.items.find((line) => line.partId === CHAIN_LINE.partId)?.done).toBe(true);
+      // The payload is one the server takes…
+      expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+      // …so when the browser then forgets the list's key, the account has the list.
+      const settled = settleGuestImport(collection, {
+        bikeId: "00000000-0000-4000-8000-000000000001",
+        bikes: [
+          {
+            localId: state.bikes[0].localId,
+            bikeId: "00000000-0000-4000-8000-000000000001",
+            checkups: [{ guestKey: CHECKUP_ID, status: "imported" }],
+          },
+        ],
+        imported: 1,
+        skipped: 0,
+      });
+      expect(settled.clear).toContain(buildListKey("local"));
+      expect(state.bikes[0].lists[0].items).toHaveLength(3);
+      // Reading wrote nothing.
+      expect(untouched()).toBe(true);
+    },
+  );
+});
+
+// ── the collector, and the REST of a line ────────────────────────────────────
+
+describe("collectGuestState — every line the wizard can derive is a line the contract takes", () => {
+  /**
+   * The collector holds a line's `refinement` and `chosenProduct` to the
+   * contract and forwards the rest of the line — `partId`, `action`,
+   * `reasonKey`, `guideSlug`, `sortOrder`: the checkup's own output — as it
+   * is stored. One of those the contract refuses is still a payload refused
+   * whole (`docs/backlog.md`), so "the application only ever writes what the
+   * contract takes" has to be held against everything the application can
+   * write there: the FULL plan of each of the seven presets, every question
+   * answered "ça ne marche pas" with no symptom picked — which lands every
+   * consequence of every step (§5.4) — stored by the wizard's own writers,
+   * collected, and handed to the contract.
+   *
+   * `BuildList.long-answer.test.tsx` holds the same derivations against the
+   * list PAGE's parser; this is the import's side, which that file cannot
+   * speak for (cited as if it did until the review of 2026-10-13).
+   */
+  it.each(Object.keys(BIKE_PRESETS) as PresetId[])(
+    "%s: a full checkup with everything broken is collected whole, and accepted",
+    (preset) => {
+      const everythingBroken = guestWork({
+        answers: BIKE_PRESETS[preset],
+        checkup: (build) =>
+          guestRun({
+            id: CHECKUP_ID,
+            build,
+            scope: { kind: "full" },
+            verdicts: Object.fromEntries(
+              planFromDisk(build, { kind: "full" }).map((step) => [step.key, "ko" as const]),
+            ),
+            startedAt: STARTED_AT,
+            completedAt: COMPLETED_AT,
+          }),
+      });
+      if (everythingBroken.checkup === null) throw new Error("no checkup was stored");
+      const derived = deriveBuildList(everythingBroken.checkup);
+      expect(derived.length).toBeGreaterThan(20);
+      // The contract's cap on a list's lines is not what decides here.
+      expect(derived.length).toBeLessThanOrEqual(GUEST_CAPS.itemsPerList);
+
+      const { state, checkup } = everythingBroken.collect();
+      expect(checkup).toBe("collected");
+      // Every derived line is in the payload, in order…
+      expect(state.bikes[0].lists[0]?.items.map((line) => `${line.action} ${line.partId}`)).toEqual(
+        derived.map((line) => `${line.action} ${line.partId}`),
+      );
+      // …and the contract takes the payload: no line of it, no field of a line.
+      const verdict = parseGuestState(JSON.parse(JSON.stringify(state)));
+      expect(verdict.ok ? [] : verdict.issues.map((issue) => issue.path.join("."))).toEqual([]);
+    },
+  );
 });
 
 // ── the contract ─────────────────────────────────────────────────────────────
@@ -1016,8 +1255,15 @@ describe("GuestStateSchema", () => {
     expect(cap).toBe(24);
     expect(accepts(entries(cap))).toBe(true);
     expect(accepts(entries(cap + 1))).toBe(false);
-    // 1 400 entries were accepted until 2026-10-09: 123 KB in one column at
-    // this length, 230 KB at the 120 characters a value could then have.
+    // 1 400 entries were accepted until 2026-10-09: 154 KB in one column at
+    // this length, 232 KB at the 120 characters a value could then have.
+    // Counted, not estimated — this comment said "123 KB" for the first.
+    expect(guestStateBytes(entries(1400))).toBe(154_001);
+    expect(
+      guestStateBytes(
+        Object.fromEntries(Object.keys(entries(1400)).map((key) => [key, "v".repeat(120)])),
+      ),
+    ).toBe(232_401);
     expect(withinGuestPayloadBudget(entries(1400))).toBe(true);
     expect(accepts(entries(1400))).toBe(false);
     // The heaviest refinement the contract allows — 40-character keys, a full
@@ -1029,6 +1275,34 @@ describe("GuestStateSchema", () => {
     expect(accepts({ ["k".repeat(41)]: "v" })).toBe(false);
     expect(accepts({ k: "v".repeat(MAX_REFINEMENT_VALUE_LENGTH) })).toBe(true);
     expect(accepts({ k: "v".repeat(MAX_REFINEMENT_VALUE_LENGTH + 1) })).toBe(false);
+  });
+
+  it("holds a refinement key to the one definition of a key, and to 40 characters", () => {
+    const accepts = (refinement: Record<string, string>): boolean => {
+      const tampered = payload();
+      tampered.bikes[0].lists[0].items[0].refinement = refinement;
+      return parseGuestState(tampered).ok;
+    };
+    const own = (json: string) => JSON.parse(json) as Record<string, string>;
+
+    expect(accepts({ "pad-model": "J04C", "brand-tier": "mid", speeds: "11" })).toBe(true);
+    expect(accepts({ ["k".repeat(40)]: "v" })).toBe(true);
+    expect(accepts({ ["k".repeat(41)]: "v" })).toBe(false);
+    for (const key of ["Speeds", "pad_model", "pad model", "speeds.nested", ""]) {
+      expect(accepts({ [key]: "v" }), JSON.stringify(key)).toBe(false);
+      expect(isRefinementKey(key), JSON.stringify(key)).toBe(false);
+    }
+    // The two names the shape lets through, refused by name — as the saved
+    // bike's action always refused them. Until 2026-10-13 both were accepted
+    // here, and the line they were imported on could never be edited again.
+    for (const name of ["constructor", "prototype"]) {
+      const refinement = own(`{"${name}":"v","speeds":"11"}`);
+      expect(Object.hasOwn(refinement, name)).toBe(true);
+      expect(accepts(refinement), name).toBe(false);
+      expect(isRefinementKey(name), name).toBe(false);
+    }
+    // A key that merely contains one of them is an attribute key like another.
+    expect(accepts({ "constructor-type": "v" })).toBe(true);
   });
 
   it("holds one refinement answer to the cap the list page reads by — nothing it would hide can be imported", () => {

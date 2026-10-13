@@ -71,30 +71,56 @@ import { PrintButton } from "./PrintButton";
  * gone with the rest, and every later checkup merged into a list nobody could
  * open (live on production until this was fixed; `.debug/017` §5.9). So the
  * cost of a bad value is now decided field by field, and the rule behind the
- * table is: **what only the application writes may cost the list; what the
- * visitor types or picks costs, at most, what they typed.**
+ * table is: **a value the visitor gives its FORM to — text typed or pasted, a
+ * number's digits — costs, at most, itself; a value only the application
+ * gives a form to may cost the list.**
  *
  *   the value is not JSON, not an envelope, an unknown `version`, a bad
  *   `updatedAt`, `items` that is not an array     the LIST — nothing here was
  *                                                 written by this release
  *   a line's `id`, `stepKey`, `sourceKeys`,       the LIST, as before: these
  *   `action`, `reasonKey`, `guideSlug`,           are the checkup's own
- *   `done`, `doneReason`, `sortOrder`, or a       output, written by
- *   `partId` that is not a short string           `deriveBuildList` and the
+ *   `sortOrder`, or a `partId` that is not a      output, written by
+ *   short string                                  `deriveBuildList` and the
  *                                                 merge and by nothing else
+ *   a line's `done`, `doneReason`                 the LIST, as before — see
+ *                                                 "The tick" below
  *   a `partId` this release has no part for       the LINE (unchanged)
  *   lines after the 80th                          those LINES (unchanged)
  *   `chosenProduct` that breaks §4.4's link rule  the PRODUCT (unchanged)
  *   `refinement` that is not an object            that line's REFINEMENT
  *   one `refinement` entry: a value that is not   that ENTRY — the line, its
  *   a string, or longer than the cap, or under    tick, its product and its
- *   an over-long key                              other answers are kept
+ *   a key that is not an attribute key            other answers are kept
  *
- * The last two rows are `refinementOf` (`lib/shop/refinement.ts`), the reader
- * a saved bike's loader has always applied. `BuildList.long-answer.test.tsx`
- * holds each row, and — because "only the application writes it" is a claim
- * about the writers — that every line the real plan can derive, for all
- * seven presets, reads back whole.
+ * The last two rows are `refinementOf` (`lib/shop/refinement.ts`), the one
+ * reader of a stored refinement, which a saved bike's loader calls too.
+ * `BuildList.long-answer.test.tsx` holds each row, and — because "only the
+ * application gives it a form" is a claim about the writers — that what they
+ * write reads back whole: every line the real plan can derive, for all seven
+ * presets; those lines closed by a later checkup; and the tick, made and
+ * unmade through this component.
+ *
+ * ### The tick
+ *
+ * `done` and `doneReason` are NOT only the checkup's: the list page's own
+ * checkbox writes both (`BuildItemCard`), on the visitor's click, through the
+ * same `writeBuildList` as an answer. They still cost the list, on a narrower
+ * ground than the row above them: the visitor decides WHEN, and never WHAT is
+ * stored. A checkbox hands the page a boolean, and the page writes beside it
+ * the word `manual` or no reason at all; the merge's word is `recheck-ok`
+ * (`lib/checkup/build-list.ts`), `deriveBuildList` writes `false`. There is
+ * no ill-formed tick for a visitor to make — unlike an answer, whose length
+ * was theirs to choose. This header said, until the review of 2026-10-13,
+ * that nothing but `deriveBuildList` and the merge wrote the two fields:
+ * untrue, and the cost stood on it.
+ *
+ * What that ground does not cover is a release that adds a THIRD reason (or
+ * a sixth action): a tab still running this parser reads a list holding one
+ * as no list. That is the same choice as for `action` — a release that does
+ * not know a word must not show the rest of the list and, at its next edit,
+ * write it back without the word — and it is the reason to read the new
+ * value leniently one release BEFORE anything writes it.
  *
  * ## A read never writes
  *

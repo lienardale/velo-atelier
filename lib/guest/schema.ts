@@ -133,8 +133,8 @@ import { KO_ACTIONS } from "@/lib/domain/data/conventions";
 import { QUESTION_IDS } from "@/lib/domain/data/decision-tree";
 import { MAX_BUILD_PARTS } from "@/lib/domain/engine/validate-build";
 import type { KoAction } from "@/lib/domain/schema/procedure";
-import { isAllowedProductUrl, isPlainHttpsUrl } from "@/lib/shop/chosen-product";
-import { MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
+import { chosenProductOf, isAllowedProductUrl, isPlainHttpsUrl } from "@/lib/shop/chosen-product";
+import { isRefinementKey, MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
 
 /**
  * Bumped only when a shape change makes an older payload unreadable.
@@ -523,10 +523,21 @@ const CheckupSchema = z.strictObject({
  * the same caveat: whether a tab loaded before a deploy can still reach the
  * new action was not observed.
  *
+ * The KEY is the one definition of a refinement key (`isRefinementKey`, in
+ * that module too): the catalogue's id shape and none of the names that mean
+ * something to an object — held here to 40 characters, where the account's
+ * action takes 64. Until 2026-10-13 this was the pattern alone, `[a-z0-9-]{1,40}`, which
+ * `constructor` and `prototype` pass: the account's own action refuses both
+ * by name, so a line imported with one could never be edited again — the
+ * list's form hands back the whole refinement it was given, and the action
+ * answered `VALIDATION` to every edit of that line (measured on PostgreSQL
+ * through the real import and the real action, in review). Hand-written
+ * storage only: no attribute of the catalogue has such a key.
+ *
  * Module-level because the collector holds each stored entry to exactly these
  * two schemas: what it sends is, by construction, what the contract accepts.
  */
-const RefinementKey = z.string().check(z.regex(/^[a-z0-9-]{1,40}$/));
+const RefinementKey = z.string().check(z.maxLength(40), z.refine(isRefinementKey));
 const RefinementValue = text(MAX_REFINEMENT_VALUE_LENGTH);
 
 const BuildListItemSchema = z.strictObject({
@@ -643,15 +654,12 @@ const StoredBuildListItemSchema = z.object({
   // parse of the whole stored list — the bike was then imported WITHOUT its
   // list, and the list's key cleared.
   refinement: z.optional(z.unknown()),
-  chosenProduct: z.optional(
-    z.object({
-      brand: z.string(),
-      model: z.string(),
-      size: z.string(),
-      vendor: z.string(),
-      url: z.string(),
-    }),
-  ),
+  // Whatever is there, for the same reason: `collectChosenProduct` reads it.
+  // As an object of five strings here, a stored product that was not one —
+  // `null`, a string, a field missing — failed the parse of the whole stored
+  // list in the same way, while the list page went on showing every line
+  // (measured in review of the refinement's fix, 2026-10-13).
+  chosenProduct: z.optional(z.unknown()),
 });
 
 const StoredBuildListSchema = z.object({
@@ -782,12 +790,13 @@ function collectCheckup(
  * Two filters, entry by entry:
  *
  *   1. the list page's own reader ({@link refinementOf}). An answer the page
- *      drops — longer than the cap, not a string — is not sent, so the import
- *      carries the list the visitor SEES;
+ *      drops — longer than the cap, not a string, under a key that is not an
+ *      attribute key (`constructor` and `prototype` among them) — is not
+ *      sent, so the import carries the list the visitor SEES;
  *   2. the contract's own two schemas ({@link RefinementKey},
  *      {@link RefinementValue}) and its cap on entries. Whatever is left that
- *      the server would refuse — a key it does not take, a U+0000 — is not
- *      sent either: nothing in a line's refinement can sink the payload.
+ *      the server would refuse — a key over its 40 characters, a U+0000 — is
+ *      not sent either: nothing in a line's refinement can sink the payload.
  *
  * Lone surrogates are replaced BEFORE the second filter (it would refuse
  * them), as everywhere in the projection: half an emoji is imported as
@@ -810,6 +819,36 @@ function collectRefinement(stored: unknown): Record<string, string> | undefined 
   return entries.length === 0 ? undefined : Object.fromEntries(entries);
 }
 
+/**
+ * A stored line's chosen product, as the payload carries it — or `undefined`
+ * when there is none to send.
+ *
+ * The refinement's rule, for the line's other lenient field: the list page's
+ * own reader first ({@link chosenProductOf} — five short strings and a link
+ * §4.4 allows, or no product), then the contract's own schema, so that
+ * nothing in a line's product can sink the payload either (a U+0000 in a
+ * name: the page shows it, PostgreSQL stores it in no column). A product that
+ * fails costs the PRODUCT: the line is sent without it, as the page shows the
+ * line without it.
+ *
+ * Until 2026-10-13 a stored product was forwarded when it was five strings —
+ * so one whose link the contract refuses was a payload refused whole, on
+ * every retry — and failed the guard on the stored list when it was not: the
+ * bike was then sent with NO list, and the list's key cleared with the
+ * bike's (both measured in review). No control of the site writes a guest's
+ * `chosenProduct` today (`docs/backlog.md`, "The §4.4 actions no UI calls"):
+ * these are values DevTools made, or a later release will.
+ *
+ * Lone surrogates are replaced before the contract is asked, as everywhere in
+ * the projection: a product name cut in the middle of an emoji is sent with
+ * U+FFFD in its place, not dropped.
+ */
+function collectChosenProduct(stored: unknown): GuestChosenProduct | undefined {
+  const read = wellFormed(chosenProductOf(stored));
+  if (read === undefined) return undefined;
+  return ChosenProductSchema.safeParse(read).success ? { ...read } : undefined;
+}
+
 /** The build list stored for the guest bike, projected onto {@link GuestBuildList}. */
 function collectBuildLists(storage: KeyValueStorage, listName: string): GuestBuildList[] {
   const parsed = StoredBuildListSchema.safeParse(readJson(storage, buildListKey("local")));
@@ -823,6 +862,7 @@ function collectBuildLists(storage: KeyValueStorage, listName: string): GuestBui
     .slice(0, GUEST_CAPS.itemsPerList)
     .map((item, index) => {
       const refinement = collectRefinement(item.refinement);
+      const chosenProduct = collectChosenProduct(item.chosenProduct);
       return {
         partId: item.partId,
         action: item.action,
@@ -831,7 +871,7 @@ function collectBuildLists(storage: KeyValueStorage, listName: string): GuestBui
         done: item.done ?? false,
         sortOrder: Number.isInteger(item.sortOrder) ? Number(item.sortOrder) : index,
         ...(refinement === undefined ? {} : { refinement }),
-        ...(item.chosenProduct === undefined ? {} : { chosenProduct: item.chosenProduct }),
+        ...(chosenProduct === undefined ? {} : { chosenProduct }),
       };
     });
 
@@ -889,9 +929,9 @@ export function collectGuestState({
       bikes: [
         // Every string of the projection, whichever key it was read from: the
         // bike's free-text attributes and the list's lines are checked by no
-        // contract on this side — a line's `refinement` excepted, since
-        // 2026-10-13 (`collectRefinement`) — and the server refuses a payload
-        // WHOLE.
+        // contract on this side — a line's `refinement` and `chosenProduct`
+        // excepted, since 2026-10-13 (`collectRefinement`,
+        // `collectChosenProduct`) — and the server refuses a payload WHOLE.
         wellFormed({
           localId: bike.id,
           name: bikeName,
