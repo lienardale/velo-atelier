@@ -280,6 +280,12 @@ describe.each(["fr", "en"] as const)("the import page (%s)", (locale) => {
       }));
       window.localStorage.clear();
       for (const key of KEYS) window.localStorage.setItem(key, work.storage.getItem(key)!);
+      // The PRECONDITION: this browser's list really holds the long answer. A
+      // helper that wrote what the FIXED page writes left this case green
+      // over a storage with nothing to drop (measured in review).
+      expect(window.localStorage.getItem(buildListKey("local"))).toContain(
+        JSON.stringify({ "pad-thickness": "2", "pad-model": long }),
+      );
 
       importAction.mockImplementation(async (input) =>
         parseGuestState(JSON.parse(JSON.stringify(input))).ok

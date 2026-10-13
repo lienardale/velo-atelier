@@ -31,31 +31,28 @@ import { withUser } from "@/lib/actions/with-user";
 import { withinJsonBudget } from "@/lib/bike/rules";
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import { MAX_REFINEMENT_KEY_LENGTH, MAX_REFINEMENT_VALUE_LENGTH } from "@/lib/shop/refinement";
+import { isRefinementKey, MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
 
 /**
  * A refinement answer is an attribute key and a value a control produced.
  *
- * The key shape is the domain's own id pattern, which already excludes
- * `__proto__` (underscores) — but not `constructor` or `prototype`, which are
- * all-lowercase and would pass. They are refused by name: this object is
- * written to a `Json` column and read back into a record, and a key that means
- * something to an object is a key that does not belong in stored data, whatever
- * the reader does with it.
+ * Both rules are `lib/shop/refinement.ts`'s. The key is `isRefinementKey`:
+ * the domain's own id pattern, 1 to 64 characters — which already excludes
+ * `__proto__` (underscores) — and neither `constructor` nor `prototype`,
+ * which are all-lowercase and would pass: this object is written to a `Json`
+ * column and read back into a record, and a key that means something to an
+ * object does not belong in stored data, whatever the reader does with it.
+ * The value is at most the cap the form's inputs stop at.
  *
- * The two lengths are `lib/shop/refinement.ts`'s — the cap the form's inputs
- * stop at and every reader holds a stored entry to. They were the literal 64
- * here; what this action accepts has not changed.
+ * Until 2026-10-13 the pattern, the three names and the literal 64 were
+ * written out here. What this action accepts has not changed — the cases of
+ * `tests/integration/build-lists.test.ts` and of
+ * `tests/security/build-list-actions.test.ts` were not touched. The rule
+ * moved because the import's contract and every reader have to apply the same
+ * one: see that module's header.
  */
-const POISON_KEYS = ["__proto__", "constructor", "prototype"];
-
 const refinementSchema = z.record(
-  z
-    .string()
-    .min(1)
-    .max(MAX_REFINEMENT_KEY_LENGTH)
-    .regex(/^[a-z0-9-]+$/, "errors.VALIDATION")
-    .refine((key) => !POISON_KEYS.includes(key), "errors.VALIDATION"),
+  z.string().refine(isRefinementKey, "errors.VALIDATION"),
   z.string().max(MAX_REFINEMENT_VALUE_LENGTH),
 );
 
@@ -74,20 +71,22 @@ const readItemSchema = z
 /** At most this many answers on one item — a part has a handful of attributes. */
 const MAX_REFINEMENT_KEYS = 24;
 
-/** A `Json` column is a shape we WROTE, not one we can assume on read. */
+/**
+ * A `Json` column is a shape we WROTE, not one we can assume on read: the row's
+ * refinement through the one reader of a stored refinement (`refinementOf`) —
+ * the entries the list's loader hands the page, by the same function — and
+ * then at most {@link MAX_REFINEMENT_KEYS} of them, which bounds this action's
+ * ANSWER and is this reader's only rule of its own.
+ *
+ * Until 2026-10-13 it was a copy of the loader's filter with the three names
+ * added, and the one copy no test held: its bound set to 5 000 characters, or
+ * the column returned unfiltered, left every tier green (measured in review;
+ * the first of the two measured again before this was rewritten).
+ */
 function storedRefinement(value: unknown): Record<string, string> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
   return Object.fromEntries(
-    Object.entries(value)
-      .filter(
-        ([key, entry]) =>
-          typeof entry === "string" &&
-          key.length <= MAX_REFINEMENT_KEY_LENGTH &&
-          entry.length <= MAX_REFINEMENT_VALUE_LENGTH &&
-          !POISON_KEYS.includes(key),
-      )
-      .slice(0, MAX_REFINEMENT_KEYS),
-  ) as Record<string, string>;
+    Object.entries(refinementOf(value) ?? {}).slice(0, MAX_REFINEMENT_KEYS),
+  );
 }
 
 /**

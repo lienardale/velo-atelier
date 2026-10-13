@@ -591,14 +591,22 @@ a replaced bike's pages show.
 
 The list's "Préciser la pièce" form (`components/build-list/RefinementForm.tsx`)
 draws a `<select>` for an attribute with a closed set of values and a text or
-number input for everything else — the yes/no attributes included: "Chaîne
-pour VAE" (`e-rated`), "Embrayage" (`clutch`), and `integrated`, `lockout` and
-`tubeless-ready` on other bikes. `/acheter` asks the same attributes with a
-two-choice `<select>` (`components/shop/PartQuestions.tsx`: read), and the
-part panel shows Oui/Non (`.debug/017` §5.6, O5). What is typed in the box is
-kept on the line as typed, and only the two strings `true` and `false` are
-read back as an answer (`coerceAttributeValue`, `lib/shop/questions.ts`: read,
-not measured): "oui" changes nothing in the search.
+number input for everything else — the yes/no attributes included. There are
+SIX of them, on nine parts (measured on 2026-10-13 by a probe outside the
+repository: `shopQuestionsFor` over every part of the catalogue, for each of
+the seven presets, keeping the questions with no options that are not
+numbers): "Chaîne pour VAE" (`e-rated`, the chain), "Embrayage" (`clutch`,
+the rear derailleur), "Levier intégré" (`integrated`, the two brake levers),
+"Blocage" (`lockout`, the fork and the rear shock), "Serrage rapide"
+(`quick-release`, the seat clamp) and "Compatible tubeless"
+(`tubeless-ready`, the two wheels). The same probe found the two genuine text
+attributes, `pad-model` and `hanger-model`, and no other. `/acheter` asks the
+same attributes with a two-choice `<select>`
+(`components/shop/PartQuestions.tsx`: read), and the part panel shows Oui/Non
+(`.debug/017` §5.6, O5). What is typed in the box is kept on the line as
+typed, and only the two strings `true` and `false` are read back as an answer
+(`coerceAttributeValue`, `lib/shop/questions.ts`: read, not measured): "oui"
+changes nothing in the search.
 
 _Why deferred_ (ruled with the fix of `.debug/017` §5.9, 2026-10-13): that fix
 was about what one over-long answer cost — the whole list — and gave these
@@ -608,9 +616,11 @@ yes/no question gets is a change to the form, not a repair of that.
 _To pick up_: draw them as `/acheter` does — the choice list `PartQuestions`
 builds for `kind === "boolean"` — storing `true` / `false`; decide what
 becomes of a line that already holds "oui" (today it is shown back in the
-box; in a `<select>` it would match no option). `RefinementForm.test.tsx` and
-`BuildList.long-answer.test.tsx` name the two boxes among the text fields:
-they change with it.
+box; in a `<select>` it would match no option). One test names such boxes
+among the text fields and changes with it: `BuildList.long-answer.test.tsx`,
+for two of the six — the chain's `e-rated` and the rear derailleur's `clutch`
+(its first case). `RefinementForm.test.tsx` names none of them (an earlier
+version of this entry said it did).
 
 #### An answer the list page drops is dropped without a word
 
@@ -656,29 +666,61 @@ _To pick up_: have the page's writer carry the envelope's `checkupId` through
 edit. The two envelopes are one shape written by two functions: that is the
 thing to remove.
 
-#### A stored list line can still sink a guest's import, by a field no control writes
+#### A stored list line can still sink a guest's import, by a field only the checkup writes
 
-The guest import's collector holds a stored line's `refinement` to the
-contract entry by entry (`collectRefinement`, `lib/guest/schema.ts`), since
-2026-10-13. The rest of the line it forwards as stored: a `chosenProduct`
-whose link breaks §4.4, a `sortOrder` outside 0–10 000, a `partId` or
-`reasonKey` that is not an id — each is a payload the server refuses WHOLE,
-with every key kept and the same bytes sent on retry (read; the refinement's
-version of this was live, `.debug/017` §5.9). And a stored product that is
-not five strings fails the collector's own guard, which sends the bike with
-no list (read).
+The guest import's collector holds two fields of a stored line to the
+contract, since 2026-10-13: its `refinement`, entry by entry
+(`collectRefinement`, `lib/guest/schema.ts`), and its `chosenProduct`
+(`collectChosenProduct` — added in the review of the first, where a stored
+product that was not five strings was measured to send the bike with NO list
+and then clear the list's key, and one whose link breaks §4.4 to be refused
+whole). The REST of the line — `partId`, `action`, `reasonKey`, `guideSlug`,
+`done`, `sortOrder` — it forwards as stored, and its guard on the stored list
+still types them.
+
+Measured on 2026-10-13, after that repair, by a probe outside the repository
+(jsdom: the wizard's three lines, ONE field of the rear pads' line broken by
+the list page's own write; then the page's parser, the collector, the
+contract, and `settleGuestImport` on a successful answer):
+
+| The rear pads' line holds…                                                      | the list page shows  | the payload carries | the contract |
+| ------------------------------------------------------------------------------- | -------------------- | ------------------- | ------------ |
+| `sortOrder: -1`, or `10001`                                                     | 3 lines              | 3 lines             | REFUSES it   |
+| `reasonKey: "Pad Worn"`                                                         | 3 lines              | 3 lines             | REFUSES it   |
+| `guideSlug: "Not A Slug"`                                                       | 3 lines              | 3 lines             | REFUSES it   |
+| `partId: "Brake Pads"`                                                          | 2 lines              | 3 lines             | REFUSES it   |
+| a `reasonKey` of 81 characters                                                  | nothing: empty state | 3 lines             | REFUSES it   |
+| `done: null` or `"yes"`, `guideSlug: null`, `sortOrder: null`, `action: "burn"` | nothing: empty state | no list at all      | accepts      |
+| `doneReason: "because"`                                                         | nothing: empty state | 3 lines (no reason) | accepts      |
+| `partId: "sprocket"` (no such part)                                             | 2 lines              | 3 lines             | accepts      |
+
+A refused payload is the refinement's old failure again: `VALIDATION`, every
+key kept, the same bytes on retry — a guest bike that cannot be imported. In
+the "no list at all" row the bike is imported without its list and the list's
+key is among those the browser then forgets; the page was showing nothing of
+that list either, so no line a screen showed is lost there. In the first four
+rows the visitor is looking at lines the import cannot carry; in the fifth the
+page shows nothing and the bike cannot be imported all the same.
 
 _Why deferred_ (2026-10-13): none of those fields is written by a control of
-the site — no UI records a purchase ("The §4.4 actions no UI calls", above),
-and every line the wizard can derive, for all seven presets, passes
-(`BuildList.long-answer.test.tsx`). The defect that was live was a value a
-visitor TYPES; these need DevTools, or a later release that writes them.
+the site, or given its form by a visitor: they are the checkup's own output,
+plus the tick's boolean. What holds that the application never writes one the
+contract refuses is a test, since the same review: the FULL plan of each of
+the seven presets, every question answered "ça ne marche pas", stored by the
+wizard's own writers, collected, and accepted whole by the contract
+(`lib/guest/schema.test.ts`, "every line the wizard can derive is a line the
+contract takes" — 43 to 48 lines a preset, against the contract's 50). These
+need DevTools, or a later release that changes a writer without the contract.
+An earlier version of this entry cited `BuildList.long-answer.test.tsx` for
+that: it holds the same derivations against the list PAGE's parser, and says
+nothing of the import.
 
-_To pick up_: the day a control writes `chosenProduct` — before it ships.
-Project each stored line through the contract's own item schema and drop
-what fails, the way a checkup the contract would refuse is reported
-`unreadable` instead of sinking the bike; say so to the visitor; and decide
-whether the list's key may then be cleared.
+_To pick up_: project each stored line through the contract's own item schema
+and drop what fails — the line, not the payload — the way a checkup the
+contract would refuse is reported `unreadable` instead of sinking the bike;
+say so to the visitor; and decide whether the list's key may then be cleared.
+That last decision is why this is not done: a line dropped by the collector
+and a key then cleared is a line gone, where today it is a bike that waits.
 
 #### The guides list is built twice, and a card clicked during the swap does nothing
 

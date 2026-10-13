@@ -710,31 +710,62 @@ docs/                contributor and operator docs — every one is linked from 
 - **`chosenProduct`'s link rule lives once**, in `lib/shop/chosen-product.ts`:
   https, no credentials, on the named retailer's hosts — or `vendor: 'other'`;
   any other vendor is refused. The guest import applies it on write; the
-  `/liste` loader and the guest list's parser apply it on read.
-- **A line's `refinement` has one cap and one reader, and nothing a visitor
-  typed costs the list** (`lib/shop/refinement.ts`, `.debug/017` §5.9). One
-  answer is at most `MAX_REFINEMENT_VALUE_LENGTH` (64) UTF-16 code units,
-  wherever an answer is bounded: the list form's text inputs (`maxLength`),
-  the guest list's parser, the saved bike's action and loader, the buying
-  guide's prefill, the wizard's merge, the import's collector and contract.
-  Until 2026-10-13 that was five literals and one absence — four said 64,
-  the import's contract said 120, the INPUT said nothing — and the parser
-  held the bound inside its item schema: a product title pasted into
-  "Référence des plaquettes" hid a guest's whole list, on production, and
-  over 120 characters made the bike impossible to import.
-  **Every reader of a stored refinement calls `refinementOf`**, which keeps
-  the entries that are a short string under a short key and DROPS the
-  others one by one; it never fails and never shortens. A new place that
-  reads or bounds a refinement imports that module — a sixth copy of the
-  number is how this happened.
+  `/liste` loader and the guest list's parser apply it on read, and so does
+  the import's collector (`chosenProductOf`), before it sends a stored
+  product at all.
+- **A line's `refinement` has one cap, one key and one reader, and nothing a
+  visitor typed costs the list** (`lib/shop/refinement.ts`, `.debug/017`
+  §5.9). One answer is at most `MAX_REFINEMENT_VALUE_LENGTH` (64) UTF-16 code
+  units, wherever an answer is bounded: the list form's text inputs
+  (`maxLength`), the guest list's parser, the saved bike's action — its
+  schema, and the reader behind its `/acheter` prefill — and loader, the
+  guest's prefill, the wizard's merge, the import's collector and contract.
+  Until 2026-10-13 that was SIX literals and one absence — five said 64
+  (the parser, the action's schema, the action's own reader, the loader, the
+  guest's prefill), the import's contract said 120, the INPUT said nothing —
+  and the parser held the bound inside its item schema: a product title
+  pasted into "Référence des plaquettes" hid a guest's whole list, on
+  production, and over 120 characters made the bike impossible to import.
+  **A KEY has one definition, `isRefinementKey`**: the catalogue's id shape
+  (1 to 64 of `[a-z0-9-]`) and none of `__proto__`, `constructor`,
+  `prototype`. The action's schema asks it, and so does the import's
+  contract (which also stops at 40 characters). The contract used to hold a
+  key to the shape alone, which the two lowercase names pass: a line
+  imported with `constructor` among its keys could never be edited again,
+  because the list's form sends back the WHOLE refinement it was handed and
+  the action refuses that name (measured in review, on PostgreSQL).
+  **Every reader of a stored refinement IS `refinementOf`** — the loader,
+  the action's `storedRefinement` (which adds one rule of its own, at most
+  24 answers in its reply), the guest list's parser, the guest's prefill,
+  the merge, the collector. It keeps the entries that are a short string
+  under such a key and DROPS the others one by one; it never fails and never
+  shortens. The reader applies the WRITER's key rule on purpose: what a
+  reader hands the page comes back with the next edit, so an entry the
+  action would refuse must not be read. For a saved bike that is the one
+  thing this changed in what its pages are handed: an entry under a key the
+  action refuses — `constructor`, in a row the import wrote — is no longer
+  read by the loader. (The action's own reader was, until then, the one copy
+  of the rule no test held: its bound set to 5 000 characters left every
+  tier green.) A new place that reads or bounds a refinement imports that
+  module: another copy of the number, or of the key's pattern, is how this
+  happened.
   **What a bad value of a stored guest line costs is a table** (the header
   of `components/build-list/BuildList.tsx`): a `refinement` entry costs
   that entry, a `chosenProduct` the product, an unknown part the line; the
-  fields only the application writes (`id`, `action`, `sortOrder`, …) and
-  the envelope still cost the list, and
-  `BuildList.long-answer.test.tsx` holds that every line the seven presets'
-  full plans can derive reads back whole. A new field a CONTROL writes is
-  read after the schema, like those two, never bounded inside it.
+  fields only the application gives a FORM to (`id`, `action`,
+  `sortOrder`, …) and the envelope still cost the list. `done` and
+  `doneReason` are among them although a control writes them — the list
+  page's own tick — because the visitor decides when and never what: a
+  checkbox yields a boolean, and the page writes `manual` beside it or
+  nothing (the merge's word is `recheck-ok`). "Only the application gives
+  it a form" is a claim about writers, so `BuildList.long-answer.test.tsx`
+  runs every one of them and reads the result back whole: the seven
+  presets' full plans derived, those lines closed by a later checkup, and
+  the tick made, unmade and cleared through the real page. A new field
+  whose VALUE a visitor shapes — text, digits — is read after the schema,
+  like `refinement`, never bounded inside it; a new word in a closed
+  vocabulary (a third reason, a sixth action) is read leniently one release
+  before anything writes it, or a tab still on the old parser shows no list.
   **The form is the first wall, not the only one**: a text input's
   `maxLength`, a cut behind it (`clipRefinementText`, never through a
   surrogate pair), and `set` handing up nothing over the cap — which is what
@@ -1026,7 +1057,8 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   a list line's `refinement` (24 answers, the account's own
   `MAX_REFINEMENT_KEYS`, each of at most `MAX_REFINEMENT_VALUE_LENGTH`
   characters: the list page's cap, 64, where the contract said 120 until
-  2026-10-13) —
+  2026-10-13; each under a key the account's action takes too,
+  `isRefinementKey`, of at most 40 characters) —
   because a `maxLength` says nothing about a map; ids matched by PATTERN at
   their column's length, never against the generated enums, which stay out of
   the bundle), and `importGuestStateAction` validates only that — `withUser`,
@@ -1081,15 +1113,30 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   every retry with every key kept: a guest bike that could not be imported
   (`.debug/017` §5.9). A line's answer must never cost the bike. The dropped
   answer is lost to the account — and was shown nowhere before either.
+  **And a line's `chosenProduct` the same way** (`collectChosenProduct`):
+  the page's reader (`chosenProductOf`), then the contract's schema; a
+  product that fails costs the product, and the line is sent without it.
+  The collector's guard on the stored list takes both fields as `unknown`
+  for that reason: typed there, one bad value fails the parse of the WHOLE
+  stored list, the bike is sent with no list, and the list's key is then
+  cleared — which is what a stored product that was not five strings did
+  until the review of 2026-10-13, while the list page showed every line
+  (measured, on PostgreSQL through the real action too). No control writes
+  a guest's `chosenProduct` today.
   **A tab loaded before that date** forwards the stored answer still: from
   65 characters its payload is now refused whole (65 to 120 used to be
   accepted, into a column whose only reader dropped it), nothing is written
   and every key is kept, until a reload brings the collector that drops the
   entry. `GUEST_STATE_VERSION` 2's reasoning, and its caveat: whether such a
   tab can reach the new action was not observed. The REST of a stored line
-  is still checked by no contract on the browser's side: a stored
-  `chosenProduct` the contract refuses is a payload refused whole
-  (`docs/backlog.md`).
+  — `partId`, `action`, `reasonKey`, `guideSlug`, `done`, `sortOrder`, the
+  checkup's own output — is still checked by no contract on the browser's
+  side: a `sortOrder` of −1 or a `reasonKey` that is not an id is a payload
+  refused whole, and a `done` that is not a boolean is a bike sent with no
+  list (measured by a probe, `docs/backlog.md`). What holds that the
+  application never writes one is `lib/guest/schema.test.ts`: the seven
+  presets' full plans, everything broken, stored by the wizard's writers,
+  collected and handed to the contract.
   **`lib/guest/schema.ts` is loaded in the browser** (a dynamic `import()` in
   `GuestImport.tsx`) and `lib/guest/import.ts` is plain Node, and
   `tests/unit/guest/module-graph.test.ts` is the ONLY thing that holds either:

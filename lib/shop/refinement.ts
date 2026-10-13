@@ -12,25 +12,50 @@
  *
  * {@link MAX_REFINEMENT_VALUE_LENGTH} is the length of one answer everywhere
  * an answer is bounded: the form's text inputs (`maxLength`), the list page's
- * parser, the saved bike's action and loader, the buying guide's prefill, the
- * guest import's contract and its collector. Until 2026-10-13 that was five
- * literals and one absence: the parser, the action, the loader and the prefill
- * said 64, the import's contract said 120, and the INPUT said nothing. A
- * product title pasted into "Référence des plaquettes" was therefore written
- * to `localStorage` whole, and the page — whose parser refused the whole list
- * for one value over 64 — showed "Rien à acheter pour l'instant" from then
- * on, with the card holding the field gone; over 120 characters the import
- * refused the bike as well, on every retry.
+ * parser, the saved bike's action — its schema, and the reader behind the
+ * buying guide's prefill — and its loader, the guest's prefill, the guest
+ * import's contract and its collector. Until 2026-10-13 that was SIX literals
+ * and one absence: the parser, the action's schema, the action's own reader,
+ * the loader and the guest's prefill said 64, the import's contract said 120,
+ * and the INPUT said nothing. A product title pasted into "Référence des
+ * plaquettes" was therefore written to `localStorage` whole, and the page —
+ * whose parser refused the whole list for one value over 64 — showed "Rien à
+ * acheter pour l'instant" from then on, with the card holding the field gone;
+ * over 120 characters the import refused the bike as well, on every retry.
+ *
+ * ## One key
+ *
+ * {@link isRefinementKey} is what an answer may be stored UNDER: the shape of
+ * the catalogue's attribute keys, and none of the three names that mean
+ * something to an object. The saved bike's action refuses any other key, and
+ * so does the import's contract (which also stops at 40 characters). Until
+ * 2026-10-13 each wrote the shape out for itself and only the action refused
+ * the names: a guest's line holding `constructor` was imported, and from then
+ * on the action refused every answer given on that line — the page hands back
+ * the whole refinement it was given (measured on PostgreSQL in review).
  *
  * ## One reader: a bad entry costs that ENTRY
  *
  * {@link refinementOf} keeps the entries that are an answer — a string of at
- * most the cap under a key of at most {@link MAX_REFINEMENT_KEY_LENGTH} — and
- * drops the others, one by one. It never fails: a value that is not an object
- * at all is a line with no refinement, never a line that is lost. This is the
- * rule the saved bike's loader always applied (`liste/load.ts`); the guest
- * list's parser applied the same bounds by refusing the LIST, which is the
- * defect above.
+ * most the cap under a key of that kind — and drops the others, one by one.
+ * It never fails: a value that is not an object at all is a line with no
+ * refinement, never a line that is lost. Every reader of a stored refinement
+ * is this function: the saved bike's loader (`liste/load.ts`) and the reader
+ * behind its `/acheter` prefill (`liste/actions.ts`), the guest list's
+ * parser, the guest's prefill, the wizard's merge and the import's collector.
+ *
+ * The VALUE's rule is the one the loader always applied; the guest list's
+ * parser applied the same bound by refusing the LIST, which is the defect
+ * above. The KEY's rule is the action's, and the reason is the same one: what
+ * a reader hands the page, the page hands back whole with the next edit, so
+ * an entry the writer refuses must not be read — or the line can never be
+ * edited again. The loader used to keep any key of at most 64 characters
+ * (and the action's own reader refused the three names: two readers of one
+ * column, two answers). ONE kind of row is read differently for it, and that
+ * is the point: a row the import wrote with `constructor` or `prototype`
+ * among its keys, which the page is no longer handed. Every other key the
+ * application can have written is in the shape — the action and the contract
+ * have always held a key to it.
  *
  * Dropped, not cut: a reader that shortened a stored value would show the
  * visitor something they did not type, and half a number is another number.
@@ -48,12 +73,36 @@ export const MAX_REFINEMENT_VALUE_LENGTH = 64;
 /** The longest key. Keys are the catalogue's attribute keys; nothing a visitor types. */
 export const MAX_REFINEMENT_KEY_LENGTH = 64;
 
-/** Is this stored entry an answer — a short string under a short key? */
+/** The catalogue's attribute keys are kebab-case ids, and so is the price tier's. */
+const KEY_SHAPE = /^[a-z0-9-]+$/;
+
+/**
+ * The names that mean something to an object. `__proto__` is already outside
+ * the shape (underscores); the two others are all-lowercase and inside it, so
+ * they are refused by name: a refinement is written to a `Json` column and
+ * read back into a record, and such a key does not belong in stored data,
+ * whatever the reader does with it.
+ */
+const OBJECT_NAMES: readonly string[] = ["__proto__", "constructor", "prototype"];
+
+/**
+ * Is `key` one an answer may be stored under? THE definition: the saved
+ * bike's action and the guest import's contract ask it of a key they are
+ * sent, and {@link refinementOf} of a key it reads.
+ */
+export function isRefinementKey(key: string): boolean {
+  return (
+    key.length >= 1 &&
+    key.length <= MAX_REFINEMENT_KEY_LENGTH &&
+    KEY_SHAPE.test(key) &&
+    !OBJECT_NAMES.includes(key)
+  );
+}
+
+/** Is this stored entry an answer — a short string under an attribute key? */
 export function isRefinementEntry(key: string, value: unknown): value is string {
   return (
-    typeof value === "string" &&
-    key.length <= MAX_REFINEMENT_KEY_LENGTH &&
-    value.length <= MAX_REFINEMENT_VALUE_LENGTH
+    typeof value === "string" && value.length <= MAX_REFINEMENT_VALUE_LENGTH && isRefinementKey(key)
   );
 }
 

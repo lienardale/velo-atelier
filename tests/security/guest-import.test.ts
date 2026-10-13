@@ -1197,6 +1197,76 @@ describe("one refinement answer longer than the list page reads (the cap of `lib
   });
 });
 
+describe("a refinement answer under a key the account's own action refuses", () => {
+  /**
+   * `setBuildListItemRefinementAction` has always refused `constructor` and
+   * `prototype` by name (`tests/security/build-list-actions.test.ts`); the
+   * import's contract held a key to the catalogue's shape alone, which both
+   * pass. So the import was a second way into the same `Json` column that
+   * took what the first refuses — and a line imported that way could never be
+   * edited again, the list's form sending back the whole refinement it was
+   * given. One definition of a key now (`isRefinementKey`,
+   * `lib/shop/refinement.ts`), asked by both.
+   */
+  const withKey = (json: string): unknown =>
+    tampered({
+      lists: [
+        {
+          ...LIST,
+          // `JSON.parse`, so the name is an OWN key — an object literal would
+          // name the constructor instead, and prove nothing.
+          items: [{ ...LIST.items[0], refinement: JSON.parse(json) as Record<string, string> }],
+        },
+      ],
+    });
+
+  it("is refused whole, with nothing written and no attempt spent", async () => {
+    for (const name of ["constructor", "prototype"]) {
+      const payload = withKey(`{"${name}":"x","speeds":"11"}`);
+      const sent = (payload as { bikes: { lists: { items: { refinement: object }[] }[] }[] })
+        .bikes[0].lists[0].items[0].refinement;
+      expect(Object.keys(sent), name).toEqual([name, "speeds"]);
+      expect(await importGuestStateAction(payload), name).toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+    }
+    expectNoWrites();
+    expect(fakeDb.rows("AuthAttempt")).toEqual([]);
+  });
+
+  it("never stores an own `__proto__` key either: the record drops it (zod 4 behaviour)", async () => {
+    // Verified against the installed zod 4.5.4: a record SKIPS an own
+    // `__proto__` key instead of failing on it, in `zod/mini` as in classic
+    // zod (`tests/integration/build-lists.test.ts` pins the same for the
+    // action). The end state is what matters — the key never reaches the
+    // column — so it is asserted rather than forced into a refusal.
+    const payload = withKey('{"__proto__":"x","speeds":"11"}');
+    const sent = (payload as { bikes: { lists: { items: { refinement: object }[] }[] }[] }).bikes[0]
+      .lists[0].items[0].refinement;
+    expect(Object.hasOwn(sent, "__proto__")).toBe(true);
+
+    expect((await importGuestStateAction(payload)).ok).toBe(true);
+    const [line] = fakeDb.rows("BuildListItem") as { refinement: Record<string, unknown> }[];
+    expect(line.refinement).toEqual({ speeds: "11" });
+    expect(Object.hasOwn(line.refinement, "__proto__")).toBe(false);
+    expect(Object.getPrototypeOf(line.refinement)).toBe(Object.prototype);
+  });
+
+  it("takes every key the account's action takes that fits its own 40 characters", async () => {
+    const result = await importGuestStateAction(
+      withKey(`{"constructor-type":"x","${"k".repeat(40)}":"y","speeds":"11"}`),
+    );
+    expect(result.ok).toBe(true);
+    const [line] = fakeDb.rows("BuildListItem") as { refinement: Record<string, string> }[];
+    expect(line.refinement).toEqual({
+      "constructor-type": "x",
+      ["k".repeat(40)]: "y",
+      speeds: "11",
+    });
+  });
+});
+
 describe("a payload in the shape of before 2026-10-07", () => {
   /** What the old collector could have sent, had it ever read a checkup. */
   const OLD_CHECKUP = {

@@ -60,9 +60,14 @@ export function toItem(row: BuildListRow): BuildListItem | null {
   const stepKey = row.checkupItem?.stepKey ?? row.id;
   const doneReason = doneReasonOf(row);
   // A `Json` column is a shape we WROTE, not a shape we can assume on read:
-  // entry by entry, through the one reader of a stored refinement — the rule
-  // that was written out here until 2026-10-13, and that the guest list's
-  // parser and the import's collector now share (`lib/shop/refinement.ts`).
+  // entry by entry, through the one reader of a stored refinement
+  // (`lib/shop/refinement.ts`), which the guest list's parser, the import's
+  // collector and this bike's own `/acheter` prefill share. Its rule for a
+  // VALUE is the one written out here until 2026-10-13. Its rule for a KEY is
+  // stricter than the 64 characters this function asked for: the key has to
+  // be one the list's action takes back, because the page returns everything
+  // it is handed with the next edit — a row holding `constructor` (the import
+  // could write one) was a line no edit could save.
   const refinement = refinementOf(row.refinement);
   const chosenProduct = row.chosenProduct === null ? undefined : chosenProductOf(row.chosenProduct);
   return {

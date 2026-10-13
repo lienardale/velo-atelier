@@ -70,7 +70,8 @@ const LOOKING: ItemPrefill = { refinement: null, pending: true };
  * `readGuestBuildList` checks the ENVELOPE, not the items (the list page
  * re-validates those), so a line's refinement is still storage here: it goes
  * through the one reader of a stored refinement (`lib/shop/refinement.ts`),
- * like the list page's — only short string answers under short keys survive.
+ * like the list page's — only short string answers under attribute keys
+ * survive.
  */
 export function lineRefinement(
   list: StoredBuildList | null,
