@@ -535,8 +535,32 @@ What that repair did NOT touch, because none of it goes through the repo:
   bike, each form's inputs are re-seeded from it and a save is the new
   bike's (`components/bike/MeasurementForm.test.tsx` pins both halves, in
   jsdom); the cards around them are still the ones the first bike's spec
-  asked for (read in `app/[locale]/velo/[id]/reglages/page.tsx`; not
-  measured).
+  asked for (read in `app/[locale]/velo/[id]/reglages/page.tsx`). Measured
+  since, on 2026-10-12, by the verifier of the fourth repair, with probes
+  outside the repository and on the repaired tree — so a card drawn for
+  bike A saves into bike B, with "Enregistré" and nothing else said:
+  - in jsdom, the form alone: the sag card of a full-suspension e-MTB on
+    screen, a rigid gravel bike stored by another page and the `storage`
+    event dispatched, 25 typed in that card and saved — the card was still
+    there, the status read "Enregistré", and the NEW bike's `fit` held
+    `{ "sagPercent": 25 }`: a bike with no suspension, whose own fit page
+    draws no sag card to show it. The same probe over the form and the repo
+    of `258de61` printed the same line: the repair did not change this.
+  - in Chromium, on the site built with the test hooks, `desktop-chromium`
+    and `mobile-chromium` (one run each): the fit page opened for bike A by
+    its `?spec=`, another page of the same context taking the demo's copy —
+    the inseam field emptied, and 80 saved there answered "Enregistré" with
+    the new bike's `fit` at `{ "inseamCm": 80, "saddleHeightMm": 706 }`.
+  - the other half of the rule held in the same probes (jsdom): what was
+    typed for A BEFORE the page was told is dropped by the re-seed, with
+    nothing said, and never written to B; a save pressed before the page is
+    told is refused, "Introuvable.".
+
+  Nothing in those steps needs a field to keep the focus — the save is a
+  button pressed after the page was told — so, unlike the part form's case,
+  one person with two tabs gets there (reasoned from the probes' steps: they
+  drove two pages of one context, not a person's tab switch).
+
 - **The guest checkup and build list are keyed by the slot too**
   (`va:checkup:local`, `va:buildlist:local`), and neither control that stores
   a new guest bike touches them (read in `components/decision-tree/Summary.tsx`
