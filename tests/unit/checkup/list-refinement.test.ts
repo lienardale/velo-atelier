@@ -32,7 +32,7 @@ import { buildOf, deriveBike } from "@/lib/bike/rules";
 import { GUEST_CAPS, parseGuestState } from "@/lib/guest/schema";
 import { PARTS } from "@/lib/domain/data/parts";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
-import { shopQuestionsFor } from "@/lib/shop/questions";
+import { BRAND_TIER_KEY, shopQuestionsFor } from "@/lib/shop/questions";
 import {
   isRefinementEntry,
   isRefinementKey,
@@ -215,6 +215,22 @@ describe("what the form's controls OFFER is inside the walls", () => {
     expect(refused.issues.map((issue) => issue.path.join("."))).toContain(
       "bikes.0.lists.0.items.0.refinement.Pad Model",
     );
+  });
+
+  it("every attribute key of the CATALOGUE — and the price tier's — is a key an answer may be stored under", () => {
+    // Since the review of 2026-10-13 a reader DROPS an entry whose key is not
+    // one the list's action takes (`isRefinementKey`). An attribute declared
+    // with a key outside that shape would therefore have its answer written,
+    // and never read back. The seven presets below ask the form; this asks
+    // the catalogue itself, whatever bike a part is on.
+    const keys = new Set([
+      BRAND_TIER_KEY,
+      ...PARTS.flatMap((part) => part.attributes.map((attribute) => attribute.key)),
+    ]);
+    expect(keys.size).toBeGreaterThan(40);
+    expect([...keys].filter((key) => !isRefinementKey(key))).toEqual([]);
+    // …and one the guest import's contract takes: its 40 characters included.
+    for (const key of keys) expect(contractVerdict({ [key]: "x" }).ok, key).toBe(true);
   });
 
   it.each(Object.keys(BIKE_PRESETS) as PresetId[])(
