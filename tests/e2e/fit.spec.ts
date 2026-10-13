@@ -20,6 +20,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { Client } from "pg";
 
+import { buildOf, deriveBike } from "../../lib/bike/rules";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
 import enBike from "../../messages/en/bike.json";
 import enCommon from "../../messages/en/common.json";
@@ -55,19 +56,75 @@ async function demoBikeId(): Promise<string> {
   }
 }
 
+async function withDb<T>(run: (client: Client) => Promise<T>): Promise<T> {
+  const client = new Client({ connectionString: resolveTestEnv().POSTGRES_URL });
+  await client.connect();
+  try {
+    return await run(client);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * A user with one gravel bike and nothing measured — the test's own, because
+ * the Playwright projects share one database and the seeded bike is every
+ * project's (label = locale + project).
+ */
+async function ownGravelBike(
+  label: string,
+  locale: Locale,
+): Promise<{ user: { id: string; email: string; locale: Locale }; bikeId: string }> {
+  return withDb(async (client) => {
+    const email = `fit+${label}@velo-atelier.test`;
+    const derived = deriveBike(GRAVEL);
+    const build = buildOf(derived);
+    const { rows: users } = await client.query<{ id: string }>(
+      `INSERT INTO "User" (name, email, locale, "updatedAt") VALUES ($1, $2, $3, now())
+       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+      ["Camille", email, locale],
+    );
+    const userId = users[0].id;
+    await client.query(`DELETE FROM "Bike" WHERE "userId" = $1`, [userId]);
+    const { rows: bikes } = await client.query<{ id: string }>(
+      `INSERT INTO "Bike" ("userId", name, answers, spec, parts, "updatedAt")
+       VALUES ($1, 'Gravel', $2, $3, $4, now()) RETURNING id`,
+      [
+        userId,
+        JSON.stringify(derived.answers),
+        JSON.stringify(build.spec),
+        JSON.stringify(build.parts),
+      ],
+    );
+    return { user: { id: userId, email, locale }, bikeId: bikes[0].id };
+  });
+}
+
+/** Another device saves a measurement: the row changes, and this page is not told. */
+async function saveElsewhere(bikeId: string, fit: Record<string, number>): Promise<void> {
+  await withDb((client) =>
+    client.query(`UPDATE "Bike" SET fit = $2::jsonb WHERE id = $1`, [bikeId, JSON.stringify(fit)]),
+  );
+}
+
 /**
  * The page has read the GUEST bike out of storage — only then is typing safe.
  *
- * `MeasurementForm` re-seeds its fields from `va:bike:local` in the render that
- * follows hydration, when the local-bike snapshot resolves
- * (`useLocalBikeSnapshot`, whose server snapshot is "pending"), and a value
- * typed before that render is overwritten. That was the CI flake of the English
- * readout on `mobile-webkit`: "74.2 cm" never appeared because the "84" had been
- * wiped. Reproduced with the JS chunks held back: typed at 63 ms, empty after
- * hydration — and on WebKit even with React already attached to the input
- * (`.debug/015`). The header's "Mon vélo" link reads the same key through its
+ * A server-rendered field is on screen before React holds it, and what is
+ * typed into it then is in the DOM only. The render that follows hydration —
+ * the one in which the local-bike snapshot resolves (`useLocalBikeSnapshot`,
+ * whose server snapshot is "pending") — writes the form's state back over it.
+ * Reproduced with the JS chunks held back: typed at 63 ms, empty after
+ * hydration (`.debug/015` §2), and again on 2026-10-13 on the repaired form
+ * (`.debug/018` §5): that half is React's, and still open.
+ *
+ * The other half was the form's, and was the CI flake of the English readout
+ * on `mobile-webkit`: "74.2 cm" never appeared because an "84" typed with
+ * React ALREADY attached was wiped when the snapshot resolved. Since
+ * `.debug/018` the form keeps a field it has seen typed in. The wait stays for
+ * the first half: the header's "Mon vélo" link reads the same key through its
  * own `useSyncExternalStore` and resolves in that same render, so once it
- * points at the local bike the form has been re-seeded and what is typed stays.
+ * points at the local bike React holds the form and what is typed stays.
  */
 async function localBikeRead(page: Page, locale: Locale): Promise<void> {
   await expect(
@@ -125,6 +182,94 @@ forEachLocale((locale) => {
     await expect(page.getByTestId("measure-state-saddle-height")).toHaveText(t.fit.saved);
 
     await page.reload();
+    await expect(page.locator('[data-fit-field="inseamCm"]')).toHaveValue("84");
+    await expect(page.locator('[data-fit-field="saddleHeightMm"]')).toHaveValue("742");
+  });
+
+  /**
+   * One form per card, all over ONE bike: saving a card must not take what is
+   * typed in another (`.debug/018`).
+   *
+   * Typed with the keyboard on purpose. A guest's save writes `va:bike:local`
+   * in this tab, which fires no `storage` event, so another card only noticed
+   * at its own next render — the visitor's next keystroke there — and that
+   * render re-seeded the card: ONE keystroke was eaten, with everything typed
+   * before it. `fill` is a single event carrying the whole value and cannot
+   * show which key went missing. Measured on the unfixed form, in Chromium:
+   * "3" before the save then "8" → "", and "72" after it → "2".
+   */
+  test(`what is typed in one card survives the save of another, key by key (${locale})`, async ({
+    page,
+  }) => {
+    const { specCode } = await seedLocalBike(page, GRAVEL);
+    await page.goto(href(locale, "/velo/[id]/reglages", { id: "local" }, { spec: specCode }));
+    await localBikeRead(page, locale);
+
+    const reach = page.locator('[data-fit-field="reachMm"]');
+    const rider = page.locator('[data-fit-field="riderKg"]');
+
+    // Part of a number in the reach card, then the visitor saves the saddle card.
+    await reach.pressSequentially("38");
+    await page.locator('[data-fit-field="inseamCm"]').pressSequentially("84");
+    await page.getByTestId("measure-form-saddle-height").getByRole("button").click();
+    await expect(page.getByTestId("measure-state-saddle-height")).toHaveText(t.fit.saved);
+    // The saved card shows what was stored, in the field nobody typed in too.
+    await expect(page.locator('[data-fit-field="saddleHeightMm"]')).toHaveValue("742");
+
+    // Typed before that save: still there, and the next key adds to it.
+    await expect(reach).toHaveValue("38");
+    await reach.pressSequentially("0");
+    await expect(reach).toHaveValue("380");
+
+    // Typed after it, in a card nobody had touched: the whole number.
+    await rider.pressSequentially("72");
+    await expect(rider).toHaveValue("72");
+
+    // So what that card then stores is what was typed — and it took nothing
+    // from the saddle card, nor the reach nobody has saved.
+    await page.locator('[data-fit-field="bikeKg"]').pressSequentially("9");
+    await page.getByTestId("measure-form-tire-pressure").getByRole("button").click();
+    await expect(page.getByTestId("measure-state-tire-pressure")).toHaveText(t.fit.saved);
+    const stored = await readStoredLocalBike(page);
+    expect(stored?.fit).toEqual({ inseamCm: 84, saddleHeightMm: 742, riderKg: 72, bikeKg: 9 });
+  });
+
+  /**
+   * A saved bike's cards lost theirs sooner: `updateBikeFitAction` revalidates,
+   * its answer carries the page again, and the fresh `fit` re-seeded EVERY card
+   * at the save itself ("38" in the reach card → "" under the other card's
+   * "Enregistré", measured in Chromium on the unfixed form).
+   *
+   * "Enregistré" is the action's answer, not that render, so the test needs a
+   * sign that the page has arrived before it can say the reach survived it: a
+   * rider weight saved from another device in the meantime. Showing it is that
+   * sign — and the other half of the rule, a field nobody typed in following
+   * the record.
+   */
+  test(`a saved bike: the save of one card takes nothing typed in another, and an untouched field follows (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await ownGravelBike(`${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    await page.goto(href(locale, "/velo/[id]/reglages", { id: bikeId }));
+
+    const reach = page.locator('[data-fit-field="reachMm"]');
+    const rider = page.locator('[data-fit-field="riderKg"]');
+    await owned(reach);
+    await expect(rider).toHaveValue("");
+
+    await reach.pressSequentially("38");
+    await saveElsewhere(bikeId, { riderKg: 68 });
+
+    await page.locator('[data-fit-field="inseamCm"]').pressSequentially("84");
+    await page.getByTestId("measure-form-saddle-height").getByRole("button").click();
+    await expect(page.getByTestId("measure-state-saddle-height")).toHaveText(t.fit.saved);
+    await expect(rider).toHaveValue("68");
+
+    await expect(reach).toHaveValue("38");
+    await reach.pressSequentially("0");
+    await expect(reach).toHaveValue("380");
     await expect(page.locator('[data-fit-field="inseamCm"]')).toHaveValue("84");
     await expect(page.locator('[data-fit-field="saddleHeightMm"]')).toHaveValue("742");
   });

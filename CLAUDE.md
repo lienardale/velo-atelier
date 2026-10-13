@@ -851,6 +851,40 @@ docs/                contributor and operator docs — every one is linked from 
 - **`"use server"` files export only async functions.** A zod schema next to an
   action fails the module at request time (`found object`), with `tsc` and
   `next build` both green. Keep input schemas module-private.
+- **What is typed in a fit card is the visitor's until that card is saved.**
+  The fit page draws one `MeasurementForm` per card, all over ONE bike, so the
+  record under a form changes without it: another card is saved, another tab
+  saves, the guest bike is read out of storage after hydration. The form
+  compares each input's TEXT with what the record showed (`follow()`): a field
+  still showing it follows the record; a field showing anything else — emptied
+  by hand included — is left exactly as typed, and only its own card's save
+  changes it, to what was stored, in the fields left alone since the save was
+  sent. The one change that re-seeds a whole card is ANOTHER bike taking the
+  record's place (`Card.owner`: a guest bike's own id, never the `local` of
+  its route). Leaving `LOCAL_BIKE_PENDING`, the first read, is not one, and
+  neither is the guest bike's removal: nothing has taken its place. Do not go
+  back to "the record changed, re-seed the card" (`stored !== known`). A
+  guest's save writes `va:bike:local` in the same tab, which fires no `storage`
+  event, so the next card noticed at its own next render — the visitor's next
+  keystroke there — and "72" typed after another card's save read "2"; a saved
+  bike's `updateBikeFitAction` revalidates, its answer hands EVERY card a fresh
+  `fit`, and "38" typed in another card was gone at the save itself (both in
+  Chromium, `.debug/018`). Two pieces of `Card` look redundant and are not.
+  `shown`, what an untouched field shows, is kept apart from `known`, the
+  record as read and compared by identity, because a card's own save is ahead
+  of the record: with one value for both, a saved bike's card went back to the
+  `fit` it was mounted with whenever nothing rendered the page again (jsdom).
+  And `sent`, what the inputs held when a save was sent, is moved with the
+  record like the inputs are: a field the save sent untouched and the record
+  moved meanwhile is not "typed since", and without that it kept the record's
+  value under "Enregistré" instead of what was stored (found in review, in
+  jsdom; no path to it was found in the app). A test of this types with
+  `pressSequentially`, never `fill` — one event carrying the whole value cannot
+  show which key was eaten — and a saved bike's case waits to SEE the page
+  rendered again (a value written to the row from outside) before it asserts:
+  "Enregistré" is the action's answer, not that render. Text typed BEFORE React
+  holds the field is still lost, on this page as on every prerendered one
+  (`docs/backlog.md`).
 - **State updaters never read an event.** `event.currentTarget` is `null` by the
   time a `setState(prev => …)` updater runs; read the value in the handler.
 - **The part edit form is ONE part's** (`components/bike/PartEditForm.tsx`,
@@ -1723,11 +1757,13 @@ scripts called with `bash` ran (`.debug/017`;
   Mac's emulated amd64 container every WebKit sign-up hangs: it is not the local
   WebKit for sign-up flows.
 - **A controlled input on a prerendered page drops text typed before
-  hydration** (react-dom 19.2.8 keeps it in the DOM, never in state), and a guest
-  bike's `MeasurementForm` also re-seeds once `va:bike:local` resolves. e2e
-  types only once React owns the field (`fit.spec.ts` waits for the header's
-  "Mon vélo" link, `shop.spec.ts` for its search box); the product fix is open
-  (`docs/backlog.md`).
+  hydration** (react-dom 19.2.8 keeps it in the DOM, never in state), and on a
+  guest bike's fit page the render that reads `va:bike:local` then writes the
+  form's state back over it. e2e types only once React owns the field
+  (`fit.spec.ts` waits for the header's "Mon vélo" link, `shop.spec.ts` for its
+  search box); the product fix is open (`docs/backlog.md`). What
+  `MeasurementForm` no longer does is wipe a field typed in AFTER React had
+  attached (`.debug/018`).
 - **Compose runs from the main checkout only.** `docker-compose.yml` pins
   `container_name`, so `docker compose up` from a linked worktree creates a
   second project fighting over that name, or — with the project name forced —
