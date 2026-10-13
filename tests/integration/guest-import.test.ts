@@ -64,6 +64,11 @@
  * lost before the guest carried on (the second import cleared the newer
  * answers on the strength of the checkup's id).
  *
+ *   - **A list line's answer the list page would not show** (`.debug/017`
+ *     §5.9): what the row holds once a browser that pasted a product address
+ *     into "Référence des plaquettes" has imported, and what the list's own
+ *     loader then returns — the two halves that have to agree.
+ *
  * A few tests go through `importGuestStateAction` so the whole path — session,
  * origin, schema, rate limit, planner, writes — is exercised against a real
  * database. The rest drive `importGuestState` directly: the action's bucket is
@@ -105,8 +110,18 @@ const { reduce } = await import("@/lib/checkup/reducer");
 const { fromStored, toStored } = await import("@/lib/checkup/storage");
 const { BIKE_PRESETS, PRESET_IDS } = await import("@/lib/domain/data/presets");
 const { validateBuild } = await import("@/lib/domain/engine/validate-build");
-const { guestRun, guestWork, partsScope, resumeGuestRun } =
+const { guestRun, guestWork, listPageEdit, partsScope, resumeGuestRun } =
   await import("@/tests/_helpers/guest-work");
+const {
+  CHAIN: CHAIN_LINE,
+  PRODUCT_TITLE,
+  PRODUCT_URL,
+  REAR_PADS,
+  wornPadsAndChain,
+} = await import("@/tests/_helpers/long-answers");
+const { loadBuildList } = await import("@/app/[locale]/velo/[id]/liste/load");
+const { setBuildListItemRefinementAction } = await import("@/app/[locale]/velo/[id]/liste/actions");
+const { MAX_REFINEMENT_VALUE_LENGTH } = await import("@/lib/shop/refinement");
 
 type GuestBike = import("@/lib/guest/schema").GuestBike;
 type GuestState = import("@/lib/guest/schema").GuestState;
@@ -1618,6 +1633,152 @@ describe("all or nothing, per bike", () => {
     };
 
     await expect(importGuestState(prisma, user.id, state(broken), deps)).rejects.toThrow();
+    expect(await countsFor(user.id)).toEqual(NOTHING);
+  });
+});
+
+describe("a browser whose list holds an answer longer than the list page reads", () => {
+  /**
+   * `.debug/017` §5.9, live on production until 2026-10-13. The list's form
+   * had no limit on a free-text answer, the collector forwarded what was
+   * stored, and the contract refused a value over 120 characters by refusing
+   * the payload: a product address pasted into "Référence des plaquettes" made
+   * `importGuestStateAction` answer `VALIDATION` five times out of five, with
+   * no bike and no list written (measured on a copy of `origin/main`,
+   * 2026-10-08). From 65 to 120 characters it was worse in a quieter way: the
+   * row took the answer, and the list's loader — the column's only reader —
+   * dropped it.
+   *
+   * The storage is the wizard's (three lines: front pads, rear pads, chain);
+   * the long answer is put on the rear pads by the list page's own write, as
+   * the page of before the fix made it (`listPageEdit`).
+   */
+  const CAP = MAX_REFINEMENT_VALUE_LENGTH;
+
+  function browserHolding(long: string): GuestWork {
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: LOCAL_ID,
+      updatedAt: GUEST_UPDATED_AT,
+      checkup: (build) => wornPadsAndChain(build, CHECKUP_ID),
+    });
+    listPageEdit(work.storage, "local", CHAIN_LINE, (line) => ({
+      ...line,
+      done: true,
+      doneReason: "manual",
+    }));
+    listPageEdit(work.storage, "local", REAR_PADS, (line) => ({
+      ...line,
+      refinement: { "pad-thickness": "2", "brand-tier": "mid", "pad-model": long },
+    }));
+    return work;
+  }
+
+  it.each([
+    ["a 99-character product title", "title", PRODUCT_TITLE],
+    ["a 138-character product address", "address", PRODUCT_URL],
+    ["5 000 characters", "page", "r".repeat(5000)],
+  ])(
+    "%s: the real action imports the bike, the checkup and the three lines — and the column holds what its reader shows",
+    async (_what, tag, long) => {
+      const user = await signedInUser(`import-long-${tag}@velo-atelier.test`);
+      const work = browserHolding(long);
+      const collection = work.collect();
+
+      const result = await importGuestStateAction(JSON.parse(JSON.stringify(collection.state)));
+
+      // At the first attempt: no VALIDATION, nothing to retry.
+      expect(result).toMatchObject({ ok: true, data: { imported: 1, skipped: 0 } });
+      if (!result.ok) return;
+      const bikeId = result.data.bikeId ?? "";
+      expect(result.data.bikes[0].checkups).toEqual([{ guestKey: CHECKUP_ID, status: "imported" }]);
+      expect(await countsFor(user.id)).toMatchObject({ bikes: 1, checkups: 1, lists: 1, lines: 3 });
+
+      // What the ROWS hold.
+      const rows = await prisma.buildListItem.findMany({
+        where: { buildList: { bikeId } },
+        orderBy: { sortOrder: "asc" },
+        select: { partId: true, done: true, refinement: true },
+      });
+      expect(rows).toEqual([
+        { partId: "brake-pads-front", done: false, refinement: null },
+        {
+          partId: "brake-pads-rear",
+          done: false,
+          // The other answers of the line; the long one was never sent.
+          refinement: { "pad-thickness": "2", "brand-tier": "mid" },
+        },
+        // The tick made on another line came through with it.
+        { partId: "chain", done: true, refinement: null },
+      ]);
+      expect(JSON.stringify(rows).includes("r".repeat(CAP + 1))).toBe(false);
+      expect(JSON.stringify(rows).includes(long)).toBe(false);
+
+      // What the list's LOADER returns: every line, and — the point — exactly
+      // what the column holds. Nothing was stored that no screen would show.
+      const loaded = await loadBuildList(bikeId, user.id);
+      expect(loaded.items.map((item) => [item.partId, item.done, item.refinement ?? null])).toEqual(
+        rows.map((row) => [row.partId, row.done, row.refinement]),
+      );
+
+      // The browser may forget its three keys: the account has all of it that
+      // any screen showed.
+      expect(settleGuestImport(collection, result.data).clear.sort()).toEqual(
+        [LOCAL_BIKE_KEY, checkupKey("local"), buildListKey("local")].sort(),
+      );
+
+      // And the line is an ordinary line of the account: its reference typed
+      // again, short, is saved beside the answers that came with the import.
+      const rear = loaded.items.find((item) => item.partId === "brake-pads-rear");
+      expect(
+        await setBuildListItemRefinementAction({
+          itemId: rear?.id,
+          refinement: { ...rear?.refinement, "pad-model": "J04C" },
+        }),
+      ).toEqual({ ok: true, data: null });
+      expect(
+        (await prisma.buildListItem.findUniqueOrThrow({ where: { id: rear?.id ?? "" } }))
+          .refinement,
+      ).toEqual({ "pad-thickness": "2", "brand-tier": "mid", "pad-model": "J04C" });
+    },
+  );
+
+  it("an answer exactly at the cap is imported, stored and read back as typed", async () => {
+    const user = await signedInUser("import-long-at-cap@velo-atelier.test");
+    const atCap = "r".repeat(CAP);
+    const result = await importGuestStateAction(payloadOf(browserHolding(atCap)));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const loaded = await loadBuildList(result.data.bikeId ?? "", user.id);
+    expect(loaded.items.find((item) => item.partId === "brake-pads-rear")?.refinement).toEqual({
+      "pad-thickness": "2",
+      "brand-tier": "mid",
+      "pad-model": atCap,
+    });
+  });
+
+  it("what a tab loaded BEFORE the fix sends — the stored answer, forwarded — is refused whole from the first character over, 120 included", async () => {
+    // The old collector did not filter: its payload is the new one's with the
+    // stored refinement put back. 65 to 120 characters used to be accepted,
+    // and left in the column an answer its only reader dropped.
+    const user = await signedInUser("import-long-old-tab@velo-atelier.test");
+    for (const length of [CAP + 1, PRODUCT_TITLE.length, 120, 121, PRODUCT_URL.length]) {
+      const long = "r".repeat(length);
+      const payload = payloadOf(browserHolding(long));
+      const rear = payload.bikes[0].lists[0].items.find(
+        (line) => line.partId === "brake-pads-rear",
+      );
+      if (rear === undefined) throw new Error("the rear pads' line was not collected");
+      rear.refinement = { "pad-thickness": "2", "brand-tier": "mid", "pad-model": long };
+
+      expect(await importGuestStateAction(payload), String(length)).toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+    }
+    // Nothing written, by any of the five: a reload brings the collector that
+    // drops the answer, and the same browser is then imported (the cases above).
     expect(await countsFor(user.id)).toEqual(NOTHING);
   });
 });

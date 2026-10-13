@@ -29,13 +29,23 @@ import { CHECKUP_STATE_VERSION } from "@/lib/checkup/types";
 import { withinJsonBudget } from "@/lib/bike/rules";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
 import { KO_ACTIONS } from "@/lib/domain/schema/procedure";
+import { MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
 import {
   GUEST_NAMES,
   guestRun,
   guestWork,
+  listPageEdit,
   memoryStorage,
   partsScope,
 } from "@/tests/_helpers/guest-work";
+import {
+  CHAIN as CHAIN_LINE,
+  FRONT_PADS,
+  PRODUCT_TITLE,
+  PRODUCT_URL,
+  REAR_PADS,
+  wornPadsAndChain,
+} from "@/tests/_helpers/long-answers";
 
 import {
   clearGuestKeys,
@@ -509,6 +519,197 @@ describe("collectGuestState", () => {
   });
 });
 
+// ── the collector, and a list line's refinement ──────────────────────────────
+
+describe("collectGuestState — a list line's refinement is collected entry by entry", () => {
+  /**
+   * Until 2026-10-13 the stored refinement was forwarded as it was, and the
+   * list's form let a visitor type an answer of any length. One answer over
+   * 120 characters — a product address pasted into "Référence des plaquettes"
+   * — made the server refuse the WHOLE payload, on every retry: that guest
+   * bike could not be imported at all (`.debug/017` §5.9). The storage below
+   * is the wizard's, and the long answer is put there by the list page's own
+   * write (`listPageEdit`), as the page of before that date did.
+   */
+  const CAP = MAX_REFINEMENT_VALUE_LENGTH;
+
+  /** A guest bike, a finished checkup, and its three lines: front pads, rear pads, chain. */
+  function guestWithThreeLines() {
+    return guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      checkup: (build) => wornPadsAndChain(build, CHECKUP_ID),
+    });
+  }
+
+  /** The same, the rear pads' line holding `refinement` — written by the list page. */
+  function holding(refinement: unknown) {
+    const guest = guestWithThreeLines();
+    // What the visitor did on the two other lines must come through untouched.
+    listPageEdit(guest.storage, "local", CHAIN_LINE, (line) => ({
+      ...line,
+      done: true,
+      doneReason: "manual",
+      refinement: { "e-rated": "non" },
+    }));
+    listPageEdit(guest.storage, "local", REAR_PADS, (line) => ({ ...line, refinement }));
+    const raws = new Map(guest.storage.map);
+    const { state, checkup } = guest.collect();
+    const [list] = state.bikes[0].lists;
+    return {
+      state,
+      checkup,
+      list,
+      rear: list?.items.find((line) => line.partId === REAR_PADS.partId),
+      /** Reading wrote nothing: every key byte for byte. */
+      untouched: () => [...raws].every(([key, raw]) => guest.storage.map.get(key) === raw),
+    };
+  }
+
+  it.each([
+    ["exactly at the cap", CAP, true],
+    ["one character over it", CAP + 1, false],
+    ["a 99-character product title", PRODUCT_TITLE.length, false],
+    ["at the contract's old cap", 120, false],
+    ["one over that — what blocked the import", 121, false],
+    ["a 138-character product address", PRODUCT_URL.length, false],
+    ["5 000 characters", 5000, false],
+  ])(
+    "an answer %s (%i) — sent: %s; the bike, the checkup and all three lines always are",
+    (_what, length, sent) => {
+      const long = "r".repeat(length);
+      const { state, checkup, list, rear, untouched } = holding({
+        "pad-thickness": "2",
+        "pad-model": long,
+      });
+
+      // The payload is one the server takes — whatever the length.
+      expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+      expect(checkup).toBe("collected");
+      expect(state.bikes[0].checkups).toHaveLength(1);
+      expect(list.items.map((line) => line.partId)).toEqual([
+        FRONT_PADS.partId,
+        REAR_PADS.partId,
+        CHAIN_LINE.partId,
+      ]);
+      // The entry is sent when the list page shows it, and only then…
+      expect(rear?.refinement).toEqual(
+        sent ? { "pad-thickness": "2", "pad-model": long } : { "pad-thickness": "2" },
+      );
+      // …and nothing longer than the cap is anywhere in a line of the payload.
+      expect(JSON.stringify(list).includes("r".repeat(CAP + 1))).toBe(false);
+      // The other lines' work is untouched: the tick, and the chain's own answer.
+      expect(list.items.find((line) => line.partId === CHAIN_LINE.partId)).toMatchObject({
+        done: true,
+        refinement: { "e-rated": "non" },
+      });
+      expect(untouched()).toBe(true);
+    },
+  );
+
+  it("sends, for every line, exactly what the list page reads", () => {
+    const stored = {
+      "pad-thickness": "2",
+      "brand-tier": "mid",
+      "pad-model": PRODUCT_TITLE,
+    };
+    const { rear } = holding(stored);
+    expect(rear?.refinement).toEqual(refinementOf(stored));
+    expect(rear?.refinement).toEqual({ "pad-thickness": "2", "brand-tier": "mid" });
+  });
+
+  it("sends no `refinement` at all for a line whose only answer was the long one", () => {
+    const { state, rear } = holding({ "pad-model": PRODUCT_URL });
+    expect(rear).toBeDefined();
+    expect(Object.hasOwn(rear as object, "refinement")).toBe(false);
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+  });
+
+  it.each([
+    ["a number", { "pad-model": 11, "pad-thickness": "2" }],
+    ["null", { "pad-model": null, "pad-thickness": "2" }],
+    ["an object", { "pad-model": { ref: "J04C" }, "pad-thickness": "2" }],
+  ])(
+    "an answer that is %s costs that answer — not the list, which used to be imported as NOTHING",
+    (_what, refinement) => {
+      // The stored-list guard read `refinement` as a record of strings: one
+      // entry that was not one failed the parse of the whole stored list, the
+      // bike was sent with `lists: []`, and the list's key was then cleared.
+      const { list, rear } = holding(refinement);
+      expect(list.items).toHaveLength(3);
+      expect(rear?.refinement).toEqual({ "pad-thickness": "2" });
+    },
+  );
+
+  it.each([
+    ["a string", "pad-model=J04C"],
+    ["an array", ["pad-model", "J04C"]],
+    ["null", null],
+    // Read by the list page, refused by the contract: nothing is left to send.
+    ["nothing but a key the contract does not take", { Speeds: "11" }],
+  ])(
+    "a refinement that is %s costs that line's refinement, never the line or the list",
+    (_what, refinement) => {
+      const { state, list, rear } = holding(refinement);
+      expect(list.items).toHaveLength(3);
+      expect(Object.hasOwn(rear as object, "refinement")).toBe(false);
+      expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+    },
+  );
+
+  it("drops what the CONTRACT would refuse too — a key it does not take, a U+0000 — so no entry can sink the payload", () => {
+    const NUL = String.fromCharCode(0);
+    const { state, rear } = holding({
+      // A key the list page reads (64 characters at most) and the contract
+      // does not (40, and `[a-z0-9-]` only).
+      ["k".repeat(41)]: "x",
+      Speeds: "11",
+      __proto__x: "x",
+      // The one character PostgreSQL stores in no column.
+      "pad-model": `J04C${NUL}`,
+      "pad-thickness": "2",
+    });
+    expect(rear?.refinement).toEqual({ "pad-thickness": "2" });
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+  });
+
+  it("sends at most the contract's number of answers for one line", () => {
+    const many = Object.fromEntries(
+      Array.from({ length: GUEST_CAPS.refinementEntries + 6 }, (_, index) => [
+        `attr-${String(index).padStart(2, "0")}`,
+        "x",
+      ]),
+    );
+    const { state, rear } = holding(many);
+    expect(Object.keys(rear?.refinement ?? {})).toEqual(
+      Object.keys(many).slice(0, GUEST_CAPS.refinementEntries),
+    );
+    expect(parseGuestState(JSON.parse(JSON.stringify(state))).ok).toBe(true);
+  });
+
+  it("is not stopped by how deeply a stored refinement is nested", () => {
+    // Storage is untrusted: 20 000 levels under one entry. The reader keeps
+    // strings only, so nothing here walks that depth.
+    const depth = 20_000;
+    const deep = `{"pad-thickness":"2","pad-model":${"[".repeat(depth)}${"]".repeat(depth)}}`;
+    const guest = guestWithThreeLines();
+    const stored = JSON.parse(guest.storage.map.get(buildListKey("local")) as string) as {
+      items: { partId: string }[];
+    };
+    const raw = JSON.stringify(stored).replace(
+      `"partId":"${REAR_PADS.partId}"`,
+      `"partId":"${REAR_PADS.partId}","refinement":${deep}`,
+    );
+    expect(raw).not.toBe(JSON.stringify(stored));
+    guest.storage.map.set(buildListKey("local"), raw);
+
+    const [list] = guest.collect().state.bikes[0].lists;
+    expect(list.items).toHaveLength(3);
+    expect(list.items.find((line) => line.partId === REAR_PADS.partId)?.refinement).toEqual({
+      "pad-thickness": "2",
+    });
+  });
+});
+
 // ── the contract ─────────────────────────────────────────────────────────────
 
 describe("GuestStateSchema", () => {
@@ -801,28 +1002,58 @@ describe("GuestStateSchema", () => {
       tampered.bikes[0].lists[0].items[0].refinement = refinement;
       return parseGuestState(tampered).ok;
     };
+    // Every value at the cap on ONE answer: `MAX_REFINEMENT_VALUE_LENGTH`, the
+    // list page's, the saved bike's action's and its loader's. It was 120
+    // here until 2026-10-13, and the entries below were 120 characters long.
     const entries = (count: number, value = "v") =>
       Object.fromEntries(
         Array.from({ length: count }, (_, index) => [
           `k-${String(index).padStart(38, "0")}`,
-          value.repeat(120),
+          value.repeat(MAX_REFINEMENT_VALUE_LENGTH),
         ]),
       );
     const cap = GUEST_CAPS.refinementEntries;
     expect(cap).toBe(24);
     expect(accepts(entries(cap))).toBe(true);
     expect(accepts(entries(cap + 1))).toBe(false);
-    // 1 400 entries were accepted until 2026-10-09: 230 KB in one column.
+    // 1 400 entries were accepted until 2026-10-09: 123 KB in one column at
+    // this length, 230 KB at the 120 characters a value could then have.
     expect(withinGuestPayloadBudget(entries(1400))).toBe(true);
     expect(accepts(entries(1400))).toBe(false);
-    // The heaviest refinement the contract allows — 40-character keys, 120
-    // three-byte characters a value — is inside the 32 KB of a JSON column.
+    // The heaviest refinement the contract allows — 40-character keys, a full
+    // value of three-byte characters — is inside the 32 KB of a JSON column.
     const heaviest = entries(cap, "€");
     expect(accepts(heaviest)).toBe(true);
     expect(withinJsonBudget(heaviest)).toBe(true);
     // The two per-entry bounds it rests on.
     expect(accepts({ ["k".repeat(41)]: "v" })).toBe(false);
-    expect(accepts({ k: "v".repeat(121) })).toBe(false);
+    expect(accepts({ k: "v".repeat(MAX_REFINEMENT_VALUE_LENGTH) })).toBe(true);
+    expect(accepts({ k: "v".repeat(MAX_REFINEMENT_VALUE_LENGTH + 1) })).toBe(false);
+  });
+
+  it("holds one refinement answer to the cap the list page reads by — nothing it would hide can be imported", () => {
+    // 65 to 120 characters used to be ACCEPTED: the row held the answer, the
+    // list's loader dropped it, and the line's next edit replaced the column.
+    // Over 120 was always refused. One number now, and it is the reader's.
+    const accepts = (value: string): boolean => {
+      const tampered = payload();
+      tampered.bikes[0].lists[0].items[0].refinement = { "pad-model": value, speeds: "11" };
+      return parseGuestState(tampered).ok;
+    };
+    expect(MAX_REFINEMENT_VALUE_LENGTH).toBe(64);
+    for (const [length, accepted] of [
+      [MAX_REFINEMENT_VALUE_LENGTH, true],
+      [MAX_REFINEMENT_VALUE_LENGTH + 1, false],
+      [PRODUCT_TITLE.length, false],
+      [120, false],
+      [121, false],
+      [PRODUCT_URL.length, false],
+    ] as const) {
+      const value = "r".repeat(length);
+      expect(accepts(value), String(length)).toBe(accepted);
+      // What the contract takes is exactly what the list page would show.
+      expect(refinementOf({ "pad-model": value }) !== undefined, String(length)).toBe(accepted);
+    }
   });
 
   it("accepts exactly the domain's five actions on a line", () => {

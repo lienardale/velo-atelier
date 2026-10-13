@@ -24,8 +24,16 @@ import { BIKE_PRESETS } from "@/lib/domain/data/presets";
 import type { GuestCheckupImport, GuestImportSummary, GuestState } from "@/lib/guest/schema";
 import type { Locale } from "@/lib/i18n/routing";
 import { routerSpies } from "@/tests/_fakes/session";
-import { guestRun, guestWork, partsScope } from "@/tests/_helpers/guest-work";
+import { parseGuestState } from "@/lib/guest/schema";
+import { MAX_REFINEMENT_VALUE_LENGTH } from "@/lib/shop/refinement";
+import { guestRun, guestWork, listPageEdit, partsScope } from "@/tests/_helpers/guest-work";
 import { messagesFor, renderWithIntl } from "@/tests/_helpers/intl";
+import {
+  PRODUCT_TITLE,
+  PRODUCT_URL,
+  REAR_PADS,
+  wornPadsAndChain,
+} from "@/tests/_helpers/long-answers";
 
 const importAction = vi.fn<(input: unknown) => Promise<ActionResult<GuestImportSummary>>>();
 
@@ -241,6 +249,91 @@ describe.each(["fr", "en"] as const)("the import page (%s)", (locale) => {
       expect(stored()).toEqual([BIKE_RAW, CHECKUP_RAW, LIST_RAW]);
       expect(toast).not.toHaveBeenCalled();
       expect(routerSpies.replace).not.toHaveBeenCalled();
+    },
+  );
+
+  /**
+   * `.debug/017` §5.9. The list's form had no limit on a free-text answer
+   * until 2026-10-13, and the collector forwarded what was stored. A product
+   * address pasted into "Référence des plaquettes" — 138 characters, over the
+   * 120 the contract then allowed — made the server answer `VALIDATION` to
+   * this page on every attempt, the retry sending the same bytes: a guest
+   * bike that could not be imported, with no screen on which to shorten the
+   * answer. Here the stand-in answers with the REAL contract's verdict on
+   * what it is sent, so the page is refused exactly when production's was.
+   */
+  it.each([
+    ["a 99-character product title", PRODUCT_TITLE],
+    ["a 138-character product address", PRODUCT_URL],
+    ["5 000 characters", "r".repeat(5000)],
+  ])(
+    "a browser whose list already holds %s: imported at the first attempt, the answer never sent",
+    async (_what, long) => {
+      const work = guestWork({
+        answers: BIKE_PRESETS["gravel-1x11"],
+        checkup: (build) => wornPadsAndChain(build, CHECKUP_ID),
+      });
+      // The list page of before the fix wrote whatever was typed.
+      listPageEdit(work.storage, "local", REAR_PADS, (line) => ({
+        ...line,
+        refinement: { "pad-thickness": "2", "pad-model": long },
+      }));
+      window.localStorage.clear();
+      for (const key of KEYS) window.localStorage.setItem(key, work.storage.getItem(key)!);
+
+      importAction.mockImplementation(async (input) =>
+        parseGuestState(JSON.parse(JSON.stringify(input))).ok
+          ? {
+              ok: true,
+              data: {
+                bikeId: BIKE_ROW,
+                bikes: [
+                  {
+                    localId: work.bike.id,
+                    bikeId: BIKE_ROW,
+                    checkups: [{ guestKey: CHECKUP_ID, status: "imported" }],
+                  },
+                ],
+                imported: 1,
+                skipped: 0,
+              },
+            }
+          : { ok: false, code: "VALIDATION" },
+      );
+      const t = await importMessages(locale);
+      await renderWithIntl(<GuestImport />, { locale });
+
+      await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+      expect(toast).toHaveBeenCalledWith(t.done, undefined);
+      expect(screen.queryByTestId("guest-import-error")).toBeNull();
+      // One call, and it was accepted: nothing was retried.
+      expect(importAction).toHaveBeenCalledTimes(1);
+
+      const sent = importAction.mock.calls[0][0] as GuestState;
+      const [list] = sent.bikes[0].lists;
+      // The bike, its checkup and all three lines of its list…
+      expect(sent.bikes[0].checkups).toHaveLength(1);
+      expect(list.items.map((line) => line.partId)).toEqual([
+        "brake-pads-front",
+        "brake-pads-rear",
+        "chain",
+      ]);
+      // …the line that held the long answer with its other one, and without it.
+      expect(list.items[1].refinement).toEqual({ "pad-thickness": "2" });
+      expect(JSON.stringify(sent).includes(long)).toBe(false);
+      for (const line of list.items) {
+        for (const value of Object.values(line.refinement ?? {})) {
+          expect(value.length).toBeLessThanOrEqual(MAX_REFINEMENT_VALUE_LENGTH);
+        }
+      }
+
+      // The account has the bike: the browser forgets all three keys, the
+      // long answer with the list's.
+      expect(stored()).toEqual([null, null, null]);
+      expect(routerSpies.replace).toHaveBeenCalledWith({
+        pathname: "/velo/[id]",
+        params: { id: BIKE_ROW },
+      });
     },
   );
 

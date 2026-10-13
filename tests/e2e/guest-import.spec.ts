@@ -50,6 +50,20 @@
  *      page cleared the newer answers too. The checkup must still be in the
  *      browser afterwards, and the visitor told.
  *
+ * …and one found on production on 2026-10-08, where the import did not lose
+ * answers but could not happen at all:
+ *
+ *   9. **a browser whose list holds an answer longer than the server takes.**
+ *      The list's form had no limit on a free-text answer; a product address
+ *      pasted into "Référence des plaquettes" (138 characters, over the 120
+ *      the contract then allowed) made `/import` answer "Certaines
+ *      informations ne sont pas valides" on every attempt, with every key
+ *      kept and no screen on which to shorten the answer — the list page
+ *      could not open that list either (`.debug/017` §5.9). The storage here
+ *      is the wizard's, with the address put on a line by the list page's own
+ *      write; the bike, its checkup and all three lines must be in the
+ *      account, and the account's list page must show them.
+ *
  * `localStorage` is written with `page.evaluate` rather than the `addInitScript`
  * of `_local-bike.ts`: that helper re-seeds on every document load, which is
  * exactly what claim 2 must not have happening behind it.
@@ -68,12 +82,22 @@ import authFr from "../../messages/fr/auth.json";
 import checkupEn from "../../messages/en/checkup.json";
 import checkupFr from "../../messages/fr/checkup.json";
 import { resolveTestEnv } from "../_fakes/db";
-import { guestRun, guestWork, partsScope, type GuestWork } from "../_helpers/guest-work";
+import {
+  guestRun,
+  guestWork,
+  listPageEdit,
+  partsScope,
+  type GuestWork,
+} from "../_helpers/guest-work";
+import { PRODUCT_URL, REAR_PADS, wornPadsAndChain } from "../_helpers/long-answers";
+import enParts from "../../messages/en/parts.json";
+import frParts from "../../messages/fr/parts.json";
 
 /* eslint-disable security/detect-object-injection, security/detect-non-literal-regexp -- locale-keyed message fixtures, and patterns built from paths this file computed itself */
 const ACCOUNT: Record<Locale, typeof accountFr> = { fr: accountFr, en: accountEn };
 const AUTH: Record<Locale, typeof authFr> = { fr: authFr, en: authEn };
 const CHECKUP: Record<Locale, typeof checkupFr> = { fr: checkupFr, en: checkupEn };
+const PARTS: Record<Locale, typeof frParts> = { fr: frParts, en: enParts };
 
 const PASSWORD = "Guidon-Tandem-47!";
 const CHECKUP_ID = "3f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a90";
@@ -188,6 +212,19 @@ async function rowsOf(bikeId: string): Promise<ImportedRows> {
       partStates: states.length,
       userId: bikes[0]?.userId ?? "",
     };
+  });
+}
+
+/** Each line of the bike's list with the answers its row holds, in list order. */
+async function refinementsOf(bikeId: string): Promise<[string, unknown][]> {
+  return withDb(async (client) => {
+    const { rows } = await client.query<{ partId: string; refinement: unknown }>(
+      `SELECT l."partId", l.refinement
+         FROM "BuildListItem" l JOIN "BuildList" b ON b.id = l."buildListId"
+        WHERE b."bikeId" = $1 ORDER BY l."sortOrder"`,
+      [bikeId],
+    );
+    return rows.map((row): [string, unknown] => [row.partId, row.refinement]);
   });
 }
 
@@ -747,6 +784,62 @@ forEachLocale((locale) => {
     // and they are still in the browser, byte for byte. Until 2026-10-09 this
     // was `[null, null, null]` with no sentence: the answers were nowhere.
     expect(await storedKeys(page)).toEqual([null, newer.raw, null]);
+  });
+
+  test(`a browser whose list holds a pasted product address is imported — bike, checkup and list (${locale})`, async ({
+    page,
+    signupEmail,
+  }) => {
+    test.slow();
+
+    // A guest bike, a finished checkup and its three lines, as the wizard
+    // leaves them — and, on the rear pads, a thickness and a 138-character
+    // address under the reference, written by the list page of before the fix.
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      checkup: (build) => wornPadsAndChain(build, CHECKUP_ID),
+    });
+    listPageEdit(work.storage, "local", REAR_PADS, (line) => ({
+      ...line,
+      refinement: { "pad-thickness": "2", "pad-model": PRODUCT_URL },
+    }));
+    expect(work.storage.getItem(buildListKey("local"))).toContain(PRODUCT_URL);
+
+    await page.goto(href(locale, "/"));
+    await seedGuestWork(page, work.storage);
+    await signUpAndStartImport(page, signupEmail);
+
+    // Imported at the first attempt: the toast, the bike's page — and never
+    // the refusal this browser got on production, retry after retry.
+    await expect(page.getByText(account.import.done)).toBeVisible();
+    await expect(page.getByTestId("guest-import-error")).toHaveCount(0);
+    await page.waitForURL(bikeUrlPattern);
+    const bikeId = bikeUrlPattern.exec(page.url())?.[1] ?? "";
+    expect(bikeId).toMatch(UUID);
+    expect(await storedKeys(page)).toEqual([null, null, null]);
+
+    // The rows: one checkup, one list, three lines — the rear pads' with the
+    // answer the list page showed, and without the one it could not.
+    const imported = await rowsOf(bikeId);
+    expect(imported.checkups).toHaveLength(1);
+    expect(imported.lists).toHaveLength(1);
+    expect(await refinementsOf(bikeId)).toEqual([
+      ["brake-pads-front", null],
+      ["brake-pads-rear", { "pad-thickness": "2" }],
+      ["chain", null],
+    ]);
+
+    // And the account's own list page shows all three, the thickness in its
+    // field and the reference field empty, there to be filled again.
+    await page.goto(href(locale, "/velo/[id]/liste", { id: bikeId }));
+    await expect(page.getByTestId("build-item")).toHaveCount(3);
+    const rear = page.locator('[data-testid="build-item"][data-part-id="brake-pads-rear"]');
+    await expect(
+      rear.getByLabel(PARTS[locale].attr["pad-thickness"].label, { exact: true }),
+    ).toHaveValue("2");
+    await expect(
+      rear.getByLabel(PARTS[locale].attr["pad-model"].label, { exact: true }),
+    ).toHaveValue("");
   });
 
   test(`/import asks an anonymous visitor to sign in first (${locale})`, async ({ page }) => {

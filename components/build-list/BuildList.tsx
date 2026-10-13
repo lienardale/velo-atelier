@@ -27,6 +27,7 @@ import type { BikeBuild } from "@/lib/domain/schema/part";
 import { Link } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
 import { chosenProductOf } from "@/lib/shop/chosen-product";
+import { refinementOf } from "@/lib/shop/refinement";
 import { cn } from "@/lib/utils";
 
 import { BuildItemCard } from "./BuildItemCard";
@@ -59,6 +60,54 @@ import { PrintButton } from "./PrintButton";
  * the `{ version, items, updatedAt }` this release writes, and a bare
  * `BuildListItem[]`, so a list written by a different part of the app (or by an
  * earlier build) still opens.
+ *
+ * ## What a bad value COSTS — nothing the visitor typed costs the list
+ *
+ * "Dropped on a parse failure" used to be the whole rule, and it was one field
+ * too wide: the item schema itself held a `refinement` value to 64
+ * characters, so one answer over it — a product title pasted into "Référence
+ * des plaquettes", which the form let through — failed the parse of the LIST. The
+ * page showed "Rien à acheter pour l'instant", the card holding the field was
+ * gone with the rest, and every later checkup merged into a list nobody could
+ * open (live on production until this was fixed; `.debug/017` §5.9). So the
+ * cost of a bad value is now decided field by field, and the rule behind the
+ * table is: **what only the application writes may cost the list; what the
+ * visitor types or picks costs, at most, what they typed.**
+ *
+ *   the value is not JSON, not an envelope, an unknown `version`, a bad
+ *   `updatedAt`, `items` that is not an array     the LIST — nothing here was
+ *                                                 written by this release
+ *   a line's `id`, `stepKey`, `sourceKeys`,       the LIST, as before: these
+ *   `action`, `reasonKey`, `guideSlug`,           are the checkup's own
+ *   `done`, `doneReason`, `sortOrder`, or a       output, written by
+ *   `partId` that is not a short string           `deriveBuildList` and the
+ *                                                 merge and by nothing else
+ *   a `partId` this release has no part for       the LINE (unchanged)
+ *   lines after the 80th                          those LINES (unchanged)
+ *   `chosenProduct` that breaks §4.4's link rule  the PRODUCT (unchanged)
+ *   `refinement` that is not an object            that line's REFINEMENT
+ *   one `refinement` entry: a value that is not   that ENTRY — the line, its
+ *   a string, or longer than the cap, or under    tick, its product and its
+ *   an over-long key                              other answers are kept
+ *
+ * The last two rows are `refinementOf` (`lib/shop/refinement.ts`), the reader
+ * a saved bike's loader has always applied. `BuildList.test.tsx` holds each
+ * row, and — because "only the application writes it" is a claim about the
+ * writers — that every line the real plan can derive, for all seven presets,
+ * reads back whole.
+ *
+ * ## A read never writes
+ *
+ * A dropped entry stays in `localStorage` until something WRITES the list: the
+ * next tick, refinement or "retirer ce qui est fait" here (each writes the
+ * items as read, so without it), the next finished checkup (the merge reads
+ * the answers it carries through the same reader) or, for a guest bike, the
+ * import, which never sends it and then clears the key. Rewriting on read was
+ * the other option and was not taken: a page that is only LOOKED at would
+ * then delete bytes — in a tab left open across a release that reads them
+ * differently, say — and a read that removes is how a checkup the importer
+ * could not use used to vanish (`lib/checkup/storage.ts`, `peekStoredCheckup`).
+ * Nothing shows the dropped bytes and nothing sends them; they are inert.
  */
 
 /** The envelope version this release writes. */
@@ -88,9 +137,11 @@ const StoredItemSchema = z.object({
   guideSlug: z.optional(z.string().check(z.maxLength(160))),
   done: z.boolean(),
   doneReason: z.optional(z.enum(["manual", "recheck-ok"])),
-  refinement: z.optional(
-    z.record(z.string().check(z.maxLength(64)), z.string().check(z.maxLength(64))),
-  ),
+  // Read by `refinementOf` below rather than here, entry by entry: an answer
+  // that is too long loses that ANSWER, not the list (see the header). The cap
+  // was a `maxLength` in this schema once, and one pasted product title hid
+  // every line the visitor had.
+  refinement: z.optional(z.unknown()),
   // Checked by `chosenProductOf` below rather than here: a product whose link
   // does not go where its vendor says (§4.4) loses the PRODUCT, not the list.
   chosenProduct: z.optional(z.unknown()),
@@ -124,9 +175,14 @@ export function parseBuildList(raw: string | null): BuildListItem[] | null {
   return items
     .filter((item) => isPartId(item.partId))
     .slice(0, MAX_BUILD_LIST_ITEMS)
-    .map(({ chosenProduct, ...item }) => {
+    .map(({ chosenProduct, refinement, ...item }) => {
       const product = chosenProduct === undefined ? undefined : chosenProductOf(chosenProduct);
-      return (product === undefined ? item : { ...item, chosenProduct: product }) as BuildListItem;
+      const answers = refinementOf(refinement);
+      return {
+        ...item,
+        ...(answers === undefined ? {} : { refinement: answers }),
+        ...(product === undefined ? {} : { chosenProduct: product }),
+      } as BuildListItem;
     });
 }
 

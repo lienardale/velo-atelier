@@ -31,6 +31,7 @@ import { withUser } from "@/lib/actions/with-user";
 import { withinJsonBudget } from "@/lib/bike/rules";
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { MAX_REFINEMENT_KEY_LENGTH, MAX_REFINEMENT_VALUE_LENGTH } from "@/lib/shop/refinement";
 
 /**
  * A refinement answer is an attribute key and a value a control produced.
@@ -41,6 +42,10 @@ import type { Prisma } from "@/lib/generated/prisma/client";
  * written to a `Json` column and read back into a record, and a key that means
  * something to an object is a key that does not belong in stored data, whatever
  * the reader does with it.
+ *
+ * The two lengths are `lib/shop/refinement.ts`'s — the cap the form's inputs
+ * stop at and every reader holds a stored entry to. They were the literal 64
+ * here; what this action accepts has not changed.
  */
 const POISON_KEYS = ["__proto__", "constructor", "prototype"];
 
@@ -48,10 +53,10 @@ const refinementSchema = z.record(
   z
     .string()
     .min(1)
-    .max(64)
+    .max(MAX_REFINEMENT_KEY_LENGTH)
     .regex(/^[a-z0-9-]+$/, "errors.VALIDATION")
     .refine((key) => !POISON_KEYS.includes(key), "errors.VALIDATION"),
-  z.string().max(64),
+  z.string().max(MAX_REFINEMENT_VALUE_LENGTH),
 );
 
 const setDoneSchema = z.object({ itemId: z.uuid("errors.VALIDATION"), done: z.boolean() }).strict();
@@ -77,8 +82,8 @@ function storedRefinement(value: unknown): Record<string, string> {
       .filter(
         ([key, entry]) =>
           typeof entry === "string" &&
-          key.length <= 64 &&
-          entry.length <= 64 &&
+          key.length <= MAX_REFINEMENT_KEY_LENGTH &&
+          entry.length <= MAX_REFINEMENT_VALUE_LENGTH &&
           !POISON_KEYS.includes(key),
       )
       .slice(0, MAX_REFINEMENT_KEYS),

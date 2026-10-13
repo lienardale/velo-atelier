@@ -19,6 +19,7 @@ import type { BuildAction, BuildListItem } from "@/lib/checkup/types";
 import { prisma } from "@/lib/db/prisma";
 import { isPartId, type PartId } from "@/lib/domain/data/parts";
 import { chosenProductOf } from "@/lib/shop/chosen-product";
+import { refinementOf } from "@/lib/shop/refinement";
 
 /** The Prisma enum, as the checkup contract spells it (`KoAction`, §1.2). */
 const ACTION_OF: Readonly<Record<string, BuildAction>> = {
@@ -45,15 +46,6 @@ interface BuildListRow {
   checkupItem: { stepKey: string } | null;
 }
 
-/** A `Json` column is a shape we WROTE, not a shape we can assume on read. */
-function asRefinement(value: unknown): Readonly<Record<string, string>> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const entries = Object.entries(value).filter(
-    ([key, entry]) => typeof entry === "string" && key.length <= 64 && entry.length <= 64,
-  );
-  return entries.length === 0 ? undefined : (Object.fromEntries(entries) as Record<string, string>);
-}
-
 function doneReasonOf(row: BuildListRow): BuildListItem["doneReason"] {
   if (!row.done) return undefined;
   return (DONE_REASONS as readonly (string | null)[]).includes(row.doneReason)
@@ -67,7 +59,11 @@ export function toItem(row: BuildListRow): BuildListItem | null {
   if (action === undefined || !isPartId(row.partId)) return null;
   const stepKey = row.checkupItem?.stepKey ?? row.id;
   const doneReason = doneReasonOf(row);
-  const refinement = row.refinement === null ? undefined : asRefinement(row.refinement);
+  // A `Json` column is a shape we WROTE, not a shape we can assume on read:
+  // entry by entry, through the one reader of a stored refinement — the rule
+  // that was written out here until 2026-10-13, and that the guest list's
+  // parser and the import's collector now share (`lib/shop/refinement.ts`).
+  const refinement = refinementOf(row.refinement);
   const chosenProduct = row.chosenProduct === null ? undefined : chosenProductOf(row.chosenProduct);
   return {
     id: row.id,

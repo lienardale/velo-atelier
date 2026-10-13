@@ -63,6 +63,7 @@
  * line for line.
  */
 import type { PartId } from "@/lib/domain/data/parts";
+import { refinementOf } from "@/lib/shop/refinement";
 
 import type { BuildAction, BuildListItem, CheckStepKey, CheckStepRef, CheckupState } from "./types";
 
@@ -193,6 +194,13 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
   return [...byPair.values()];
 }
 
+/** A stored line with its refinement as every reader reads it: the answers, or none. */
+function withReadRefinement(item: BuildListItem): BuildListItem {
+  const { refinement: stored, ...line } = item;
+  const refinement = refinementOf(stored);
+  return refinement === undefined ? line : { ...line, refinement };
+}
+
 /**
  * A guest's stored list, brought up to date by a checkup that has just finished.
  *
@@ -224,6 +232,15 @@ export function deriveBuildList(state: CheckupState): BuildListItem[] {
  * new derivation is what the checkup found: `reasonKey`, `guideSlug`,
  * `sourceKeys`.
  *
+ * Every previous line's refinement goes THROUGH ITS READER (`refinementOf`,
+ * `lib/shop/refinement.ts`) before anything else: `previous` is storage — the
+ * wizard reads the envelope and hands the items over as they are — and this
+ * function is a writer. An answer no reader would show (longer than the cap:
+ * a list edited before the form had one, `.debug/017` §5.9) is therefore not
+ * written back by the next checkup, whether its line is derived again or is a
+ * survivor of an earlier run, and a list this merge wrote holds no entry the
+ * list page drops.
+ *
  * ## A line a KO derived is open
  *
  * `done` survives only a re-run of the SAME checkup, and only when the visitor
@@ -243,7 +260,10 @@ export function mergeGuestBuildList(
   sameCheckup: boolean,
 ): BuildListItem[] {
   const before = new Map(
-    markRechecked(previous, state).map((item) => [pairOf(item.action, item.partId), item]),
+    markRechecked(previous.map(withReadRefinement), state).map((item) => [
+      pairOf(item.action, item.partId),
+      item,
+    ]),
   );
 
   const ticked = (kept: BuildListItem) =>

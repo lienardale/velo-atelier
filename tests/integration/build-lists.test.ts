@@ -41,6 +41,8 @@ const {
   setBuildListItemDoneAction,
   setBuildListItemRefinementAction,
 } = await import("@/app/[locale]/velo/[id]/liste/actions");
+const { loadBuildList } = await import("@/app/[locale]/velo/[id]/liste/load");
+const { MAX_REFINEMENT_VALUE_LENGTH } = await import("@/lib/shop/refinement");
 
 /** The seeded FR demo user, signed in, and their gravel bike's open list. */
 async function seededList() {
@@ -234,6 +236,77 @@ describe("the refinement", () => {
     expect(
       (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } })).refinement,
     ).toBeNull();
+  });
+
+  it("takes an answer of exactly the cap the form's inputs stop at, and not one character more", async () => {
+    // `lib/shop/refinement.ts`'s constant — the literal 64 in this action
+    // until 2026-10-13. What the action accepts did not change (the case
+    // above already refused 65 characters); what changed is that the form's
+    // text inputs now carry it as `maxLength`, so a pasted product title no
+    // longer reaches this refusal as "Modification non enregistrée".
+    expect(MAX_REFINEMENT_VALUE_LENGTH).toBe(64);
+    const { user, list } = await seededList();
+    const chain = list.items.find((item) => item.partId === "chain")!;
+    const atCap = "r".repeat(MAX_REFINEMENT_VALUE_LENGTH);
+
+    expect(
+      await setBuildListItemRefinementAction({
+        itemId: chain.id,
+        refinement: { speeds: "11", "e-rated": atCap },
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(
+      await setBuildListItemRefinementAction({
+        itemId: chain.id,
+        refinement: { speeds: "11", "e-rated": `${atCap}r` },
+      }),
+    ).toEqual({ ok: false, code: "VALIDATION" });
+
+    // The refused write changed nothing, and the loader reads the row whole:
+    // the action's bound and the reader's are the same number.
+    const stored = await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } });
+    expect(stored.refinement).toEqual({ speeds: "11", "e-rated": atCap });
+    const loaded = await loadBuildList(list.bikeId, user.id);
+    expect(loaded.items.find((item) => item.id === chain.id)?.refinement).toEqual({
+      speeds: "11",
+      "e-rated": atCap,
+    });
+  });
+
+  it("a row that ALREADY holds an over-long answer is read without it, and the line's next edit takes it out of the column", async () => {
+    // Such rows exist: until 2026-10-13 the guest import's contract took an
+    // answer of up to 120 characters, and a guest's list could hold one
+    // (`.debug/017` §5.9). Nothing here changed for them — this is what the
+    // loader and the action always did, held on PostgreSQL for the first time.
+    const { user, list } = await seededList();
+    const chain = list.items.find((item) => item.partId === "chain")!;
+    const title = "r".repeat(99);
+    await prisma.buildListItem.update({
+      where: { id: chain.id },
+      data: { refinement: { speeds: "11", "e-rated": title } },
+    });
+
+    // The page gets the line, and its other answer; the long one is not shown.
+    const loaded = await loadBuildList(list.bikeId, user.id);
+    expect(loaded.items).toHaveLength(list.items.length);
+    const line = loaded.items.find((item) => item.id === chain.id);
+    expect(line?.refinement).toEqual({ speeds: "11" });
+    // Reading wrote nothing: the column still holds it.
+    expect(
+      (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } })).refinement,
+    ).toEqual({ speeds: "11", "e-rated": title });
+
+    // The form sends the WHOLE refinement it was given, with the change made:
+    // the action replaces the column, and the long answer is gone with that.
+    expect(
+      await setBuildListItemRefinementAction({
+        itemId: chain.id,
+        refinement: { ...line?.refinement, "brand-tier": "mid" },
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(
+      (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } })).refinement,
+    ).toEqual({ speeds: "11", "brand-tier": "mid" });
   });
 
   it("drops an own `__proto__` key rather than storing it (zod 4 behaviour)", async () => {

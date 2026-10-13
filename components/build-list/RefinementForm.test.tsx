@@ -6,12 +6,16 @@
  * shows what the bike already decides, and every control writes the whole
  * refinement back on `change` — there is no submit button to forget to press.
  */
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildOf, deriveBike } from "@/lib/bike/rules";
 import { BIKE_PRESETS } from "@/lib/domain/data/presets";
+import { MAX_REFINEMENT_VALUE_LENGTH } from "@/lib/shop/refinement";
+import type { Refinement } from "@/lib/shop/questions";
 import { renderWithIntl } from "@/tests/_helpers/intl";
+import { PRODUCT_TITLE } from "@/tests/_helpers/long-answers";
 
 import { RefinementForm } from "./RefinementForm";
 
@@ -166,5 +170,92 @@ describe("the drawings in 'Comment mesurer'", () => {
     const { container } = await renderForm();
     expect(container.querySelector("details svg[data-illustration]")).toBeNull();
     expect(screen.getAllByText("Comment mesurer").length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * One answer is at most `MAX_REFINEMENT_VALUE_LENGTH` characters, and until
+ * 2026-10-13 nothing in this form said so: every reader of a stored refinement
+ * bounded an entry, and the control that produced it did not (`.debug/017`
+ * §5.9). What the form hands UP is the subject here — every refinement it
+ * passes to `onChange`, recorded — with the parent keeping it, as the list
+ * does; the list around it is `BuildList.long-answer.test.tsx`.
+ */
+describe("no control hands up an answer longer than the cap", () => {
+  const CAP = MAX_REFINEMENT_VALUE_LENGTH;
+
+  /** The rear pads' form, its refinement held by the parent the way the list holds it. */
+  async function renderPads(initial: Refinement = {}) {
+    const handedUp: Refinement[] = [];
+    function Held(): React.JSX.Element {
+      const [refinement, setRefinement] = useState<Refinement>(initial);
+      return (
+        <RefinementForm
+          build={gravel}
+          partId="brake-pads-rear"
+          refinement={refinement}
+          locale="fr"
+          itemId="item-1"
+          onChange={(next) => {
+            handedUp.push(next);
+            setRefinement(next);
+          }}
+        />
+      );
+    }
+    const view = await renderWithIntl(<Held />);
+    return {
+      ...view,
+      handedUp,
+      model: () => screen.getByLabelText("Référence des plaquettes") as HTMLInputElement,
+      thickness: () => screen.getByLabelText("Épaisseur de garniture") as HTMLInputElement,
+      /** The longest value of any refinement handed up so far. */
+      longest: () =>
+        Math.max(0, ...handedUp.flatMap((next) => Object.values(next).map((v) => v.length))),
+    };
+  }
+
+  it("typed: 80 keystrokes are 64 changes, and the field shows the first 64 characters", async () => {
+    const { user, handedUp, model, longest } = await renderPads();
+    const typed = "r".repeat(80);
+    await user.type(model(), typed);
+
+    expect(model().value).toBe(typed.slice(0, CAP));
+    expect(handedUp).toHaveLength(CAP);
+    expect(longest()).toBe(CAP);
+  });
+
+  it("pasted: a 99-character title is one change, holding its beginning", async () => {
+    const { user, handedUp, model } = await renderPads({ "pad-thickness": "2" });
+    await user.click(model());
+    await user.paste(PRODUCT_TITLE);
+
+    expect(handedUp).toEqual([{ "pad-thickness": "2", "pad-model": PRODUCT_TITLE.slice(0, CAP) }]);
+    expect(model().value).toBe(PRODUCT_TITLE.slice(0, CAP));
+  });
+
+  it("text set past the attribute is cut to the cap before it is handed up", async () => {
+    const { handedUp, model } = await renderPads();
+    fireEvent.change(model(), { target: { value: PRODUCT_TITLE } });
+    expect(handedUp).toEqual([{ "pad-model": PRODUCT_TITLE.slice(0, CAP) }]);
+  });
+
+  it("a number over the cap is not handed up at all — a number cut short is another number", async () => {
+    const { handedUp, thickness } = await renderPads({ "pad-thickness": "2.5" });
+    fireEvent.change(thickness(), { target: { value: "1".repeat(CAP + 1) } });
+
+    expect(handedUp).toEqual([]);
+    // The controlled field goes on showing what is stored.
+    expect(thickness().value).toBe("2.5");
+
+    // At the cap it is an answer like any other.
+    fireEvent.change(thickness(), { target: { value: "1".repeat(CAP) } });
+    expect(handedUp).toEqual([{ "pad-thickness": "1".repeat(CAP) }]);
+  });
+
+  it("emptying a field still removes its answer", async () => {
+    const { user, handedUp, model } = await renderPads({ "pad-model": "J04C" });
+    await user.clear(model());
+    expect(handedUp.at(-1)).toEqual({});
   });
 });

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import type { Locale } from "@/lib/i18n/routing";
+import { clipRefinementText, MAX_REFINEMENT_VALUE_LENGTH } from "@/lib/shop/refinement";
 import {
   shopConstraintsFor,
   shopQuestionsFor,
@@ -56,6 +57,27 @@ import { cn } from "@/lib/utils";
  * (`lib/shop/measure-drawings.ts`), the page renders it on the server and hands
  * it down in `drawings`, keyed by attribute: a client module may not import the
  * illustration barrel (CLAUDE.md), and this form is one.
+ *
+ * ## No control stores an answer longer than the cap (`.debug/017` §5.9)
+ *
+ * One answer is at most `MAX_REFINEMENT_VALUE_LENGTH` characters
+ * (`lib/shop/refinement.ts`) — the bound every reader of a stored refinement
+ * holds an entry to, and the one the saved bike's action refuses past. Until
+ * 2026-10-13 nothing here said so: a product title pasted into "Référence des
+ * plaquettes" was handed up whole, a guest's list was written with it, and the
+ * page's parser then refused the whole list. Three walls, in the order a value
+ * meets them:
+ *
+ *   - a free-text input carries `maxLength`: the browser stops the typing and
+ *     keeps the beginning of a paste. That covers the two genuine text
+ *     attributes and the yes/no ones this form still draws as a text box (a
+ *     proper control for those is `docs/backlog.md`'s);
+ *   - text that reaches the handler past the attribute is cut the same way
+ *     (`clipRefinementText`);
+ *   - and `set` stores NOTHING longer than the cap. That is the wall of a
+ *     number field, where `maxLength` does not apply and a number cut short
+ *     would be another number: the 65th digit is not handed up, and the
+ *     controlled field goes on showing what is stored.
  */
 export interface RefinementFormProps {
   build: BikeBuild;
@@ -108,6 +130,9 @@ export function RefinementForm({
   if (questions.length === 0 && constraints.length === 0) return null;
 
   const set = (key: string, value: string): void => {
+    // Nothing longer than the cap is handed up, whichever control it came
+    // from: an entry over it is one every reader drops (`refinementOf`).
+    if (value.length > MAX_REFINEMENT_VALUE_LENGTH) return;
     const next: Record<string, string> = { ...refinement };
     /* eslint-disable security/detect-object-injection -- `key` is an attribute key of our own catalogue, and `next` is a fresh literal */
     if (value === "") delete next[key];
@@ -142,15 +167,27 @@ export function RefinementForm({
             return (
               <div key={`${question.partId}.${question.key}`} className="flex flex-col gap-1">
                 <Label htmlFor={fieldId}>{question.label}</Label>
-                {question.options === null ? (
+                {question.options === null && question.kind === "number" ? (
                   <Input
                     id={fieldId}
-                    type={question.kind === "number" ? "number" : "text"}
-                    inputMode={question.kind === "number" ? "decimal" : undefined}
+                    type="number"
+                    inputMode="decimal"
                     min={question.min ?? undefined}
                     max={question.max ?? undefined}
                     value={value}
                     onChange={(event) => set(question.key, event.currentTarget.value)}
+                    className="min-h-[var(--tap-min)] max-w-xs text-base md:text-base"
+                    data-question={question.key}
+                  />
+                ) : question.options === null ? (
+                  <Input
+                    id={fieldId}
+                    type="text"
+                    maxLength={MAX_REFINEMENT_VALUE_LENGTH}
+                    value={value}
+                    onChange={(event) =>
+                      set(question.key, clipRefinementText(event.currentTarget.value))
+                    }
                     className="min-h-[var(--tap-min)] max-w-xs text-base md:text-base"
                     data-question={question.key}
                   />

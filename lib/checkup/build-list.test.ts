@@ -14,6 +14,7 @@ import {
 } from "./build-list";
 import type { BuildListItem } from "./types";
 import type { PartId } from "@/lib/domain/data/parts";
+import { MAX_REFINEMENT_VALUE_LENGTH } from "@/lib/shop/refinement";
 
 const PLAN = threeStepPlan();
 const [PADS, CALIPER, CHAIN] = PLAN;
@@ -402,6 +403,97 @@ describe("mergeGuestBuildList", () => {
 
     expect(line.done).toBe(true);
     expect(Object.hasOwn(line, "doneReason")).toBe(false);
+  });
+
+  /**
+   * `previous` is STORAGE — the wizard reads the envelope and hands the items
+   * over as they are — and until 2026-10-13 it could hold an answer of any
+   * length: the list's form had no limit. The merge copied it, so a list the
+   * page could not open stayed one, checkup after checkup (`.debug/017` §5.9).
+   * It now reads each previous line's refinement the way every reader does.
+   */
+  describe("a previous line whose refinement holds what no reader shows", () => {
+    const TITLE = "r".repeat(99);
+    const longest = (items: readonly BuildListItem[]): number =>
+      Math.max(
+        0,
+        ...items.flatMap((item) =>
+          Object.values(item.refinement ?? {}).map((value) => String(value).length),
+        ),
+      );
+    /** The stored chain line, as the list page of before the fix left it. */
+    const edited = (refinement: unknown): BuildListItem =>
+      ({ ...stored, done: false, doneReason: undefined, refinement }) as BuildListItem;
+
+    it.each([
+      ["a re-run of the same checkup", true],
+      ["a later checkup", false],
+    ])(
+      "%s deriving the line again: the long answer is not written back, the others are",
+      (_which, same) => {
+        const state = koOnChain();
+        const merged = mergeGuestBuildList(
+          [edited({ speeds: "11", "e-rated": TITLE, "brand-tier": "mid" })],
+          deriveBuildList(state),
+          state,
+          same,
+        );
+        expect(merged).toHaveLength(1);
+        expect(merged[0].refinement).toEqual({ speeds: "11", "brand-tier": "mid" });
+        expect(longest(merged)).toBeLessThanOrEqual(MAX_REFINEMENT_VALUE_LENGTH);
+        // The product is the visitor's too, and is kept.
+        expect(merged[0].chosenProduct).toEqual(stored.chosenProduct);
+      },
+    );
+
+    it("a later checkup that does NOT derive the line hands it on — a survivor — without the long answer either", () => {
+      // The pads are worn; nothing is said about the chain, whose line stays.
+      const state = makeState(PLAN, {
+        answers: { [PADS.key]: "ko" },
+        symptoms: { [PADS.key]: ["pad-worn"] },
+      });
+      const merged = mergeGuestBuildList(
+        [edited({ speeds: "11", "e-rated": TITLE })],
+        deriveBuildList(state),
+        state,
+        false,
+      );
+      const chain = merged.find((item) => item.partId === "chain");
+      expect(chain).toBeDefined();
+      expect(chain?.refinement).toEqual({ speeds: "11" });
+      expect(longest(merged)).toBeLessThanOrEqual(MAX_REFINEMENT_VALUE_LENGTH);
+    });
+
+    it("keeps an answer exactly at the cap", () => {
+      const atCap = "r".repeat(MAX_REFINEMENT_VALUE_LENGTH);
+      const state = koOnChain();
+      const [line] = mergeGuestBuildList(
+        [edited({ "e-rated": atCap })],
+        deriveBuildList(state),
+        state,
+        false,
+      );
+      expect(line.refinement).toEqual({ "e-rated": atCap });
+    });
+
+    it.each([
+      ["nothing but the long answer", { "e-rated": TITLE }],
+      ["a string", "e-rated=non"],
+      ["an array", ["e-rated", "non"]],
+      ["null", null],
+    ])("puts no `refinement` key on a line whose stored one was %s", (_what, refinement) => {
+      const state = koOnChain();
+      for (const same of [true, false]) {
+        const [line] = mergeGuestBuildList(
+          [edited(refinement)],
+          deriveBuildList(state),
+          state,
+          same,
+        );
+        // The guest list is JSON: `{ refinement: undefined }` is a key.
+        expect(Object.hasOwn(line, "refinement"), String(same)).toBe(false);
+      }
+    });
   });
 });
 

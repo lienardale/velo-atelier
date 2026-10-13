@@ -27,7 +27,8 @@
  *   4. **The caps hold** (§4.4): 10 bikes, 80 parts, 20 checkups, 10 lists,
  *      250 entries in each of a checkup's three records, 12 symptoms per step,
  *      80 parts in a scope, 2000 characters in a note, 50 lines per list
- *      (`QUOTAS.itemsPerList`), 24 answers in a line's `refinement`, and
+ *      (`QUOTAS.itemsPerList`), 24 answers in a line's `refinement` — each
+ *      of at most the 64 characters the list page reads an answer by — and
  *      256 KB — each refused with nothing written. The 256 KB are measured
  *      BEFORE the payload is parsed (the parser is spied on, not inferred from
  *      the answer), and a value that has no JSON size at all — a `BigInt` — is
@@ -91,6 +92,7 @@ const { deriveBike } = await import("@/lib/bike/rules");
 const { BIKE_PRESETS, PRESET_IDS } = await import("@/lib/domain/data/presets");
 const { guestRun, guestWork, partsScope, planFromDisk } =
   await import("@/tests/_helpers/guest-work");
+const { MAX_REFINEMENT_VALUE_LENGTH } = await import("@/lib/shop/refinement");
 
 type GuestBike = import("@/lib/guest/schema").GuestBike;
 type GuestState = import("@/lib/guest/schema").GuestState;
@@ -751,7 +753,11 @@ describe("the caps §4.4 names", () => {
     expectNoWrites();
   });
 
-  /** A line of the real list carrying `count` refinement answers: 40-character keys, 120-character values. */
+  /**
+   * A line of the real list carrying `count` refinement answers: 40-character
+   * keys, and values exactly at the cap on one answer — 64 characters since
+   * 2026-10-13, `lib/shop/refinement.ts`'s, where the contract said 120.
+   */
   function refined(
     count: number,
     character = "v",
@@ -759,7 +765,7 @@ describe("the caps §4.4 names", () => {
     const refinement = Object.fromEntries(
       Array.from({ length: count }, (_, index) => [
         `k-${String(index).padStart(38, "0")}`,
-        character.repeat(120),
+        character.repeat(MAX_REFINEMENT_VALUE_LENGTH),
       ]),
     );
     return {
@@ -770,7 +776,8 @@ describe("the caps §4.4 names", () => {
 
   it("refuses a line whose refinement has more answers than a part has attributes", async () => {
     // A record, and until 2026-10-09 the one record of the payload with no cap:
-    // 1 400 entries — 230 KB of JSON in one column — passed all four walls.
+    // 1 400 entries — 230 KB of JSON in one column at the 120 characters a
+    // value could then have — passed all four walls.
     for (const count of [GUEST_CAPS.refinementEntries + 1, 1400]) {
       const { payload } = refined(count);
       expect(guestSchema.withinGuestPayloadBudget(payload), String(count)).toBe(true);
@@ -1147,6 +1154,46 @@ describe("hostile strings", () => {
       expect(result.ok && result.data.imported, product.url).toBe(1);
     }
     expect(fakeDb.rows("BuildListItem")).toHaveLength(3);
+  });
+});
+
+describe("one refinement answer longer than the list page reads (the cap of `lib/shop/refinement.ts`)", () => {
+  /**
+   * The contract took an answer of up to 120 characters until 2026-10-13,
+   * against 64 on the list page and in the saved bike's action and loader. A
+   * guest's answer of 65 to 120 characters was therefore IMPORTED into a
+   * column whose only reader drops it. The collector no longer sends one, so
+   * these are payloads it did not build: a hand-made one — or a tab loaded
+   * before that date, whose collector forwards the stored answer as it is.
+   */
+  const withAnswer = (value: string): unknown =>
+    tampered({
+      lists: [
+        {
+          ...LIST,
+          items: [{ ...LIST.items[0], refinement: { speeds: "11", "pad-model": value } }],
+        },
+      ],
+    });
+
+  it("is refused whole, with nothing written and no attempt spent — from the first character over", async () => {
+    for (const length of [MAX_REFINEMENT_VALUE_LENGTH + 1, 99, 120, 121, 138, 5000]) {
+      expect(await importGuestStateAction(withAnswer("r".repeat(length))), String(length)).toEqual({
+        ok: false,
+        code: "VALIDATION",
+      });
+    }
+    expectNoWrites();
+    // The visitor's three attempts are intact for the reload that brings the
+    // collector which drops the answer instead of sending it.
+    expect(fakeDb.rows("AuthAttempt")).toEqual([]);
+  });
+
+  it("is stored as sent when it is exactly at the cap", async () => {
+    const atCap = "r".repeat(MAX_REFINEMENT_VALUE_LENGTH);
+    expect((await importGuestStateAction(withAnswer(atCap))).ok).toBe(true);
+    const [line] = fakeDb.rows("BuildListItem") as { refinement: Record<string, string> }[];
+    expect(line.refinement).toEqual({ speeds: "11", "pad-model": atCap });
   });
 });
 

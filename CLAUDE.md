@@ -711,6 +711,48 @@ docs/                contributor and operator docs — every one is linked from 
   https, no credentials, on the named retailer's hosts — or `vendor: 'other'`;
   any other vendor is refused. The guest import applies it on write; the
   `/liste` loader and the guest list's parser apply it on read.
+- **A line's `refinement` has one cap and one reader, and nothing a visitor
+  typed costs the list** (`lib/shop/refinement.ts`, `.debug/017` §5.9). One
+  answer is at most `MAX_REFINEMENT_VALUE_LENGTH` (64) UTF-16 code units,
+  wherever an answer is bounded: the list form's text inputs (`maxLength`),
+  the guest list's parser, the saved bike's action and loader, the buying
+  guide's prefill, the wizard's merge, the import's collector and contract.
+  Until 2026-10-13 that was five literals and one absence — four said 64,
+  the import's contract said 120, the INPUT said nothing — and the parser
+  held the bound inside its item schema: a product title pasted into
+  "Référence des plaquettes" hid a guest's whole list, on production, and
+  over 120 characters made the bike impossible to import.
+  **Every reader of a stored refinement calls `refinementOf`**, which keeps
+  the entries that are a short string under a short key and DROPS the
+  others one by one; it never fails and never shortens. A new place that
+  reads or bounds a refinement imports that module — a sixth copy of the
+  number is how this happened.
+  **What a bad value of a stored guest line costs is a table** (the header
+  of `components/build-list/BuildList.tsx`): a `refinement` entry costs
+  that entry, a `chosenProduct` the product, an unknown part the line; the
+  fields only the application writes (`id`, `action`, `sortOrder`, …) and
+  the envelope still cost the list, and
+  `BuildList.long-answer.test.tsx` holds that every line the seven presets'
+  full plans can derive reads back whole. A new field a CONTROL writes is
+  read after the schema, like those two, never bounded inside it.
+  **The form is the first wall, not the only one**: a text input's
+  `maxLength`, a cut behind it (`clipRefinementText`, never through a
+  surrogate pair), and `set` handing up nothing over the cap — which is what
+  holds a NUMBER field, where `maxlength` does not apply and the 65th digit
+  hid the list just the same (measured in Chromium 153 on the unfixed
+  build).
+  **A read never writes.** A dropped entry stays in `localStorage` until
+  the list is next written — an edit on the page, the next checkup's merge,
+  or the import clearing the key — because a page that is only looked at
+  must not delete bytes. Nothing shows them and nothing sends them.
+  **A test of the list's form types into its text fields**, through the
+  real `BuildList` over a storage the wizard's writers filled
+  (`tests/_helpers/guest-work.ts`: `writeGuestList`, and `listPageEdit` for
+  "an edit as the list page writes it", which
+  `BuildList.long-answer.test.tsx` holds to the real page). user-event
+  rewrites a number field's value through `Number()`: 65 digits typed that
+  way are 22 characters, so a number field is given its raw value with
+  `fireEvent`, and typed for real in `tests/e2e/build-list-long-answer.spec.ts`.
 - **`clientIp()` returns a rate-limit bucket, not an address.** IPv4 as is; an
   IPv4-mapped IPv6 address becomes its IPv4; any other IPv6 address its /64.
   Ports and zone ids are stripped. Header precedence is still §4.3's; a
@@ -981,7 +1023,10 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `va:bike:local`, `va:checkup:local` and `va:buildlist:local` onto the
   `GuestState` payload of `lib/guest/schema.ts` (`zod/mini`; `strictObject` at
   every level; a cap on every array AND every record — a checkup's three, and
-  a list line's `refinement` (24, the account's own `MAX_REFINEMENT_KEYS`) —
+  a list line's `refinement` (24 answers, the account's own
+  `MAX_REFINEMENT_KEYS`, each of at most `MAX_REFINEMENT_VALUE_LENGTH`
+  characters: the list page's cap, 64, where the contract said 120 until
+  2026-10-13) —
   because a `maxLength` says nothing about a map; ids matched by PATTERN at
   their column's length, never against the generated enums, which stay out of
   the bundle), and `importGuestStateAction` validates only that — `withUser`,
@@ -1025,6 +1070,26 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   contract's refusal is for a payload the page did not build. Storage itself
   is never rewritten. U+0000 is NOT replaced: nothing a person does produces
   one, and there is no character to put in its place.
+  **The collector sends a list line's `refinement` entry by entry**
+  (`collectRefinement`): the list page's own reader first (`refinementOf`,
+  `lib/shop/refinement.ts`) — an answer the page would not show is not sent,
+  so the import carries the list the visitor sees and no value the page
+  would hide lands in the column — then the contract's own two schemas and
+  its cap on entries, so that nothing in a line's refinement can sink the
+  payload. Until 2026-10-13 it forwarded what was stored, the list's form
+  had no limit, and one answer over 120 characters was a `VALIDATION` on
+  every retry with every key kept: a guest bike that could not be imported
+  (`.debug/017` §5.9). A line's answer must never cost the bike. The dropped
+  answer is lost to the account — and was shown nowhere before either.
+  **A tab loaded before that date** forwards the stored answer still: from
+  65 characters its payload is now refused whole (65 to 120 used to be
+  accepted, into a column whose only reader dropped it), nothing is written
+  and every key is kept, until a reload brings the collector that drops the
+  entry. `GUEST_STATE_VERSION` 2's reasoning, and its caveat: whether such a
+  tab can reach the new action was not observed. The REST of a stored line
+  is still checked by no contract on the browser's side: a stored
+  `chosenProduct` the contract refuses is a payload refused whole
+  (`docs/backlog.md`).
   **`lib/guest/schema.ts` is loaded in the browser** (a dynamic `import()` in
   `GuestImport.tsx`) and `lib/guest/import.ts` is plain Node, and
   `tests/unit/guest/module-graph.test.ts` is the ONLY thing that holds either:
