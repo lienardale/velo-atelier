@@ -1250,7 +1250,73 @@ describe("what the review of the third repair found — the guest bike replaced 
     expect(readLocalBike()!.id).toBe(b.id);
     expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
     expect(notice.error).not.toHaveBeenCalled();
+    // A DECISION, pinned here so that it stays one (`PartEditForm`'s header,
+    // "said under a field that is about to go"): the refusal was shown under
+    // the field, the field went with bike A's workspace, and nothing that
+    // STAYS says the 45 was not saved — no line under the new bike's field,
+    // no toast, nothing in the workspace's own region. The removal's refusal,
+    // above, is the one that is announced.
+    expect(screen.queryByText(NOT_FOUND)).toBeNull();
+    expect(screen.queryByTestId("unsaved-notices")).toBeNull();
+    await user.click(row("tire-front"));
+    expect(field("etrto-width").value).toBe("42");
+    expect(status("etrto-width")).toBe("");
   });
+
+  /**
+   * WHICH bike the workspace's repo is built for is the bike it SHOWS —
+   * `localBike.id`, the id its viewer is keyed on — and never the id found in
+   * the slot when the body happens to render. The case above cannot tell the
+   * two apart: nothing in it renders the body between the replacement and the
+   * write, so the repo it writes through is the one built at mount either
+   * way. Here the body IS rendered in that window, by the one thing that
+   * rebuilds the panel without a word from storage: the layout switching
+   * across 1024 px. With the id read from the slot at render
+   * (`peekLocalBikeId()` in place of `localBike?.id`), that render builds the
+   * repo for bike B, and the next edit of A's form is written into B under
+   * "Enregistré" — every other case of this file, and the browser's guest
+   * cases, staying green (found by the fourth repair's verifier, V4-2; seen
+   * failing under that one change, both layouts).
+   */
+  it.each(LAYOUTS)(
+    "panel $layout at first: the bike replaced and the event not delivered yet, the layout switched (the body renders again), then 46 typed in the rebuilt panel and the field left: refused, and not one byte of B moves",
+    async ({ desktop }) => {
+      const { user } = await openGuest("gravel-1x11", desktop);
+      await user.click(row("tire-front"));
+      await typeInto(user, "etrto-width", "45");
+      const a = readLocalBike()!;
+
+      const b = writeLocalBike({ answers: BIKE_PRESETS["gravel-1x11"] })!;
+      const bytes = window.localStorage.getItem(LOCAL_BIKE_KEY);
+      expect(b.id, "a NEW guest bike").not.toBe(a.id);
+
+      // No `storage` event: this page has not been told. The panel is rebuilt
+      // between its two layouts — the field holding the 45 is removed, which
+      // commits it (rule 3) to a bike that is gone: refused, and said.
+      act(() => setMediaQuery(MEDIA.desktop, !desktop));
+      await settle(30);
+      expect(screen.getByTestId("bike-workspace")).toHaveAttribute("data-docked", String(!desktop));
+      expect(window.localStorage.getItem(LOCAL_BIKE_KEY), "after the switch").toBe(bytes);
+      await waitFor(() => expect(notice.error).toHaveBeenCalledTimes(1));
+      expect(notice.error.mock.calls[0][0]).toBe(UNSAVED_WIDTH);
+      expect(notice.error.mock.calls[0][1]?.description).toBe(NOT_FOUND);
+
+      // The rebuilt panel is still bike A's: an edit typed in it and left is
+      // an ordinary save, through a repo built by the render the switch made.
+      await typeInto(user, "etrto-width", "46");
+      await user.tab();
+      await settle();
+
+      expect(status("etrto-width")).toBe(NOT_FOUND);
+      expect(window.localStorage.getItem(LOCAL_BIKE_KEY)).toBe(bytes);
+      expect(readLocalBike()!.id).toBe(b.id);
+      expect(
+        local("tire-front", "etrto-width"),
+        "B's front tyre, which nobody typed anything for",
+      ).toBe(42);
+      expect(notice.error).toHaveBeenCalledTimes(1);
+    },
+  );
 
   /**
    * The record of the form's own writes across a replacement that arrives

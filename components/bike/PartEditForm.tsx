@@ -132,6 +132,23 @@ import { showUnsavedNotice } from "./UnsavedNotices";
  * visitor is told. The same holds for an ordinary save by a form that has not
  * yet heard its bike was replaced: refused, under its own field.
  *
+ * **Said under a field that is about to go** — a decision, not an oversight.
+ * That second refusal is shown where every ordinary save reports, under the
+ * field, and nowhere else: no notice is raised. The field belongs to the
+ * workspace of the bike that was replaced, and that workspace is removed as
+ * soon as the page IS told (the `storage` event): the line goes with it, and
+ * from then on nothing that stays on the page says the value was not saved
+ * (measured in jsdom through the real `BikeWorkspace` by the fourth repair's
+ * verifier, 2026-10-12: after the event, no "Introuvable." on the page, no
+ * toast, nothing in the workspace's own region; not looked for in a browser —
+ * the window is the delivery of one `storage` event). The removal's refusal,
+ * just above, is the one announced for twenty seconds. Raising the notice
+ * here as well is the alternative, and was not taken: it would change what a
+ * refused save says, on a path whose window is one event. A case of
+ * `BikeWorkspace.test.tsx` pins what is done ("the bike replaced and the
+ * event not delivered yet; 45 typed and the field LEFT"), so that changing
+ * it is a choice somebody makes and not something that happens.
+ *
  * On a route change the flush is one more thing: a write sent WHILE ANOTHER IS
  * IN FLIGHT. Next's client sends server actions one at a time until a
  * navigation arrives; the navigation takes the pending action's turn and the
