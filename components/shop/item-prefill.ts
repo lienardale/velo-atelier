@@ -42,6 +42,7 @@ import type { ActionResult } from "@/lib/actions/result";
 import type { BikeRef } from "@/lib/bike/resolve-bike-ref";
 import { buildListKey } from "@/lib/bike/storage-keys";
 import type { StoredBuildList } from "@/lib/checkup/storage";
+import { refinementOf } from "@/lib/shop/refinement";
 
 export type ItemRefinement = Readonly<Record<string, string>>;
 
@@ -64,19 +65,13 @@ const NOTHING: ItemPrefill = { refinement: null, pending: false };
 const LOOKING: ItemPrefill = { refinement: null, pending: true };
 
 /**
+ * The refinement of line `itemId` of a guest list, when that line is about `partId`.
+ *
  * `readGuestBuildList` checks the ENVELOPE, not the items (the list page
- * re-validates those), so a line's refinement is still storage here: only
- * short string answers under short keys survive.
+ * re-validates those), so a line's refinement is still storage here: it goes
+ * through the one reader of a stored refinement (`lib/shop/refinement.ts`),
+ * like the list page's — only short string answers under short keys survive.
  */
-function asRefinement(value: unknown): ItemRefinement | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  const entries = Object.entries(value).filter(
-    ([key, entry]) => typeof entry === "string" && key.length <= 64 && entry.length <= 64,
-  );
-  return entries.length === 0 ? null : (Object.fromEntries(entries) as ItemRefinement);
-}
-
-/** The refinement of line `itemId` of a guest list, when that line is about `partId`. */
 export function lineRefinement(
   list: StoredBuildList | null,
   partId: string,
@@ -89,7 +84,7 @@ export function lineRefinement(
       (candidate as { id?: unknown }).id === itemId &&
       (candidate as { partId?: unknown }).partId === partId,
   );
-  return asRefinement(item?.refinement);
+  return refinementOf(item?.refinement) ?? null;
 }
 
 /**

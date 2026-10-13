@@ -16,6 +16,11 @@
  *                 guest (`components/checkup/Wizard.tsx`) → `va:buildlist:local`
  *   the payload   `collectGuestState`, reading those three keys back
  *
+ *   an edit on    `listPageEdit`: every line as stored, one of them changed, in
+ *   the list page the envelope the PAGE writes — which is how "a list as the
+ *                 list page of before 2026-10-13 left it" is made, a value of
+ *                 any length included (`.debug/017` §5.9)
+ *
  * …and a run the guest LEFT and came back to through another link is resumed
  * the way the wizard resumes it ({@link resumeGuestRun}): the stored answers
  * against the plan of the NEW link, under the scope the run was first opened
@@ -31,6 +36,7 @@
  * where the storage it fills is copied into the page's `localStorage`.
  */
 import { writeLocalBike, type KeyValueStorage, type LocalBike } from "@/lib/bike/local-bike";
+import { buildListKey, type GuestBikeRef } from "@/lib/bike/storage-keys";
 import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { planCheckup, type PlannableGuide } from "@/lib/checkup/plan";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
@@ -182,10 +188,26 @@ function storeGuestCheckup(
   if (!writeStoredCheckup("local", toStored(checkup), storage)) {
     throw new Error(`${who}: writeStoredCheckup refused to write`);
   }
-  if (!list) return;
-  const stored = readGuestBuildList("local", storage);
-  writeGuestBuildList(
-    "local",
+  if (list) writeGuestList(storage, "local", checkup);
+}
+
+/**
+ * What "Créer ma liste" writes under `va:buildlist:<ref>` when `checkup`
+ * finishes — `onCreate` in `components/checkup/Wizard.tsx`, call for call: the
+ * stored list read by its envelope, the new derivation merged into it, the
+ * whole written back under the checkup's id.
+ *
+ * `ref` is `local` for a guest's own bike and `demo` for the demo bike, whose
+ * list lives in the browser too and has no import to leave by.
+ */
+export function writeGuestList(
+  storage: KeyValueStorage,
+  ref: GuestBikeRef,
+  checkup: CheckupState,
+): void {
+  const stored = readGuestBuildList(ref, storage);
+  const written = writeGuestBuildList(
+    ref,
     mergeGuestBuildList(
       stored?.items ?? [],
       deriveBuildList(checkup),
@@ -194,6 +216,57 @@ function storeGuestCheckup(
     ),
     checkup.id,
     storage,
+  );
+  if (!written) throw new Error("writeGuestList(): writeGuestBuildList refused to write");
+}
+
+/** One line of a stored list, as JSON holds it. */
+export type StoredListLine = Record<string, unknown> & { action: string; partId: string };
+
+/** The lines `va:buildlist:<ref>` holds, as JSON holds them — no reader in between. */
+export function storedListLines(storage: KeyValueStorage, ref: GuestBikeRef): StoredListLine[] {
+  const raw = storage.getItem(buildListKey(ref));
+  if (raw === null) throw new Error(`storedListLines(): no list is stored for "${ref}"`);
+  const stored = JSON.parse(raw) as { items: StoredListLine[] } | StoredListLine[];
+  return Array.isArray(stored) ? stored : stored.items;
+}
+
+/**
+ * An edit made ON THE LIST PAGE, written the way the page writes it.
+ *
+ * `save()` in `components/build-list/BuildList.tsx` replaces the edited line
+ * among the lines the page holds and hands them all to its `writeBuildList`,
+ * whose envelope is `{ version: 1, items, updatedAt }` — the page's own,
+ * WITHOUT the `checkupId` the wizard's carries. This is that write, for the
+ * tiers that cannot load the component (it imports a `"use server"` module);
+ * `components/build-list/BuildList.long-answer.test.tsx` holds it to the real
+ * page: the same edit made through the real component leaves the same lines.
+ *
+ * It writes WHATEVER the edit returns, as the page did until 2026-10-13: its
+ * form had no limit on a free-text answer and its writer checks nothing. A
+ * 99-character product title put in `refinement` here is therefore the bytes
+ * a browser that pasted one on production still holds.
+ */
+export function listPageEdit(
+  storage: KeyValueStorage,
+  ref: GuestBikeRef,
+  line: { action: string; partId: string },
+  edit: (stored: StoredListLine) => StoredListLine,
+  now: () => Date = () => new Date(),
+): void {
+  const lines = storedListLines(storage, ref);
+  const edited = (candidate: StoredListLine): boolean =>
+    candidate.action === line.action && candidate.partId === line.partId;
+  if (lines.filter(edited).length !== 1) {
+    throw new Error(`listPageEdit(): "${line.action} ${line.partId}" is not one line of the list`);
+  }
+  storage.setItem(
+    buildListKey(ref),
+    JSON.stringify({
+      version: 1,
+      items: lines.map((stored) => (edited(stored) ? edit(stored) : stored)),
+      updatedAt: now().toISOString(),
+    }),
   );
 }
 

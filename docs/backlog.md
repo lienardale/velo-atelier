@@ -587,6 +587,99 @@ notice — the stored bike's `encodeSpec(answers)` against the URL's `?spec=`
 is the comparison at hand. For the checkup and the list, first look at what
 a replaced bike's pages show.
 
+#### A yes/no question of the build list is a free-text box
+
+The list's "Préciser la pièce" form (`components/build-list/RefinementForm.tsx`)
+draws a `<select>` for an attribute with a closed set of values and a text or
+number input for everything else — the yes/no attributes included: "Chaîne
+pour VAE" (`e-rated`), "Embrayage" (`clutch`), and `integrated`, `lockout` and
+`tubeless-ready` on other bikes. `/acheter` asks the same attributes with a
+two-choice `<select>` (`components/shop/PartQuestions.tsx`: read), and the
+part panel shows Oui/Non (`.debug/017` §5.6, O5). What is typed in the box is
+kept on the line as typed, and only the two strings `true` and `false` are
+read back as an answer (`coerceAttributeValue`, `lib/shop/questions.ts`: read,
+not measured): "oui" changes nothing in the search.
+
+_Why deferred_ (ruled with the fix of `.debug/017` §5.9, 2026-10-13): that fix
+was about what one over-long answer cost — the whole list — and gave these
+boxes the same 64-character stop as the genuine text fields. Which control a
+yes/no question gets is a change to the form, not a repair of that.
+
+_To pick up_: draw them as `/acheter` does — the choice list `PartQuestions`
+builds for `kind === "boolean"` — storing `true` / `false`; decide what
+becomes of a line that already holds "oui" (today it is shown back in the
+box; in a `<select>` it would match no option). `RefinementForm.test.tsx` and
+`BuildList.long-answer.test.tsx` name the two boxes among the text fields:
+they change with it.
+
+#### An answer the list page drops is dropped without a word
+
+Since 2026-10-13 a stored refinement is read entry by entry
+(`lib/shop/refinement.ts`): an answer longer than 64 characters is not shown,
+not sent by the guest import, and not written back by the next edit or the
+next checkup. That is what un-hid the lists a pasted product title had
+hidden on production (`.debug/017` §5.9). The visitor who pasted it finds
+the field empty, and nothing says an answer was there: not on the list page,
+not on `/import`. The answer was shown nowhere before either — the whole
+list was gone.
+
+_Why deferred_ (2026-10-13): the ruling was a filter, on read and at the
+import, and a limit on the inputs. A notice is a new sentence in two
+languages and a decision about where it lives; the inputs can no longer
+produce such an answer, so it would only ever speak to browsers affected
+before the fix.
+
+_To pick up_: if wanted, have `parseBuildList` say that it dropped something
+(it returns the lines only) and show one line under the card; decide first
+whether it should outlive the next edit, which removes the bytes it is about.
+
+#### An edit on a guest's list forgets which checkup wrote it
+
+The wizard writes `va:buildlist:<ref>` with the id of the checkup that wrote
+it (`writeGuestBuildList`, `lib/checkup/storage.ts`); the list page writes it
+back as `{ version, items, updatedAt }`, without that id (`writeBuildList`,
+`components/build-list/BuildList.tsx` — measured in jsdom on 2026-10-13: the
+stored value's keys after one edit; `.debug/017` §5.9). The merge reads a
+missing id as "a LATER checkup's list" (read in `storage.ts` and
+`components/checkup/Wizard.tsx`), so after any tick or answer on the list a
+re-run of the SAME checkup keeps the lines it would otherwise prune — the
+line whose verdict the visitor has just withdrawn stays. Not measured end to
+end. An account's list is not concerned: `BuildList.checkupId` is a column
+the list's actions do not touch.
+
+_Why deferred_ (2026-10-13): seen while fixing something else, in a write the
+fix did not change.
+
+_To pick up_: have the page's writer carry the envelope's `checkupId` through
+(one reader, `readGuestBuildList`, already parses it), and a case in
+`lib/checkup/build-list.test.ts` or the wizard's tests for a re-run after an
+edit. The two envelopes are one shape written by two functions: that is the
+thing to remove.
+
+#### A stored list line can still sink a guest's import, by a field no control writes
+
+The guest import's collector holds a stored line's `refinement` to the
+contract entry by entry (`collectRefinement`, `lib/guest/schema.ts`), since
+2026-10-13. The rest of the line it forwards as stored: a `chosenProduct`
+whose link breaks §4.4, a `sortOrder` outside 0–10 000, a `partId` or
+`reasonKey` that is not an id — each is a payload the server refuses WHOLE,
+with every key kept and the same bytes sent on retry (read; the refinement's
+version of this was live, `.debug/017` §5.9). And a stored product that is
+not five strings fails the collector's own guard, which sends the bike with
+no list (read).
+
+_Why deferred_ (2026-10-13): none of those fields is written by a control of
+the site — no UI records a purchase ("The §4.4 actions no UI calls", above),
+and every line the wizard can derive, for all seven presets, passes
+(`BuildList.long-answer.test.tsx`). The defect that was live was a value a
+visitor TYPES; these need DevTools, or a later release that writes them.
+
+_To pick up_: the day a control writes `chosenProduct` — before it ships.
+Project each stored line through the contract's own item schema and drop
+what fails, the way a checkup the contract would refuse is reported
+`unreadable` instead of sinking the bike; say so to the visitor; and decide
+whether the list's key may then be cleared.
+
 #### The guides list is built twice, and a card clicked during the swap does nothing
 
 `/guides` wraps `GuideFilters` — a client component that calls

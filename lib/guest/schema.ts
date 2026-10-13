@@ -134,6 +134,7 @@ import { QUESTION_IDS } from "@/lib/domain/data/decision-tree";
 import { MAX_BUILD_PARTS } from "@/lib/domain/engine/validate-build";
 import type { KoAction } from "@/lib/domain/schema/procedure";
 import { isAllowedProductUrl, isPlainHttpsUrl } from "@/lib/shop/chosen-product";
+import { MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
 
 /**
  * Bumped only when a shape change makes an older payload unreadable.
@@ -176,8 +177,10 @@ export const GUEST_CAPS = {
   /**
    * Answers on one list line's `refinement` — the account's own bound
    * (`MAX_REFINEMENT_KEYS` in `liste/actions.ts`): a part has a handful of
-   * attributes. With 40-character keys and 120-character values that is under
-   * 10 KB of JSON, well inside the 32 KB every JSON column is held to.
+   * attributes. With 40-character keys and values of at most
+   * `MAX_REFINEMENT_VALUE_LENGTH` (64) characters that is under 6 KB of JSON
+   * at three bytes a character, well inside the 32 KB every JSON column is
+   * held to.
    */
   refinementEntries: 24,
 } as const;
@@ -497,6 +500,35 @@ const CheckupSchema = z.strictObject({
   completedAt: z.optional(IsoDate),
 });
 
+/**
+ * One answer of a list line's `refinement`, as the contract takes it: an
+ * attribute key, and a value of at most the cap EVERY reader of a refinement
+ * holds an entry to (`lib/shop/refinement.ts`).
+ *
+ * The value was `text(120)` until 2026-10-13, against 64 on the list page, in
+ * the saved bike's action and in its loader. So a guest's answer of 65 to 120
+ * characters was imported into a column whose only reader drops it: stored,
+ * shown nowhere, and replaced with the rest of the column by the line's next
+ * edit (measured on a copy of `origin/main`; `.debug/017` §5.9). One cap now,
+ * and nothing the list page would not show can land in the column — whoever
+ * built the payload.
+ *
+ * The collector never sends such an entry ({@link collectRefinement}), so this
+ * refusal is for a payload {@link collectGuestState} did not build: a hand-made
+ * one, or — the case worth naming — a tab loaded BEFORE that date, whose
+ * collector forwards the stored value as it is. Its 65-to-120-character answer
+ * used to pass; it is now a `VALIDATION` that writes nothing and keeps every
+ * key, as an answer over 120 always was, until a reload brings the collector
+ * that drops the entry. That is `GUEST_STATE_VERSION` 2's reasoning again, and
+ * the same caveat: whether a tab loaded before a deploy can still reach the
+ * new action was not observed.
+ *
+ * Module-level because the collector holds each stored entry to exactly these
+ * two schemas: what it sends is, by construction, what the contract accepts.
+ */
+const RefinementKey = z.string().check(z.regex(/^[a-z0-9-]{1,40}$/));
+const RefinementValue = text(MAX_REFINEMENT_VALUE_LENGTH);
+
 const BuildListItemSchema = z.strictObject({
   partId: PartIdPattern,
   action: z.enum(KO_ACTIONS),
@@ -508,9 +540,7 @@ const BuildListItemSchema = z.strictObject({
   // bounded it, and one line could carry 1 400 entries — 230 KB of JSON in a
   // column every other writer holds to 32 KB.
   refinement: z.optional(
-    z
-      .record(z.string().check(z.regex(/^[a-z0-9-]{1,40}$/)), text(120))
-      .check(maxEntries(GUEST_CAPS.refinementEntries)),
+    z.record(RefinementKey, RefinementValue).check(maxEntries(GUEST_CAPS.refinementEntries)),
   ),
   chosenProduct: z.optional(ChosenProductSchema),
 });
@@ -608,7 +638,11 @@ const StoredBuildListItemSchema = z.object({
   guideSlug: z.optional(z.string()),
   done: z.optional(z.boolean()),
   sortOrder: z.optional(z.number()),
-  refinement: z.optional(z.record(z.string(), z.string())),
+  // Whatever is there: `collectRefinement` reads it entry by entry. As a
+  // `record` of strings here, one entry that was not a string failed the
+  // parse of the whole stored list — the bike was then imported WITHOUT its
+  // list, and the list's key cleared.
+  refinement: z.optional(z.unknown()),
   chosenProduct: z.optional(
     z.object({
       brand: z.string(),
@@ -732,6 +766,50 @@ function collectCheckup(
   return { read: "collected", checkup };
 }
 
+/**
+ * A stored line's refinement, as the payload carries it — or `undefined` when
+ * nothing of it can be sent.
+ *
+ * Until 2026-10-13 the stored value was forwarded as it was, and the list
+ * form had no limit on what a visitor could type into it. One answer over 120
+ * characters — a product URL pasted into "Référence des plaquettes" — made
+ * the server refuse the WHOLE payload, on every retry, with every key kept:
+ * that guest bike could not be imported at all, and the list page, which
+ * could not open such a list either, offered no way to shorten the value
+ * (measured on a copy of `origin/main`: `VALIDATION` five times out of five;
+ * `.debug/017` §5.9). A line's answer must never cost the bike.
+ *
+ * Two filters, entry by entry:
+ *
+ *   1. the list page's own reader ({@link refinementOf}). An answer the page
+ *      drops — longer than the cap, not a string — is not sent, so the import
+ *      carries the list the visitor SEES;
+ *   2. the contract's own two schemas ({@link RefinementKey},
+ *      {@link RefinementValue}) and its cap on entries. Whatever is left that
+ *      the server would refuse — a key it does not take, a U+0000 — is not
+ *      sent either: nothing in a line's refinement can sink the payload.
+ *
+ * Lone surrogates are replaced BEFORE the second filter (it would refuse
+ * them), as everywhere in the projection: half an emoji is imported as
+ * U+FFFD, not dropped. `refinementOf` goes first because {@link wellFormed}
+ * recurses, and after it the value is one flat record of strings.
+ *
+ * The dropped answer is LOST to the account: it is not sent, and the key it
+ * was under is cleared with the list once the bike is in. It was shown
+ * nowhere before either.
+ */
+function collectRefinement(stored: unknown): Record<string, string> | undefined {
+  const read = wellFormed(refinementOf(stored));
+  if (read === undefined) return undefined;
+  const entries = Object.entries(read)
+    .filter(
+      ([key, value]) =>
+        RefinementKey.safeParse(key).success && RefinementValue.safeParse(value).success,
+    )
+    .slice(0, GUEST_CAPS.refinementEntries);
+  return entries.length === 0 ? undefined : Object.fromEntries(entries);
+}
+
 /** The build list stored for the guest bike, projected onto {@link GuestBuildList}. */
 function collectBuildLists(storage: KeyValueStorage, listName: string): GuestBuildList[] {
   const parsed = StoredBuildListSchema.safeParse(readJson(storage, buildListKey("local")));
@@ -743,16 +821,19 @@ function collectBuildLists(storage: KeyValueStorage, listName: string): GuestBui
 
   const items: GuestBuildListItem[] = rawItems
     .slice(0, GUEST_CAPS.itemsPerList)
-    .map((item, index) => ({
-      partId: item.partId,
-      action: item.action,
-      reasonKey: item.reasonKey,
-      ...(item.guideSlug === undefined ? {} : { guideSlug: item.guideSlug }),
-      done: item.done ?? false,
-      sortOrder: Number.isInteger(item.sortOrder) ? Number(item.sortOrder) : index,
-      ...(item.refinement === undefined ? {} : { refinement: item.refinement }),
-      ...(item.chosenProduct === undefined ? {} : { chosenProduct: item.chosenProduct }),
-    }));
+    .map((item, index) => {
+      const refinement = collectRefinement(item.refinement);
+      return {
+        partId: item.partId,
+        action: item.action,
+        reasonKey: item.reasonKey,
+        ...(item.guideSlug === undefined ? {} : { guideSlug: item.guideSlug }),
+        done: item.done ?? false,
+        sortOrder: Number.isInteger(item.sortOrder) ? Number(item.sortOrder) : index,
+        ...(refinement === undefined ? {} : { refinement }),
+        ...(item.chosenProduct === undefined ? {} : { chosenProduct: item.chosenProduct }),
+      };
+    });
 
   return [{ name: name.trim().slice(0, 80) || listName, items }];
 }
@@ -808,7 +889,9 @@ export function collectGuestState({
       bikes: [
         // Every string of the projection, whichever key it was read from: the
         // bike's free-text attributes and the list's lines are checked by no
-        // contract on this side, and the server refuses a payload WHOLE.
+        // contract on this side — a line's `refinement` excepted, since
+        // 2026-10-13 (`collectRefinement`) — and the server refuses a payload
+        // WHOLE.
         wellFormed({
           localId: bike.id,
           name: bikeName,
