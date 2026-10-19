@@ -237,7 +237,7 @@ describe("a guest bike's fit goes to the bike the inputs were seeded from", () =
       { storage: window.localStorage },
     )!;
     act(() => {
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
 
     const inseam = screen.getByLabelText("Entrejambe (cm)");
