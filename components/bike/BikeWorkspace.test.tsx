@@ -1085,7 +1085,7 @@ describe("what the third review found — the guest bike under `/velo/local` rep
       fit: bike.fit,
     });
     act(() => {
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
     await settle();
     expect(readLocalBike()!.id).toBe(bike.id);
@@ -1139,7 +1139,7 @@ describe("what the review of the third repair found — the guest bike replaced 
     if (bike === null) throw new Error("storage refused the new guest bike");
     const bytes = window.localStorage.getItem(LOCAL_BIKE_KEY)!;
     act(() => {
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
     return { bike, bytes };
   }
@@ -1243,7 +1243,7 @@ describe("what the review of the third repair found — the guest bike replaced 
     expect(notice.error).not.toHaveBeenCalled();
 
     act(() => {
-      window.dispatchEvent(new StorageEvent("storage", { key: LOCAL_BIKE_KEY }));
+      window.dispatchEvent(new Event("storage"));
     });
     await settle(20);
     expect(typedIn.isConnected).toBe(false);
