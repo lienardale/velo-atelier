@@ -1099,9 +1099,15 @@ _Why deferred_ (W5): the gate is doing what it is for, and nothing here
 loosens it. What it costs is a red `main` that no pull request caused, and a
 job whose verdict can depend on the minute it ran.
 
-_To pick up_: two options, neither decided — a scheduled `audit` run that
-opens an issue, so that a new advisory is met by a cron before it is met by
-the next merge; and re-running the `audit` job once before reading it on a
+_To pick up_: two options were written here. **The first is done,
+2026-10-19**: `.github/workflows/advisories.yml` runs `audit` and `trivy` on
+`main` every day and opens one issue on the first red run, commenting on it on
+every later one and never closing it — the maintainer's ruling after
+`.debug/017` §2.7, where `main` was red by its own rule for 41 hours with
+nothing on GitHub showing it. It has not run on GitHub yet. It does not stop
+the red `main` this entry is about — an advisory still lands between two runs,
+and still after a green pull request — it bounds how long nobody knows. The
+second is still open: re-running the `audit` job once before reading it on a
 day advisories are landing. Neither changes the rule: fix first, allow-list
 last (`audit-ci-allowlist.md`).
 

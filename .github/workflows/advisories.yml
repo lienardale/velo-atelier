@@ -1,0 +1,129 @@
+name: Advisories
+
+# `audit` and `trivy fs scan` read a live advisory feed. In ci.yml they run on a
+# pull request and on a push to `main`, and until this workflow nothing else
+# ran them: six advisories on `next` were published on 2026-10-07 at 20:30Z,
+# 5 h 38 min after `main`'s last CI run, nothing was pushed afterwards, and
+# `main` was red by its own rule and green on GitHub for 41 hours — until a
+# local `bash scripts/ci/audit.sh` (`.debug/017` §2.7). The alerts were no
+# backstop: Dependabot raised four of the six on 2026-10-16, 8 d 20 h later,
+# and Renovate's pull request, which acts on those alerts, followed the next
+# morning (#28).
+#
+# So: the same two scripts, on `main`, once a day, and a red run reaches a
+# person through an issue (scripts/ci/advisory-report.sh) — because a failed
+# scheduled run emails, per GitHub's documentation, only the user who last
+# changed the cron line below, and only if their settings send Actions
+# failures.
+#
+# Its own workflow, not two more jobs in perf.yml: that one takes ~25 minutes,
+# goes red on perf noise, cancels itself on a new dispatch
+# (`cancel-in-progress: true`) and already holds two write-token jobs. A red
+# run here means an advisory, and nothing else.
+#
+# NEVER A REQUIRED CONTEXT. A context that only a schedule produces never
+# reports on a pull request, so requiring one blocks every merge for ever —
+# the reason `.debug/016` §2 gives for the path-filtered workflows. All three
+# job names are in NON_BLOCKING_CONTEXTS (tests/unit/ci/required-checks.test.ts),
+# and none is named like a required check: a dispatch on a PR's branch reports
+# on that branch's head commit, where a job called `npm audit (audit-ci)`
+# would race the real one (perf.yml's `build` did, until W4 renamed it).
+on:
+  schedule:
+    # 05:23 UTC, daily. Off the hour on purpose: the two schedules already
+    # here, on the hour, started 4.6 to 7.5 hours late in every run read on
+    # 2026-10-19 — perf.yml's 03:00 at 07:37–10:27Z over twelve nights,
+    # codeql.yml's Monday 04:00 at 09:22–11:24Z over four weeks. Whether the
+    # off-minute starts sooner is not observed yet. Daily is the maintainer's
+    # ruling (2026-10-19): one red run, one comment on the issue, per day the
+    # fix waits.
+    #
+    # Per GitHub's documentation, not observed: in a public repository a
+    # scheduled workflow is disabled after 60 days with no repository activity.
+    # Quietly, like the gap this closes; `gh workflow enable advisories.yml`
+    # turns it back on.
+    - cron: "23 5 * * *"
+  # `gh workflow run advisories.yml --ref main`. Any other ref runs the gates
+  # and writes no issue: the issue says `main` is red.
+  workflow_dispatch:
+
+# Never cancel a run in progress: a run cut short writes no report (the report
+# job's `!cancelled()`). Per GitHub's documentation a newly queued run still
+# replaces one PENDING in the group, which costs nothing here — the survivor
+# reads the same feed.
+concurrency:
+  group: advisories-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # The same body as ci.yml's `audit` job — the test holds the two `run:` lists
+  # equal — with a read-only token that the checkout does not leave behind for
+  # `npm ci`'s lifecycle scripts.
+  audit:
+    name: npm audit (scheduled)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund --prefer-offline
+      - run: bash scripts/ci/audit.sh
+
+  # The same body as ci.yml's `trivy fs scan`. The script downloads a fresh DB
+  # on every run in CI and refuses to scan with a stale one; the cache only
+  # saves the download when the DB has not moved.
+  trivy:
+    name: trivy fs scan (scheduled)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Restore trivy DB cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            trivy-${{ runner.os }}-
+      - run: bash scripts/ci/trivy.sh
+
+  # The one job holding a write token, and it builds and tests nothing: a
+  # checkout that keeps no token, and one script that calls `gh`. No
+  # setup-node, no `npm ci`, so no dependency's install script runs beside the
+  # token. `issues: write` is the narrowest permission that opens an issue or
+  # comments on one.
+  #
+  # `!cancelled()`, not `always()`, as ci.yml's coverage job: it runs after a
+  # red gate — which is the point — and stays skipped when the run itself was
+  # cancelled. Whatever a gate's result, anything but `success` is reported
+  # (the script fails closed). This is the one `if:` in the file; the gates
+  # carry none.
+  report:
+    name: advisory report (scheduled)
+    runs-on: ubuntu-latest
+    needs: [audit, trivy]
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: bash scripts/ci/advisory-report.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_RESULT: ${{ needs.audit.result }}
+          TRIVY_RESULT: ${{ needs.trivy.result }}

@@ -88,8 +88,10 @@ and where:
   at every server start ([`instrumentation.ts`][instrumentation]).
 - **Scanning.** gitleaks, `audit-ci`, semgrep, trivy and CodeQL are five of the
   20 checks. `audit-ci` fails from moderate up, and its six exceptions are
-  justified in [`audit-ci-allowlist.md`][audit-allowlist]. CodeQL has no open
-  alert (2026-10-07).
+  justified in [`audit-ci-allowlist.md`][audit-allowlist]. `audit-ci` and
+  trivy also run on `main` once a day, when nothing is pushed, and a red run
+  opens an issue ([`advisories.yml`][advisories]). CodeQL has no open alert
+  (2026-10-07).
 
 ## Known limits
 
@@ -154,6 +156,7 @@ is built on, and to SecLists for the common-password list.
 [check-env]: https://github.com/lienardale/velo-atelier/blob/main/scripts/check-env.ts
 [instrumentation]: https://github.com/lienardale/velo-atelier/blob/main/instrumentation.ts
 [audit-allowlist]: https://github.com/lienardale/velo-atelier/blob/main/audit-ci-allowlist.md
+[advisories]: https://github.com/lienardale/velo-atelier/blob/main/.github/workflows/advisories.yml
 [i18]: https://github.com/lienardale/velo-atelier/issues/18
 [i19]: https://github.com/lienardale/velo-atelier/issues/19
 [i20]: https://github.com/lienardale/velo-atelier/issues/20

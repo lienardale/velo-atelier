@@ -20,6 +20,12 @@
  *     (renovate-config.yml: `renovate.json`, the validator script and the
  *     workflow file itself), and for the same reason it must never be
  *     required.
+ *
+ * And three more that no pull request ever produces: `npm audit (scheduled)`,
+ * `trivy fs scan (scheduled)` and `advisory report (scheduled)`, the jobs of
+ * advisories.yml (schedule + workflow_dispatch). A context only a schedule
+ * produces never reports on a pull request, so a required one would block
+ * every merge for ever — the path-filter reason, taken to its limit.
  */
 import { describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -55,6 +61,9 @@ export const NON_BLOCKING_CONTEXTS = [
   "e2e (mobile-webkit)",
   "visual-baseline-guard",
   "renovate-config-validator",
+  "npm audit (scheduled)",
+  "trivy fs scan (scheduled)",
+  "advisory report (scheduled)",
 ] as const;
 
 const WORKFLOW_DIR = path.join(process.cwd(), ".github", "workflows");
@@ -69,6 +78,12 @@ const RENOVATE_WORKFLOW = path.join(WORKFLOW_DIR, "renovate-config.yml");
  * that branch's head commit.
  */
 const MIGRATE_WORKFLOW = path.join(WORKFLOW_DIR, "migrate-preview.yml");
+/**
+ * Not a PR workflow either: schedule + workflow_dispatch. It runs ci.yml's
+ * `audit` and `trivy` scripts on `main` when nothing is pushed, and writes an
+ * issue when they are red (`.debug/017` §2.7).
+ */
+const ADVISORIES_WORKFLOW = path.join(WORKFLOW_DIR, "advisories.yml");
 
 /** Every workflow that reports a status context on a pull request. */
 const PR_WORKFLOWS = [CI_WORKFLOW, CODEQL_WORKFLOW, GUARD_WORKFLOW, RENOVATE_WORKFLOW];
@@ -88,6 +103,8 @@ interface WorkflowStep {
 
 interface WorkflowJob {
   name?: string;
+  needs?: string | string[];
+  if?: string;
   env?: Record<string, string>;
   permissions?: Record<string, string>;
   "timeout-minutes"?: number;
@@ -264,6 +281,22 @@ describe("required status checks", () => {
     }
   });
 
+  it("every non-blocking context is produced by a workflow job", () => {
+    // The converse of the check above, over EVERY workflow file and not only
+    // the PR ones: three of these names come from advisories.yml, which no pull
+    // request triggers. A name left here after its job was renamed is a list
+    // that vouches for a context nothing produces any more.
+    const produced = new Set(
+      workflowFiles().flatMap((file) =>
+        Object.entries(loadWorkflow(file).jobs).flatMap(([jobId, job]) =>
+          contextsOf(jobId, job).map(({ context }) => context),
+        ),
+      ),
+    );
+    const orphans = NON_BLOCKING_CONTEXTS.filter((context) => !produced.has(context));
+    expect(orphans, "contexts named in NON_BLOCKING_CONTEXTS but produced by no job").toEqual([]);
+  });
+
   it("no context is reported by two jobs", () => {
     // Two jobs with one name report into ONE status context, and whichever
     // finishes last wins it: a skipped copy can overwrite a real failure.
@@ -294,7 +327,7 @@ describe("required status checks", () => {
 
   it("notices a pull-request trigger in every spelling GitHub accepts", () => {
     // The check above is only as good as this predicate, and the predicate was
-    // the bug: all six workflows here use the mapping form, so no file on disk
+    // the bug: all seven workflows here use the mapping form, so no file on disk
     // can tell a working version from a broken one. These are parsed by the same
     // parser, so they are evidence rather than a restatement.
     const reports = (yaml: string) => reportsOnPullRequest(parse(yaml) as Workflow);
@@ -414,6 +447,7 @@ describe("every script a workflow runs exists", () => {
     expect(scripts).toContain("scripts/ci/renovate-config.sh");
     expect(scripts).toContain("scripts/ci/migrate-preview.sh");
     expect(scripts).toContain("scripts/ci/visual-label.sh");
+    expect(scripts).toContain("scripts/ci/advisory-report.sh");
     expect(scripts.size).toBeGreaterThan(10);
   });
 
@@ -752,5 +786,162 @@ describe("migrate-preview.yml", () => {
     );
     expect(checkout).toHaveLength(1);
     expect(checkout[0].with).toEqual({ "persist-credentials": false });
+  });
+});
+
+/**
+ * `audit` and `trivy` read a live advisory feed, and until this workflow only a
+ * push or a pull request ran them: on 2026-10-07 `main` turned red by its own
+ * rule and stayed green on GitHub for 41 hours (`.debug/017` §2.7). It runs
+ * ci.yml's two scripts on `main` once a day and writes an issue when they are
+ * red. Three things it must never become: a required context (only a schedule
+ * produces its checks, so none would ever report on a pull request), a gate
+ * something can excuse, and a write token beside code that builds.
+ */
+describe("advisories.yml", () => {
+  const workflow = loadWorkflow(ADVISORIES_WORKFLOW);
+  const GATES = ["audit", "trivy"] as const;
+  const runsOf = (job: WorkflowJob): string[] =>
+    (job.steps ?? []).flatMap((step) => (step.run ? [step.run.trim()] : []));
+
+  it("runs on a schedule and on demand, never on a pull request", () => {
+    expect([...Object.keys(triggerMap(workflow))].sort()).toEqual([
+      "schedule",
+      "workflow_dispatch",
+    ]);
+    expect(reportsOnPullRequest(workflow)).toBe(false);
+    expect(PR_WORKFLOWS).not.toContain(ADVISORIES_WORKFLOW);
+  });
+
+  it("runs once a day, off the hour", () => {
+    // Daily is the maintainer's ruling (2026-10-19). Off the hour because both
+    // schedules here that sit on it started 4.6 to 7.5 hours late (the
+    // workflow's header has the runs).
+    const schedule = triggerMap(workflow).schedule as { cron?: string }[];
+    expect(schedule).toHaveLength(1);
+    const [minute, hour, ...rest] = (schedule[0].cron ?? "").split(" ");
+    expect(minute).toMatch(/^([1-9]|[1-5]\d)$/);
+    expect(hour).toMatch(/^(\d|1\d|2[0-3])$/);
+    expect(rest).toEqual(["*", "*", "*"]);
+  });
+
+  it("produces three non-blocking contexts, none named like a required one", () => {
+    // A dispatch on a pull request's branch reports these on its head commit.
+    // Named like `npm audit (audit-ci)`, one would race the required context
+    // there — the clash "no other workflow reports a required context" holds
+    // for every file; this holds the names themselves.
+    const contexts = Object.entries(workflow.jobs).flatMap(([jobId, job]) =>
+      contextsOf(jobId, job).map(({ context }) => context),
+    );
+    expect(contexts).toEqual([
+      "npm audit (scheduled)",
+      "trivy fs scan (scheduled)",
+      "advisory report (scheduled)",
+    ]);
+    for (const context of contexts) {
+      expect(NON_BLOCKING_CONTEXTS, context).toContain(context);
+      expect(REQUIRED_CHECKS, context).not.toContain(context);
+    }
+  });
+
+  it("runs exactly what the required gates run", () => {
+    // ci.yml's own `run:` lists, not "a script called audit": a flag added to
+    // one side and not the other would make the schedule check something other
+    // than the gate it stands in for.
+    const ci = loadWorkflow(CI_WORKFLOW);
+    expect(runsOf(workflow.jobs.audit)).toEqual(runsOf(ci.jobs.audit));
+    expect(runsOf(workflow.jobs.trivy)).toEqual(runsOf(ci.jobs.trivy));
+    // A guard on the guard: two empty lists are equal too.
+    expect(runsOf(workflow.jobs.audit)).toContain("bash scripts/ci/audit.sh");
+    expect(runsOf(workflow.jobs.trivy)).toContain("bash scripts/ci/trivy.sh");
+    expect(inlinedSteps(workflow)).toEqual([]);
+  });
+
+  it("lets nothing excuse a gate: no `if`, no `continue-on-error`, no `needs`, no `env`", () => {
+    // Parsed, so `- if: false` as a step's first key is seen too (the hole a
+    // text pattern left in renovate-config.yml). `needs` would let another
+    // job's failure SKIP a gate, and an `env:` can change what a script does
+    // (`CI` decides whether trivy.sh may scan with a stale DB).
+    expect(workflow.env, "workflow-level env").toBeUndefined();
+    for (const jobId of GATES) {
+      // eslint-disable-next-line security/detect-object-injection -- `jobId` is one of the two GATES literals.
+      const job = workflow.jobs[jobId];
+      for (const key of ["if", "continue-on-error", "needs", "env"]) {
+        expect(Object.keys(job), `${jobId}: ${key}`).not.toContain(key);
+      }
+      const steps = job.steps ?? [];
+      // A guard on the guard: with no step read, the loop asserts nothing.
+      expect(steps.length, jobId).toBeGreaterThan(1);
+      for (const [index, step] of steps.entries()) {
+        for (const key of ["if", "continue-on-error", "env"]) {
+          expect(Object.keys(step), `${jobId}, step ${index + 1}: ${key}`).not.toContain(key);
+        }
+      }
+    }
+  });
+
+  it("reports after the gates, red ones above all, through its one `if:`", () => {
+    // GitHub's implicit `if: success()` would skip the report exactly when
+    // there is something to say. `!cancelled()` runs it after a failed need;
+    // `continue-on-error` would turn a delivery that failed green.
+    const report = workflow.jobs.report;
+    expect(report.if).toBe("${{ !cancelled() }}");
+    expect([report.needs ?? []].flat().sort()).toEqual([...GATES].sort());
+    expect(Object.keys(report)).not.toContain("continue-on-error");
+    // Every job is a gate the report hears about, or the report.
+    expect(Object.keys(workflow.jobs).sort()).toEqual([...GATES, "report"].sort());
+  });
+
+  it("gives the gates a read-only token, and the report `issues: write` and no more", () => {
+    // The repository's default token was read-only when this was written
+    // (`gh api …/actions/permissions/workflow`, 2026-10-19), so these are the
+    // second lock — the one a test can see.
+    expect(workflow.permissions).toEqual({ contents: "read" });
+    for (const jobId of GATES) {
+      // eslint-disable-next-line security/detect-object-injection -- `jobId` is one of the two GATES literals.
+      expect(workflow.jobs[jobId].permissions, jobId).toEqual({ contents: "read" });
+    }
+    expect(workflow.jobs.report.permissions).toEqual({ contents: "read", issues: "write" });
+  });
+
+  it("the job with the write token builds and tests nothing", () => {
+    // A checkout that keeps no token and the one script: no setup-node, no
+    // `npm ci` — so no dependency's install script — and no other action. The
+    // whole step, so an `if:`, a `shell` or a fourth variable fails here too.
+    const steps = workflow.jobs.report.steps ?? [];
+    expect(steps).toHaveLength(2);
+    expect(steps[0].uses).toMatch(/^actions\/checkout@[0-9a-f]{40}$/);
+    expect(steps[0]).toEqual({ uses: steps[0].uses, with: { "persist-credentials": false } });
+    expect(steps[1]).toEqual({
+      run: "bash scripts/ci/advisory-report.sh",
+      env: {
+        GH_TOKEN: "${{ github.token }}",
+        AUDIT_RESULT: "${{ needs.audit.result }}",
+        TRIVY_RESULT: "${{ needs.trivy.result }}",
+      },
+    });
+    expect(Object.keys(workflow.jobs.report)).not.toContain("env");
+  });
+
+  it("leaves no token on disk, and reads no secret", () => {
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      const checkout = (job.steps ?? []).filter((step) =>
+        step.uses?.startsWith("actions/checkout@"),
+      );
+      expect(checkout, jobId).toHaveLength(1);
+      expect(checkout[0].with, jobId).toEqual({ "persist-credentials": false });
+    }
+    // The word, as for migrate-preview.yml: the parser has dropped the
+    // comments, so it can only be in something that runs.
+    expect(JSON.stringify(workflow)).not.toMatch(/\bsecrets\b/);
+  });
+
+  it("never cancels a run in progress", () => {
+    // A run cut short writes no report: the report job is skipped on a
+    // cancelled run.
+    expect(workflow.concurrency).toEqual({
+      group: "advisories-${{ github.ref }}",
+      "cancel-in-progress": false,
+    });
   });
 });

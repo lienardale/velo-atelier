@@ -1375,10 +1375,11 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
 
 Every gate but CodeQL is a `scripts/ci/*.sh` script that runs the same way
 locally. `npm run ci:local` chains them all except the browser tiers (e2e, perf,
-Lighthouse), which need a production build and run on their own, and the three
+Lighthouse), which need a production build and run on their own, and the four
 workflows that sit outside the PR gate set: `visual-baseline-guard`,
-`renovate-config-validator` and `migrate-preview` (the last is not a gate at
-all — it deploys). `scripts/ci/_lib.sh`, which every step sources first, no
+`renovate-config-validator`, `migrate-preview` (not a gate at all — it
+deploys) and `advisories` (the PR set's `audit` and `trivy` again, on `main`
+on a schedule, plus a job that writes an issue). `scripts/ci/_lib.sh`, which every step sources first, no
 longer sources nvm when a Node of the right major (24) is already on `PATH` —
 as it is under an `npm run <script>` started on Node 24 — because under
 `npm run` npm exports
@@ -1774,6 +1775,46 @@ ceil50(median × 1.15)))`; the content bar is frozen. Pins come from a
   `audit-ci-allowlist.md`. A CodeQL alert is either fixed in code or dismissed
   by the maintainer with a written reason: **an agent never runs a dismissal**,
   because it changes the repository's security record.
+- **`audit` and `trivy` also run on `main` every day, and a red run writes an
+  issue** (`.github/workflows/advisories.yml`: 05:23 UTC, off the hour, and
+  `workflow_dispatch`). Before it only a push or a pull request ran them: six
+  advisories on `next` published on 2026-10-07 left `main` red by its own rule
+  and green on GitHub for 41 hours, and the alerts were no backstop —
+  Dependabot raised four of the six 8 d 20 h after publication, and Renovate's
+  security PR, which acts on them, came the next morning with its lockfile
+  out of sync (`.debug/017` §2.7). Two read-only jobs run ci.yml's `audit` and
+  `trivy` `run:` lists exactly — the test compares them — so the schedule
+  checks the same thing the required gate does. The third,
+  `advisory report (scheduled)`, is the only job holding a write token
+  (`contents: read` + `issues: write`) and it builds and tests nothing: a
+  checkout that keeps no token, then `scripts/ci/advisory-report.sh`, which
+  calls `gh` and nothing else — no setup-node, no `npm ci`. On `main`'s first
+  red run it opens ONE issue, "Scheduled advisory check: main is red"; on
+  every later red run it comments there; **it never closes it** (one green run
+  is not a verdict on a day an advisory lands, §2.6) — close it by hand once
+  the fix is on `main`. Any result but `success` is red, an EMPTY one included
+  (how a renamed job reaches `needs.<job>.result`); a red run on another ref
+  writes nothing; outside Actions the script exits 1 rather than post with the
+  shell's own `gh`. So a red REPORT job means one thing: the issue was not
+  written. Its `if: ${{ !cancelled() }}` is the file's only `if:` — the
+  default would skip it exactly when a gate failed.
+  **None of its three contexts may ever be required**: only a schedule or a
+  dispatch produces them, so none reports on a pull request — the path-filter
+  reason above, taken to its limit — and none is named like a required check,
+  because a dispatch on a PR's branch reports on that branch's head commit.
+  `tests/unit/ci/required-checks.test.ts` holds the three in
+  `NON_BLOCKING_CONTEXTS` (and every name in that list to a job that still
+  produces it), and on the PARSED YAML: no `pull_request` trigger, one daily
+  off-the-hour cron, no `if` / `continue-on-error` / `needs` / `env` on a gate
+  or its steps, the report's `if`, `needs` and two steps exactly, the
+  permissions, `persist-credentials: false` on every checkout, no `secrets`,
+  and `cancel-in-progress: false`. `tests/unit/ci/advisory-report.test.ts`
+  executes the script against a stand-in `gh` (a Node script by absolute
+  path, `HOME` empty, a dummy `GH_TOKEN`). Per GitHub's documentation, not
+  observed: a public repository's scheduled workflow is disabled after 60 days
+  without activity, as quietly as the gap it closes —
+  `gh workflow enable advisories.yml`. Between two runs, a green `main` is
+  still a statement about its last run.
 
 Husky runs the fast subset pre-commit and, pre-push, the local mirror without
 its `build` step (`SKIP_BUILD=1`; `RUN_BUILD=1` keeps it).

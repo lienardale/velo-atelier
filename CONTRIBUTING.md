@@ -128,7 +128,7 @@ consequences for a checkout set up from `.env.example`; the reasons are in
   `tests/security/**` (IDOR, mass assignment, CSRF and origin checks, open
   redirects, rate limits, path traversal, quotas, …).
 
-Two more workflows sit outside the twenty required checks, on purpose — beside
+Three more workflows sit outside the twenty required checks, on purpose — beside
 `visual-baseline-guard` (below) and the scheduled `perf.yml` (the reasons are
 in [`CLAUDE.md`](./CLAUDE.md), under "Quality gates"):
 
@@ -149,6 +149,14 @@ in [`CLAUDE.md`](./CLAUDE.md), under "Quality gates"):
   branch is not the way round it: its script refuses any ref but `main`, so
   that one branch's unmerged migration never reaches the database every other
   preview reads ([`docs/deploy.md`](./docs/deploy.md) §1).
+- **`advisories` never runs on your pull request either.** It runs the same
+  `audit` and `trivy` scripts on `main` once a day, because an advisory can be
+  published with nothing pushed, and a red run opens an issue titled
+  "Scheduled advisory check: main is red". While that issue is open, every
+  pull request is red on `npm audit (audit-ci)` or `trivy fs scan` for the same
+  reason, yours included. The fix is a dependency change on a pull request of
+  its own ([`audit-ci-allowlist.md`](./audit-ci-allowlist.md) says how), never
+  an allow-list entry added to get yours through.
 
 ## Rules that surprise people
 

@@ -649,9 +649,10 @@ this repository runs `shadcn mcp` at all.
 Six ids against `next` itself entered the feed within two minutes of each
 other on the evening of 2026-10-07, 5 h 38 min after `main`'s last CI run
 started (run 37640409895, 14:52Z, on `9ae46bf`; it passed). Nothing was pushed
-afterwards and no scheduled workflow runs `audit` or `trivy`, so no run on
-GitHub ever showed them; nor did Dependabot, whose open alerts on 2026-10-09
-at about 14:45Z were the two `extract-zip` ones and nothing on `next`. They
+afterwards and no scheduled workflow ran `audit` or `trivy` — one does since
+2026-10-19, `.github/workflows/advisories.yml` — so no run on GitHub ever
+showed them; nor did Dependabot, whose open alerts on 2026-10-09 at about
+14:45Z were the two `extract-zip` ones and nothing on `next`. They
 were measured on 2026-10-09 at 13:52Z on a fresh `npm ci` of that same commit:
 `bash scripts/ci/audit.sh` exits 1 on five ids and `bash scripts/ci/trivy.sh`
 exits 1 on one. **None is allow-listed, and none could be**: `next` is the
