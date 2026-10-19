@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
 import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
@@ -37,14 +38,25 @@ export function generateStaticParams({
   );
 }
 
+/**
+ * Only those pairs; anything else is a 404, as it is for the page. The page's
+ * own `dynamicParams = false` does not reach this route — an image route is a
+ * route handler of its own — and without this line every unknown slug was
+ * drawn on demand as a generic card and cached on disk, as was a known slug
+ * under any first segment with a dot in it, which the proxy lets through as a
+ * file (.debug/017 §2.7).
+ */
+export const dynamicParams = false;
+
 export default async function GuideOpenGraphImage({
   params,
 }: {
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<ImageResponse> {
-  const { locale: requested, slug } = await params;
-  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
-  const guide = isGuideSlug(slug) ? findGuide(GUIDES, slug, locale) : undefined;
+  const { locale, slug } = await params;
+  if (!hasLocale(routing.locales, locale) || !isGuideSlug(slug)) notFound();
+  const guide = findGuide(GUIDES, slug, locale);
+  if (!guide) notFound();
   const [t, tc, font] = await Promise.all([
     getTranslations({ locale, namespace: "guides" }),
     getTranslations({ locale, namespace: "common" }),
@@ -66,11 +78,9 @@ export default async function GuideOpenGraphImage({
       }}
     >
       <div style={{ display: "flex", fontSize: 32, color: "#1f5f8b" }}>
-        {guide ? `${t(`kinds.${guide.kind}`)} · ${t("og.tagline")}` : t("og.tagline")}
+        {`${t(`kinds.${guide.kind}`)} · ${t("og.tagline")}`}
       </div>
-      <div style={{ display: "flex", fontSize: 72, lineHeight: 1.1 }}>
-        {guide ? guide.title : tc("site.name")}
-      </div>
+      <div style={{ display: "flex", fontSize: 72, lineHeight: 1.1 }}>{guide.title}</div>
       <div style={{ display: "flex", fontSize: 30, color: "#5c574f" }}>{tc("site.name")}</div>
     </div>,
     { ...size, fonts: [{ name: "Geist", data: font, style: "normal", weight: 400 }] },

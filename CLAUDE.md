@@ -1361,6 +1361,15 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `app/[locale]/`; the guide card already lived beside its page, which is why
   that one always worked. An image route inherits no `params` from the layout
   above it either — both spell out their own `generateStaticParams`.
+  **Nor does it inherit a segment option from its page**: an image route is a
+  route handler of its own, so the guide page's `dynamicParams = false` never
+  reached its card, and the card drew any unknown slug on demand and cached
+  it on disk. Both cards export `dynamicParams = false` themselves, and the
+  site card needs it as much as the guide card: `proxy.ts`'s matcher lets any
+  path with a dot through as a file, so `/de.x/opengraph-image` reaches the
+  image route with no proxy in front of it (`.debug/017` §2.7, measured on
+  16.3.8 and again on 16.4.1 under Turbopack: neither release applies the
+  page's option to the card).
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
@@ -1500,10 +1509,10 @@ scripts called with `bash` ran (`.debug/017`;
   including subjects with no locale of their own (the viewer, the sheet, the
   camera). A test stays single only when there is nothing locale-specific to
   visit, and its spec header says why: the bare-origin redirect (`smoke`),
-  `sitemap.xml`/`robots.txt` (`seo`), the scan of the built client chunks (`csp`), the
-  prerender-manifest check (`shop`), auth-login's EN-cookie case, locale-switch's
-  pathnames meta-test, and the 7 preset images of `visual.spec.ts` (the canvas
-  draws no text).
+  `sitemap.xml`/`robots.txt` and an unknown locale's Open Graph card (`seo`),
+  the scan of the built client chunks (`csp`), the prerender-manifest check
+  (`shop`), auth-login's EN-cookie case, locale-switch's pathnames meta-test,
+  and the 7 preset images of `visual.spec.ts` (the canvas draws no text).
 - **Visual baselines are Linux-rendered and recorded only by CI.**
   `tests/e2e/visual.spec.ts` (`@snapshot`, `colorScheme: light` +
   `reducedMotion: reduce`, the canvas after `renderFrames(3)`) takes 20 images:
