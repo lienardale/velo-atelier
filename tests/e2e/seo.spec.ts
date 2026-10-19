@@ -20,7 +20,8 @@
  *
  * Everything runs in FR and EN. The sitemap and robots.txt tests run once:
  * their subjects are the two locale-less files at the site root, and each
- * asserts both locales' URLs inside them.
+ * asserts both locales' URLs inside them. So does the unknown-locale card
+ * test, whose subject is a locale that is neither.
  *
  * `/velo/demo` is deliberately NOT held to the indexable contract: it is
  * `noindex` by §6.6 and failed an SEO assertion it can never satisfy once
@@ -114,6 +115,21 @@ forEachLocale((locale) => {
     expect(response.status()).toBe(200);
     expect(response.headers()["content-type"]).toBe("image/png");
   });
+});
+
+test("an unknown locale has no Open Graph card", async ({ request }) => {
+  // The proxy redirects `/de/…` to `/fr/de/…`, a 404. Its matcher lets a path
+  // with a dot in it through untouched, as a file, so the other two reach the
+  // image routes themselves, which drew them on demand (.debug/017 §2.7).
+  for (const path of [
+    "/de/opengraph-image",
+    "/de.x/opengraph-image",
+    `/de.x/guides/${GUIDE_SLUG}/opengraph-image`,
+  ]) {
+    const response = await request.get(path);
+    expect(response.status(), path).toBe(404);
+    expect(response.headers()["content-type"], path).not.toBe("image/png");
+  }
 });
 
 // ──────────────────────────────────────────── canonical + hreflang (§6.6) ──

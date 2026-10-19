@@ -15,7 +15,8 @@
  *   - step illustrations as `svg[role=img]` named by their alt text;
  *   - canonical + hreflang, the static CSP without `unsafe-eval`, no console
  *     error — the MDX was rendered on the server, not evaluated in the browser;
- *   - a static PNG Open Graph image; an unknown slug is a real 404.
+ *   - a static PNG Open Graph image; an unknown slug is a real 404, for the
+ *     page and for its card.
  */
 /* eslint-disable security/detect-object-injection, security/detect-non-literal-fs-filename, security/detect-non-literal-regexp -- locale-keyed catalogues, fixed content paths, patterns built from repo slugs */
 import { readdirSync, readFileSync } from "node:fs";
@@ -194,5 +195,14 @@ forEachLocale((locale) => {
     expect(response.status()).toBe(200);
     expect(response.headers()["content-type"]).toBe("image/png");
     expect((await response.body()).subarray(1, 4).toString()).toBe("PNG");
+  });
+
+  test(`an unknown guide has no Open Graph image either (${locale})`, async ({ request }) => {
+    // The card is a route handler of its own, which the page's `dynamicParams`
+    // does not reach: without one of its own it drew a generic card for any
+    // slug, on demand, and cached it on disk (.debug/017 §2.7).
+    const response = await request.get(`/${locale}/guides/check-flux-capacitor/opengraph-image`);
+    expect(response.status()).toBe(404);
+    expect(response.headers()["content-type"]).not.toBe("image/png");
   });
 });
