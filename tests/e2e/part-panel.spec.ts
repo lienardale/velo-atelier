@@ -38,7 +38,7 @@
  * on a build with that repair's key put back to the word `local`.
  */
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 import { Client } from "pg";
 
 import { guidesFor } from "../../lib/bike/queries";
@@ -604,6 +604,61 @@ async function setSavedAttribute(
   }
 }
 
+/** One way of typing text into a number field: the text, and whether the field is emptied first. */
+interface TypedText {
+  text: string;
+  emptiedFirst: boolean;
+}
+
+/**
+ * Which of `candidates` THIS browser cannot read as a number.
+ *
+ * That is the engine's to decide, not this file's. "45." is unreadable to the
+ * macOS Chromium these cases were written on (an EMPTY `value` with
+ * `validity.badInput`), and a readable 45 to the Linux Chromium of CI's image:
+ * on PR #27 (2026-10-13) every Chromium project failed at
+ * `typeUnreadable`'s own check, `{ value: "45", badInput: false }`, before the
+ * case had tested anything. So a case about unreadable text asks the engine
+ * first, on a scratch page of the same context (same engine, same locale; the
+ * page under test is not touched), runs its sequence only for what this
+ * engine cannot read, notes every text it set aside, and fails when nothing
+ * is left: it can never pass having typed nothing unreadable.
+ */
+async function unreadableHere(
+  page: Page,
+  candidates: readonly TypedText[],
+  testInfo: TestInfo,
+): Promise<TypedText[]> {
+  const scratch = await page.context().newPage();
+  const kept: TypedText[] = [];
+  try {
+    await scratch.setContent('<input type="number" value="42" aria-label="probe">');
+    const field = scratch.getByLabel("probe");
+    for (const candidate of candidates) {
+      await field.focus();
+      await scratch.keyboard.press("ControlOrMeta+a");
+      if (candidate.emptiedFirst) await scratch.keyboard.press("Delete");
+      await scratch.keyboard.type(candidate.text);
+      const report = await field.evaluate((node) => ({
+        value: (node as HTMLInputElement).value,
+        badInput: (node as HTMLInputElement).validity.badInput,
+      }));
+      if (report.value === "" && report.badInput) {
+        kept.push(candidate);
+      } else {
+        testInfo.annotations.push({
+          type: "readable in this browser",
+          description: `${JSON.stringify(candidate.text)}${candidate.emptiedFirst ? " (field emptied first)" : ""} is read as ${JSON.stringify(report.value)} here: not a case of this test`,
+        });
+      }
+    }
+  } finally {
+    await scratch.close();
+  }
+  expect(kept.length, "at least one text this browser cannot read as a number").toBeGreaterThan(0);
+  return kept;
+}
+
 /**
  * Type text a number field cannot read as a number, and stay in the field.
  * Chromium keeps the characters on screen and reports an EMPTY `value` with
@@ -660,20 +715,24 @@ forEachLocale((locale) => {
   test(`number text the browser cannot read, typed and not left, deletes nothing when the next press is the parts tab: the width is kept and the visitor is told — guest bike (${locale})`, async ({
     page,
     hasTouch,
-  }) => {
+  }, testInfo) => {
     await seedLocalBike(page, BIKE_PRESETS["gravel-1x11"]);
     await page.goto(href(locale, "/velo/[id]", { id: "local" }));
     const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
     const partsTab = page.getByRole("tab", { name: partsTabName(locale), exact: true });
 
-    const sequences = [
-      { text: "45.", emptiedFirst: false },
-      { text: "4e", emptiedFirst: false },
-      { text: "-", emptiedFirst: false },
-      // The field emptied first: React hears of no change when the minus is typed.
-      { text: "-", emptiedFirst: true },
-      { text: ".", emptiedFirst: true },
-    ];
+    const sequences = await unreadableHere(
+      page,
+      [
+        { text: "45.", emptiedFirst: false },
+        { text: "4e", emptiedFirst: false },
+        { text: "-", emptiedFirst: false },
+        // The field emptied first: React hears of no change when the minus is typed.
+        { text: "-", emptiedFirst: true },
+        { text: ".", emptiedFirst: true },
+      ],
+      testInfo,
+    );
     for (const [index, { text, emptiedFirst }] of sequences.entries()) {
       await clickRow(page, "tire-front");
       await expandSheetIfPresent(page);
@@ -713,7 +772,16 @@ forEachLocale((locale) => {
     await expandSheetIfPresent(page);
     const width = page.locator('[data-testid=part-edit-form] [data-attr="etrto-width"]');
     await expect(width).toHaveValue("38");
-    await typeUnreadable(page, width, "45.");
+    const [unreadable] = await unreadableHere(
+      page,
+      [
+        { text: "45.", emptiedFirst: false },
+        { text: "4e", emptiedFirst: false },
+        { text: "-", emptiedFirst: false },
+      ],
+      testInfo,
+    );
+    await typeUnreadable(page, width, unreadable.text);
 
     let actions = 0;
     page.on("request", (request) => {

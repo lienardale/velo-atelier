@@ -428,8 +428,9 @@ fields the visitor has not touched.
 #### A number field left holding text the browser cannot read clears its attribute
 
 In the part edit form (`components/bike/PartEditForm.tsx`), a number field
-holding `45.` (on the way to 45.5), `4e` or a lone minus reports an EMPTY
-value to the page, with `validity.badInput` as the only sign that anything is
+holding `4e` or a lone minus — or, in macOS Chromium, `45.` on the way to
+45.5, which CI's Linux Chromium reads as 45 — reports an EMPTY value to the
+page, with `validity.badInput` as the only sign that anything is
 in it. LEAVING such a field sends that empty value as a clear: the stored
 value is deleted, the write answers ok, the field still shows the characters
 and its status reads "Enregistré" (measured on 2026-10-09 in Chromium 153, a

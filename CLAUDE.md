@@ -848,9 +848,13 @@ docs/                contributor and operator docs — every one is linked from 
   green run after dropping one of them proves nothing about the other two.
   **What rule 3 commits is what leaving the field would — a value, or a clear
   for a field the visitor EMPTIED — and never text the browser cannot read as
-  a number.** A number input reports `45.` (on the way to 45.5), `4e` or a
-  lone minus as an EMPTY `value`, with `validity.badInput` the only sign that
-  the field holds anything; the first version of rule 3 sent that as a clear,
+  a number.** A number input reports `4e` or a lone minus — and, in the
+  macOS Chromium this was measured on, `45.` on the way to 45.5 — as an EMPTY
+  `value`, with `validity.badInput` the only sign that the field holds
+  anything (CI's Linux Chromium reads `45.` as 45: which strings are
+  unreadable is the engine's, so the e2e cases about them ask the browser
+  first, `unreadableHere` in `tests/e2e/part-panel.spec.ts`, and fail when
+  none is left); the first version of rule 3 sent that as a clear,
   so the stored width was deleted, the write answered ok and nothing was said,
   on exits where the value had survived before the rule existed (measured in
   Chromium 153, guest and saved; found by review the day the fix was written).
