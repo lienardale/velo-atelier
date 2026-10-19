@@ -89,15 +89,31 @@ const build = buildOf(deriveBike(BIKE_PRESETS["gravel-1x11"]));
  * rows exist only once `va:bike:local` is read, after hydration, but every row
  * click goes through here so the safe form is the only one to copy.
  */
-async function clickRow(page: Page, partId: string): Promise<void> {
+async function clickRow(
+  page: Page,
+  partId: string,
+  { timeout }: { timeout?: number } = {},
+): Promise<void> {
   const row = page.locator(`[data-part-row="${partId}"]`);
   await expect
-    .poll(() =>
-      row.evaluate((node) => Object.keys(node).some((key) => key.startsWith("__reactProps"))),
+    .poll(
+      () => row.evaluate((node) => Object.keys(node).some((key) => key.startsWith("__reactProps"))),
+      { timeout },
     )
     .toBe(true);
   await row.click();
 }
+
+/**
+ * How long a SECOND page of a two-page case may take to hydrate its rows. Both
+ * pages mount a 3D scene, on CI through SwiftShader: on PR #27's run of
+ * 2026-10-19 (`e2e (mobile-landscape)`) the second page's main thread was
+ * busy for about 6 s after its lazy chunks arrived — no paint, no request, no
+ * console line — and the default 10 s poll ran out about 50 ms before it came
+ * back (read in the run's trace). A wait for hydration, not an assertion: what
+ * the case checks after the click is unchanged.
+ */
+const SECOND_PAGE_HYDRATION_MS = 30_000;
 
 /** The gravel bike of the seeded French demo account. */
 async function demoBikeId(): Promise<string> {
@@ -1457,7 +1473,7 @@ forEachLocale((locale) => {
         const other = await context.newPage();
         if (how === "the demo's local copy") {
           await other.goto(href(locale, "/velo/[id]", { id: "demo" }));
-          await clickRow(other, "tire-front");
+          await clickRow(other, "tire-front", { timeout: SECOND_PAGE_HYDRATION_MS });
           await expandSheetIfPresent(other);
           await other.getByTestId("part-panel-fork").getByRole("button").click();
         } else {
