@@ -10,8 +10,14 @@
   "schedule": ["before 5am on monday"],
   "timezone": "Europe/Paris",
   "labels": ["dependencies"],
-  "description": "A freshly published version can be a compromised one. Hold every update for 7 days so a hijacked release is yanked before Renovate proposes it. Security updates bypass the hold through vulnerabilityAlerts.minimumReleaseAge below.",
+  "description": [
+    "A freshly published version can be a compromised one. Hold every update for 7 days so a hijacked release is yanked before Renovate proposes it. Security updates bypass the hold through vulnerabilityAlerts.minimumReleaseAge below.",
+    "constraints.npm makes Renovate write package-lock.json with npm 11: the major Node 24 bundles, and the one CI's `npm ci` reads it with. npm 12 defaults allow-remote to none, and under --package-lock-only it opens a package that declares bundleDependencies by fetching its tarball URL, which that default refuses (npm/cli#9800). Here that is @tailwindcss/oxide-wasm32-wasi, so every lockfile update fails, with or without a version change (reproduced on npm 12.2.0), and PR #28 carried package.json alone. Move this with .nvmrc, as the @types/node cap does, and drop it once npm/cli#9800 is fixed."
+  ],
   "minimumReleaseAge": "7 days",
+  "constraints": {
+    "npm": "^11"
+  },
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "vulnerabilityAlerts": {
