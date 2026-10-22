@@ -289,6 +289,9 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   // finished and then reloaded would come back on its last question instead of
   // on its summary.
   useEffect(() => {
+    // Leaving for the full checkup: this document's address is not touched
+    // while the browser loads the next one.
+    if (phase === "resuming") return;
     const url = new URL(window.location.href);
     if (phase === "step" && step !== null) url.searchParams.set("step", step.key);
     else url.searchParams.delete("step");
