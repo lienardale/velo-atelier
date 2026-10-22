@@ -121,6 +121,29 @@ describe("a partial checkup asks about the parts that were picked", () => {
     ]);
   });
 
+  it("plans nothing for the LEFT shifter alone — its one question's findings are the derailleurs' (§5.12, RA-5)", () => {
+    // Written down so that the empty page ("Rien à contrôler ici") stays a
+    // fact the documents can state — `.debug/017` §5.11 and `docs/backlog.md`
+    // say it, and whether to ask such a question anyway awaits a ruling.
+    const carriers = (Object.keys(BIKE_PRESETS) as PresetId[]).filter((preset) =>
+      buildOf(preset).parts.some((part) => part.partId === "shifter-left"),
+    );
+    expect(carriers.length).toBe(2);
+    for (const preset of carriers) {
+      const build = buildOf(preset);
+      const scope = { kind: "parts" as const, partIds: ["shifter-left"] as PartId[] };
+      expect(planCheckup(build, scope, FR), preset).toEqual([]);
+      // The rule of before 2026-10-22 asked it, whole.
+      const full = planCheckup(build, { kind: "full" }, FR);
+      expect(
+        full
+          .filter((step) => step.partIds.includes(hostOf("shifter-left") as PartId))
+          .map((step) => step.key),
+        preset,
+      ).toEqual(["check-drivetrain#shifting-index"]);
+    }
+  });
+
   it("plans NOTHING for a parts scope that names no part — which no caller hands it any more", () => {
     // Kept on purpose (`.debug/017` §5.10): a planner that turned it into the
     // full checkup would widen silently, and a stale empty scope would then
