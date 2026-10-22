@@ -13,6 +13,7 @@ import {
   clipRefinementText,
   isRefinementEntry,
   isRefinementKey,
+  MAX_REFINEMENT_ENTRIES,
   MAX_REFINEMENT_KEY_LENGTH,
   MAX_REFINEMENT_VALUE_LENGTH,
   refinementOf,
@@ -180,6 +181,60 @@ describe("refinementOf — a bad entry costs that entry", () => {
     expect(fits).toHaveLength(MAX_REFINEMENT_VALUE_LENGTH);
     expect(refinementOf({ "pad-model": fits })).toEqual({ "pad-model": fits });
     expect(refinementOf({ "pad-model": `r${fits}` })).toBeUndefined();
+  });
+});
+
+/**
+ * `count` answers under keys of two lengths, so that the order a `jsonb`
+ * column hands them back in (shorter keys first) is not their order by key:
+ * `z0`…`z9` are the shortest and sort LAST.
+ */
+const answers = (count: number): Record<string, string> =>
+  Object.fromEntries(
+    Array.from({ length: count }, (_, index) =>
+      index < 10 ? [`z${index}`, `v${index}`] : [`attr-${String(index).padStart(2, "0")}`, "x"],
+    ),
+  );
+
+describe("refinementOf — never more answers than a line holds (`.debug/017` §5.9, V1-1)", () => {
+  it("is 24: the count the saved bike's action refuses past, and the import's contract", () => {
+    expect(MAX_REFINEMENT_ENTRIES).toBe(24);
+  });
+
+  it("reads a row of exactly the count whole, in its stored order", () => {
+    const stored = answers(MAX_REFINEMENT_ENTRIES);
+    const read = refinementOf(stored);
+    expect(read).toEqual(stored);
+    expect(Object.keys(read ?? {})).toEqual(Object.keys(stored));
+  });
+
+  it.each([25, 30, 400])(
+    "of %i answers keeps the first 24 BY KEY — whatever order the store kept them in",
+    (count) => {
+      const stored = answers(count);
+      const byKey = Object.keys(stored).sort().slice(0, MAX_REFINEMENT_ENTRIES);
+      const read = refinementOf(stored);
+      expect(Object.keys(read ?? {}).sort()).toEqual(byKey);
+      // Each as stored, and the stored order kept among them.
+      expect(stored).toMatchObject(read ?? {});
+      expect(Object.keys(read ?? {})).toEqual(Object.keys(stored).filter((k) => byKey.includes(k)));
+      // The same entries in another order — as a `jsonb` column hands them
+      // back, shortest key first — give the same answers.
+      const reordered = Object.fromEntries(
+        Object.entries(stored).sort(([a], [b]) => a.length - b.length || (a < b ? -1 : 1)),
+      );
+      expect(refinementOf(reordered)).toEqual(read);
+      // And the count is what the action takes back.
+      expect(Object.keys(read ?? {})).toHaveLength(MAX_REFINEMENT_ENTRIES);
+    },
+  );
+
+  it("counts only the entries it keeps: dropped ones never take a place", () => {
+    const stored = {
+      ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`a-${i}`, "r".repeat(99)])),
+      ...answers(MAX_REFINEMENT_ENTRIES),
+    };
+    expect(refinementOf(stored)).toEqual(answers(MAX_REFINEMENT_ENTRIES));
   });
 });
 

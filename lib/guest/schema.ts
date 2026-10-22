@@ -135,7 +135,12 @@ import { QUESTION_IDS } from "@/lib/domain/data/decision-tree";
 import { MAX_BUILD_PARTS } from "@/lib/domain/engine/validate-build";
 import type { KoAction } from "@/lib/domain/schema/procedure";
 import { chosenProductOf, isAllowedProductUrl, isPlainHttpsUrl } from "@/lib/shop/chosen-product";
-import { isRefinementKey, MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
+import {
+  isRefinementKey,
+  MAX_REFINEMENT_ENTRIES,
+  MAX_REFINEMENT_VALUE_LENGTH,
+  refinementOf,
+} from "@/lib/shop/refinement";
 
 /**
  * Bumped only when a shape change makes an older payload unreadable.
@@ -176,14 +181,15 @@ export const GUEST_CAPS = {
   scopeParts: MAX_BUILD_PARTS,
   itemsPerList: QUOTAS.itemsPerList,
   /**
-   * Answers on one list line's `refinement` — the account's own bound
-   * (`MAX_REFINEMENT_KEYS` in `liste/actions.ts`): a part has a handful of
-   * attributes. With 40-character keys and values of at most
+   * Answers on one list line's `refinement` — THE count
+   * (`MAX_REFINEMENT_ENTRIES`, `lib/shop/refinement.ts`), which the
+   * account's action refuses past and every reader stops at: a part has a
+   * handful of attributes. With 40-character keys and values of at most
    * `MAX_REFINEMENT_VALUE_LENGTH` (64) characters that is under 6 KB of JSON
    * at three bytes a character, well inside the 32 KB every JSON column is
    * held to.
    */
-  refinementEntries: 24,
+  refinementEntries: MAX_REFINEMENT_ENTRIES,
 } as const;
 
 /**
@@ -792,12 +798,14 @@ function collectCheckup(
  *
  *   1. the list page's own reader ({@link refinementOf}). An answer the page
  *      drops — longer than the cap, not a string, under a key that is not an
- *      attribute key (`constructor` and `prototype` among them) — is not
- *      sent, so the import carries the list the visitor SEES;
+ *      attribute key (`constructor` and `prototype` among them), past the
+ *      line's count of answers — is not sent, so the import carries the list
+ *      the visitor SEES, and never more answers than the contract's cap
+ *      (the same count, `MAX_REFINEMENT_ENTRIES`);
  *   2. the contract's own two schemas ({@link RefinementKey},
- *      {@link RefinementValue}) and its cap on entries. Whatever is left that
- *      the server would refuse — a key over its 40 characters, a U+0000 — is
- *      not sent either: nothing in a line's refinement can sink the payload.
+ *      {@link RefinementValue}). Whatever is left that the server would
+ *      refuse — a key over its 40 characters, a U+0000 — is not sent either:
+ *      nothing in a line's refinement can sink the payload.
  *
  * Lone surrogates are replaced BEFORE the second filter (it would refuse
  * them), as everywhere in the projection: half an emoji is imported as
@@ -811,12 +819,10 @@ function collectCheckup(
 function collectRefinement(stored: unknown): Record<string, string> | undefined {
   const read = wellFormed(refinementOf(stored));
   if (read === undefined) return undefined;
-  const entries = Object.entries(read)
-    .filter(
-      ([key, value]) =>
-        RefinementKey.safeParse(key).success && RefinementValue.safeParse(value).success,
-    )
-    .slice(0, GUEST_CAPS.refinementEntries);
+  const entries = Object.entries(read).filter(
+    ([key, value]) =>
+      RefinementKey.safeParse(key).success && RefinementValue.safeParse(value).success,
+  );
   return entries.length === 0 ? undefined : Object.fromEntries(entries);
 }
 

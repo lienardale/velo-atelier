@@ -42,7 +42,22 @@ const {
   setBuildListItemRefinementAction,
 } = await import("@/app/[locale]/velo/[id]/liste/actions");
 const { loadBuildList } = await import("@/app/[locale]/velo/[id]/liste/load");
-const { MAX_REFINEMENT_VALUE_LENGTH } = await import("@/lib/shop/refinement");
+const { MAX_REFINEMENT_ENTRIES, MAX_REFINEMENT_VALUE_LENGTH } =
+  await import("@/lib/shop/refinement");
+
+/**
+ * `count` answers under keys of two lengths: PostgreSQL hands a `jsonb`
+ * object's keys back shortest first, so `z0`…`z9` come first from the column
+ * and LAST by key — a reader that kept the column's first 24 would keep other
+ * answers than one that keeps the first by key.
+ */
+function answers(count: number): Record<string, string> {
+  return Object.fromEntries(
+    Array.from({ length: count }, (_, index) =>
+      index < 10 ? [`z${index}`, `v${index}`] : [`attr-${String(index).padStart(2, "0")}`, "x"],
+    ),
+  );
+}
 
 /** The seeded FR demo user, signed in, and their gravel bike's open list. */
 async function seededList() {
@@ -387,6 +402,81 @@ describe("the refinement", () => {
     });
   });
 
+  it("takes exactly the count of answers, and refuses one more", async () => {
+    const { list } = await seededList();
+    const chain = list.items.find((item) => item.partId === "chain")!;
+    expect(
+      await setBuildListItemRefinementAction({
+        itemId: chain.id,
+        refinement: answers(MAX_REFINEMENT_ENTRIES),
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(
+      await setBuildListItemRefinementAction({
+        itemId: chain.id,
+        refinement: answers(MAX_REFINEMENT_ENTRIES + 1),
+      }),
+    ).toEqual({ ok: false, code: "TOO_MANY" });
+  });
+
+  it.each([25, 30])(
+    "a row that ALREADY holds %i answers is read with 24 of them — so its next edit, and clearing one, is accepted",
+    async (count) => {
+      // Such a row could be written: until PR #27 (merged 2026-10-22) the
+      // guest import's contract on production had no cap on a refinement's
+      // entries, and the list's loader handed the page every answer while the
+      // action refuses more than 24. The page sends back the WHOLE refinement
+      // it was given, so every edit of such a line was `TOO_MANY`: at 25
+      // until one answer was cleared, at 30 clearing one was refused too
+      // (measured in the review of that fix, V1-1). The row is written past
+      // every guard, as the import left it.
+      const { user, list } = await seededList();
+      const chain = list.items.find((item) => item.partId === "chain")!;
+      const stored = answers(count);
+      await prisma.buildListItem.update({ where: { id: chain.id }, data: { refinement: stored } });
+
+      // The page gets 24 answers: the first 24 by key, each as stored — not
+      // the column's first 24, which are the short `z*` keys.
+      const loaded = await loadBuildList(list.bikeId, user.id);
+      const line = loaded.items.find((item) => item.id === chain.id);
+      const handed = line?.refinement ?? {};
+      expect(Object.keys(handed).sort()).toEqual(
+        Object.keys(stored).sort().slice(0, MAX_REFINEMENT_ENTRIES),
+      );
+      expect(stored).toMatchObject(handed);
+      // The buying guide's prefill reads the same 24.
+      expect(await loadBuildListItemAction({ bikeId: list.bikeId, itemId: chain.id })).toEqual({
+        ok: true,
+        data: { partId: chain.partId, refinement: handed },
+      });
+      // Reading wrote nothing.
+      expect(
+        (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } })).refinement,
+      ).toEqual(stored);
+
+      // What the form sends on the next edit — everything it was given, one
+      // answer changed — is accepted, and replaces the column.
+      const edited = { ...handed, "attr-10": "y" };
+      expect(
+        await setBuildListItemRefinementAction({ itemId: chain.id, refinement: edited }),
+      ).toEqual({ ok: true, data: null });
+      expect(
+        (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } })).refinement,
+      ).toEqual(edited);
+
+      // And clearing one — the edit that was refused at 30.
+      await prisma.buildListItem.update({ where: { id: chain.id }, data: { refinement: stored } });
+      const cleared: Record<string, string> = { ...handed };
+      delete cleared["attr-10"];
+      expect(
+        await setBuildListItemRefinementAction({ itemId: chain.id, refinement: cleared }),
+      ).toEqual({ ok: true, data: null });
+      expect(
+        (await prisma.buildListItem.findUniqueOrThrow({ where: { id: chain.id } })).refinement,
+      ).toEqual(cleared);
+    },
+  );
+
   it("answers NOT_FOUND for another account's line", async () => {
     const { list } = await seededList();
     const chain = list.items.find((item) => item.partId === "chain")!;
@@ -474,15 +564,16 @@ describe("reading one line for the buying guide (`/acheter?item=`)", () => {
     });
   });
 
-  it("answers with at most the 24 answers a line may hold, whatever the row holds", async () => {
-    // The action's own bound on a WRITE (`TOO_MANY` past 24, above) and on
-    // this answer. No path of the application writes a 25th: the import's
-    // contract stops at the same number.
+  it("answers with at most the 24 answers a line may hold — the 24 the list's loader hands the page", async () => {
+    // The action's bound on a WRITE (`TOO_MANY` past 24, above) is the
+    // reader's count (`MAX_REFINEMENT_ENTRIES`), and both readers of the
+    // column apply it. Until 2026-10-22 only this one did, and this case
+    // pinned the loader as unbounded under a comment that said no path wrote
+    // a 25th answer — true of the branch, not of production's import contract
+    // until PR #27 (V1-1).
     const { user, list } = await seededList();
     const item = list.items[0];
-    const thirty = Object.fromEntries(
-      Array.from({ length: 30 }, (_, index) => [`attr-${String(index).padStart(2, "0")}`, "x"]),
-    );
+    const thirty = answers(30);
     await prisma.buildListItem.update({ where: { id: item.id }, data: { refinement: thirty } });
 
     const result = await loadBuildListItemAction({ bikeId: list.bikeId, itemId: item.id });
@@ -491,11 +582,10 @@ describe("reading one line for the buying guide (`/acheter?item=`)", () => {
     expect(Object.keys(result.data.refinement)).toHaveLength(24);
     // Twenty-four of the thirty, each as stored.
     expect(thirty).toMatchObject(result.data.refinement);
-    // The list's loader has no such bound: it is this action's own.
     const viaLoader = (await loadBuildList(list.bikeId, user.id)).items.find(
       (line) => line.id === item.id,
     );
-    expect(Object.keys(viaLoader?.refinement ?? {})).toHaveLength(30);
+    expect(viaLoader?.refinement).toEqual(result.data.refinement);
   });
 
   it("answers NOT_FOUND for another account's line, and for a line of another bike", async () => {
