@@ -35,6 +35,7 @@ import {
   guestRun,
   guestWork,
   partsScope,
+  planBeforeTheScopeRule,
   planFromDisk,
   resumeGuestRun,
   type GuestResumeOptions,
@@ -826,14 +827,15 @@ describe("part states (§4.2 b)", () => {
     ]);
   });
 
-  it("leaves out an OK to a question the planner of before 2026-10-22 asked of the rear caliper, and writes the rear only", async () => {
+  it("keeps an OK to a question the planner of before 2026-10-22 asked of the rear caliper — a row, acted on nowhere — and writes the rear only", async () => {
     // What a browser that ran the wizard of then holds (`.debug/017` §5.12,
     // B6): a rear-caliper checkup planned whole, `hose-leak` among its
     // questions. Today's rule does not ask `hose-leak` of a caliper — its only
     // finding is about the brake lines — and an OK to it says nothing about a
-    // part inside. Until this fix it widened the checkup to FULL, and the
-    // import wrote the FRONT caliper BROKEN and the front lever OK from a
-    // rear-caliper checkup.
+    // part inside. Until §5.12 it widened the checkup to FULL, and the import
+    // wrote the FRONT caliper BROKEN and the front lever OK from a
+    // rear-caliper checkup; until §5.13 it was left out, and the browser, told
+    // "imported", forgot an answer the account did not have (V1-3).
     const bike = collected({
       parts: ["brake-caliper-rear"],
       verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] }, [ALIGNMENT]: "ok", [HOSE]: "ok" },
@@ -842,11 +844,19 @@ describe("part states (§4.2 b)", () => {
     expect(Object.keys(bike.checkups[0].answers).sort()).toEqual(
       [ALIGNMENT, HOSE, PAD_WEAR].sort(),
     );
-    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "imported" },
+    ]);
     expect(rows("Checkup")[0].scope).toBe("PARTIAL");
-    expect(rows("CheckupItem").map((item) => `${item.stepKey}@${item.partId}`)).toEqual([
-      `${PAD_WEAR}@brake-caliper-rear`,
-      `${ALIGNMENT}@brake-caliper-rear`,
+    expect(
+      rows("CheckupItem").map((item) => `${item.stepKey}=${item.result}@${item.partId}`),
+    ).toEqual([
+      `${PAD_WEAR}=KO@brake-caliper-rear`,
+      `${ALIGNMENT}=OK@brake-caliper-rear`,
+      // Against the part the scope picked, not the front lever its question
+      // names first.
+      `${HOSE}=OK@brake-caliper-rear`,
     ]);
     const written = [...partStates().values()].filter((row) => row.status !== "UNKNOWN");
     expect(written.map((row) => `${row.partId}=${row.status}`)).toEqual([
@@ -854,23 +864,47 @@ describe("part states (§4.2 b)", () => {
     ]);
   });
 
-  it("keeps a KO to such a question: the checkup is FULL, and the leak is on the list", async () => {
-    // A KO's finding outranks the parts it was asked for: it widens the run,
-    // like an answer beyond its parts always did.
+  it("keeps a KO to such a question as a row too, and acts on it nowhere: the checkup stays PARTIAL, and the FRONT parts are not written", async () => {
+    // Until this fix (`.debug/017` §5.13, B6): FULL, its items on the FRONT
+    // caliper and lever, both `BROKEN`, and nothing about the rear. The
+    // leak's lines are the ones the browser derived then, which the payload
+    // brings: the import never derives a line.
     const bike = collected({
       parts: ["brake-caliper-rear"],
-      verdicts: { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok", [HOSE]: { ko: ["hose-leak"] } },
+      verdicts: {
+        [PAD_WEAR]: { ko: ["pad-worn"] },
+        [ALIGNMENT]: "ok",
+        [HOSE]: { ko: ["hose-leak"] },
+      },
       planner: "before-2026-10-22",
     });
     await importGuestState(fakeDb.client, userId, state(bike), deps);
-    expect(rows("Checkup")[0].scope).toBe("FULL");
-    expect(rows("CheckupItem").map((item) => item.stepKey)).toContain(HOSE);
+    expect(rows("Checkup")[0].scope).toBe("PARTIAL");
+    expect(rows("CheckupItem")).toContainEqual(
+      expect.objectContaining({
+        stepKey: HOSE,
+        result: "KO",
+        partId: "brake-caliper-rear",
+        reasonKeys: ["hose-leak"],
+      }),
+    );
+    const written = [...partStates().values()].filter((row) => row.status !== "UNKNOWN");
+    expect(written.map((row) => `${row.partId}=${row.status}`)).toEqual([
+      "brake-caliper-rear=BROKEN",
+    ]);
     expect(
       (rows("BuildListItem") as { partId: string }[]).map((line) => line.partId).sort(),
-    ).toEqual(["brake-line-front", "brake-line-rear"]);
+    ).toEqual(["brake-line-front", "brake-line-rear", "brake-pads-front", "brake-pads-rear"]);
+    // And no line is linked to a row the checkup does not act on.
+    const hose = rows("CheckupItem").find((item) => item.stepKey === HOSE);
+    expect(
+      (rows("BuildListItem") as { checkupItemId?: string }[]).map((line) => line.checkupItemId),
+    ).not.toContain(hose?.id);
   });
 
-  it("reports nothing-kept for a partial checkup whose only answer is such an OK", async () => {
+  it("imports a partial checkup whose only answer is such an OK — that row, acted on nowhere — rather than reporting nothing kept", async () => {
+    // Until this fix it was `nothing-kept`: the browser kept its copy, but the
+    // answer had no place on the account at all (`.debug/017` §5.13, V1-3).
     const bike = collected({
       parts: ["brake-caliper-rear"],
       verdicts: { [HOSE]: "ok" },
@@ -879,17 +913,22 @@ describe("part states (§4.2 b)", () => {
     });
     const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
     expect(result.ok && result.data.bikes[0].checkups).toEqual([
-      { guestKey: CHECKUP_ID, status: "skipped", reason: "nothing-kept" },
+      { guestKey: CHECKUP_ID, status: "imported" },
     ]);
-    expect(rows("Checkup")).toHaveLength(0);
+    expect(rows("Checkup")).toEqual([expect.objectContaining({ scope: "PARTIAL" })]);
+    expect(rows("CheckupItem")).toEqual([
+      expect.objectContaining({ stepKey: HOSE, result: "OK", partId: "brake-caliper-rear" }),
+    ]);
   });
 
-  it("widens a partial checkup whose plan no longer offers a KO's symptom, and keeps the symptom", async () => {
+  it("keeps a KO whose symptom the narrowed question no longer offers — a row with its symptom, acted on nowhere — and stays PARTIAL", async () => {
     // A rim-brake bike's front-caliper checkup of before 2026-10-22: the rim
     // track asked whole, a worn track reported. Today's front-caliper plan
     // asks it for the front pads alone, "contaminated" only: married to it,
     // the KO lost its symptom and listed "clean the front pads"
-    // (`.debug/017` §5.12, RA-2).
+    // (`.debug/017` §5.12, RA-2); widened for it, the checkup wrote the front
+    // WHEEL `BROKEN` (§5.13, B6 — a rear caliper's run put a worn rear rim on
+    // the front wheel).
     const RIM_TRACK = "check-brakes-rim#rim-track";
     const work = guestWork({
       answers: BIKE_PRESETS["road-rim-2x11"],
@@ -899,22 +938,41 @@ describe("part states (§4.2 b)", () => {
         guestRun({
           id: CHECKUP_ID,
           build,
-          scope: partsScope("brake-caliper-front"),
-          verdicts: { [RIM_TRACK]: { ko: ["rim-brake-track-worn"] } },
+          scope: partsScope("brake-caliper-rear"),
+          // Finished — every question of then answered, the rest OK: a
+          // finished checkup is the one that writes part states.
+          verdicts: {
+            ...Object.fromEntries(
+              planBeforeTheScopeRule(build, partsScope("brake-caliper-rear")).map((step) => [
+                step.key,
+                "ok" as const,
+              ]),
+            ),
+            [RIM_TRACK]: { ko: ["rim-brake-track-worn"] },
+          },
           startedAt: STARTED_AT,
+          completedAt: COMPLETED_AT,
           planner: "before-2026-10-22",
         }),
     });
     const payload = JSON.parse(JSON.stringify(work.collect().state)) as GuestState;
     await importGuestState(fakeDb.client, userId, payload, deps);
-    expect(rows("Checkup")[0].scope).toBe("FULL");
-    expect(rows("CheckupItem")).toEqual([
+    expect(rows("Checkup")[0]).toMatchObject({ scope: "PARTIAL", status: "COMPLETED" });
+    expect(rows("CheckupItem")).toContainEqual(
       expect.objectContaining({
         stepKey: RIM_TRACK,
         result: "KO",
+        partId: "brake-caliper-rear",
         reasonKeys: ["rim-brake-track-worn"],
       }),
-    ]);
+    );
+    // Every row on the rear caliper — and the OKs mark it, the worn rim
+    // nothing: no wheel, front or rear, is written.
+    expect(new Set(rows("CheckupItem").map((item) => item.partId))).toEqual(
+      new Set(["brake-caliper-rear"]),
+    );
+    const written = [...partStates().values()].filter((row) => row.status !== "UNKNOWN");
+    expect(written.map((row) => `${row.partId}=${row.status}`)).toEqual(["brake-caliper-rear=OK"]);
   });
 
   it("never lets an OK undo a KO on the same part within one checkup", async () => {

@@ -30,9 +30,10 @@ export interface StoredItemRow {
   stepKey: string;
   /**
    * The part the answer is recorded against: the first part its step reports
-   * on, in the scope the run was saved under (`answeredItems`). Not an answer
-   * itself — what tells a page whose parts do not hold the answer
-   * (`resumeTarget`, `lib/checkup/scope.ts`).
+   * on, in the scope the run was saved under (`answeredItems`) — for a row
+   * written before 2026-10-22, the first part of the WHOLE question. Not an
+   * answer itself: what tells which parts the run was about, as far as the
+   * rows can (`recordedScope`, `savedResumeTarget`, `lib/checkup/scope.ts`).
    */
   partId: string;
   result: CheckupResult;
@@ -72,7 +73,8 @@ export interface StoredRun {
 /**
  * The bike's most recent checkup, as the wizard's stored shape — with the
  * part each row is recorded against, which the checkup PAGE reads to tell
- * whether the parts it was asked for hold the run (`page.tsx`).
+ * which parts the run was about and whether the parts it was asked for hold
+ * it (`page.tsx`).
  *
  * In-progress first, then the newest — `status` sorts `IN_PROGRESS` before
  * `COMPLETED` in the enum's own order, which is exactly the priority a resume
@@ -120,8 +122,9 @@ export async function loadStoredCheckupRun(
       // says "partial", and nothing about which parts. It is never posted back
       // and never planned — a scope naming no part plans no question, and the
       // wizard that once posted this one deleted every answer of the run
-      // (`.debug/017` §5.10). The run is resumed on the PAGE's scope when that
-      // scope holds it, and on the full checkup otherwise (`resumeTarget`,
+      // (`.debug/017` §5.10). The page reads the parts from its own address
+      // (`?run=`) or from the rows' parts, and resumes the run on them, on the
+      // page, or on the full checkup (`savedResumeTarget`,
       // `lib/checkup/scope.ts`); the actions refuse a scope naming no part.
       scope: row.scope === "FULL" ? { kind: "full" } : { kind: "parts", partIds: [] },
       locale,

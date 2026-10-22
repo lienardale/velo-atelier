@@ -812,9 +812,10 @@ Nor can a run in progress be set aside. Since the review of 2026-10-22
 (`.debug/017` §5.12) a guest's partial run with an answer given for some of
 its question's parts only is brought back to its own parts from any other
 checkup page — the full checkup included — until it is finished: resumed
-anywhere else, that answer would count for parts it was not given for. The
-notice says so ("Terminez-le pour en commencer un autre"); abandoning a run
-would be the other way out.
+anywhere else, that answer would count for parts it was not given for; and
+since §5.13 so is a saved bike's whose rows tell its parts. The notice says so
+("Terminez-le pour en commencer un autre"); abandoning a run would be the
+other way out.
 
 _To pick up_: on its own now — the list lifecycle it was waiting for is
 settled (W5 above: one OPEN list per bike), and nothing writes `ABANDONED`
@@ -828,52 +829,52 @@ to are stored nowhere. Since the scope rule (`.debug/017` §5.11) one question
 is about different parts under different scopes — the pads' question asked
 for the rear caliper is about the rear pads — so knowing which parts an
 answer was given for is what tells a page that may resume a run from one that
-would move its answers. Since the review of 2026-10-22 (§5.12) no run is
-trimmed, no stored answer is deleted, stripped of its symptom or rewritten
-for a page's sake, and a GUEST's run — its scope is stored whole — is resumed
-only where its answers mean what they meant: on the page, back on its own
-parts, or on the full checkup when that asks every answer about what it was
-given for (`resumeTarget`, `lib/checkup/scope.ts`). A saved bike's run is
-judged by its rows: each names the part it is recorded against, and a page
-whose parts do not include it does not hold the run, which then carries on as
-the full checkup. What that leaves, each measured on PostgreSQL through the
-real page, wizard and actions — the first by
-`tests/integration/checkup-resume.test.ts` (and in Chromium by
-`tests/e2e/checkup-resume.spec.ts`), the other two by a throwaway probe on the
-same harness (`.debug/017` §5.12):
+would move its answers. Since the reviews of 2026-10-22 (§5.12, §5.13) no run
+is trimmed, no stored answer is deleted, stripped of its symptom or rewritten
+for a page's sake, a GUEST's run — its scope is stored whole — is resumed only
+on its own parts or on the full checkup when that takes it over
+(`guestResumeTarget`, `lib/checkup/scope.ts`), and a SAVED bike's run is
+resumed on the parts that two things can tell (`savedResumeTarget`): the
+page's own address, which carries the run's `startedAt` (`?run=`, written by
+the wizard beside `?parts=` on the page that shows the run — so a reload,
+Back or Forward keeps it there); and the rows, each of which names the FIRST
+part its question reported on (`recordedScope`). A row on the rear caliper —
+the last of the pads' question's two — tells the rear pads; the run is then
+resumed on the rear caliper from any page, the resume banner included. What
+is left, each measured on PostgreSQL through the real page, wizard and
+actions (`tests/integration/checkup-resume.test.ts`; the first two also in
+Chromium, `tests/e2e/checkup-resume.spec.ts`):
 
-- **Carried on as the full checkup** — through the resume banner, which has
-  no `?parts=`, or from parts that do not hold the run — an answer given for
-  one side counts for every part its question names: the rear pads' OK,
-  finished there, closes the front pads' open line and writes the front
-  caliper `OK`; the rear pads' KO lists both sides' pads. The notice says so
-  and names the questions concerned ("…vérifiez-les : « Mesurer l’usure des
-  plaquettes »"); the visitor can re-answer, but one verdict per question
-  cannot be one per side. Nothing is lost.
-- **A one-side row and a both-sides one look alike** when they name the same
-  first part (`answeredItems` stores `partIds[0]`): a run on the front caliper
-  reopened on BOTH calipers is held, and its answer then counts for both,
-  with nothing on screen (measured: the front pads' OK, finished there, wrote
-  both calipers `OK`); one on both calipers reopened on the front caliper is
-  held, and its answer then counts for the front only — the summary's "Ne
-  compte que pour : …" says so, nothing says the rear was dropped (measured:
-  both pads' KO finished as `REPLACE brake-pads-front` alone).
+- **A row on the FRONT caliper cannot tell** a front-caliper run from a
+  both-calipers one, so such a run, opened from anything but its own address
+  — the parts panel picking the same parts again, the resume banner, another
+  device — carries on as the full checkup: an answer given for one side then
+  counts for every part its question names (the front pads' OK, finished
+  there, closes the rear pads' open line too). The notice says so, names the
+  questions concerned ("…vérifiez-les : « Mesurer l’usure des plaquettes »"),
+  and the wizard opens no later than the first of them, so the visitor sees
+  each again before going on; but one verdict per question cannot be one per
+  side. Nothing is lost: until §5.13 the both-calipers run opened on the
+  front caliper was held there, and finished as the front pads' line alone.
 - **Rows written before the fix** name their question's first part whatever
-  was picked (§5.11): a rear-caliper run of then, reloaded on its own
-  `?parts=` after the deploy, is carried on as the full checkup (said on
-  screen); opened on the front caliper, it is held there (read: its item is
-  inside that scope).
+  was picked (§5.11), and are read the same way: a rear-caliper run of then
+  carries on as the full checkup, said and shown, wherever it is opened.
+- **`?run=` is the browser's word**, taken only where the page gives every
+  row back its part: a hand-edited address could hold a both-calipers run on
+  its front side.
 
-_Why deferred_ (ruled 2026-10-22: no schema change for this fix; the review's
-remaining cases need one, escalated the same day): knowing the parts needs a
-column. Nothing in the existing columns can say "the rear pads", "the front
-pads" and "both" apart for one question (`.debug/017` §5.12).
+_Why deferred_ (ruled 2026-10-22: no schema change for this fix): telling the
+first two apart on any visit needs the parts themselves. Nothing in the
+existing columns can say "the front pads" and "both pads" apart for one
+question (`.debug/017` §5.12, §5.13).
 
 _To pick up_: `Checkup.partIds String[]` (a migration), written by
 `createCheckup` from the posted scope and kept in step by `writeColumn`;
 `loadStoredCheckupRun` and `loadBikeForRequest().resume` return it, so the
-banner carries `?parts=`; and `resumeTarget` treats a saved bike's run as one
-that knows its parts (`knowsItsParts`), exactly as a guest's.
+banner carries `?parts=`; and `savedResumeTarget` gives way to
+`guestResumeTarget`, a saved bike's run then knowing its parts exactly as a
+guest's does — `?run=` and `recordedScope` kept only for the rows written
+before the column.
 
 #### A part none of whose questions has a finding inside its scope asks nothing
 

@@ -389,9 +389,9 @@ export interface GuestResumeOptions {
  * The guest comes back to an UNFINISHED checkup through another link, and
  * carries on — as the wizard of before 2026-10-22 did, call for call, over a
  * plan made by the planner of then unless `planner` says otherwise: what a
- * browser that ran it holds today. (Today's wizard resumes a run only on a
- * page that holds it, and otherwise leaves for its own parts or for the full
- * checkup: `resumeTarget`, `lib/checkup/scope.ts`.)
+ * browser that ran it holds today. (Today's wizard resumes a guest's run on
+ * its own parts and nowhere else, or as the full checkup when that checkup
+ * takes it over: `guestResumeTarget`, `lib/checkup/scope.ts`.)
  *
  * The page plans the link's scope; the wizard reads the stored run (its own
  * read, `readStoredCheckup`) and marries it to THAT plan with `fromStored`.

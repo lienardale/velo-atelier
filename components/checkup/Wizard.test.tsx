@@ -646,8 +646,11 @@ describe("an unfinished run, resumed (§5.10, §5.12)", () => {
     await renderWithIntl(
       wizard({ scope: CHAIN_ONLY, steps: [CHAIN], scopeFacts: CHAIN_FACTS, resumedOwn: true }),
     );
+    // With its own parts, which the full page plans to check the run again.
     await waitFor(() =>
-      expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full"),
+      expect(leave.replaceDocument).toHaveBeenCalledWith(
+        "/fr/velo/demo/controle?parts=chain&resume=full",
+      ),
     );
   });
 
@@ -675,7 +678,9 @@ describe("an unfinished run, resumed (§5.10, §5.12)", () => {
       }),
     );
     await waitFor(() =>
-      expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full"),
+      expect(leave.replaceDocument).toHaveBeenCalledWith(
+        "/fr/velo/demo/controle?parts=brake-caliper-front&resume=full",
+      ),
     );
   });
 
@@ -727,12 +732,17 @@ describe("an unfinished run, resumed (§5.10, §5.12)", () => {
     expect(leave.replaceDocument).not.toHaveBeenCalled();
   });
 
-  it("carries a partial run on as a full checkup when the page came back with `?resume=full`, and says what that means", async () => {
+  it("carries a partial run on as a full checkup when the page came back with `?resume=full` FOR its parts, and says what that means", async () => {
     window.localStorage.setItem(
       checkupKey("demo"),
       JSON.stringify(partialRun({ [CHAIN.key]: "ko" })),
     );
-    const { user } = await renderWithIntl(wizard({ resumeWidened: true }));
+    const { user } = await renderWithIntl(
+      wizard({
+        resumeWidened: true,
+        widenedFrom: { scope: CHAIN_ONLY, steps: [CHAIN], facts: CHAIN_FACTS },
+      }),
+    );
     await waitFor(() =>
       expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull"),
     );
@@ -744,6 +754,223 @@ describe("an unfinished run, resumed (§5.10, §5.12)", () => {
     await user.click(screen.getByTestId("verdict-ok"));
     await waitFor(() => expect(stored()?.scope).toEqual({ kind: "full" }));
     expect(stored()?.answers).toMatchObject({ [CHAIN.key]: "ko", [PADS.key]: "ok" });
+  });
+
+  it("does not take `?resume=full` at its word: a partial run reached through it with no plan of its parts goes back to them (V1-2)", async () => {
+    // A stale entry of the history, or a tab restored on that address: until
+    // `.debug/017` §5.13 the run carried on as a full checkup there, and a
+    // rear-only OK closed the front pads' line.
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [PADS.key]: "ok" }, FRONT_CALIPER)),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(wizard({ resumeWidened: true }));
+    await waitFor(() =>
+      expect(leave.replaceDocument).toHaveBeenCalledWith(
+        "/fr/velo/demo/controle?parts=brake-caliper-front&resume=own",
+      ),
+    );
+    expect(screen.queryByTestId("verdict-bar")).not.toBeInTheDocument();
+  });
+
+  it("…nor when it names OTHER parts, nor its own parts when one answer counts for some of its question's parts there", async () => {
+    const run = partialRun({ [PADS.key]: "ok" }, FRONT_CALIPER);
+    window.localStorage.setItem(checkupKey("demo"), JSON.stringify(run));
+    leave.replaceDocument.mockClear();
+    const { unmount } = await renderWithIntl(
+      wizard({
+        resumeWidened: true,
+        widenedFrom: { scope: CHAIN_ONLY, steps: [CHAIN], facts: CHAIN_FACTS },
+      }),
+    );
+    await waitFor(() => expect(leave.replaceDocument).toHaveBeenCalledTimes(1));
+    expect(leave.replaceDocument).toHaveBeenLastCalledWith(
+      "/fr/velo/demo/controle?parts=brake-caliper-front&resume=own",
+    );
+    unmount();
+    resetStoredCheckupCache();
+
+    // Its own parts this time — but there the pads' question is asked of the
+    // front pads alone: the full checkup would count that OK for both.
+    await renderWithIntl(
+      wizard({
+        resumeWidened: true,
+        widenedFrom: {
+          scope: FRONT_CALIPER,
+          steps: [NARROWED_PADS],
+          facts: scopeFacts(FRONT_CALIPER, PLAN, [NARROWED_PADS]),
+        },
+      }),
+    );
+    await waitFor(() => expect(leave.replaceDocument).toHaveBeenCalledTimes(2));
+    expect(leave.replaceDocument).toHaveBeenLastCalledWith(
+      "/fr/velo/demo/controle?parts=brake-caliper-front&resume=own",
+    );
+  });
+
+  it("does not take `?resume=own` at its word either: a run on OTHER parts than the address's goes back to its own (V1-1)", async () => {
+    // A front-caliper run, and an address `?parts=brake-caliper-rear&resume=own`
+    // left by an earlier run: until §5.13 the run was resumed on the rear
+    // caliper, its front pads' KO then listed as the rear pads'.
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [PADS.key]: "ko" }, FRONT_CALIPER)),
+    );
+    const REAR_CALIPER = { kind: "parts" as const, partIds: ["brake-caliper-rear" as const] };
+    const REAR_PADS = {
+      ...PADS,
+      partIds: ["brake-caliper-rear"],
+      coveredParts: ["brake-pads-rear"],
+    } as typeof PADS;
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({
+        scope: REAR_CALIPER,
+        steps: [REAR_PADS],
+        scopeFacts: scopeFacts(REAR_CALIPER, PLAN, [REAR_PADS]),
+        resumedOwn: true,
+      }),
+    );
+    await waitFor(() =>
+      expect(leave.replaceDocument).toHaveBeenCalledWith(
+        "/fr/velo/demo/controle?parts=brake-caliper-front&resume=own",
+      ),
+    );
+    expect(screen.queryByTestId("checkup-resumed")).not.toBeInTheDocument();
+  });
+
+  it("keeps in storage an answer to a question its parts only touch, and acts on it nowhere (V1-3)", async () => {
+    // The pads' question stands for `hose-leak`: asked of the chain by the
+    // planner of before 2026-10-22, only touched by it today. Until §5.13 the
+    // next save wrote the run back without it.
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(
+        toStored(
+          makeState(PLAN, {
+            scope: CHAIN_ONLY,
+            answers: { [PADS.key]: "ok" },
+            notes: { [PADS.key]: "pas de fuite" },
+          }),
+        ),
+      ),
+    );
+    const { user } = await renderWithIntl(
+      wizard({
+        scope: CHAIN_ONLY,
+        steps: [CHAIN],
+        scopeFacts: { ...CHAIN_FACTS, touched: [PADS.key] },
+      }),
+    );
+    // Not a question on this page: the one it asks is on screen, open.
+    await waitFor(() =>
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", CHAIN.key),
+    );
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "none");
+    await user.click(screen.getByTestId("verdict-ko"));
+    await user.click(screen.getByTestId("symptom-chain-elongation"));
+    await user.click(screen.getByTestId("summary-create"));
+    await waitFor(() => expect(stored()?.completedAt).toBeDefined());
+    expect(stored()?.answers).toEqual({ [PADS.key]: "ok", [CHAIN.key]: "ko" });
+    expect(stored()?.notes).toEqual({ [PADS.key]: "pas de fuite" });
+    const list = JSON.parse(window.localStorage.getItem(buildListKey("demo")) ?? "null") as {
+      items: { partId: string }[];
+    };
+    expect(list.items.map((item) => item.partId)).toEqual(["chain"]);
+  });
+
+  it("writes a saved bike's address as what it shows: its parts and the run's `startedAt` — none of either for the full checkup, never `?resume=`", async () => {
+    const startedAt = "2026-10-20T08:00:00.000Z";
+    const fromServer: StoredCheckup = {
+      ...partialRun({ [CHAIN.key]: "ko" }, { kind: "parts", partIds: [] } as never),
+      bikeRef: { kind: "db", id: BIKE },
+      startedAt,
+    };
+    window.history.replaceState(
+      null,
+      "",
+      `/fr/velo/${BIKE}/controle?parts=brake-caliper-front&resume=own`,
+    );
+    const { unmount } = await renderWithIntl(
+      wizard({
+        bikeRef: { kind: "db", id: BIKE },
+        bikeParam: BIKE,
+        scope: CHAIN_ONLY,
+        steps: [CHAIN],
+        scopeFacts: CHAIN_FACTS,
+        resumedOwn: true,
+        initialStored: fromServer,
+      }),
+    );
+    const query = new URLSearchParams(window.location.search);
+    expect(query.get("parts")).toBe("chain");
+    expect(query.get("run")).toBe(String(Date.parse(startedAt)));
+    expect(query.has("resume")).toBe(false);
+    unmount();
+
+    await renderWithIntl(
+      wizard({
+        bikeRef: { kind: "db", id: BIKE },
+        bikeParam: BIKE,
+        resumeWidened: true,
+        initialStored: fromServer,
+      }),
+    );
+    const full = new URLSearchParams(window.location.search);
+    expect(full.has("parts")).toBe(false);
+    expect(full.has("run")).toBe(false);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("leaves a guest's address alone but for `?step=`", async () => {
+    window.history.replaceState(null, "", "/fr/velo/demo/controle?parts=chain&resume=own");
+    await renderWithIntl(wizard({ scope: CHAIN_ONLY, steps: [CHAIN], scopeFacts: CHAIN_FACTS }));
+    const query = new URLSearchParams(window.location.search);
+    expect(query.get("parts")).toBe("chain");
+    expect(query.get("resume")).toBe("own");
+    expect(query.has("run")).toBe(false);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens a saved bike's partial run carried on as the full checkup on the first answer the notice names (RA-3)", async () => {
+    // The chain's question is open, the pads' answered: until §5.13 the wizard
+    // opened on the first OPEN question, after the pads', and the answer now
+    // counted for both sides was never put back in front of the visitor.
+    const fromServer: StoredCheckup = {
+      ...partialRun({ [PADS.key]: "ok", [CALIPER.key]: "ok" }, {
+        kind: "parts",
+        partIds: [],
+      } as never),
+      bikeRef: { kind: "db", id: BIKE },
+    };
+    await renderWithIntl(
+      wizard({ bikeRef: { kind: "db", id: BIKE }, bikeParam: BIKE, initialStored: fromServer }),
+    );
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
+    expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", PADS.key);
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+  });
+
+  it("…and a guest's where it was: the full checkup took the run over only because its answers were given whole", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [PADS.key]: "ok", [CALIPER.key]: "ok" }, FRONT_CALIPER)),
+    );
+    await renderWithIntl(
+      wizard({
+        resumeWidened: true,
+        widenedFrom: {
+          scope: FRONT_CALIPER,
+          // Asked whole there: the full checkup asks them about what they were given for.
+          steps: [PADS, CALIPER],
+          facts: scopeFacts(FRONT_CALIPER, PLAN, [PADS, CALIPER]),
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", CHAIN.key),
+    );
   });
 
   it("names the questions whose answers now count for every part they name — a saved bike's banner", async () => {
