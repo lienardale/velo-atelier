@@ -31,7 +31,7 @@ a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
 `basic-ftp` today, plus the scoped `argparse` entry and the exact
-`@modelcontextprotocol/sdk` pin described below — and its
+`@modelcontextprotocol/sdk` and `vite` pins described below — and its
 GHSA id is then **removed** from `audit-ci.json`,
 so a regression fails the `audit` job instead of passing it silently. Every
 override is an untested version for its parent, so each one carries a
@@ -40,8 +40,14 @@ compatibility note and a green `bash scripts/ci.sh` + `npm run build` in
 id that stays. A dependency whose parent already admits the patched release
 needs no override, only `npm update <pkg>` — **unless the newest release that
 range admits is inside the 7-day hold**: `npm update` takes the newest, so the
-lowest clearing release is then pinned exactly (`mysql2`, and
-`@modelcontextprotocol/sdk` at 1.31.0 while 1.32.1 was a day old). The first five are written **unscoped**
+lowest clearing release is then pinned exactly (`mysql2`;
+`@modelcontextprotocol/sdk` at 1.31.0 while 1.32.1 was a day old, raised to
+1.32.0 on 2026-10-22; `vite` at 8.2.4 while 8.3.5 was a day old).
+**Resolve such a change one edit at a time and read the lockfile diff**: on
+2026-10-22, one `npm install` over four edits also floated `rolldown` and
+`@oxc-project/types` — seventeen entries, all inside the hold, none named by
+an advisory — while the same edits applied in sequence moved thirteen
+(`audit-ci-allowlist.md`, “How the lockfile was resolved”). The first five are written **unscoped**
 (`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose — and the
 reason is what the unscoped form _did_, not what the tree already looked like.
 `main` resolved two of them TWICE: `uuid@8.3.2` beside
@@ -1445,8 +1451,9 @@ scripts called with `bash` ran (`.debug/017`;
   `npx vitest run --coverage` after touching `lib/checkup/**` or
   `lib/domain/**`. `coverage.include` also takes `components/**/*.ts`,
   `app/**/load.ts` and `app/{sitemap,robots}.ts` (`components/bike3d/types.ts`,
-  declarations only, is excluded); coverage-v8 4.1.11 honours both `c8 ignore`
-  and `v8 ignore`. Node-tier tests build localized URLs with
+  declarations only, is excluded); coverage-v8 honours both `c8 ignore` and
+  `v8 ignore` (seen on 4.1.11; on 4.1.12 the hint parser, `ast-v8-to-istanbul`
+  1.0.6, is unchanged). Node-tier tests build localized URLs with
   `tests/_fakes/routes.ts`. §7.6 AC3's raw-SQL / `dangerouslySetInnerHTML` grep
   runs over TRACKED sources (`git grep … -- app lib components`): after
   `prisma generate`, the gitignored client under `lib/generated/` declares
