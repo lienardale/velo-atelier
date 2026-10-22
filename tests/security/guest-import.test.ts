@@ -801,14 +801,18 @@ describe("the caps §4.4 names", () => {
     expect(withinJsonBudget(line.refinement)).toBe(true);
   });
 
-  it("keeps the refinement cap at the account's own (`MAX_REFINEMENT_KEYS`, liste/actions.ts)", async () => {
-    // That constant is private to a `"use server"` module, which may export
-    // only async functions: read where it is written.
+  it("keeps the refinement cap at the account's own: ONE count (`MAX_REFINEMENT_ENTRIES`)", async () => {
+    // Until 2026-10-22 the account's count was a private literal of
+    // `liste/actions.ts` and this case read it out of the source. Both now
+    // name the constant of `lib/shop/refinement.ts`; the action's use of it
+    // is read where it is written, as a `"use server"` module exports only
+    // async functions.
+    const { MAX_REFINEMENT_ENTRIES } = await import("@/lib/shop/refinement");
+    expect(GUEST_CAPS.refinementEntries).toBe(MAX_REFINEMENT_ENTRIES);
     const { readFileSync } = await import("node:fs");
     const source = readFileSync("app/[locale]/velo/[id]/liste/actions.ts", "utf8");
-    const declared = /^const MAX_REFINEMENT_KEYS = (\d+);$/m.exec(source)?.[1];
-    expect(declared).toBeDefined();
-    expect(GUEST_CAPS.refinementEntries).toBe(Number(declared));
+    expect(source).toMatch(/Object\.keys\(refinement\)\.length > MAX_REFINEMENT_ENTRIES\)/);
+    expect(source).not.toMatch(/=\s*24\b/);
   });
 
   it("keeps the caps at the account's own quotas, so an import cannot bring more", async () => {
