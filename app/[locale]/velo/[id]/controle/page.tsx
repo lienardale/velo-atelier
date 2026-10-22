@@ -10,7 +10,15 @@ import { firstValue, parsePartIds } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
 import { planCheckup, scopeFromPartIds, toolsFor, type PlannableGuide } from "@/lib/checkup/plan";
-import { FULL_SCOPE, resumeTarget, scopeFacts } from "@/lib/checkup/scope";
+import {
+  FULL_SCOPE,
+  recordedScope,
+  savedResumeTarget,
+  scopeFacts,
+  type OtherPlan,
+  type PartsScope,
+  type PlannedQuestion,
+} from "@/lib/checkup/scope";
 import type { CheckStepRef, CheckupScope } from "@/lib/checkup/types";
 import { GUIDES } from "@/lib/content/collection";
 import { CONTENT_VERSION } from "@/lib/content/generated/version";
@@ -71,24 +79,45 @@ export async function generateMetadata({ params }: CheckupPageProps): Promise<Me
  * ## An unfinished run is resumed where its answers mean what they meant
  *
  * The page plans the scope `?parts=` asks for — unless the bike has an
- * unfinished run that scope does not hold (`resumeTarget`,
- * `lib/checkup/scope.ts`): a full one with answers; or a partial one with an
- * answer the scope does not ask, or asks about other parts than the one it
- * was given for (one question key is about the rear pads in a rear-caliper
- * checkup and about the front ones in a front-caliper checkup), or asks
- * without the symptom it was given with. For a saved bike the page reads the
- * run and decides here, by the part each row is recorded against; its row
- * does not say which parts the run was opened on, so the page plans the FULL
- * checkup, which keeps every answer, and the wizard says which ones now count
- * for every part their question names. A guest's run is in `localStorage`, so
- * the page hands the wizard what its scope is against the full plan
- * (`scopeFacts`) and the wizard decides: it comes back here with `?parts=` the
- * run's own parts and `?resume=own`, or with `?resume=full` when the full
- * checkup asks every one of its answers about what it was given for — which
- * this page then plans. Until 2026-10-22 the run was resumed on whatever the
- * page had planned, trimmed to it, and a resumed partial run lost every
- * stored answer (`.debug/017` §5.10); then on any page that asked its
- * questions, and its answers changed sides (§5.12).
+ * unfinished run that scope does not hold (`lib/checkup/scope.ts`): a full
+ * one with answers; or a partial one with an answer the scope does not ask,
+ * or asks about other parts than the ones it was given for (one question key
+ * is about the rear pads in a rear-caliper checkup and about the front ones
+ * in a front-caliper checkup), or asks without the symptom it was given with.
+ *
+ *   a saved bike   the page reads the run and decides here
+ *                  (`savedResumeTarget`). Its row does not say which parts the
+ *                  run was opened on; two things can. `?run=` — the run's
+ *                  `startedAt`, which the wizard writes beside `?parts=` on
+ *                  the page that shows the run — says this address IS the
+ *                  run's own, so a reload, Back or Forward keeps it there.
+ *                  And the rows, when they tell (`recordedScope`): a row on
+ *                  the rear caliper is the rear pads' and nobody else's, and
+ *                  the run is then planned HERE on those parts, the wizard
+ *                  told (`resumedOwn`) and the address rewritten to them.
+ *                  When neither tells — a row on the front caliper is the
+ *                  front pads' or both pads', and one written before
+ *                  2026-10-22 could be anything's — the page plans the FULL
+ *                  checkup, which keeps every answer; the wizard says which
+ *                  answers now count for every part their question names,
+ *                  and opens on the first of them;
+ *   a guest        the run is in `localStorage`, so the page hands the wizard
+ *                  what its scope is against the full plan (`scopeFacts`) and
+ *                  the wizard decides: it comes back here with `?parts=` the
+ *                  run's own parts and `?resume=own`, or with the run's own
+ *                  parts and `?resume=full` when the full checkup asks every
+ *                  one of its answers about what it was given for — which
+ *                  this page then plans, handing the wizard that run's own
+ *                  plan (`widenedFrom`) so that it checks it again rather
+ *                  than taking the address at its word.
+ *
+ * Until 2026-10-22 the run was resumed on whatever the page had planned,
+ * trimmed to it, and a resumed partial run lost every stored answer
+ * (`.debug/017` §5.10); then on any page that asked its questions, and its
+ * answers changed sides (§5.12); then a saved bike's carried on as the full
+ * checkup whenever the page's parts did not hold it, counting a rear-only
+ * answer for the front too, and was held by any page whose parts held its
+ * rows' parts, a both-calipers finding narrowed to the front (§5.13).
  */
 export default async function CheckupPage({
   params,
@@ -121,15 +150,17 @@ export default async function CheckupPage({
   }
 
   const requestedPartIds = parsePartIds(query.parts);
+  const saved = ref.kind === "db";
   /**
-   * `?resume=` is the wizard coming back for a guest's run that the page it
-   * was opened on could not hold: `full`, the full checkup; `own`, the parts
-   * of `?parts=`, which are the run's own (see the header). Nothing else
-   * changes.
+   * `?resume=` is the wizard coming back for a GUEST's run that the page it
+   * was opened on could not hold: `full`, the full checkup, for the run on
+   * the parts of `?parts=`; `own`, the parts of `?parts=`, which are the run's
+   * own (see the header). It decides nothing about which part an answer
+   * counts for: the wizard checks the run against this page either way.
+   * A saved bike's page decides from the run's rows and `?run=`.
    */
-  const resume = firstValue(query.resume);
+  const resume = saved ? undefined : firstValue(query.resume);
   const resumeWidened = resume === "full";
-  const resumedOwn = !resumeWidened && resume === "own";
   const requested = resumeWidened ? FULL_SCOPE : scopeFromPartIds(requestedPartIds);
   /**
    * §6.7: `?parts=` naming nothing this bike has falls back to a FULL checkup
@@ -144,37 +175,54 @@ export default async function CheckupPage({
     planCheckup(build, scope, documents as unknown as PlannableGuide[]);
   let fullPlan: CheckStepRef[] | null = null;
   const full = (): CheckStepRef[] => (fullPlan ??= planFor(FULL_SCOPE));
+  const otherPlan = (scope: PartsScope): OtherPlan & { steps: CheckStepRef[] } => {
+    const planned = planFor(scope);
+    return { scope, steps: planned, facts: scopeFacts(scope, full(), planned) };
+  };
 
   const run = await storedFor(ref, bike.bikeId, resolvedLocale);
   const initialStored = run?.checkup ?? null;
   let scope = requested;
   let steps = planFor(requested);
-  // A saved bike's unfinished run, read above: resumed on the requested scope
-  // only if that scope holds it — every answer asked about what it was given
-  // for, by the part each row is recorded against. The row does not say which
-  // parts the run was opened on, so the run is never sent back to them: the
-  // full checkup stands in, and the wizard says which answers now count for
-  // every part their question names (`.debug/017` §5.12).
+  // A saved bike's unfinished run, read above (see the header): resumed on
+  // the requested scope only if that scope holds it as its own parts did —
+  // by `?run=`, or by what the rows tell — otherwise on those parts, or on the
+  // full checkup when nothing tells them (`.debug/017` §5.13).
   let widened = resumeWidened;
+  let resumedOwn = resume === "own";
   if (run !== null && run.checkup.completedAt === undefined) {
-    const target = resumeTarget(
-      {
-        scope: run.checkup.scope,
-        answers: run.checkup.answers,
-        symptoms: run.checkup.symptoms,
-        recordedFor: run.recordedFor,
-        knowsItsParts: false,
-      },
+    const answers = {
+      answers: run.checkup.answers,
+      symptoms: run.checkup.symptoms,
+      recordedFor: run.recordedFor,
+    };
+    const recorded = recordedScope(answers, full(), planFor);
+    const target = savedResumeTarget(
+      { ...answers, scope: run.checkup.scope },
       requested,
       steps,
       scopeFacts(requested, full(), steps),
+      {
+        ownAddress: firstValue(query.run) === String(Date.parse(run.checkup.startedAt)),
+        recorded: recorded === null ? null : otherPlan(recorded),
+      },
     );
     if (target.kind === "full") {
       scope = FULL_SCOPE;
       steps = full();
-      widened = true;
+      widened = requested.kind === "parts";
+    } else if (target.kind === "own") {
+      scope = target.scope;
+      steps = planFor(target.scope);
+      resumedOwn = true;
     }
   }
+  // A guest's run, brought to the full checkup for the parts of `?parts=`:
+  // what those parts are against it, for the wizard to check again.
+  const widenedFrom =
+    resumeWidened && requestedPartIds.length > 0
+      ? otherPlan({ kind: "parts", partIds: requestedPartIds })
+      : null;
 
   if (steps.length === 0) {
     return (
@@ -225,8 +273,18 @@ export default async function CheckupPage({
         // With a parts scope, what this scope is against the full plan: a
         // guest's run is read in the browser, which decides whether this scope
         // holds it — by the same rule as above, a dropped question deciding
-        // nothing.
+        // nothing — and the wizard keeps, unacted on, an answer to a question
+        // this scope only touches (`lib/checkup/scope.ts`).
         {...(scope.kind === "parts" ? { scopeFacts: scopeFacts(scope, full(), steps) } : {})}
+        {...(widenedFrom === null
+          ? {}
+          : {
+              widenedFrom: {
+                scope: widenedFrom.scope,
+                steps: widenedFrom.steps.map(compactQuestion),
+                facts: widenedFrom.facts,
+              },
+            })}
         guideNodes={guideNodes}
         guideRefs={guideRefsFor(steps, bySlug)}
         tools={toolsFor(steps)}
@@ -238,6 +296,15 @@ export default async function CheckupPage({
       />
     </ClientMessages>
   );
+}
+
+/** What the wizard needs of a plan it does not show: no title, no prompt, no tool. */
+function compactQuestion(step: CheckStepRef): PlannedQuestion {
+  return {
+    key: step.key,
+    partIds: step.partIds,
+    ...(step.coveredParts === undefined ? {} : { coveredParts: step.coveredParts }),
+  };
 }
 
 /** The header the two empty states share. */
@@ -305,8 +372,8 @@ async function storedFor(
   const { currentUser } = await import("@/lib/actions/with-user");
   const user = await currentUser();
   if (user === null) return null;
-  // With the part each row is recorded against: what tells a page whose parts
-  // do not hold an answer (`resumeTarget`). The same single query.
+  // With the part each row is recorded against: what tells which parts the
+  // run was about (`recordedScope`, `savedResumeTarget`). The same single query.
   const { loadStoredCheckupRun } = await import("./load");
   return loadStoredCheckupRun(bikeId, user.id, locale);
 }

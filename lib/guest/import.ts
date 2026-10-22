@@ -75,30 +75,38 @@
  * just as much the server's own: no step is taken from the payload either way.
  *
  * The scope the payload names is then taken at its word only while it is
- * still true — `effectiveScope` (`lib/checkup/scope.ts`), the rule the
- * account's actions apply too: `PARTIAL` when the payload says `parts` and
- * that scoped plan holds every kept answer — asks it, and still offers the
- * symptom a KO was given with; `FULL` otherwise — the answers themselves show
- * the run went beyond the parts it was opened on, and the column cannot say
- * "these parts, then those". A `parts` scope naming no part names nothing,
- * and is `FULL` without being planned. One answer neither widens nor stays:
- * an OK or a skip given, under the planner of before 2026-10-22, to a
- * question the scope still touches and no longer asks — `hose-leak` in a
- * rear-caliper checkup, whose only finding is about the brake lines. It is
- * left out of the PARTIAL checkup (`.debug/017` §5.12, B6): widening for it
- * would have written the FRONT caliper from a rear-caliper checkup. A KO
- * there widens, and keeps its finding.
+ * still true: `PARTIAL` when the payload says `parts` and every kept answer
+ * is one those parts ask, or only TOUCH (below); `FULL` as soon as one is a
+ * question they neither ask nor touch — the run went beyond the parts it was
+ * opened on (an old wizard's stale scope, `.debug/017` §5.10 R1), and the
+ * column cannot say "these parts, then those". A `parts` scope naming no
+ * part names nothing, and is `FULL` without being planned.
  *
  * And a PARTIAL checkup is about the parts inside its scope and no others,
- * here as on the account (`.debug/017` §5.11): once the column is `PARTIAL`,
- * the answers are married to the SCOPED plan — the same answers, by the rule
- * above — so each item names the part inside the scope its step reports on,
- * and the part states and the list's links below are about those parts only.
- * Until 2026-10-22 they came from the full plan, and a rear-caliper checkup's
- * rows named the FRONT caliper and lever and turned them `OK`.
+ * here as on the account (`.debug/017` §5.11): the answers are married to the
+ * SCOPED plan, so each item names the part inside the scope its step reports
+ * on, and the part states and the list's links below are about those parts
+ * only. Until 2026-10-22 they came from the full plan, and a rear-caliper
+ * checkup's rows named the FRONT caliper and lever and turned them `OK`.
  *
- * A checkup none of whose answers is a question this bike is asked — or, for
- * a PARTIAL one, whose only answers are the left-out ones above — writes NO
+ * Two kinds of answer a guest's browser holds from before 2026-10-22, when
+ * the planner asked a partial checkup its questions whole, have no place in
+ * that scoped plan: an answer to a question the scope only touches
+ * (`hose-leak` in a rear-caliper checkup — every finding of it is about the
+ * brake LINES), and a KO given with a symptom the narrowed question no longer
+ * offers (a worn rim track, in a rear-caliper checkup that asks the rim-track
+ * question of the rear pads alone). Each is IMPORTED — a row, against the
+ * part the scope picked (`touchedPart`) or the part its narrowed question
+ * reports on — and NEVER ACTED ON: no part state, no link. Its finding is
+ * already on the list the payload brings, which the browser derived with the
+ * planner of then. Until §5.13 a KO of either kind widened the checkup to
+ * `FULL`, and a `FULL` checkup's states land on each item's first part: a
+ * rear-caliper checkup's leak, or worn rear rim, made the FRONT caliper, or
+ * the front wheel, `BROKEN`, and said nothing of the rear (B6); and an OK or
+ * a skip to a touched question was left out, so the browser, told
+ * `imported`, forgot an answer the account did not have (V1-3).
+ *
+ * A checkup none of whose answers is a question this bike is asked writes NO
  * row and is reported `skipped: 'nothing-kept'`: an empty `Checkup` would show
  * as a history entry, and the browser keeps its copy.
  *
@@ -140,11 +148,13 @@
  * picked: `Checkup.scope` is `FULL | PARTIAL` and there is no column for the
  * ids. They are used here — to decide that column and to narrow the steps —
  * and then they are gone, as they are for a partial checkup started on the
- * account itself. The account resumes such a run the way it resumes its own
- * (`.debug/017` §5.10): on the page's parts when they ask every question the
- * run answered, otherwise — the resume banner, which cannot know the parts —
- * as the full checkup, the SAME row, its answers kept and its column then
- * `FULL` (`tests/integration/checkup-resume.test.ts`). Until 2026-10-22 that
+ * account itself, save for what each row's part says of them. The account
+ * resumes such a run the way it resumes its own (`.debug/017` §5.10, §5.13):
+ * on the parts its rows tell when they tell them — a rear-caliper run's rows
+ * name the rear caliper, the touched ones included — and as the full
+ * checkup, the SAME row, its answers kept and its column then `FULL`, when
+ * they cannot or when the full checkup takes the run over
+ * (`tests/integration/checkup-resume.test.ts`). Until 2026-10-22 the resume
  * banner's first click deleted every item an imported partial run held.
  *
  * The list's LINES still come from the payload — they hold what the visitor
@@ -179,7 +189,7 @@ import { ok, fail, type ActionResult } from "@/lib/actions/result";
 import { coerceFit, deriveBike, QUOTAS, withinJsonBudget, withinQuota } from "@/lib/bike/rules";
 import { deriveBuildList } from "@/lib/checkup/build-list";
 import { answeredItems, type AnsweredItem } from "@/lib/checkup/items";
-import { effectiveScope, scopeFacts } from "@/lib/checkup/scope";
+import { FULL_SCOPE, namesParts, scopeFacts, touchedPart } from "@/lib/checkup/scope";
 import { fromStored } from "@/lib/checkup/storage";
 import {
   CHECKUP_STATE_VERSION,
@@ -221,7 +231,8 @@ export interface GuestImportDeps {
    * `planForBuild` (`lib/content/checkup-plan.ts`) in production, the same
    * function `controle/actions.ts` plans with. Asked for the FULL plan of each
    * bike that carries a checkup (what answers are accepted against), and for a
-   * `parts` scope only to decide the `Checkup.scope` column.
+   * `parts` scope to decide the `Checkup.scope` column and to narrow a
+   * PARTIAL checkup's steps.
    */
   plan: (build: BikeBuild, scope: CheckupScope) => readonly CheckStepRef[];
   /** Injectable clock — the clamp is what these tests are about. */
@@ -454,7 +465,12 @@ interface AcceptedCheckup {
   state: CheckupState;
   /** `Checkup.scope` — what the payload says, for as long as its answers bear it out. */
   scope: "FULL" | "PARTIAL";
-  items: (AnsweredItem & { id: string })[];
+  /**
+   * Every row this import writes. `acted: false` for an answer of before
+   * 2026-10-22 that a PARTIAL checkup keeps and never acts on (see the
+   * header): no part state comes from it.
+   */
+  items: (AnsweredItem & { id: string; acted: boolean })[];
   startedAt: Date;
   /** `null` while IN_PROGRESS: the payload carried no `completedAt` (see the header). */
   completedAt: Date | null;
@@ -478,17 +494,23 @@ function acceptCheckup(
   // under). The locale, the missing tools and the content version are the
   // wizard's own business and are not stored.
   const named = checkup.scope as CheckupScope;
-  const against = (scope: CheckupScope, plan: readonly CheckStepRef[]) =>
-    fromStored(
+  const against = (
+    scope: CheckupScope,
+    plan: readonly CheckStepRef[],
+    keep: (key: string) => boolean = () => true,
+  ) => {
+    const only = <T>(record: Readonly<Record<string, T>>) =>
+      Object.fromEntries(Object.entries(record).filter(([key]) => keep(key)));
+    return fromStored(
       {
         version: CHECKUP_STATE_VERSION,
         id: checkup.guestKey,
         bikeRef: { kind: "db", id: bikeId },
         scope,
         locale: routing.defaultLocale,
-        answers: checkup.answers,
-        symptoms: checkup.symptoms,
-        notes: checkup.notes,
+        answers: only(checkup.answers),
+        symptoms: only(checkup.symptoms),
+        notes: only(checkup.notes),
         toolsMissing: [],
         startedAt: checkup.startedAt,
         ...(checkup.completedAt === undefined ? {} : { completedAt: checkup.completedAt }),
@@ -497,29 +519,26 @@ function acceptCheckup(
       plan,
       "",
     );
+  };
   const whole = against(named, planner.full());
   const kept = answeredItems(whole);
   if (kept.length === 0) return null;
 
-  // PARTIAL only while it is true: the payload says `parts` AND those parts
-  // hold every answer that was kept — ask it, with the symptom a KO was given
-  // with. One answer beyond them and the run was not confined to them,
-  // whatever the stored scope still says.
-  const effective = effectiveScope(named, whole, () => {
-    const scoped = planner.scoped(named);
-    return { scoped, facts: scopeFacts(named, planner.full(), scoped) };
-  });
-  // A PARTIAL checkup is about the parts inside its scope (see the header):
-  // the same answers, married to the scoped plan, which narrows each step —
-  // and leaves out an OK or a skip given, before 2026-10-22, to a question
-  // these parts no longer ask (`hose-leak` for a caliper: `lib/checkup/scope.ts`).
+  // PARTIAL only while it is true (see the header): the payload says `parts`
+  // AND every kept answer is one those parts ask or touch. A PARTIAL checkup
+  // is then about the parts inside its scope: the answers they ask as they
+  // were given are married to the scoped plan, which narrows each step; the
+  // others are rows and nothing more.
+  const partial = namesParts(named) ? partialOf(named, kept, planner) : null;
   const state =
-    effective.kind === "full"
-      ? { ...whole, scope: effective }
-      : against(effective, planner.scoped(effective));
-  const items = answeredItems(state).map((item) => ({ ...item, id: randomUUID() }));
-  if (items.length === 0) return null;
-  const scope = effective.kind === "full" ? "FULL" : "PARTIAL";
+    partial === null
+      ? { ...whole, scope: FULL_SCOPE }
+      : against(named, planner.scoped(named), (key) => partial.acted.has(key));
+  const items = [
+    ...answeredItems(state).map((item) => ({ ...item, acted: true })),
+    ...(partial?.unacted ?? []).map((item) => ({ ...item, acted: false })),
+  ].map((item) => ({ ...item, id: randomUUID() }));
+  const scope = partial === null ? "FULL" : "PARTIAL";
 
   const startedAt = clamp(checkup.startedAt, now);
   // The PAYLOAD's `completedAt`, not the reconciled state's: `reconcile` drops
@@ -539,6 +558,51 @@ function acceptCheckup(
   };
 }
 
+/**
+ * How a checkup the payload names as `parts` keeps its answers — `kept`, its
+ * rows against the bike's FULL plan — or `null` when one of them is beyond
+ * those parts and the checkup is `FULL` (see the header):
+ *
+ *   acted     the questions the parts ask, as they were given;
+ *   unacted   the rows of the others they still have a place for — a question
+ *             they only touch, recorded against the part they picked; a KO
+ *             whose symptom the narrowed question withholds, against the part
+ *             it reports on — with the verdict, note and symptoms the full
+ *             question had.
+ */
+function partialOf(
+  named: Extract<CheckupScope, { kind: "parts" }>,
+  kept: readonly AnsweredItem[],
+  planner: BikePlanner,
+): { acted: ReadonlySet<string>; unacted: AnsweredItem[] } | null {
+  const scoped = new Map(planner.scoped(named).map((step) => [step.key, step]));
+  const whole = new Map(planner.full().map((step) => [step.key, step]));
+  const facts = scopeFacts(named, planner.full(), planner.scoped(named));
+  const touched = new Set(facts.touched);
+  const acted = new Set<string>();
+  const unacted: AnsweredItem[] = [];
+  for (const item of kept) {
+    const step = scoped.get(item.stepKey);
+    if (step !== undefined) {
+      const withheld = Object.hasOwn(facts.withheld, item.stepKey)
+        ? facts.withheld[item.stepKey]
+        : [];
+      if (item.result === "ko" && item.reasonKeys.some((reason) => withheld.includes(reason))) {
+        unacted.push({ ...item, partId: step.partIds[0] });
+      } else {
+        acted.add(item.stepKey);
+      }
+      continue;
+    }
+    const part = touched.has(item.stepKey)
+      ? touchedPart(named, whole.get(item.stepKey) as CheckStepRef)
+      : undefined;
+    if (part === undefined) return null;
+    unacted.push({ ...item, partId: part });
+  }
+  return { acted, unacted };
+}
+
 /** The finished checkups, oldest first — the order their verdicts are applied in. */
 function completedOf(accepted: readonly AcceptedCheckup[]) {
   return accepted
@@ -554,7 +618,8 @@ function completedOf(accepted: readonly AcceptedCheckup[]) {
  *
  * Computed from the rows this import writes, so from the plan: the part is the
  * one each item names (`answeredItems` — the step's first reported part), never
- * an id the payload supplied. Within one checkup a KO stands whatever a later
+ * an id the payload supplied — and never from a row the checkup does not act
+ * on (`acted: false`, see the header). Within one checkup a KO stands whatever a later
  * question about the same part answered — a caliper whose pads are worn is not
  * fine because it is aligned — and checkups are applied oldest first, so the
  * most recent one to finish has the last word on a part.
@@ -564,7 +629,7 @@ function partStatesFrom(completed: ReturnType<typeof completedOf>) {
   for (const checkup of completed) {
     const verdicts = new Map<string, "ok" | "ko">();
     for (const item of checkup.items) {
-      if (item.result === "skipped" || verdicts.get(item.partId) === "ko") continue;
+      if (!item.acted || item.result === "skipped" || verdicts.get(item.partId) === "ko") continue;
       verdicts.set(item.partId, item.result);
     }
     for (const [partId, verdict] of verdicts) {

@@ -101,6 +101,13 @@ export interface CheckupState {
   steps: readonly CheckStepRef[];
   /** Position in `steps`; `steps.length` means "on the summary". */
   cursor: number;
+  /**
+   * The verdicts, by step key — of `steps`, and, kept as they were stored
+   * and never acted on, of questions a partial scope only touches (an answer
+   * the planner of before 2026-10-22 asked there: `lib/checkup/scope.ts`).
+   * Every reader goes through `steps`, so only the first are on screen, in a
+   * list or in a status; every write keeps both.
+   */
   answers: Readonly<Record<CheckStepKey, CheckupAnswer>>;
   /**
    * The symptoms the visitor ticked on a KO step: `reasonKey`s drawn from that
