@@ -13,7 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui-ext/Callout";
 import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
-import { resumeTarget, scopeFacts, type ResumeTarget, type ScopeFacts } from "@/lib/checkup/scope";
+import {
+  guestResumeTarget,
+  scopeFacts,
+  type OtherPlan,
+  type ResumeTarget,
+  type ScopeFacts,
+} from "@/lib/checkup/scope";
 import {
   canFinish,
   currentStep,
@@ -72,16 +78,23 @@ export interface WizardProps {
   /**
    * The page planned the FULL checkup instead of the parts it was asked for,
    * because an unfinished run of this bike is one the parts asked for do not
-   * hold (`resumeTarget`, `lib/checkup/scope.ts`): decided on the server for a
-   * saved bike, and for a guest by this component, which came back with
-   * `?resume=full`.
+   * hold (`lib/checkup/scope.ts`): decided on the server for a saved bike,
+   * and for a guest by this component, which came back with `?resume=full`.
    */
   resumeWidened?: boolean;
   /**
-   * This component came back with `?resume=own`: a guest's run brought back to
-   * the parts it was opened on, from a page that did not hold it.
+   * The run is resumed on the parts it was opened on, not on the ones the
+   * visitor came for: a guest's, by this component, which came back with
+   * `?resume=own`; a saved bike's, by the page, which read them from its rows.
    */
   resumedOwn?: boolean;
+  /**
+   * A guest's run brought to the full checkup for its own parts (`?parts=` +
+   * `?resume=full`): those parts' plan and facts, so that this component
+   * checks again that the full checkup takes the run over
+   * (`guestResumeTarget`) — the address alone is never taken at its word.
+   */
+  widenedFrom?: OtherPlan;
   /**
    * What the page knows of its `parts` scope against the bike's FULL plan
    * (`scopeFacts`), handed down with a `parts` scope: the full plan's keys (a
@@ -230,19 +243,21 @@ export function Wizard(props: WizardProps): React.JSX.Element {
     [store, guestRef],
   );
 
-  // The run in progress needs another page: the full checkup (`?resume=full`)
-  // or the parts it was opened on (`?parts=…&resume=own`). Replaced, not
-  // pushed — this address is not a page to come back to, and nothing has been
-  // written from it — and by a full navigation (`replace-document.ts` says
-  // why).
+  // The run in progress needs another page: the full checkup (`?resume=full`,
+  // with the parts a partial run was opened on, which that page plans to
+  // check it again) or the parts it was opened on (`?parts=…&resume=own`).
+  // Replaced, not pushed — this address is not a page to come back to, and
+  // nothing has been written from it — and by a full navigation
+  // (`replace-document.ts` says why).
   useEffect(() => {
     if (leaving === null) return;
     autosave.cancel();
+    const own =
+      leaving.kind === "own" ? leaving.scope : leaving.kind === "full" ? leaving.from : undefined;
     const query = new URLSearchParams({
       ...(props.specCode === null ? {} : { spec: props.specCode }),
-      ...(leaving.kind === "own"
-        ? { parts: leaving.scope.partIds.join(","), resume: "own" }
-        : { resume: "full" }),
+      ...(own === undefined ? {} : { parts: own.partIds.join(",") }),
+      resume: leaving.kind === "own" ? "own" : "full",
     });
     const pathname = getPathname({
       href: { pathname: "/velo/[id]/controle", params: { id: props.bikeParam } },
@@ -302,6 +317,17 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   // parameter wins over the stored cursor on load, so a checkup that was
   // finished and then reloaded would come back on its last question instead of
   // on its summary.
+  //
+  // A saved bike's address also says what the page SHOWS, because the page
+  // reads it back on a reload (`page.tsx`): `?parts=` the parts on screen —
+  // which may be the run's own rather than the ones the visitor came for, or
+  // none, for the full checkup — and `?run=` the run's `startedAt` beside
+  // them, which tells the page that these parts are the run's own: a row on
+  // the front caliper cannot say whether its run was the front caliper's or
+  // both calipers' (`lib/checkup/scope.ts`). Never `?run=` on parts that are
+  // not on screen, and never `?resume=`, which is a guest's.
+  const runToken = String(Date.parse(state.startedAt));
+  const showing = props.bikeRef.kind === "db" ? props.scope : null;
   useEffect(() => {
     // Leaving for the full checkup: this document's address is not touched
     // while the browser loads the next one.
@@ -309,8 +335,18 @@ export function Wizard(props: WizardProps): React.JSX.Element {
     const url = new URL(window.location.href);
     if (phase === "step" && step !== null) url.searchParams.set("step", step.key);
     else url.searchParams.delete("step");
+    if (showing !== null) {
+      url.searchParams.delete("resume");
+      if (showing.kind === "parts") {
+        url.searchParams.set("parts", showing.partIds.join(","));
+        url.searchParams.set("run", runToken);
+      } else {
+        url.searchParams.delete("parts");
+        url.searchParams.delete("run");
+      }
+    }
     window.history.replaceState(null, "", `${url.pathname}${url.search}`);
-  }, [phase, step]);
+  }, [phase, step, showing, runToken]);
 
   // 1 / 2 / 3, ignored while the visitor is typing (§6.8 AC6).
   useEffect(() => {
@@ -622,40 +658,36 @@ function factsOf(props: WizardProps, stored: StoredCheckup): ScopeFacts {
 }
 
 /**
- * Must this page hand the stored run over to another page before resuming it,
- * and which? `resumeTarget` (`lib/checkup/scope.ts`) decides, from what this
- * page holds:
+ * Must this page hand a GUEST's stored run over to another page before
+ * resuming it, and which? `guestResumeTarget` (`lib/checkup/scope.ts`) decides,
+ * from what this page holds:
  *
  *   the full checkup (`?resume=full`)   a full run with answers, opened on some
- *                                       parts; a partial run the page does not
- *                                       hold and whose answers the full
- *                                       checkup asks about what they were
- *                                       given for;
- *   its own parts (`?resume=own`)       a guest's partial run, opened on other
- *                                       parts or on the full page — its answers
- *                                       count for the parts they were given
- *                                       for, and nowhere else.
+ *                                       parts; a partial run whose answers the
+ *                                       full checkup asks about what they were
+ *                                       given for, or which its own parts no
+ *                                       longer hold — sent with those parts,
+ *                                       which the full page plans to check it
+ *                                       again;
+ *   its own parts (`?resume=own`)       a partial run opened anywhere else —
+ *                                       its answers count for the parts they
+ *                                       were given for, and nowhere else.
  *
  * A finished run is history, never resumed, so never a reason. A saved bike's
- * run was judged by the server, which read its rows and planned the page
- * accordingly; this component, which has no rows, comes to the same answer
- * for it or to "stay". An answer to a question the bike is no longer asked is
- * never a reason, so a question the corpus dropped never sends the visitor to
- * a page that would send them on again.
+ * run is judged by the server, which read its rows and planned the page
+ * accordingly: this component never sends it anywhere. An answer to a
+ * question the bike is no longer asked is never a reason, so a question the
+ * corpus dropped never sends the visitor to a page that would send them on
+ * again.
  */
 function leavingFor(props: WizardProps, stored: StoredCheckup | null): ResumeTarget | null {
-  if (stored === null || isFinished(stored)) return null;
-  const target = resumeTarget(
-    {
-      scope: stored.scope,
-      answers: stored.answers,
-      symptoms: stored.symptoms,
-      knowsItsParts: props.bikeRef.kind !== "db",
-    },
+  if (stored === null || isFinished(stored) || props.bikeRef.kind === "db") return null;
+  const target = guestResumeTarget(
+    { scope: stored.scope, answers: stored.answers, symptoms: stored.symptoms },
     props.scope,
     props.steps,
     factsOf(props, stored),
-    props.resumeWidened === true ? "full" : props.resumedOwn === true ? "own" : null,
+    { arrivedOwn: props.resumedOwn === true, widenedFrom: props.widenedFrom ?? null },
   );
   return target.kind === "page" ? null : target;
 }
@@ -678,17 +710,18 @@ function namesSeveralParts(step: CheckStepRef): boolean {
  * What to tell a visitor whose run carries on elsewhere than where it began:
  *
  *   partialAsFull   a run opened on some parts, resumed over every question —
- *                   through the saved bike's resume banner (its row does not
- *                   say which parts), because the parts asked for do not hold
- *                   it, or a guest's from before 2026-10-22 already answered
- *                   beyond its parts. Its answers to questions that name
- *                   several parts now count for each of them: the sentence
- *                   says so and NAMES those questions (`questions`), so that
- *                   the visitor knows which answers to check;
+ *                   a saved bike's whose rows cannot tell its parts, or one
+ *                   the full checkup takes over (`carriedOnWhole`). Its
+ *                   answers to questions that name several parts now count
+ *                   for each of them: the sentence says so and NAMES those
+ *                   questions (`questions`), so that the visitor knows which
+ *                   answers to check — and a saved bike's wizard opens on the
+ *                   first of them ({@link restore});
  *   fullInProgress  a full run in progress, which the parts asked for could
  *                   only have narrowed;
- *   ownParts        a guest's run brought back to the parts it was opened on
- *                   (`?resume=own`): its answers count for them only.
+ *   ownParts        a run brought back to the parts it was opened on — a
+ *                   guest's by `?resume=own`, a saved bike's by the page,
+ *                   from its rows: its answers count for them only.
  */
 function resumeNoticeOf(props: WizardProps, stored: StoredCheckup | null): ResumeNotice | null {
   if (stored === null || isFinished(stored)) return null;
@@ -736,7 +769,11 @@ function resumeNoticeOf(props: WizardProps, stored: StoredCheckup | null): Resum
 function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState {
   const resumable = stored !== null && !isFinished(stored);
   const restored = resumable
-    ? fromStored({ ...stored, scope: props.scope }, props.steps, props.contentVersion)
+    ? keepTouched(
+        fromStored({ ...stored, scope: props.scope }, props.steps, props.contentVersion),
+        stored,
+        props.scopeFacts?.touched ?? [],
+      )
     : createCheckupState({
         id: props.newCheckupId,
         bikeRef: props.bikeRef,
@@ -748,7 +785,52 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
   // `?step=` wins over "where you had got to": it IS the resume link, and it is
   // also what a deep link into one question of a checkup means.
   const at = stepIndexOf(restored, props.initialStepKey);
-  return at < 0 ? restored : { ...restored, cursor: at };
+  if (at >= 0) return { ...restored, cursor: at };
+  // A saved bike's partial run carried on as the full checkup opens no later
+  // than the first answer the notice names — given for some of its question's
+  // parts, perhaps, and now counted for every one — so that the visitor, going
+  // on from question to question, sees it again: earlier if a question before
+  // it is still open, never past it (`.debug/017` §5.13, RA-3; until then the
+  // wizard opened on the first open question, after it, and the answer was
+  // never shown). A guest's never needs it: the full checkup takes a guest's
+  // run over only when it asks every answer about what it was given for.
+  const notice = props.bikeRef.kind === "db" ? resumeNoticeOf(props, stored) : null;
+  const named =
+    notice?.kind === "partialAsFull" && notice.questions.length > 0
+      ? stepIndexOf(restored, notice.questions[0])
+      : -1;
+  return named < 0 ? restored : { ...restored, cursor: Math.min(named, restored.cursor) };
+}
+
+/**
+ * `state` with the stored answers to questions this page only TOUCHES put back
+ * — an OK or a skip given, before 2026-10-22, to `hose-leak` in a caliper's
+ * checkup (`lib/checkup/scope.ts`). `fromStored` keeps the questions the page
+ * asks; these are not asked, so nothing on screen or in a list reads them —
+ * every reader goes through `state.steps` — but every save writes them back.
+ * Until 2026-10-22 a guest's copy lost them at the next save (`.debug/017`
+ * §5.13, V1-3).
+ */
+function keepTouched(
+  state: CheckupState,
+  stored: StoredCheckup,
+  touched: readonly string[],
+): CheckupState {
+  const kept = touched.filter((key) => Object.hasOwn(stored.answers, key));
+  if (kept.length === 0) return state;
+  const pick = <T,>(record: Readonly<Record<string, T>>) =>
+    Object.fromEntries(
+      kept
+        .filter((key) => Object.hasOwn(record, key))
+        // eslint-disable-next-line security/detect-object-injection -- guarded by Object.hasOwn
+        .map((key) => [key, record[key]]),
+    );
+  return {
+    ...state,
+    answers: { ...state.answers, ...pick(stored.answers) },
+    notes: { ...state.notes, ...pick(stored.notes) },
+    symptoms: { ...state.symptoms, ...pick(stored.symptoms) },
+  };
 }
 
 /**

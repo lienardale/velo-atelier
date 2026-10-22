@@ -23,8 +23,8 @@
  * A payload names a scope; the plan it is accepted against is the one that
  * scope's ANSWERS bear out (`effectiveScope`, `lib/checkup/scope.ts`): the
  * named scope while it holds every answer — asks it, with the symptom a KO
- * was given with, and, for a stored row, about the part the row is recorded
- * against — and the full checkup as soon as it does not. "Answered" is the
+ * was given with, and, for a stored row, would record it against the part
+ * the row is recorded against — and the full checkup as soon as it does not. "Answered" is the
  * payload's answers AND the run's stored ones it does not carry — a stored
  * answer the payload leaves out is kept, never read as withdrawn: the wizard
  * has no event that removes a verdict, so only a page that planned fewer
@@ -39,6 +39,15 @@
  * round: a partial run resumed after a reload lost every stored answer to a
  * save that said "Sauvegardé" (`.debug/017` §5.10), and a narrower page then
  * still stripped a stored symptom and moved its row (§5.12).
+ *
+ * Which page a run is resumed on — and so which scope its payloads name — is
+ * the page's decision, not this module's (`savedResumeTarget`, `page.tsx`):
+ * these actions cannot tell a run on the front caliper from one on both
+ * calipers any better than the page can, and accept a scope that holds the
+ * rows as the page that posted it. A payload naming the FULL checkup is a
+ * full checkup's, and is acted on as one — both sides — whichever answers it
+ * carries (`.debug/017` §5.13: the resume banner once posted that for a run
+ * whose rows named the rear caliper alone).
  *
  * ## What is stored, and what is not
  *
@@ -258,9 +267,9 @@ function acceptedState(
   const asked = new Set(full.map((step) => step.key));
   const answers = withStoredAnswers(payload, rows);
   const named = payload.scope as CheckupScope;
-  // A stored row the payload does not carry is held only by a scope that asks
-  // it about the part it is recorded against (`holds`): a page planned for the
-  // other caliper does not hold the rear one's answer.
+  // A stored row the payload does not carry is held only by a scope that would
+  // record it against the same part (`holds`): neither the front caliper's
+  // page nor both calipers' holds the rear one's answer.
   const recordedFor = Object.fromEntries(
     rows
       .filter((row) => !Object.hasOwn(payload.answers, row.stepKey))
@@ -287,8 +296,9 @@ function acceptedState(
   };
   // `fromStored` reconciles against the plan the answers bear out: a key that
   // is not in it is a question this bike is no longer asked — or, for a
-  // PARTIAL run, an OK or a skip to one its scope only touches (`holds`) — and
-  // a symptom it does not offer is one no plan offers any more (one the scope
+  // PARTIAL run, an OK or a skip to one its scope only touches (`holds`),
+  // which is acted on nowhere and whose stored row stays as it is — and a
+  // symptom it does not offer is one no plan offers any more (one the scope
   // withholds would have widened it). Neither is written, and of the rest only
   // the payload's questions are (`writeItems`).
   return {
@@ -398,8 +408,16 @@ function tooMany(quota: keyof typeof QUOTA_KEYS): ActionResult<never> {
  * next load, counted by a finish — but a payload that did not answer it is
  * not a reason to rewrite it: until 2026-10-22 it was rewritten from the plan
  * the payload was accepted against, so a narrower page dropped its symptom
- * (the worn rim track of `.debug/017` §5.12, R5) and a wider one moved it to
- * the other side's part (§5.12, B2).
+ * (the worn rim track of `.debug/017` §5.12, R5) and a page planned for
+ * other parts moved it to theirs.
+ *
+ * A row the payload DOES carry is written from the plan it was accepted
+ * against, part included: on the full checkup, its whole question's first
+ * part, as every full checkup's row. That is how the resume banner still
+ * moved a rear caliper's row to the front caliper after the filter above
+ * (§5.12, B2: the banner page restored and posted every stored answer); it
+ * stopped when a run whose rows tell its parts stopped being carried on as
+ * the full checkup (`savedResumeTarget`, §5.13).
  *
  * Never "the rows the payload did not carry": until 2026-10-22 that was the
  * rule, and a payload planned from a scope naming no part carried none, and
