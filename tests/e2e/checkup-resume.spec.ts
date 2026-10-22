@@ -650,6 +650,56 @@ forEachLocale((locale) => {
     expect(lines).toEqual(["replace brake-pads-front"]);
   });
 
+  test(`a guest's FRONT-caliper run reached by Back onto the address an earlier rear-caliper run was sent to: back on the front caliper, its scope kept (${locale})`, async ({
+    page,
+  }) => {
+    // [V1]'s V1-1b: no address typed by hand. A rear-caliper run, opened on
+    // the front caliper, is sent to `?parts=brake-caliper-rear&resume=own` and
+    // finished there; a front-caliper run follows; Back twice lands on that
+    // address. Until §5.13 the front run was resumed there, and its stored
+    // scope rewritten to the rear caliper.
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: "demo" }, { parts: "brake-caliper-rear" }),
+    );
+    await page.getByTestId("checkup-start").click();
+    await answer(page, PAD_WEAR, { ko: "pad-worn" });
+    await expect.poll(async () => (await storedCheckup(page))?.answers[PAD_WEAR]).toBe("ko");
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: "demo" }, { parts: "brake-caliper-front" }),
+    );
+    await page.waitForURL((url) => url.searchParams.get("resume") === "own");
+    for (let guard = 0; guard < 10 && (await onScreen(page)) !== "summary"; guard += 1) {
+      await answer(page, await onScreen(page), "ok");
+    }
+    await page.getByTestId("summary-create").click();
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: "demo" }),
+    );
+
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: "demo" }, { parts: "brake-caliper-front" }),
+    );
+    await page.getByTestId("checkup-start").click();
+    await answer(page, PAD_WEAR, { ko: "pad-worn" });
+    await expect
+      .poll(async () => (await storedCheckup(page))?.scope)
+      .toEqual({ kind: "parts", partIds: ["brake-caliper-front"] });
+    await page.goBack();
+    await page.goBack();
+    await page.waitForURL(
+      (url) =>
+        url.searchParams.get("parts") === "brake-caliper-front" &&
+        url.searchParams.get("resume") === "own",
+    );
+    await expect(page.getByTestId("checkup-resumed")).toHaveText(
+      t.resumed.ownParts.replace("{parts}", FRONT_CALIPER[locale]),
+    );
+    expect((await storedCheckup(page))?.scope).toEqual({
+      kind: "parts",
+      partIds: ["brake-caliper-front"],
+    });
+  });
+
   test(`a guest's REAR-caliper run, the pads OK, reached through an address \`?resume=full\` an earlier run left: back on the rear caliper (${locale})`, async ({
     page,
   }) => {
