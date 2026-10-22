@@ -6,6 +6,11 @@
   "scopeFull": "Full checkup",
   "scopePartial": "Partial checkup",
   "scopeDropped": "The parts the link asked for are not on this bike, so the checkup covers the whole bike.",
+  "resumed": {
+    "going": "Picking up the checkup in progress…",
+    "partialAsFull": "This checkup was started on a few parts. It carries on here as a full checkup, with every answer you gave — and those answers now count for every part their question names.",
+    "fullInProgress": "A full checkup is already under way on this bike: it carries on here, with every answer you gave. The parts you picked are part of it."
+  },
   "needsBike": "The checkup needs to know which bike you have. Open your bike, then start the checkup from the Actions tab.",
   "openBike": "Open my bike",
   "emptyTitle": "Nothing to check here",

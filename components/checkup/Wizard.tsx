@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui-ext/Callout";
 import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
+import { resumeScope } from "@/lib/checkup/scope";
 import {
   canFinish,
   currentStep,
@@ -42,11 +43,12 @@ import {
 import type { CheckStepRef, CheckupScope, CheckupState, ToolRef } from "@/lib/checkup/types";
 import type { BikeRef } from "@/lib/bike/resolve-bike-ref";
 import type { ToolId } from "@/lib/domain/data/tools";
-import { useRouter } from "@/lib/i18n/navigation";
+import { getPathname, useRouter } from "@/lib/i18n/navigation";
 import type { Locale } from "@/lib/i18n/routing";
 import { cn } from "@/lib/utils";
 
 import { CheckupSummary } from "./CheckupSummary";
+import { replaceDocument } from "./replace-document";
 import { STORED_CHECKUP_PENDING, useStoredCheckup } from "./use-stored-checkup";
 import { StepCard } from "./StepCard";
 import { SymptomPicker } from "./SymptomPicker";
@@ -67,6 +69,19 @@ export interface WizardProps {
   scope: CheckupScope;
   /** `?parts=` named nothing this bike has, so the scope widened (§6.7). */
   scopeDropped?: boolean;
+  /**
+   * The page planned the FULL checkup instead of the parts it was asked for,
+   * because an unfinished run of this bike holds answers that scope does not
+   * (`resumeScope`): decided on the server for a saved bike, and for a guest
+   * by this component, which came back with `?resume=full`.
+   */
+  resumeWidened?: boolean;
+  /**
+   * The keys of the bike's FULL plan, handed down with a `parts` scope: what
+   * tells a stored answer to a question the bike is still asked from one the
+   * corpus dropped, so a dropped question never widens a run.
+   */
+  fullStepKeys?: readonly string[];
   /** The plan, computed on the server from (spec, scope). */
   steps: readonly CheckStepRef[];
   /**
@@ -153,8 +168,15 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   // it goes into the initial state and the first paint is already right. A
   // guest's lives in `localStorage`, which the server cannot see: it arrives
   // below, after hydration.
-  const [state, setState] = useState<CheckupState>(() => restore(props, props.initialStored));
+  // A stored run this page's scope cannot hold is never restored here — that
+  // would trim it to the page's plan, and the next save would lose the rest
+  // (`.debug/017` §5.10): the wizard goes to the full checkup instead.
+  const [widening, setWidening] = useState(() => mustWiden(props, props.initialStored));
+  const [state, setState] = useState<CheckupState>(() =>
+    restore(props, widening ? null : props.initialStored),
+  );
   const [started, setStarted] = useState(() => alreadyStarted(props, props.initialStored));
+  const [notice, setNotice] = useState(() => resumeNoticeOf(props, props.initialStored));
   const [creating, setCreating] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const [finishError, setFinishError] = useState<FinishError | null>(null);
@@ -173,9 +195,12 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const [hydrated, setHydrated] = useState(false);
   if (!hydrated && stored !== STORED_CHECKUP_PENDING) {
     setHydrated(true);
-    if (stored !== null) {
+    if (stored !== null && mustWiden(props, stored)) {
+      setWidening(true);
+    } else if (stored !== null) {
       setState(restore(props, stored));
       setStarted(alreadyStarted(props, stored));
+      setNotice(resumeNoticeOf(props, stored));
     }
   }
 
@@ -193,6 +218,24 @@ export function Wizard(props: WizardProps): React.JSX.Element {
       }),
     [store, guestRef],
   );
+
+  // The run in progress needs the full checkup: the page plans it for
+  // `?resume=full`. Replaced, not pushed — the narrower address is not a page
+  // to come back to, and nothing has been written from it — and by a full
+  // navigation (`replace-document.ts` says why).
+  useEffect(() => {
+    if (!widening) return;
+    autosave.cancel();
+    const query = new URLSearchParams({
+      ...(props.specCode === null ? {} : { spec: props.specCode }),
+      resume: "full",
+    });
+    const pathname = getPathname({
+      href: { pathname: "/velo/[id]/controle", params: { id: props.bikeParam } },
+      locale: props.locale,
+    });
+    replaceDocument(`${pathname}?${query.toString()}`);
+  }, [widening, autosave, props.bikeParam, props.specCode, props.locale]);
 
   // Flush on `pagehide`: a phone that discards the tab fires nothing else.
   useEffect(() => {
@@ -224,14 +267,14 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const step = currentStep(state);
   const onSummary = isOnSummary(state);
   const progress = progressOf(state);
-  const phase = !started ? "tools" : onSummary ? "summary" : "step";
+  const phase = widening ? "resuming" : !started ? "tools" : onSummary ? "summary" : "step";
 
   // The heading takes focus on every step change — but not on the first
   // render, where focus belongs to whatever the visitor clicked to get here.
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastCursor = useRef<number | null>(null);
   useEffect(() => {
-    if (phase === "tools") return;
+    if (phase === "tools" || phase === "resuming") return;
     if (lastCursor.current !== null && lastCursor.current !== state.cursor) {
       headingRef.current?.focus();
     }
@@ -383,6 +426,18 @@ export function Wizard(props: WizardProps): React.JSX.Element {
         </Callout>
       ) : null}
 
+      {phase === "resuming" ? (
+        <p role="status" className="text-ink-muted" data-testid="checkup-resuming">
+          {t("resumed.going")}
+        </p>
+      ) : null}
+
+      {phase !== "resuming" && notice !== null ? (
+        <Callout tone="info" data-testid="checkup-resumed" data-notice={notice}>
+          {t(`resumed.${notice}`)}
+        </Callout>
+      ) : null}
+
       {phase === "tools" ? (
         <>
           <p className="text-ink-muted">{t("intro")}</p>
@@ -514,8 +569,62 @@ function isFinished(stored: StoredCheckup | null): boolean {
 }
 
 /**
+ * Must this page hand the stored run over to the FULL checkup before resuming
+ * it? When the page's scope is a set of parts that does not hold the run —
+ * `resumeScope` (`lib/checkup/scope.ts`): a full run with answers, or a partial
+ * one with an answer to a question this scope does not ask. A finished run is
+ * history, never resumed, so never a reason; and a full page holds every run.
+ *
+ * An answer to a question the bike is no longer asked (`fullStepKeys`) is not
+ * a reason either, so a question the corpus dropped never sends the visitor to
+ * a page that would send them on again.
+ */
+function mustWiden(props: WizardProps, stored: StoredCheckup | null): boolean {
+  if (stored === null || isFinished(stored) || props.scope.kind === "full") return false;
+  const asked = props.fullStepKeys === undefined ? null : new Set(props.fullStepKeys);
+  const answered = Object.keys(stored.answers).filter((key) => asked === null || asked.has(key));
+  return (
+    resumeScope(
+      { scope: stored.scope, answered },
+      props.scope,
+      () => new Set(props.steps.map((step) => step.key)),
+    ).kind === "full"
+  );
+}
+
+/**
+ * What to tell a visitor whose run carries on as a FULL checkup although it
+ * was not opened as one, or although they asked for some parts:
+ *
+ *   partialAsFull   a run opened on some parts, resumed over every question —
+ *                   through the saved bike's resume banner (its row does not
+ *                   say which parts), or because the page's parts did not hold
+ *                   it. Its answers given for one side of a question now count
+ *                   for every part that question names, and the sentence says
+ *                   so;
+ *   fullInProgress  a full run in progress, which the parts asked for could
+ *                   only have narrowed.
+ */
+function resumeNoticeOf(
+  props: WizardProps,
+  stored: StoredCheckup | null,
+): "partialAsFull" | "fullInProgress" | null {
+  if (stored === null || isFinished(stored) || props.scope.kind !== "full") return null;
+  if (Object.keys(stored.answers).length === 0) return null;
+  if (stored.scope.kind === "parts") return "partialAsFull";
+  return props.resumeWidened === true ? "fullInProgress" : null;
+}
+
+/**
  * A stored checkup against today's plan, parked on `?step=` when there is one —
  * or a NEW run, when there is nothing to resume.
+ *
+ * Resumed on the PAGE's scope, never on the one it was stored with: the page
+ * has planned a scope that holds the run (see {@link mustWiden}), and its
+ * plan is what is on screen and what every save posts back. Until 2026-10-22
+ * the stored scope was kept — a saved bike's PARTIAL row reads as a scope
+ * naming no part, which planned no question on the server, and the next save
+ * deleted every stored answer of the run (`.debug/017` §5.10).
  *
  * `fromStored` is what keeps a corpus change cheap: the answers survive, the
  * questions are the ones on disk now, and the cursor lands on the first one
@@ -534,7 +643,7 @@ function isFinished(stored: StoredCheckup | null): boolean {
 function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState {
   const resumable = stored !== null && !isFinished(stored);
   const restored = resumable
-    ? fromStored(stored, props.steps, props.contentVersion)
+    ? fromStored({ ...stored, scope: props.scope }, props.steps, props.contentVersion)
     : createCheckupState({
         id: props.newCheckupId,
         bikeRef: props.bikeRef,

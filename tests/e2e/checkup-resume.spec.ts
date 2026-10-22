@@ -1,0 +1,386 @@
+/**
+ * A SAVED bike's partial checkup, in a real browser (`.debug/017` §5.10,
+ * §5.11) — which no `?parts=` spec covered before: every other one runs on the
+ * demo bike, whose run lives whole in `localStorage`.
+ *
+ *   the reload        a partial checkup, an answer, a reload, an answer, the
+ *                     list: until 2026-10-22 the save after the reload posted
+ *                     a scope naming no part, answered ok, and the server
+ *                     deleted the run's stored answers;
+ *   the banner        the workspace's "Reprendre le contrôle" — no `?parts=`
+ *                     for a saved bike — resumes the run as a full checkup,
+ *                     its answers kept, and says so;
+ *   a full run        opened under `?parts=`: resumed whole, never trimmed;
+ *   the scope rule    a checkup limited to the rear caliper says nothing about
+ *                     the front one; one limited to the front tyre lists the
+ *                     front tyre only.
+ *
+ * What is asserted is what PostgreSQL holds (`pg`, the pattern of
+ * `checkup-twelfth-run.spec.ts`). Every test writes its own user and bike
+ * (label = locale + project): the Playwright projects share one database.
+ */
+/* eslint-disable security/detect-object-injection -- locale-keyed message fixtures, indexed by a Locale literal */
+import { Client } from "pg";
+
+import enCheckup from "../../messages/en/checkup.json";
+import frCheckup from "../../messages/fr/checkup.json";
+import { buildOf, deriveBike } from "../../lib/bike/rules";
+import { BIKE_PRESETS } from "../../lib/domain/data/presets";
+import { resolveTestEnv } from "../_fakes/db";
+
+import { expect, forEachLocale, href, test, type Locale } from "./_fixtures";
+
+const CHECKUP: Record<Locale, typeof frCheckup> = { fr: frCheckup, en: enCheckup };
+
+const PAD_WEAR = "check-brakes-disc#pad-wear";
+const ALIGNMENT = "check-brakes-disc#caliper-alignment";
+const CHAIN = "check-drivetrain#chain-wear";
+const TREAD = "check-wheels-tires#tread-sidewalls-tubeless";
+
+/** The labels the covered-parts sentence names, per locale (`messages/*\/parts.json`). */
+const REAR_PADS: Record<Locale, string> = {
+  fr: "Plaquettes ou patins arrière",
+  en: "Rear pads",
+};
+
+async function withDb<T>(run: (client: Client) => Promise<T>): Promise<T> {
+  const client = new Client({ connectionString: resolveTestEnv().POSTGRES_URL });
+  await client.connect();
+  try {
+    return await run(client);
+  } finally {
+    await client.end();
+  }
+}
+
+interface Fixture {
+  user: { id: string; email: string; locale: Locale };
+  bikeId: string;
+}
+
+/** A gravel bike (hydraulic discs, tubeless) of a fresh user, every part UNKNOWN. */
+async function savedBike(label: string, locale: Locale): Promise<Fixture> {
+  return withDb(async (client) => {
+    const email = `resume+${label}@velo-atelier.test`;
+    const derived = deriveBike(BIKE_PRESETS["gravel-1x11"]);
+    const build = buildOf(derived);
+    const { rows: users } = await client.query<{ id: string }>(
+      `INSERT INTO "User" (name, email, locale, "updatedAt") VALUES ($1, $2, $3, now())
+       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+      ["Camille", email, locale],
+    );
+    const userId = users[0].id;
+    await client.query(`DELETE FROM "Bike" WHERE "userId" = $1`, [userId]);
+    const { rows: bikes } = await client.query<{ id: string }>(
+      `INSERT INTO "Bike" ("userId", name, answers, spec, parts, "updatedAt")
+       VALUES ($1, 'Gravel', $2, $3, $4, now()) RETURNING id`,
+      [
+        userId,
+        JSON.stringify(derived.answers),
+        JSON.stringify(build.spec),
+        JSON.stringify(build.parts),
+      ],
+    );
+    const bikeId = bikes[0].id;
+    for (const part of build.parts) {
+      await client.query(
+        `INSERT INTO "BikePartState" ("bikeId", "partId", "updatedAt") VALUES ($1, $2, now())`,
+        [bikeId, part.partId],
+      );
+    }
+    return { user: { id: userId, email, locale }, bikeId };
+  });
+}
+
+/**
+ * What an earlier FULL checkup left: both sides' pads worn — two open lines on
+ * the bike's one list — and both calipers `ATTENTION`.
+ */
+async function bothPadsWorn(bikeId: string): Promise<void> {
+  await withDb(async (client) => {
+    const started = new Date(Date.UTC(2026, 8, 1, 8));
+    const { rows } = await client.query<{ id: string }>(
+      `INSERT INTO "Checkup" ("bikeId", scope, status, "startedAt", "completedAt")
+       VALUES ($1, 'FULL', 'COMPLETED', $2, $2) RETURNING id`,
+      [bikeId, started],
+    );
+    const { rows: lists } = await client.query<{ id: string }>(
+      `INSERT INTO "BuildList" ("bikeId", "checkupId", name, status, "createdAt", "updatedAt")
+       VALUES ($1, $2, '', 'OPEN', $3, now()) RETURNING id`,
+      [bikeId, rows[0].id, started],
+    );
+    await client.query(
+      `INSERT INTO "BuildListItem"
+         ("buildListId", "partId", action, "reasonKey", "guideSlug", done, "sortOrder", "updatedAt")
+       VALUES ($1, 'brake-pads-front', 'REPLACE', 'pad-worn', 'replace-brake-pads-disc', false, 0, now()),
+              ($1, 'brake-pads-rear', 'REPLACE', 'pad-worn', 'replace-brake-pads-disc', false, 1, now())`,
+      [lists[0].id],
+    );
+    await client.query(
+      `UPDATE "BikePartState" SET status = 'ATTENTION'
+        WHERE "bikeId" = $1 AND "partId" IN ('brake-caliper-front', 'brake-caliper-rear')`,
+      [bikeId],
+    );
+  });
+}
+
+interface BikeRows {
+  checkups: { scope: string; status: string; items: string[] }[];
+  lines: string[];
+  states: Record<string, string>;
+}
+
+async function rowsOf(bikeId: string): Promise<BikeRows> {
+  return withDb(async (client) => {
+    const { rows: checkups } = await client.query<{ id: string; scope: string; status: string }>(
+      `SELECT id, scope, status FROM "Checkup" WHERE "bikeId" = $1 ORDER BY "startedAt"`,
+      [bikeId],
+    );
+    const result: BikeRows = { checkups: [], lines: [], states: {} };
+    for (const checkup of checkups) {
+      const { rows: items } = await client.query<{
+        stepKey: string;
+        result: string;
+        partId: string;
+      }>(
+        `SELECT "stepKey", result, "partId" FROM "CheckupItem" WHERE "checkupId" = $1 ORDER BY "stepKey"`,
+        [checkup.id],
+      );
+      result.checkups.push({
+        scope: checkup.scope,
+        status: checkup.status,
+        items: items.map((item) => `${item.stepKey}=${item.result}@${item.partId}`),
+      });
+    }
+    const { rows: lines } = await client.query<{
+      partId: string;
+      action: string;
+      done: boolean;
+      doneReason: string | null;
+    }>(
+      `SELECT i."partId", i.action, i.done, i."doneReason"
+         FROM "BuildListItem" i JOIN "BuildList" l ON l.id = i."buildListId"
+        WHERE l."bikeId" = $1 ORDER BY i."partId", i.action`,
+      [bikeId],
+    );
+    result.lines = lines.map(
+      (line) => `${line.action} ${line.partId}${line.done ? ` ${line.doneReason}` : ""}`,
+    );
+    const { rows: states } = await client.query<{ partId: string; status: string }>(
+      `SELECT "partId", status FROM "BikePartState"
+        WHERE "bikeId" = $1 AND status <> 'UNKNOWN' ORDER BY "partId"`,
+      [bikeId],
+    );
+    result.states = Object.fromEntries(states.map((row) => [row.partId, row.status]));
+    return result;
+  });
+}
+
+type Page = import("@playwright/test").Page;
+
+/** The question on screen, or the phase when there is none. */
+async function onScreen(page: Page): Promise<string> {
+  const phase = await page.getByTestId("checkup-wizard").getAttribute("data-phase");
+  if (phase !== "step") return phase ?? "";
+  return (await page.getByTestId("step-card").getAttribute("data-step-key")) ?? "";
+}
+
+/** Answer the question `key`, which must be on screen; wait for the wizard to move on. */
+async function answer(page: Page, key: string, given: "ok" | { ko: string }): Promise<void> {
+  await expect(page.getByTestId("step-card")).toHaveAttribute("data-step-key", key);
+  if (given === "ok") {
+    await page.getByTestId("verdict-ok").click();
+  } else {
+    await page.getByTestId("verdict-ko").click();
+    await page.getByTestId(`symptom-${given.ko}`).click();
+  }
+  await expect.poll(() => onScreen(page)).not.toBe(key);
+}
+
+/** The 2 s autosave has answered. */
+async function saved(page: Page): Promise<void> {
+  await expect(page.getByTestId("checkup-save-state")).toHaveAttribute("data-state", "saved", {
+    timeout: 10_000,
+  });
+}
+
+forEachLocale((locale) => {
+  const t = CHECKUP[locale];
+
+  test(`a saved bike's partial checkup survives a reload: answered, reloaded, answered, finished (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await savedBike(`reload-${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "chain,brake-caliper-front" }),
+    );
+    await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopePartial);
+    await page.getByTestId("checkup-start").click();
+    await answer(page, PAD_WEAR, { ko: "pad-worn" });
+    await saved(page);
+
+    await page.reload();
+    await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopePartial);
+    await answer(page, ALIGNMENT, "ok");
+    await saved(page);
+    // Until 2026-10-22: 0 rows here, after a save that said "Sauvegardé".
+    expect((await rowsOf(bikeId)).checkups).toEqual([
+      {
+        scope: "PARTIAL",
+        status: "IN_PROGRESS",
+        items: [`${ALIGNMENT}=OK@brake-caliper-front`, `${PAD_WEAR}=KO@brake-caliper-front`],
+      },
+    ]);
+
+    await answer(page, CHAIN, { ko: "chain-elongation" });
+    await page.getByTestId("summary-create").click();
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: bikeId }),
+    );
+    await expect(page.getByTestId("checkup-finish-error")).toHaveCount(0);
+    expect(await rowsOf(bikeId)).toEqual({
+      checkups: [
+        {
+          scope: "PARTIAL",
+          status: "COMPLETED",
+          items: [
+            `${ALIGNMENT}=OK@brake-caliper-front`,
+            `${PAD_WEAR}=KO@brake-caliper-front`,
+            `${CHAIN}=KO@chain`,
+          ],
+        },
+      ],
+      lines: ["REPLACE brake-pads-front", "REPLACE chain"],
+      states: { "brake-caliper-front": "ATTENTION", chain: "ATTENTION" },
+    });
+  });
+
+  test(`back through the resume banner, a partial run carries on as a full checkup, its answer kept (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await savedBike(`banner-${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "chain,brake-caliper-front" }),
+    );
+    await page.getByTestId("checkup-start").click();
+    await answer(page, PAD_WEAR, { ko: "pad-worn" });
+    await saved(page);
+
+    await page.goto(href(locale, "/velo/[id]", { id: bikeId }));
+    await expect(page.getByTestId("resume-banner")).toBeVisible();
+    // A saved bike's row does not say which parts: the link has no `?parts=`.
+    const resume = href(locale, "/velo/[id]/controle", { id: bikeId });
+    await expect(page.getByTestId("resume-cta")).toHaveAttribute("href", resume);
+    // Followed by URL rather than by a click, as in `checkup-partial.spec.ts`:
+    // the workspace under the banner is a WebGL canvas still settling.
+    await page.goto(resume);
+    await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopeFull);
+    await expect(page.getByTestId("checkup-resumed")).toHaveText(t.resumed.partialAsFull);
+    await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
+    await page.getByTestId("verdict-ok").click();
+    await saved(page);
+
+    const { checkups } = await rowsOf(bikeId);
+    expect(checkups).toHaveLength(1);
+    expect(checkups[0]).toMatchObject({ scope: "FULL", status: "IN_PROGRESS" });
+    expect(checkups[0].items).toHaveLength(2);
+    expect(checkups[0].items).toContain(`${PAD_WEAR}=KO@brake-caliper-front`);
+  });
+
+  test(`an unfinished full run opened under ?parts= is resumed whole, nothing trimmed (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await savedBike(`full-${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    await page.goto(href(locale, "/velo/[id]/controle", { id: bikeId }));
+    await page.getByTestId("checkup-start").click();
+    for (let index = 0; index < 3; index += 1) {
+      const key = await onScreen(page);
+      await answer(page, key, "ok");
+    }
+    await saved(page);
+    expect((await rowsOf(bikeId)).checkups[0].items).toHaveLength(3);
+
+    await page.goto(href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "chain" }));
+    await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopeFull);
+    await expect(page.getByTestId("checkup-resumed")).toHaveText(t.resumed.fullInProgress);
+    await answer(page, await onScreen(page), "ok");
+    await saved(page);
+    const { checkups } = await rowsOf(bikeId);
+    expect(checkups).toHaveLength(1);
+    expect(checkups[0]).toMatchObject({ scope: "FULL", status: "IN_PROGRESS" });
+    expect(checkups[0].items).toHaveLength(4);
+  });
+
+  test(`a checkup limited to the rear caliper, all OK, says nothing about the front one (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await savedBike(`rear-${locale}-${testInfo.project.name}`, locale);
+    await bothPadsWorn(bikeId);
+    await signedInContext(user);
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "brake-caliper-rear" }),
+    );
+    await page.getByTestId("checkup-start").click();
+    // The question speaks of every pad; the page says what the answer counts for.
+    await expect(page.getByTestId("verdict-covered")).toContainText(REAR_PADS[locale]);
+    await answer(page, PAD_WEAR, "ok");
+    await answer(page, ALIGNMENT, "ok");
+    await expect(page.getByTestId("checkup-summary")).toBeVisible();
+    await expect(
+      page.locator(`[data-step-key="${PAD_WEAR}"] [data-testid="summary-covered"]`),
+    ).toContainText(REAR_PADS[locale]);
+    await page.getByTestId("summary-create").click();
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: bikeId }),
+    );
+
+    expect(await rowsOf(bikeId)).toMatchObject({
+      lines: ["REPLACE brake-pads-front", "REPLACE brake-pads-rear recheck-ok"],
+      // The front caliper keeps what the earlier checkup said; the front
+      // lever was never asked about, and is not "Bon état".
+      states: { "brake-caliper-front": "ATTENTION", "brake-caliper-rear": "OK" },
+    });
+    const run = (await rowsOf(bikeId)).checkups.at(-1);
+    expect(run).toEqual({
+      scope: "PARTIAL",
+      status: "COMPLETED",
+      items: [`${ALIGNMENT}=OK@brake-caliper-rear`, `${PAD_WEAR}=OK@brake-caliper-rear`],
+    });
+    // On the list: the front pads still to replace.
+    await expect(
+      page.locator('[data-testid="build-item"][data-part-id="brake-pads-front"]'),
+    ).toBeVisible();
+  });
+
+  test(`a checkup limited to the front tyre, KO, lists the front tyre only (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await savedBike(`tyre-${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    await page.goto(href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "tire-front" }));
+    await page.getByTestId("checkup-start").click();
+    await answer(page, TREAD, { ko: "tire-worn" });
+    await page.getByTestId("summary-create").click();
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: bikeId }),
+    );
+    await expect(
+      page.locator('[data-testid="build-item"][data-part-id="tire-front"]'),
+    ).toBeVisible();
+    await expect(page.locator('[data-testid="build-item"][data-part-id="tire-rear"]')).toHaveCount(
+      0,
+    );
+    expect(await rowsOf(bikeId)).toMatchObject({
+      lines: ["REPLACE tire-front"],
+      states: { "tire-front": "ATTENTION" },
+    });
+  });
+});

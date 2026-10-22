@@ -121,7 +121,12 @@ describe("autosave", () => {
     });
   });
 
-  it("changes a verdict in place, and removes the row of a question that lost one", async () => {
+  it("changes a verdict in place, and KEEPS the row of a question the payload does not carry", async () => {
+    // Until 2026-10-22 the second save deleted the cassette's row: "the row of
+    // a question that lost its verdict". The wizard has no event that removes
+    // a verdict; what leaves an answer out of a payload is a page that planned
+    // fewer questions than the run holds — and that deleted a resumed run's
+    // stored answers (`.debug/017` §5.10).
     const user = await signedInUser("verdict@velo-atelier.test");
     const bike = await gravelBike(user.id);
 
@@ -136,9 +141,36 @@ describe("autosave", () => {
       checkup: payload({ answers: { [CHAIN]: "ok" }, symptoms: {}, notes: {} }),
     });
 
-    const items = await prisma.checkupItem.findMany({ where: { checkup: { bikeId: bike.id } } });
-    expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ stepKey: CHAIN, result: "OK", notes: null });
+    const items = await prisma.checkupItem.findMany({
+      where: { checkup: { bikeId: bike.id } },
+      orderBy: { stepKey: "asc" },
+    });
+    expect(items.map((item) => [item.stepKey, item.result, item.notes])).toEqual([
+      [CASSETTE, "SKIPPED", null],
+      [CHAIN, "OK", null],
+    ]);
+  });
+
+  it("removes the row of a question this bike is no longer asked at all", async () => {
+    // The one deletion left: the corpus — or the bike — no longer has the
+    // question. A rim-brake question on this disc-brake bike stands for it.
+    const user = await signedInUser("dropped@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    await saveCheckupAction({ bikeId: bike.id, checkup: payload() });
+    const run = await prisma.checkup.findFirstOrThrow({ where: { bikeId: bike.id } });
+    await prisma.checkupItem.create({
+      data: {
+        checkupId: run.id,
+        stepKey: "check-brakes-rim#pad-wear",
+        partId: "brake-caliper-front",
+        guideSlug: "check-brakes-rim",
+        result: "OK",
+      },
+    });
+
+    await saveCheckupAction({ bikeId: bike.id, checkup: payload() });
+    const items = await prisma.checkupItem.findMany({ where: { checkupId: run.id } });
+    expect(items.map((item) => item.stepKey)).toEqual([CHAIN]);
   });
 
   it("reads the checkup back, and lists it with the number of answers", async () => {

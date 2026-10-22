@@ -22,11 +22,15 @@
  *                 any length included (`.debug/017` §5.9)
  *
  * …and a run the guest LEFT and came back to through another link is resumed
- * the way the wizard resumes it ({@link resumeGuestRun}): the stored answers
- * against the plan of the NEW link, under the scope the run was first opened
- * with. That stale scope is real — `restore` in `components/checkup/Wizard.tsx`
- * — and a fixture that tidied it up hid the fact that the import dropped 33 of
- * a finished checkup's 34 answers (found in review, 2026-10-09).
+ * the way the wizard of BEFORE 2026-10-22 resumed it ({@link resumeGuestRun}):
+ * the stored answers against the plan of the NEW link, under the scope the run
+ * was first opened with. That stale scope is real — browsers still hold such
+ * states — and a fixture that tidied it up hid the fact that the import
+ * dropped 33 of a finished checkup's 34 answers (found in review, 2026-10-09).
+ * Today's wizard resumes on the page's scope, and goes to the full checkup
+ * rather than trim a run (`.debug/017` §5.10); what it stores is held by
+ * `tests/integration/checkup-resume.test.ts` and
+ * `tests/e2e/guest-import.spec.ts`.
  *
  * Nothing here names a step's part or guide: the plan does. A fixture that
  * needs a hostile or malformed payload starts from a real one and breaks
@@ -349,7 +353,9 @@ export interface GuestResumeOptions {
 
 /**
  * The guest comes back to an UNFINISHED checkup through another link, and
- * carries on — `restore` in `components/checkup/Wizard.tsx`, call for call.
+ * carries on — as the wizard of before 2026-10-22 did, call for call: what a
+ * browser that ran it holds today. (Today's `restore` resumes on the page's
+ * scope, and only when that scope holds the run.)
  *
  * The page plans the link's scope; the wizard reads the stored run (its own
  * read, `readStoredCheckup`) and marries it to THAT plan with `fromStored`.
