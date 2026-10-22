@@ -6,7 +6,7 @@
 # so `coverage.sh` can merge it with the integration run and enforce the 80 %
 # thresholds once — a per-job threshold would fail on files the other job
 # covers. Blob and default reporters are combined on purpose (verified on
-# Vitest 4.1.11): CI needs the blob, a human needs to see which test failed.
+# Vitest 4.1.11 and 4.1.12): CI needs the blob, a human needs to see which test failed.
 source "$(dirname -- "${BASH_SOURCE[0]}")/_lib.sh"
 cd "$PROJECT_ROOT"
 
