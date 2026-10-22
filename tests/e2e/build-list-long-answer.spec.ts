@@ -145,9 +145,16 @@ forEachLocale((locale) => {
     browserName,
   }, testInfo) => {
     // The list, made by the application: the brakes checked in the real
-    // wizard, the pads found worn — front and rear, two lines.
+    // wizard, the pads found worn — front and rear, two lines. Both pads are
+    // picked: a checkup limited to the rear ones lists the rear ones only
+    // (`.debug/017` §5.11); until 2026-10-22 it listed both.
     await page.goto(
-      href(locale, "/velo/[id]/controle", { id: "demo" }, { parts: "brake-pads-rear" }),
+      href(
+        locale,
+        "/velo/[id]/controle",
+        { id: "demo" },
+        { parts: "brake-pads-front,brake-pads-rear" },
+      ),
     );
     await page.getByTestId("checkup-start").click();
     const wizard = page.getByTestId("checkup-wizard");

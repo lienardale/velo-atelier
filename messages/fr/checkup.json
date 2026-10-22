@@ -28,7 +28,8 @@
     "substitution": "{tool} : utilisez plutôt {alternatives}.",
     "substitutionNone": "{tool} : pas de remplaçant possible. Passez cette étape, ou demandez à un atelier.",
     "guide": "Voir le guide complet",
-    "back": "Question précédente"
+    "back": "Question précédente",
+    "covered": "Contrôle partiel — votre réponse ne comptera que pour : {parts}."
   },
   "verdict": {
     "legend": "Votre verdict",
@@ -66,6 +67,7 @@
     "open": "{count, plural, =1 {Il reste 1 question sans réponse.} other {Il reste # questions sans réponse.}}",
     "create": "Créer ma liste",
     "nothingToDo": "Rien à changer : votre vélo a passé le contrôle.",
-    "counts": "{ok} ok · {ko} à reprendre · {skipped} passées"
+    "counts": "{ok} ok · {ko} à reprendre · {skipped} passées",
+    "covered": "Ne compte que pour : {parts}"
   }
 }

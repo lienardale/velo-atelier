@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 
 import {
   finishCheckupAction,
@@ -145,6 +145,8 @@ export function Wizard(props: WizardProps): React.JSX.Element {
   const t = useTranslations("checkup");
   const tTools = useTranslations("tools");
   const tGuides = useTranslations("guides");
+  const tParts = useTranslations("parts");
+  const format = useFormatter();
   const router = useRouter();
 
   // The saved bike's checkup is known on the SERVER (the page read the row), so
@@ -276,6 +278,19 @@ export function Wizard(props: WizardProps): React.JSX.Element {
       // eslint-disable-next-line security/detect-object-injection -- guarded by Object.hasOwn
       Object.hasOwn(props.guideRefs, slug) ? props.guideRefs[slug].title : null,
     [props.guideRefs],
+  );
+  // A question a partial checkup asks for SOME of the parts it names counts for
+  // those only (`coveredParts`, `lib/checkup/plan.ts`): said under the prompt
+  // and on the summary, in the parts' own names.
+  const coveredOf = useCallback(
+    (entry: CheckStepRef): string | null =>
+      entry.coveredParts === undefined
+        ? null
+        : format.list(
+            entry.coveredParts.map((partId) => tParts(`${partId}.label` as never)),
+            { type: "conjunction" },
+          ),
+    [format, tParts],
   );
   const isStub = useCallback(
     (slug: string) =>
@@ -444,6 +459,9 @@ export function Wizard(props: WizardProps): React.JSX.Element {
 
           <VerdictBar
             prompt={step.prompt}
+            {...(step.coveredParts === undefined
+              ? {}
+              : { coveredNote: t("step.covered", { parts: coveredOf(step) ?? "" }) })}
             current={verdictOf(state, step.key)}
             skippable={step.skippable}
             onAnswer={(result) => dispatch({ type: "ANSWER", key: step.key, result })}
@@ -460,6 +478,7 @@ export function Wizard(props: WizardProps): React.JSX.Element {
           onEdit={(key) => dispatch({ type: "JUMP", key })}
           onCreate={onCreate}
           creating={creating}
+          coveredOf={coveredOf}
         />
       ) : null}
 

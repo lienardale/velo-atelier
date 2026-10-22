@@ -19,11 +19,13 @@ import { storedBuildList, storedCheckup, symptomsFor, verdictFor } from "./_chec
 
 const CHECKUP_T: Record<Locale, typeof frCheckup> = { fr: frCheckup, en: enCheckup };
 
-const CALIPER_STEPS = [
-  "check-brakes-disc#pad-wear",
-  "check-brakes-disc#caliper-alignment",
-  "check-brakes-disc#hose-leak",
-];
+/**
+ * The two calipers' questions. `hose-leak` names the calipers too, and was
+ * asked here until 2026-10-22; its only finding is about the brake LINES, so a
+ * checkup limited to the calipers no longer asks it (`lib/checkup/plan.ts`,
+ * `.debug/017` §5.11).
+ */
+const CALIPER_STEPS = ["check-brakes-disc#pad-wear", "check-brakes-disc#caliper-alignment"];
 
 const CHAIN_STEP = "check-drivetrain#chain-wear";
 

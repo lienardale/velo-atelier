@@ -14,7 +14,8 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveBuildList } from "@/lib/checkup/build-list";
-import { planCheckup, toolsFor } from "@/lib/checkup/plan";
+import { hostOf, planCheckup, toolsFor } from "@/lib/checkup/plan";
+import { partsInScope } from "@/lib/checkup/scope";
 import { deriveBike } from "@/lib/bike/rules";
 import { makeState } from "@/tests/_helpers/checkup";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
@@ -76,13 +77,39 @@ describe("a full checkup asks only what this bike can answer", () => {
 });
 
 describe("a partial checkup asks about the parts that were picked", () => {
-  it("turns a pad — which has no mesh — into its caliper's questions", () => {
+  it("turns a pad — which has no mesh — into its caliper's questions, about the REAR side only", () => {
     const plan = planCheckup(EMTB, { kind: "parts", partIds: ["brake-pads-rear"] as PartId[] }, FR);
+    // `hose-leak` names the calipers too, and was asked here until 2026-10-22;
+    // its only finding is about the brake LINES, outside this scope, so a KO
+    // could have put nothing on the list (`lib/checkup/plan.ts`, §5.11).
     expect(plan.map((step) => step.key)).toEqual([
       "check-brakes-disc#pad-wear",
       "check-brakes-disc#caliper-alignment",
-      "check-brakes-disc#hose-leak",
     ]);
+    expect(plan.map((step) => step.partIds)).toEqual([
+      ["brake-caliper-rear"],
+      ["brake-caliper-rear"],
+    ]);
+    expect(plan.map((step) => step.coveredParts)).toEqual([
+      ["brake-pads-rear"],
+      ["brake-caliper-rear"],
+    ]);
+    expect(plan.flatMap((step) => step.ko.map((consequence) => consequence.partId))).toEqual([
+      "brake-pads-rear",
+      "brake-pads-rear",
+      "brake-caliper-rear",
+    ]);
+  });
+
+  it("asks a question about both tyres, for the front one only, with the front tyre's findings", () => {
+    const plan = planCheckup(GRAVEL, { kind: "parts", partIds: ["tire-front"] as PartId[] }, FR);
+    for (const step of plan) {
+      expect(step.partIds, step.key).toEqual(["tire-front"]);
+      for (const consequence of step.ko) {
+        expect(["tire-front", "tube-front"], step.key).toContain(consequence.partId);
+      }
+    }
+    expect(plan.length).toBeGreaterThan(0);
   });
 
   it("asks one question when one chain is picked", () => {
@@ -94,9 +121,66 @@ describe("a partial checkup asks about the parts that were picked", () => {
     ]);
   });
 
-  it("is the full checkup again when nothing was picked", () => {
+  it("plans NOTHING for a parts scope that names no part — which no caller hands it any more", () => {
+    // Kept on purpose (`.debug/017` §5.10): a planner that turned it into the
+    // full checkup would widen silently, and a stale empty scope would then
+    // ask — and, on the server, write — 34 questions' worth. The callers
+    // decide before: `?parts=` naming nothing is the full checkup
+    // (`scopeFromPartIds`), the actions refuse an empty one, and
+    // `effectiveScope` reads one as naming nothing without planning it. A
+    // caller that DID plan it is how a resumed run lost every answer.
     expect(planCheckup(GRAVEL, { kind: "parts", partIds: [] }, FR).map((s) => s.key)).toEqual([]);
     expect(GRAVEL_FULL.length).toBeGreaterThan(20);
+  });
+});
+
+/**
+ * The scope rule over every preset and every part it carries (§5.11): a
+ * checkup limited to one part reports on nothing outside it — what an item is
+ * stored against (`partIds[0]`), what is tinted (`partIds`), what is closed
+ * and derived (`ko`) — and a full checkup is exactly what it was before the
+ * rule existed, field for field.
+ */
+describe.each(Object.keys(BIKE_PRESETS) as PresetId[])("%s: the scope rule", (preset) => {
+  const build = buildOf(preset);
+  const full = planCheckup(build, { kind: "full" }, FR);
+  const fitted = new Set(build.parts.map((part) => part.partId));
+
+  it("plans a FULL checkup as it always did: every fitted part, every fitted finding", () => {
+    // The rule before 2026-10-22, written out: hosts of the fitted parts a
+    // step names, in the guide's order; its findings about fitted parts.
+    for (const step of full) {
+      const guide = FR.find((candidate) => candidate.slug === step.guideSlug);
+      const source = guide?.steps.find((candidate) => candidate.id === step.stepId);
+      const named = (source?.partIds ?? guide?.partIds ?? []).filter((id) => fitted.has(id));
+      const hosts = [...new Set(named.map((id) => hostOf(id)))];
+      expect(step.partIds, step.key).toEqual(hosts);
+      expect(step.ko, step.key).toEqual(
+        (source?.checkQuestion?.ko ?? []).filter((consequence) => fitted.has(consequence.partId)),
+      );
+      expect(step.coveredParts, step.key).toBeUndefined();
+    }
+  });
+
+  it("never reports a one-part checkup on a part outside its scope", () => {
+    for (const partId of fitted) {
+      const scope = { kind: "parts" as const, partIds: [partId] as PartId[] };
+      const inside = partsInScope(scope) ?? new Set<string>();
+      const hosts = new Set([...inside].map((id) => hostOf(id)));
+      for (const step of planCheckup(build, scope, FR)) {
+        const where = `${partId}: ${step.key}`;
+        expect(step.partIds.length, where).toBeGreaterThan(0);
+        for (const host of step.partIds) expect(hosts.has(host), where).toBe(true);
+        for (const consequence of step.ko) expect(inside.has(consequence.partId), where).toBe(true);
+        // A question is asked only when it can find something inside the scope.
+        expect(step.ko.length, where).toBeGreaterThan(0);
+        // And it is one the full checkup asks.
+        expect(
+          full.some((other) => other.key === step.key),
+          where,
+        ).toBe(true);
+      }
+    }
   });
 });
 

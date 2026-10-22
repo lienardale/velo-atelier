@@ -164,6 +164,20 @@ describe("planCheckup", () => {
     expect(plan[0].partIds).toEqual(["brake-caliper-front"]);
   });
 
+  it("counts a part a step names twice once", () => {
+    const twice = guide({
+      partIds: ["brake-pads-front"],
+      steps: [step({ partIds: ["brake-pads-front", "brake-pads-front"] })],
+    });
+    const [scoped] = planCheckup(
+      GRAVEL,
+      { kind: "parts", partIds: ["brake-caliper-front"] as PartId[] },
+      [twice],
+    );
+    expect(scoped.partIds).toEqual(["brake-caliper-front"]);
+    expect(scoped.coveredParts).toBeUndefined();
+  });
+
   it("keeps a step whose parts intersect the picked ones, through their host", () => {
     const guides = [
       guide(),
@@ -179,6 +193,105 @@ describe("planCheckup", () => {
       guides,
     );
     expect(scoped.map((entry) => entry.key)).toEqual(["check-brakes-disc#pad-wear"]);
+  });
+
+  describe("a step kept for a partial checkup is narrowed to its scope (§5.11)", () => {
+    // One question about both sides, the way the corpus writes a pair.
+    const pair = guide({
+      partIds: ["brake-pads-front", "brake-pads-rear"],
+      steps: [
+        step({
+          partIds: ["brake-pads-front", "brake-pads-rear"],
+          checkQuestion: {
+            prompt: "Reste-t-il 1 mm sur chaque plaquette ?",
+            skippable: false,
+            ko: [
+              { action: "replace", partId: "brake-pads-front", reasonKey: "pad-worn" },
+              { action: "replace", partId: "brake-pads-rear", reasonKey: "pad-worn" },
+            ],
+          },
+        }),
+      ],
+    });
+    const scoped = (...partIds: string[]) =>
+      planCheckup(GRAVEL, { kind: "parts", partIds: partIds as PartId[] }, [pair]);
+
+    it("reports on the picked side only, and says which parts its verdict counts for", () => {
+      const [rear] = scoped("brake-caliper-rear");
+      expect(rear.partIds).toEqual(["brake-caliper-rear"]);
+      expect(rear.ko.map((consequence) => consequence.partId)).toEqual(["brake-pads-rear"]);
+      expect(rear.coveredParts).toEqual(["brake-pads-rear"]);
+    });
+
+    it("is the whole step, unmarked, when the scope holds every part it names", () => {
+      const [both] = scoped("brake-caliper-front", "brake-caliper-rear");
+      const [full] = planCheckup(GRAVEL, { kind: "full" }, [pair]);
+      expect(both).toEqual(full);
+      expect(both.coveredParts).toBeUndefined();
+    });
+
+    it("marks a step whose parts are all inside but some of whose findings are not", () => {
+      const lever = guide({
+        partIds: ["brake-caliper-rear"],
+        steps: [
+          step({
+            partIds: ["brake-caliper-rear"],
+            checkQuestion: {
+              prompt: "?",
+              skippable: false,
+              ko: [
+                { action: "fix", partId: "brake-caliper-rear", reasonKey: "caliper-rub" },
+                { action: "inspect-shop", partId: "brake-line-rear", reasonKey: "hose-leak" },
+              ],
+            },
+          }),
+        ],
+      });
+      const [planned] = planCheckup(
+        GRAVEL,
+        { kind: "parts", partIds: ["brake-caliper-rear"] as PartId[] },
+        [lever],
+      );
+      expect(planned.ko.map((consequence) => consequence.partId)).toEqual(["brake-caliper-rear"]);
+      expect(planned.coveredParts).toEqual(["brake-caliper-rear"]);
+    });
+
+    it("does not ask a question every finding of which is about a part outside the scope", () => {
+      // `hose-leak`'s shape: it names the caliper, and sends its finding to the line.
+      const leak = guide({
+        partIds: ["brake-caliper-rear", "brake-line-rear"],
+        steps: [
+          step({
+            partIds: ["brake-caliper-rear", "brake-line-rear"],
+            checkQuestion: {
+              prompt: "?",
+              skippable: false,
+              ko: [{ action: "inspect-shop", partId: "brake-line-rear", reasonKey: "hose-leak" }],
+            },
+          }),
+        ],
+      });
+      expect(
+        planCheckup(GRAVEL, { kind: "parts", partIds: ["brake-caliper-rear"] as PartId[] }, [leak]),
+      ).toEqual([]);
+      // Picking the line — through its lever — asks it.
+      expect(
+        planCheckup(GRAVEL, { kind: "parts", partIds: ["brake-lever-rear"] as PartId[] }, [leak]),
+      ).toHaveLength(1);
+    });
+
+    it("still asks a question that has no finding at all, when it names a part inside", () => {
+      const silent = guide({
+        steps: [step({ checkQuestion: { prompt: "?", skippable: true, ko: [] } })],
+      });
+      const [only] = planCheckup(
+        GRAVEL,
+        { kind: "parts", partIds: ["brake-caliper-front"] as PartId[] },
+        [silent],
+      );
+      expect(only.ko).toEqual([]);
+      expect(only.coveredParts).toBeUndefined();
+    });
   });
 
   it("ignores a picked part that is not a part at all", () => {

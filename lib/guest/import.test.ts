@@ -333,7 +333,8 @@ describe("a checkup: the server re-plans (§5.4)", () => {
       plan,
     });
     // The answers are accepted against the whole bike's plan; the scope the
-    // payload names is planned too, to know whether PARTIAL is still true.
+    // payload names is planned too, ONCE: to know whether PARTIAL is still
+    // true, and then — it is, here — to narrow the checkup's steps to it.
     expect(seen).toEqual([
       { parts: DERIVED.parts.length, scope: { kind: "full" } },
       { parts: DERIVED.parts.length, scope: { kind: "parts", partIds: ["chain", "cassette"] } },
@@ -499,8 +500,11 @@ describe("a checkup: the server re-plans (§5.4)", () => {
 
   it("imports a run opened on one part and continued on ANOTHER — none of whose answers the first part asks", async () => {
     // Chain first; then "check this part" on the front caliper. `reconcile`
-    // drops the chain's answer there (the wizard's doing), and what is stored
-    // is three brake answers under `scope: parts[chain]`.
+    // drops the chain's answer there (the wizard's doing before 2026-10-22,
+    // which a browser that loaded it may still hold), and what is stored is
+    // the caliper's two brake answers under `scope: parts[chain]`. (Three
+    // until the same date: `hose-leak` is not asked for a caliper any more,
+    // its only finding being about the brake lines — `.debug/017` §5.11.)
     const bike = continued(
       { parts: ["chain"], verdicts: { [CHAIN]: { ko: ["chain-elongation"] } } },
       {
@@ -511,17 +515,15 @@ describe("a checkup: the server re-plans (§5.4)", () => {
       },
     );
     expect(bike.checkups[0].scope).toEqual({ kind: "parts", partIds: ["chain"] });
-    expect(Object.keys(bike.checkups[0].answers).sort()).toEqual(
-      [ALIGNMENT, HOSE, PAD_WEAR].sort(),
-    );
+    expect(Object.keys(bike.checkups[0].answers).sort()).toEqual([ALIGNMENT, PAD_WEAR].sort());
 
     const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
     // Before: `skipped: 'nothing-kept'`, and the visitor was told none of the
-    // answers matched a question asked for this bike. All three do.
+    // answers matched a question asked for this bike. Both do.
     expect(result.ok && result.data.bikes[0].checkups).toEqual([
       { guestKey: CHECKUP_ID, status: "imported" },
     ]);
-    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([PAD_WEAR, ALIGNMENT, HOSE]);
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([PAD_WEAR, ALIGNMENT]);
     // Not the chain's checkup any more: the column cannot name the caliper.
     expect(rows("Checkup")[0].scope).toBe("FULL");
     expect(rows("BuildListItem").every((line) => line.checkupItemId !== null)).toBe(true);
@@ -739,7 +741,6 @@ describe("part states (§4.2 b)", () => {
             [CASSETTE]: "ok",
             [PAD_WEAR]: { ko: ["pad-worn"] },
             [ALIGNMENT]: "ok",
-            [HOSE]: "ok",
           },
         }),
       ),
@@ -753,52 +754,74 @@ describe("part states (§4.2 b)", () => {
     // SKIPPED says nothing about the part.
     expect(states.get("chain")?.status).toBe("UNKNOWN");
     expect(states.get("chain")?.lastServicedAt).toBeNull();
-    // KO → BROKEN, with no service date.
-    expect(states.get("brake-caliper-front")?.status).toBe("BROKEN");
-    expect(states.get("brake-caliper-front")?.lastServicedAt).toBeNull();
+    // KO → BROKEN, with no service date — on the REAR caliper, the one picked.
+    expect(states.get("brake-caliper-rear")?.status).toBe("BROKEN");
+    expect(states.get("brake-caliper-rear")?.lastServicedAt).toBeNull();
+    // The front one was not part of this checkup (`.debug/017` §5.11).
+    expect(states.get("brake-caliper-front")?.status).toBe("UNKNOWN");
   });
 
-  it("gives a status to the part each ITEM names — the step's first — and to no other", async () => {
+  it("gives a status to the part each ITEM names — inside the scope — and to no other", async () => {
     await importGuestState(
       fakeDb.client,
       userId,
       state(
         collected({
           parts: ["brake-caliper-rear"],
-          verdicts: { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok", [HOSE]: "ok" },
+          verdicts: { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok" },
         }),
       ),
       deps,
     );
-    // Every one of these three questions reports on several parts…
+    // Both questions are about both calipers, and a full checkup reports each
+    // on both…
+    const full = planFromDisk(DERIVED, { kind: "full" });
+    expect(
+      [PAD_WEAR, ALIGNMENT].map((key) => full.find((step) => step.key === key)?.partIds),
+    ).toEqual([
+      ["brake-caliper-front", "brake-caliper-rear"],
+      ["brake-caliper-front", "brake-caliper-rear"],
+    ]);
+    // …but this checkup was limited to the rear one, and its plan says so.
     const plan = planFromDisk(DERIVED, partsScope("brake-caliper-rear"));
     expect(plan.map((step) => step.partIds)).toEqual([
-      ["brake-caliper-front", "brake-caliper-rear"],
-      ["brake-caliper-front", "brake-caliper-rear"],
-      ["brake-lever-front", "brake-lever-rear", "brake-caliper-front", "brake-caliper-rear"],
+      ["brake-caliper-rear"],
+      ["brake-caliper-rear"],
     ]);
-    // …and each row names the first of them, which is the part that is written.
+    expect(rows("Checkup")[0].scope).toBe("PARTIAL");
+    // Each row names the part inside the scope, which is the part that is written.
+    // Until 2026-10-22 they named the FRONT caliper and the front lever, and
+    // turned both `OK` (`.debug/017` §5.11).
+    expect(rows("CheckupItem").map((item) => item.partId)).toEqual([
+      "brake-caliper-rear",
+      "brake-caliper-rear",
+    ]);
+    const states = partStates();
+    expect(states.get("brake-caliper-rear")?.status).toBe("OK");
+    expect(states.get("brake-caliper-front")?.status).toBe("UNKNOWN");
+    expect(states.get("brake-lever-front")?.status).toBe("UNKNOWN");
+    expect(states.get("brake-lever-rear")?.status).toBe("UNKNOWN");
+    const written = [...states.values()].filter((row) => row.status !== "UNKNOWN");
+    expect(written.map((row) => row.partId)).toEqual(["brake-caliper-rear"]);
+  });
+
+  it("writes a FULL checkup of the same answers on both calipers' first part, as before", async () => {
+    // The control: the scope rule is about a checkup limited to some parts.
+    await importGuestState(
+      fakeDb.client,
+      userId,
+      state(collected({ verdicts: { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok" }, completedAt: null })),
+      deps,
+    );
+    expect(rows("Checkup")[0].scope).toBe("FULL");
     expect(rows("CheckupItem").map((item) => item.partId)).toEqual([
       "brake-caliper-front",
       "brake-caliper-front",
-      "brake-lever-front",
-    ]);
-    const states = partStates();
-    expect(states.get("brake-caliper-front")?.status).toBe("OK");
-    expect(states.get("brake-lever-front")?.status).toBe("OK");
-    // Reported on, but named by no row: nothing in the database says how it is.
-    expect(states.get("brake-caliper-rear")?.status).toBe("UNKNOWN");
-    expect(states.get("brake-lever-rear")?.status).toBe("UNKNOWN");
-    // And a part the payload could not have named at all, since it names none.
-    const written = [...states.values()].filter((row) => row.status !== "UNKNOWN");
-    expect(written.map((row) => row.partId).sort()).toEqual([
-      "brake-caliper-front",
-      "brake-lever-front",
     ]);
   });
 
   it("never lets an OK undo a KO on the same part within one checkup", async () => {
-    // Worn pads, a well-aligned caliper: both rows name the front caliper, the
+    // Worn pads, a well-aligned caliper: both rows name the rear caliper, the
     // OK comes later in the plan, and the caliper is still not fine.
     await importGuestState(
       fakeDb.client,
@@ -806,12 +829,12 @@ describe("part states (§4.2 b)", () => {
       state(
         collected({
           parts: ["brake-caliper-rear"],
-          verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] }, [ALIGNMENT]: "ok", [HOSE]: "ok" },
+          verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] }, [ALIGNMENT]: "ok" },
         }),
       ),
       deps,
     );
-    expect(partStates().get("brake-caliper-front")).toMatchObject({
+    expect(partStates().get("brake-caliper-rear")).toMatchObject({
       status: "BROKEN",
       lastServicedAt: null,
     });

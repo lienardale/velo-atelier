@@ -17,17 +17,37 @@
  *   3. the step's own `appliesTo` matches (a tubeless bike is asked about
  *      sealant, a tubed one about its tubes);
  *   4. the step names at least one part this bike actually carries — and, when
- *      the scope is a set of parts, one the visitor picked.
+ *      the scope is a set of parts, one INSIDE it (`partsInScope`,
+ *      `./scope.ts`), with at least one of its findings inside it too.
+ *
+ * ## A partial checkup is about the parts inside its scope, and nothing else
+ *
+ * A step kept for a partial checkup is handed on NARROWED to the scope: its
+ * `partIds` are the hosts of the parts inside it names, its `ko` the
+ * consequences about parts inside it, and `coveredParts` says which parts its
+ * verdict is recorded for, so the wizard can say so. Every reader of a
+ * checkup takes a step's parts and findings from here — the item's part, the
+ * statuses, the lines closed and derived — so this is where the scope rule
+ * lives, once. A step about both calipers asked in a checkup limited to the
+ * rear one says nothing about the front: until 2026-10-22 it was handed on
+ * whole, and its OK wrote "Bon état" on the front caliper (`.debug/017`
+ * §5.11). A full checkup is unchanged, field for field.
+ *
+ * A step whose every finding is about a part outside the scope is not asked
+ * at all: `check-brakes-disc#hose-leak` names the calipers, and sends its only
+ * finding, a leak, to the brake LINES. Asked in a caliper-only checkup, its KO
+ * could put nothing on the list — the visitor would have reported a leak to a
+ * page that then shows no line for it, and been offered no symptom to pick.
+ * Picking the lever, or the line, asks it.
  *
  * ## Hosted parts expand to hosts
  *
  * The viewer can only be clicked on parts that are drawn, so "the brake pads"
- * are picked by tapping their caliper (§1.2 `hostPartId`). Both sides of the
- * scope test therefore go through `clickTargetOf`, and `CheckStepRef.partIds`
- * holds the expanded set: it is what tints the viewer after the checkup, where
- * a hosted part has no mesh of its own to tint. The KO consequences keep the
- * REAL part id — the to-fix list is about pads, not about the caliper they sit
- * in.
+ * are picked by tapping their caliper (§1.2 `hostPartId`), and
+ * `CheckStepRef.partIds` holds the expanded set: it is what tints the viewer
+ * after the checkup, where a hosted part has no mesh of its own to tint. The KO
+ * consequences keep the REAL part id — the to-fix list is about pads, not
+ * about the caliper they sit in.
  *
  * Pure and zod-free: imported by the wizard, so nothing here may reach React,
  * Prisma, `content-collections` or classic zod.
@@ -44,6 +64,7 @@ import type {
   ProcedureTool,
 } from "@/lib/domain/schema/procedure";
 
+import { partsInScope } from "./scope";
 import type { CheckStepKey, CheckStepRef, CheckupScope, ToolRef } from "./types";
 
 /**
@@ -85,19 +106,13 @@ export function scopeFromPartIds(partIds: readonly PartId[]): CheckupScope {
   return partIds.length === 0 ? { kind: "full" } : { kind: "parts", partIds };
 }
 
-/** The picked parts as their clickable hosts, deduplicated. */
-function expandScope(scope: CheckupScope): ReadonlySet<PartId> | null {
-  if (scope.kind === "full") return null;
-  const hosts = new Set<PartId>();
-  for (const partId of scope.partIds) {
-    const host = hostOf(partId);
-    if (host !== null) hosts.add(host);
-  }
-  return hosts;
-}
-
-/** The step's parts, kept to what is fitted, expanded to hosts, deduplicated. */
-function reportedParts(
+/**
+ * The step's parts, kept to what is fitted and known, in the guide's order —
+ * and the lowest `checkupPriority` among them, which orders the plan whatever
+ * the scope, so a partial checkup asks its questions in the order a full one
+ * would.
+ */
+function fittedParts(
   partIds: readonly string[],
   fitted: ReadonlySet<string>,
 ): { parts: PartId[]; priority: number } {
@@ -110,10 +125,19 @@ function reportedParts(
     const definition = partDefinition(partId);
     if (definition === undefined) continue;
     priority = Math.min(priority, definition.checkupPriority);
-    const host = clickTargetOf(definition.id);
-    if (!parts.includes(host)) parts.push(host);
+    if (!parts.includes(definition.id)) parts.push(definition.id);
   }
   return { parts, priority };
+}
+
+/** `parts` as their clickable hosts, deduplicated, order kept. */
+function hostsOf(parts: readonly PartId[]): PartId[] {
+  const hosts: PartId[] = [];
+  for (const partId of parts) {
+    const host = clickTargetOf(partId);
+    if (!hosts.includes(host)) hosts.push(host);
+  }
+  return hosts;
 }
 
 /** The guide's tools as `ToolRef`s; ids the catalogue does not know are dropped. */
@@ -156,7 +180,7 @@ export function planCheckup(
   guides: readonly PlannableGuide[],
 ): CheckStepRef[] {
   const fitted = new Set(build.parts.map((part) => part.partId));
-  const wanted = expandScope(scope);
+  const inside = partsInScope(scope);
   const planned = new Map<CheckStepKey, PlannedStep>();
 
   for (const guide of guides) {
@@ -169,12 +193,25 @@ export function planCheckup(
       if (question === undefined) return;
       if (!matchesSpec(step.appliesTo, build.spec)) return;
 
-      const { parts, priority } = reportedParts(step.partIds ?? guide.partIds, fitted);
-      if (parts.length === 0) return;
-      if (wanted !== null && !parts.some((partId) => wanted.has(partId))) return;
+      const { parts, priority } = fittedParts(step.partIds ?? guide.partIds, fitted);
+      // A consequence about a part this bike does not carry would put a line
+      // on the to-fix list for something that is not on the bike.
+      const findings = question.ko.filter((consequence: KoConsequence) =>
+        fitted.has(consequence.partId),
+      );
+      const covered = inside === null ? parts : parts.filter((partId) => inside.has(partId));
+      if (covered.length === 0) return;
+      const ko =
+        inside === null
+          ? findings
+          : findings.filter((consequence) => inside.has(consequence.partId));
+      // Every finding about a part outside the scope: not this checkup's
+      // question (see the header — `hose-leak` for a caliper).
+      if (findings.length > 0 && ko.length === 0) return;
 
       const key = stepKeyOf(guide.slug, step.id);
       if (planned.has(key)) return;
+      const narrowed = covered.length < parts.length || ko.length < findings.length;
 
       planned.set(key, {
         priority,
@@ -184,10 +221,9 @@ export function planCheckup(
           key,
           guideSlug: guide.slug,
           stepId: step.id,
-          partIds: parts,
-          // A consequence about a part this bike does not carry would put a
-          // line on the to-fix list for something that is not on the bike.
-          ko: question.ko.filter((consequence: KoConsequence) => fitted.has(consequence.partId)),
+          partIds: hostsOf(covered),
+          ko,
+          ...(narrowed ? { coveredParts: covered } : {}),
           skippable: question.skippable,
           tools,
           title: step.title,
