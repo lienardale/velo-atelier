@@ -25,6 +25,36 @@ const FROM_PRISMA: Record<CheckupResult, CheckupAnswer> = {
   SKIPPED: "skipped",
 };
 
+/** One `CheckupItem` row, as much of it as an answer needs. */
+export interface StoredItemRow {
+  stepKey: string;
+  result: CheckupResult;
+  notes: string | null;
+  reasonKeys: string[];
+}
+
+/**
+ * A run's rows as the wizard's three records: the verdicts, the notes, and the
+ * symptoms of a KO. The ONE reading of a row — the page's resume reads it, and
+ * so does `controle/actions.ts`, which keeps every stored answer a payload
+ * does not carry (`.debug/017` §5.10).
+ */
+export function answersOfRows(
+  items: readonly StoredItemRow[],
+): Pick<StoredCheckup, "answers" | "symptoms" | "notes"> {
+  const answers: Record<string, CheckupAnswer> = {};
+  const notes: Record<string, string> = {};
+  const symptoms: Record<string, string[]> = {};
+  for (const item of items) {
+    answers[item.stepKey] = FROM_PRISMA[item.result];
+    if (item.notes !== null) notes[item.stepKey] = item.notes;
+    if (item.result === "KO" && item.reasonKeys.length > 0) {
+      symptoms[item.stepKey] = [...item.reasonKeys];
+    }
+  }
+  return { answers, symptoms, notes };
+}
+
 /**
  * The bike's most recent checkup, as the wizard's stored shape.
  *
@@ -62,30 +92,22 @@ export async function loadStoredCheckup(
   });
   if (row === null) return null;
 
-  const answers: Record<string, CheckupAnswer> = {};
-  const notes: Record<string, string> = {};
-  const symptoms: Record<string, string[]> = {};
-  for (const item of row.items) {
-    answers[item.stepKey] = FROM_PRISMA[item.result];
-
-    if (item.notes !== null) notes[item.stepKey] = item.notes;
-    if (item.result === "KO" && item.reasonKeys.length > 0) {
-      symptoms[item.stepKey] = [...item.reasonKeys];
-    }
-  }
-
   return {
     version: 1,
     id: row.id,
     bikeRef: { kind: "db", id: bikeId },
-    // A partial checkup's picked parts are not stored either: what IS stored is
-    // the set of questions it asked, and re-planning from `?parts=` is what
-    // brings them back.
+    // A partial checkup's picked parts are not stored (`Checkup.scope` is
+    // `FULL | PARTIAL`), so a PARTIAL row reads as a scope naming NO part: it
+    // says "partial", and nothing about which parts. It is never posted back
+    // and never planned — a scope naming no part plans no question, and the
+    // wizard that once posted this one deleted every answer of the run
+    // (`.debug/017` §5.10). The run is resumed on the PAGE's scope, or on the
+    // full checkup when the page's does not ask every question it answered
+    // (`resumeScope`, `lib/checkup/scope.ts`); the actions refuse a scope
+    // naming no part.
     scope: row.scope === "FULL" ? { kind: "full" } : { kind: "parts", partIds: [] },
     locale,
-    answers,
-    symptoms,
-    notes,
+    ...answersOfRows(row.items),
     toolsMissing: [],
     startedAt: row.startedAt.toISOString(),
     ...(row.completedAt === null ? {} : { completedAt: row.completedAt.toISOString() }),

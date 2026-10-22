@@ -21,6 +21,9 @@ import { makeState, threeStepPlan } from "@/tests/_helpers/checkup";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 import { routerSpies } from "@/tests/_fakes/session";
 
+const leave = vi.hoisted(() => ({ replaceDocument: vi.fn<(url: string) => void>() }));
+vi.mock("./replace-document", () => leave);
+
 vi.mock("@/app/[locale]/velo/[id]/controle/actions", () => ({
   loadCheckupAction: vi.fn(async () => ({ ok: true, data: null })),
   saveCheckupAction: vi.fn(async () => ({ ok: true, data: null })),
@@ -485,5 +488,164 @@ describe("a refused finish (§4.2 c)", () => {
       ),
     );
     expect(screen.queryByTestId("checkup-finish-error")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * An unfinished run, resumed by a page planned for another scope (`.debug/017`
+ * §5.10). The page's scope wins when it holds the run; when it does not, the
+ * run wins, and the wizard goes to the full checkup rather than trim it.
+ * Hand-shaped plans: the real page, actions and database are
+ * `tests/integration/checkup-resume.test.ts`.
+ */
+describe("an unfinished run, resumed (§5.10)", () => {
+  const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  const CHAIN_ONLY = { kind: "parts" as const, partIds: ["chain" as const] };
+  /** The full plan's keys, as the page hands them down with a parts scope. */
+  const FULL_KEYS = PLAN.map((step) => step.key);
+
+  const partialRun = (answers: Record<string, "ok" | "ko">, scope = CHAIN_ONLY): StoredCheckup =>
+    toStored(makeState(PLAN, { scope, answers }));
+
+  it("resumes a partial run on the page's scope, and saves THAT scope — never the one it was stored with", async () => {
+    // A saved bike's PARTIAL row reads as a scope naming no part: the payload
+    // a resumed run posted with it until 2026-10-22 planned no question, and
+    // the server deleted every stored answer.
+    const { saveCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/actions");
+    vi.mocked(saveCheckupAction).mockClear();
+    const fromServer: StoredCheckup = {
+      ...partialRun({ [CHAIN.key]: "ko" }, { kind: "parts", partIds: [] } as never),
+      bikeRef: { kind: "db", id: BIKE },
+    };
+    const { user } = await renderWithIntl(
+      wizard({
+        bikeRef: { kind: "db", id: BIKE },
+        bikeParam: BIKE,
+        scope: CHAIN_ONLY,
+        steps: [CHAIN],
+        fullStepKeys: FULL_KEYS,
+        initialStored: fromServer,
+      }),
+    );
+    expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "summary");
+    expect(screen.queryByTestId("checkup-resumed")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId(`summary-edit-${CHAIN.key}`));
+    await user.click(screen.getByTestId("verdict-ok"));
+    await waitFor(() => expect(saveCheckupAction).toHaveBeenCalled(), { timeout: 4000 });
+    const [{ checkup }] = vi.mocked(saveCheckupAction).mock.calls.at(-1) as [
+      { checkup: StoredCheckup },
+    ];
+    expect(checkup.scope).toEqual(CHAIN_ONLY);
+    expect(checkup.answers).toEqual({ [CHAIN.key]: "ok" });
+  });
+
+  it("does not restore a guest's partial run the page's parts do not hold: it goes to the full checkup, and writes nothing", async () => {
+    // Opened on the brakes, answered there; then "check this part" on the chain.
+    const stored = partialRun({ [PADS.key]: "ko" }, {
+      kind: "parts",
+      partIds: ["brake-caliper-front"],
+    } as never);
+    const raw = JSON.stringify(stored);
+    window.localStorage.setItem(checkupKey("demo"), raw);
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(wizard({ scope: CHAIN_ONLY, steps: [CHAIN], fullStepKeys: FULL_KEYS }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "resuming"),
+    );
+    expect(screen.getByTestId("checkup-resuming")).toHaveTextContent(
+      "Reprise du contrôle en cours",
+    );
+    expect(screen.queryByTestId("verdict-bar")).not.toBeInTheDocument();
+    expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full");
+    // The pads' answer is still in storage, byte for byte.
+    expect(window.localStorage.getItem(checkupKey("demo"))).toBe(raw);
+  });
+
+  it("does not narrow a FULL run with answers into a partial page either, and keeps `?spec=`", async () => {
+    window.localStorage.setItem(
+      checkupKey("local"),
+      JSON.stringify({
+        ...toStored(makeState(PLAN, { answers: { [CHAIN.key]: "ok" } })),
+        bikeRef: { kind: "local" },
+      }),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({
+        bikeRef: { kind: "local" },
+        bikeParam: "local",
+        specCode: "abc",
+        scope: CHAIN_ONLY,
+        steps: [CHAIN],
+        fullStepKeys: FULL_KEYS,
+      }),
+    );
+    await waitFor(() =>
+      expect(leave.replaceDocument).toHaveBeenCalledWith(
+        "/fr/velo/local/controle?spec=abc&resume=full",
+      ),
+    );
+  });
+
+  it("is not sent anywhere by an answer to a question the corpus dropped", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [CHAIN.key]: "ko", "check-retired#gone": "ok" } as never)),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(wizard({ scope: CHAIN_ONLY, steps: [CHAIN], fullStepKeys: FULL_KEYS }));
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "summary"),
+    );
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+  });
+
+  it("carries a partial run on as a full checkup on a full page, and says what that means", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [CHAIN.key]: "ko" })),
+    );
+    const { user } = await renderWithIntl(wizard());
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull"),
+    );
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "Il reprend ici en contrôle complet, avec toutes vos réponses",
+    );
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    // Every answer kept, and the run stored as what it now is.
+    await user.click(screen.getByTestId("verdict-ok"));
+    await waitFor(() => expect(stored()?.scope).toEqual({ kind: "full" }));
+    expect(stored()?.answers).toMatchObject({ [CHAIN.key]: "ko", [PADS.key]: "ok" });
+  });
+
+  it("says a full run carries on when the page came back with `?resume=full`", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(toStored(makeState(PLAN, { answers: { [CHAIN.key]: "ok" } }))),
+    );
+    await renderWithIntl(wizard({ resumeWidened: true }), { locale: "en" });
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-resumed")).toHaveAttribute(
+        "data-notice",
+        "fullInProgress",
+      ),
+    );
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "A full checkup is already under way on this bike",
+    );
+  });
+
+  it("says nothing on a full page that resumes a full run of its own", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(toStored(makeState(PLAN, { answers: { [CHAIN.key]: "ok" } }))),
+    );
+    await renderWithIntl(wizard());
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step"),
+    );
+    expect(screen.queryByTestId("checkup-resumed")).not.toBeInTheDocument();
   });
 });

@@ -52,6 +52,18 @@ vi.mock("content-collections", async () => ({
   allLegalPages: [],
 }));
 
+// The real planner, made switchable for ONE case: a plan that comes back
+// empty (a corpus that failed to load) must not be a reason to delete.
+const planner = vi.hoisted(() => ({ empty: false }));
+vi.mock("@/lib/content/checkup-plan", async (original) => {
+  const real = await original<typeof import("@/lib/content/checkup-plan")>();
+  return {
+    ...real,
+    planForBuild: (...args: Parameters<typeof real.planForBuild>) =>
+      planner.empty ? [] : real.planForBuild(...args),
+  };
+});
+
 const { saveCheckupAction, finishCheckupAction, loadCheckupAction, listCheckupsAction } =
   await import("@/app/[locale]/velo/[id]/controle/actions");
 const { loadStoredCheckup } = await import("@/app/[locale]/velo/[id]/controle/load");
@@ -236,6 +248,62 @@ describe("the plan is recomputed, never trusted", () => {
       done: false,
     });
     expect(fakeDb.rows("Checkup")[0]).toMatchObject({ status: "COMPLETED" });
+  });
+});
+
+/**
+ * A scope that names nothing, and a plan that comes back short (`.debug/017`
+ * §5.10): until 2026-10-22 a resumed partial run posted `{ kind: "parts",
+ * partIds: [] }`, the actions planned no question for it, and `writeItems`
+ * deleted every row of the run — answered ok.
+ */
+describe("the scope is a claim, never a reason to delete", () => {
+  it("refuses a parts scope that names no part, before any query", async () => {
+    for (const action of [saveCheckupAction, finishCheckupAction]) {
+      fakeDb.resetCalls();
+      expect(
+        await action({
+          bikeId: myBike.id,
+          checkup: payload({ scope: { kind: "parts", partIds: [] } }),
+        }),
+      ).toEqual({ ok: false, code: "VALIDATION" });
+      expect(fakeDb.calls).toHaveLength(0);
+    }
+  });
+
+  it("deletes no row when the bike's plan comes back empty", async () => {
+    await saveCheckupAction({ bikeId: myBike.id, checkup: payload() });
+    expect(fakeDb.rows("CheckupItem")).toHaveLength(1);
+    planner.empty = true;
+    try {
+      fakeDb.resetCalls();
+      expect(await saveCheckupAction({ bikeId: myBike.id, checkup: payload() })).toEqual({
+        ok: true,
+        data: null,
+      });
+    } finally {
+      planner.empty = false;
+    }
+    expect(
+      fakeDb.calls.some((call) => call.model === "checkupItem" && call.op === "deleteMany"),
+    ).toBe(false);
+    expect(fakeDb.rows("CheckupItem")).toHaveLength(1);
+  });
+
+  it("keeps a stored answer the payload does not carry, and deletes one the bike is not asked", async () => {
+    await saveCheckupAction({
+      bikeId: myBike.id,
+      checkup: payload({ answers: { [PLANNED]: "ko", "check-drivetrain#cassette-teeth": "ok" } }),
+    });
+    expect(fakeDb.rows("CheckupItem")).toHaveLength(2);
+    await saveCheckupAction({ bikeId: myBike.id, checkup: payload() });
+    expect(
+      fakeDb
+        .rows("CheckupItem")
+        .map((row) => row.stepKey)
+        .sort(),
+    ).toEqual(["check-drivetrain#cassette-teeth", PLANNED]);
+    expectScopedToUser(fakeDb.calls, me.id);
   });
 });
 

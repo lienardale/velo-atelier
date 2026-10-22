@@ -18,6 +18,23 @@
  * for one rule, because this is the payload that decides what someone is told
  * to buy.
  *
+ * ## The scope the browser posts is a claim, and never a reason to delete
+ *
+ * A payload names a scope; the plan it is accepted against is the one that
+ * scope's ANSWERS bear out (`effectiveScope`, `lib/checkup/scope.ts`): the
+ * named scope while every answered question is one it asks, the full checkup
+ * as soon as one is not. "Answered" is the payload's answers AND the run's
+ * stored ones it does not carry — a stored answer the payload leaves out is
+ * kept, never read as withdrawn: the wizard has no event that removes a
+ * verdict, so only a page that planned fewer questions than the run holds
+ * could leave one out. The column follows on every save and finish
+ * (`Checkup.scope`). A `parts` scope that names no part is refused
+ * (`VALIDATION`) before anything is planned or written; a row is deleted only
+ * when the bike is no longer asked its question at all — never because a plan
+ * came back short. Until 2026-10-22 each of the three was the other way
+ * round, and a partial run resumed after a reload lost every stored answer to
+ * a save that said "Sauvegardé" (`.debug/017` §5.10).
+ *
  * ## What is stored, and what is not
  *
  * `CheckupItem` holds one row per answered step — `(stepKey, partId, guideSlug,
@@ -75,6 +92,7 @@ import { withUser, type ActionUser } from "@/lib/actions/with-user";
 import { deriveBike, QUOTAS, withinQuota } from "@/lib/bike/rules";
 import { deriveBuildList, recheckedLines, statusByPart } from "@/lib/checkup/build-list";
 import { answeredItems } from "@/lib/checkup/items";
+import { effectiveScope, FULL_SCOPE } from "@/lib/checkup/scope";
 import { fromStored, type StoredCheckup, type StoredCheckupSummary } from "@/lib/checkup/storage";
 import {
   CHECKUP_ANSWERS,
@@ -90,11 +108,11 @@ import { GUIDE_STEP_KEYS } from "@/lib/content/generated/slugs";
 import { prisma } from "@/lib/db/prisma";
 import { TOOL_IDS } from "@/lib/domain/data/tools";
 import type { Answers } from "@/lib/domain/schema/decision";
-import type { BikePart } from "@/lib/domain/schema/part";
+import type { BikeBuild, BikePart } from "@/lib/domain/schema/part";
 import type { BuildAction, CheckupResult } from "@/lib/generated/prisma/client";
 import { routing } from "@/lib/i18n/routing";
 
-import { loadStoredCheckup } from "./load";
+import { answersOfRows, loadStoredCheckup, type StoredItemRow } from "./load";
 
 /*
  * Module-private on purpose: a `"use server"` file may only EXPORT async
@@ -105,12 +123,22 @@ import { loadStoredCheckup } from "./load";
 
 const stepKeySchema = z.enum(GUIDE_STEP_KEYS);
 
+/**
+ * `min(1)`: a `parts` scope naming no part plans no question, and acting on one
+ * deleted every answer of a run — the payload a resumed partial run posted
+ * until 2026-10-22, which a tab still open on that bundle posts today. Refused
+ * before anything is planned or written, so that tab gets "could not be
+ * saved", never a silent delete (`.debug/017` §5.10).
+ */
 const scopeSchema = z.union([
   z.object({ kind: z.literal("full") }).strict(),
   z
     .object({
       kind: z.literal("parts"),
-      partIds: z.array(z.string().regex(/^[a-z0-9-]{1,48}$/)).max(64),
+      partIds: z
+        .array(z.string().regex(/^[a-z0-9-]{1,48}$/))
+        .min(1)
+        .max(64),
     })
     .strict(),
 ]);
@@ -155,27 +183,19 @@ const TO_BUILD_ACTION: Record<string, BuildAction> = {
 };
 
 /**
- * The bike, and the plan its stored answers imply.
+ * The bike as its stored answers derive it — what every plan is made from.
  *
  * `null` when the bike is not this user's — the caller turns that into
  * `NOT_FOUND` without ever saying whether the id exists.
  */
-async function planFor(
-  user: ActionUser,
-  bikeId: string,
-  scope: CheckupScope,
-): Promise<{ steps: CheckStepRef[] } | null> {
+async function buildFor(user: ActionUser, bikeId: string): Promise<BikeBuild | null> {
   const row = await prisma.bike.findFirst({
     where: { id: bikeId, userId: user.id },
     select: { answers: true, parts: true },
   });
   if (row === null) return null;
-
   const derived = deriveBike(row.answers as Answers, asParts(row.parts));
-  // `planForBuild` is the plan every server-side write uses — the guest import
-  // too (`lib/content/checkup-plan.ts`): the French corpus, whose keys are the
-  // same in both languages.
-  return { steps: planForBuild({ spec: derived.spec, parts: derived.parts }, scope) };
+  return { spec: derived.spec, parts: derived.parts };
 }
 
 function asParts(value: unknown): BikePart[] | undefined {
@@ -187,29 +207,76 @@ function asParts(value: unknown): BikePart[] | undefined {
   return parts.length > 0 ? parts : undefined;
 }
 
-/** The payload, restricted to the plan the server just computed. */
+/** The payload's answers, and every answer of the stored run the payload does not carry. */
+function withStoredAnswers(
+  payload: z.infer<typeof checkupSchema>,
+  rows: readonly StoredItemRow[],
+): Pick<StoredCheckup, "answers" | "symptoms" | "notes"> {
+  const kept = answersOfRows(rows.filter((row) => !Object.hasOwn(payload.answers, row.stepKey)));
+  // The payload's verdict on a question is the newer one: it wins, with its
+  // own symptom and note — the stored row's are not mixed into it.
+  return {
+    answers: { ...kept.answers, ...(payload.answers as StoredCheckup["answers"]) },
+    symptoms: { ...kept.symptoms, ...(payload.symptoms as StoredCheckup["symptoms"]) },
+    notes: { ...kept.notes, ...(payload.notes as StoredCheckup["notes"]) },
+  };
+}
+
+/** What a save or a finish accepts of a payload, and what that makes of the run's row. */
+interface Accepted {
+  state: CheckupState;
+  /** Every question this bike is asked: a stored row about any other is gone with it. */
+  asked: ReadonlySet<string>;
+  /** `Checkup.scope`, as the answers bear it out. */
+  column: "FULL" | "PARTIAL";
+}
+
+/**
+ * The payload — with the run's stored answers it does not carry — against the
+ * plan its answers bear out (see the header).
+ */
 function acceptedState(
   payload: z.infer<typeof checkupSchema>,
-  steps: readonly CheckStepRef[],
+  build: BikeBuild,
   bikeId: string,
-): CheckupState {
+  rows: readonly StoredItemRow[],
+): Accepted {
+  // `planForBuild` is the plan every server-side write uses — the guest import
+  // too (`lib/content/checkup-plan.ts`): the French corpus, whose keys are the
+  // same in both languages.
+  const full = planForBuild(build, FULL_SCOPE);
+  const asked = new Set(full.map((step) => step.key));
+  const answers = withStoredAnswers(payload, rows);
+  const named = payload.scope as CheckupScope;
+  let scoped: CheckStepRef[] | null = null;
+  const scopedPlan = (): CheckStepRef[] => (scoped ??= planForBuild(build, named));
+  const effective = effectiveScope(
+    named,
+    Object.keys(answers.answers).filter((key) => asked.has(key)),
+    () => new Set(scopedPlan().map((step) => step.key)),
+  );
+  const steps = effective.kind === "full" ? full : scopedPlan();
   const stored: StoredCheckup = {
     version: 1,
     id: payload.id,
     bikeRef: { kind: "db", id: bikeId },
-    scope: payload.scope as CheckupScope,
+    scope: effective,
     locale: payload.locale,
-    answers: payload.answers as StoredCheckup["answers"],
-    symptoms: payload.symptoms as StoredCheckup["symptoms"],
-    notes: payload.notes as StoredCheckup["notes"],
+    ...answers,
     toolsMissing: payload.toolsMissing,
     startedAt: payload.startedAt,
     ...(payload.completedAt === undefined ? {} : { completedAt: payload.completedAt }),
     contentVersion: payload.contentVersion,
   };
   // `fromStored` reconciles: keys that are not in the plan and symptoms the
-  // step does not offer are gone by the time anything is written.
-  return fromStored(stored, steps, CONTENT_VERSION);
+  // step does not offer are gone by the time anything is written — and, the
+  // plan being the one the answers bear out, a key that is not in it is a
+  // question this bike is no longer asked.
+  return {
+    state: fromStored(stored, steps, CONTENT_VERSION),
+    asked,
+    column: effective.kind === "full" ? "FULL" : "PARTIAL",
+  };
 }
 
 /**
@@ -229,11 +296,17 @@ async function existingCheckup(
   bikeId: string,
   userId: string,
   startedAt: string,
-): Promise<{ id: string } | null> {
+): Promise<{ id: string; scope: "FULL" | "PARTIAL"; items: StoredItemRow[] } | null> {
   return prisma.checkup.findFirst({
     where: { bikeId, bike: { userId }, startedAt: new Date(startedAt) },
     orderBy: { startedAt: "desc" },
-    select: { id: true },
+    select: {
+      id: true,
+      scope: true,
+      // What the run already holds: the answers a payload does not carry are
+      // kept (see the header).
+      items: { select: { stepKey: true, result: true, notes: true, reasonKeys: true } },
+    },
   });
 }
 
@@ -251,16 +324,29 @@ async function roomForList(bikeId: string, userId: string): Promise<boolean> {
 
 function createCheckup(
   bikeId: string,
-  scope: CheckupScope,
+  column: "FULL" | "PARTIAL",
   startedAt: string,
 ): Promise<{ id: string }> {
   return prisma.checkup.create({
-    data: {
-      bikeId,
-      scope: scope.kind === "full" ? "FULL" : "PARTIAL",
-      startedAt: new Date(startedAt),
-    },
+    data: { bikeId, scope: column, startedAt: new Date(startedAt) },
     select: { id: true },
+  });
+}
+
+/**
+ * `Checkup.scope` as the run's answers now bear it out: a run resumed over a
+ * wider plan is no longer `PARTIAL`, and one resumed on the parts it was
+ * opened on is (`.debug/017` §5.10). Owner in the `where`, like every write.
+ */
+async function writeColumn(
+  checkup: { id: string; scope: "FULL" | "PARTIAL" },
+  userId: string,
+  column: "FULL" | "PARTIAL",
+): Promise<void> {
+  if (checkup.scope === column) return;
+  await prisma.checkup.updateMany({
+    where: { id: checkup.id, bike: { userId } },
+    data: { scope: column },
   });
 }
 
@@ -281,14 +367,26 @@ function tooMany(quota: keyof typeof QUOTA_KEYS): ActionResult<never> {
 }
 
 /**
- * One row per answered step; the rows of steps that lost their verdict go.
+ * One row per answered step; a row goes only when the bike is no longer asked
+ * its question at all — `asked`, the keys of the bike's FULL plan.
+ *
+ * Never "the rows the payload did not carry": until 2026-10-22 that was the
+ * rule, and a payload planned from a scope naming no part carried none, and
+ * `notIn: []` — which Prisma compiles to `1=1` — deleted every row of the run
+ * (`.debug/017` §5.10). And never on an empty `asked`: a corpus that failed to
+ * load plans nothing, and is not a reason to delete anything either.
  *
  * `updateMany` + `create`, not `upsert`: an upsert's `where` is a unique
  * selector and cannot carry the owner, and §4.7 is that the ownership predicate
  * is IN the query — `tests/security/checkup-input.test.ts` walks every recorded
  * call and fails on one that is not.
  */
-async function writeItems(checkupId: string, userId: string, state: CheckupState): Promise<void> {
+async function writeItems(
+  checkupId: string,
+  userId: string,
+  state: CheckupState,
+  asked: ReadonlySet<string>,
+): Promise<void> {
   // `answeredItems` is the one definition of a row (`lib/checkup/items.ts`),
   // shared with the guest import: only a KO has a symptom, and `acceptedState`
   // has already dropped any the re-planned step does not offer.
@@ -298,13 +396,11 @@ async function writeItems(checkupId: string, userId: string, state: CheckupState
   }));
 
   const owned = { checkup: { bike: { userId } } };
-  await prisma.checkupItem.deleteMany({
-    where: {
-      checkupId,
-      stepKey: { notIn: answered.map((item) => item.stepKey) },
-      ...owned,
-    },
-  });
+  if (asked.size > 0) {
+    await prisma.checkupItem.deleteMany({
+      where: { checkupId, stepKey: { notIn: [...asked] }, ...owned },
+    });
+  }
   for (const item of answered) {
     const updated = await prisma.checkupItem.updateMany({
       where: { checkupId, stepKey: item.stepKey, ...owned },
@@ -370,21 +466,26 @@ export const saveCheckupAction = withUser(
     const parsed = saveSchema.safeParse(input);
     if (!parsed.success) return fail("VALIDATION");
 
-    const planned = await planFor(
-      user,
-      parsed.data.bikeId,
-      parsed.data.checkup.scope as CheckupScope,
-    );
-    if (planned === null) return fail("NOT_FOUND");
+    const build = await buildFor(user, parsed.data.bikeId);
+    if (build === null) return fail("NOT_FOUND");
 
-    const state = acceptedState(parsed.data.checkup, planned.steps, parsed.data.bikeId);
     const bikeId = parsed.data.bikeId;
-    let checkup = await existingCheckup(bikeId, user.id, state.startedAt);
-    if (checkup === null) {
+    const run = await existingCheckup(bikeId, user.id, parsed.data.checkup.startedAt);
+    const { state, asked, column } = acceptedState(
+      parsed.data.checkup,
+      build,
+      bikeId,
+      run?.items ?? [],
+    );
+    let checkupId: string;
+    if (run === null) {
       if (!(await roomForCheckup(bikeId, user.id))) return tooMany("checkups");
-      checkup = await createCheckup(bikeId, state.scope, state.startedAt);
+      checkupId = (await createCheckup(bikeId, column, state.startedAt)).id;
+    } else {
+      await writeColumn(run, user.id, column);
+      checkupId = run.id;
     }
-    await writeItems(checkup.id, user.id, state);
+    await writeItems(checkupId, user.id, state, asked);
 
     revalidatePath("/[locale]/velo/[id]", "page");
     return ok(null);
@@ -400,15 +501,17 @@ export const finishCheckupAction = withUser(
     const parsed = saveSchema.safeParse(input);
     if (!parsed.success) return fail("VALIDATION");
 
-    const planned = await planFor(
-      user,
-      parsed.data.bikeId,
-      parsed.data.checkup.scope as CheckupScope,
-    );
-    if (planned === null) return fail("NOT_FOUND");
+    const build = await buildFor(user, parsed.data.bikeId);
+    if (build === null) return fail("NOT_FOUND");
 
-    const state = acceptedState(parsed.data.checkup, planned.steps, parsed.data.bikeId);
     const bikeId = parsed.data.bikeId;
+    const run = await existingCheckup(bikeId, user.id, parsed.data.checkup.startedAt);
+    const { state, asked, column } = acceptedState(
+      parsed.data.checkup,
+      build,
+      bikeId,
+      run?.items ?? [],
+    );
 
     // Every quota is checked before the first write, so a refusal leaves the
     // checkup exactly as the visitor left it — nothing half-finished. Which
@@ -417,7 +520,7 @@ export const finishCheckupAction = withUser(
     // `CheckupItem` ids this run owns BEFORE `writeItems` rewrites them.
     const items = deriveBuildList(state);
     const derived = new Set(items.map((item) => pairKey(toBuildAction(item.action), item.partId)));
-    let checkup = await existingCheckup(bikeId, user.id, state.startedAt);
+    let checkup: { id: string } | null = run;
     const open = await openList(bikeId, user.id);
     const { reFinish, pruned } = await reFinishOf(open, checkup, user.id, derived);
 
@@ -430,13 +533,13 @@ export const finishCheckupAction = withUser(
     if (open === null && !(await roomForList(bikeId, user.id))) return tooMany("lists");
     if (checkup === null) {
       if (!(await roomForCheckup(bikeId, user.id))) return tooMany("checkups");
-      checkup = await createCheckup(bikeId, state.scope, state.startedAt);
+      checkup = await createCheckup(bikeId, column, state.startedAt);
     }
 
-    await writeItems(checkup.id, user.id, state);
+    await writeItems(checkup.id, user.id, state, asked);
     await prisma.checkup.updateMany({
       where: { id: checkup.id, bike: { userId: user.id } },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      data: { status: "COMPLETED", completedAt: new Date(), scope: column },
     });
 
     const buildListId = await writeBuildList({
