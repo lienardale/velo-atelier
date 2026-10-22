@@ -760,8 +760,8 @@ docs/                contributor and operator docs — every one is linked from 
   `/liste` loader and the guest list's parser apply it on read, and so does
   the import's collector (`chosenProductOf`), before it sends a stored
   product at all.
-- **A line's `refinement` has one cap, one key and one reader, and nothing a
-  visitor typed costs the list** (`lib/shop/refinement.ts`, `.debug/017`
+- **A line's `refinement` has one cap, one key, one count and one reader, and
+  nothing a visitor typed costs the list** (`lib/shop/refinement.ts`, `.debug/017`
   §5.9). One answer is at most `MAX_REFINEMENT_VALUE_LENGTH` (64) UTF-16 code
   units, wherever an answer is bounded: the list form's text inputs
   (`maxLength`), the guest list's parser, the saved bike's action — its
@@ -781,21 +781,36 @@ docs/                contributor and operator docs — every one is linked from 
   imported with `constructor` among its keys could never be edited again,
   because the list's form sends back the WHOLE refinement it was handed and
   the action refuses that name (measured in review, on PostgreSQL).
+  **A line holds at most `MAX_REFINEMENT_ENTRIES` (24) answers**: the
+  action refuses more (`TOO_MANY`), the import's contract refuses more
+  (`GUEST_CAPS.refinementEntries` IS that constant), and the reader hands
+  over no more. Until 2026-10-22 the 24 was written twice (the action, the
+  contract) and only the action's own reader applied it — the one whose
+  answer is never sent back — so a row holding 25 answers, which the import
+  could write while production's contract had no cap on entries (until
+  PR #27), was a line every edit of which the action refused, and at 30
+  clearing one was refused too (measured on PostgreSQL in review, V1-1).
   **Every reader of a stored refinement IS `refinementOf`** — the loader,
-  the action's `storedRefinement` (which adds one rule of its own, at most
-  24 answers in its reply), the guest list's parser, the guest's prefill,
-  the merge, the collector. It keeps the entries that are a short string
-  under such a key and DROPS the others one by one; it never fails and never
-  shortens. The reader applies the WRITER's key rule on purpose: what a
-  reader hands the page comes back with the next edit, so an entry the
-  action would refuse must not be read. For a saved bike that is the one
-  thing this changed in what its pages are handed: an entry under a key the
-  action refuses — `constructor`, in a row the import wrote — is no longer
-  read by the loader. (The action's own reader was, until then, the one copy
-  of the rule no test held: its bound set to 5 000 characters left every
-  tier green.) A new place that reads or bounds a refinement imports that
-  module: another copy of the number, or of the key's pattern, is how this
-  happened.
+  the action's `storedRefinement` (which has no rule of its own any more),
+  the guest list's parser, the guest's prefill, the merge, the collector. It
+  keeps the entries that are a short string under such a key and DROPS the
+  others one by one; it never fails and never shortens; past 24 it keeps
+  the first 24 BY KEY (code-unit order), never the store's first 24 — a
+  `jsonb` column hands keys back shortest first, `localStorage` in the
+  order they were written — and a row at or under the count is read in its
+  stored order. No form writes a 25th answer (no part has that many
+  questions: `tests/unit/checkup/list-refinement.test.ts`); which of a
+  hand-written row's answers survive cannot be chosen by meaning in a
+  module that knows no part. The reader applies the WRITER's rules on
+  purpose: what a reader hands the page comes back with the next edit, so
+  an entry the action would refuse must not be read — nor a count of them.
+  For a saved bike that changed two things in what its pages are handed: an
+  entry under a key the action refuses — `constructor`, in a row the import
+  wrote — is no longer read by the loader, and neither is a 25th answer.
+  (The action's own reader was, until then, the one copy of the rule no test
+  held: its bound set to 5 000 characters left every tier green.) A new
+  place that reads or bounds a refinement imports that module: another copy
+  of the number, or of the key's pattern, is how this happened.
   **What a bad value of a stored guest line costs is a table** (the header
   of `components/build-list/BuildList.tsx`): a `refinement` entry costs
   that entry, a `chosenProduct` the product, an unknown part the line; the
@@ -1106,7 +1121,7 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `GuestState` payload of `lib/guest/schema.ts` (`zod/mini`; `strictObject` at
   every level; a cap on every array AND every record — a checkup's three, and
   a list line's `refinement` (24 answers, the account's own
-  `MAX_REFINEMENT_KEYS`, each of at most `MAX_REFINEMENT_VALUE_LENGTH`
+  `MAX_REFINEMENT_ENTRIES`, each of at most `MAX_REFINEMENT_VALUE_LENGTH`
   characters: the list page's cap, 64, where the contract said 120 until
   2026-10-13; each under a key the account's action takes too,
   `isRefinementKey`, of at most 40 characters) —

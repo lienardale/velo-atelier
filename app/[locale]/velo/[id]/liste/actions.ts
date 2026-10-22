@@ -31,7 +31,12 @@ import { withUser } from "@/lib/actions/with-user";
 import { withinJsonBudget } from "@/lib/bike/rules";
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@/lib/generated/prisma/client";
-import { isRefinementKey, MAX_REFINEMENT_VALUE_LENGTH, refinementOf } from "@/lib/shop/refinement";
+import {
+  isRefinementKey,
+  MAX_REFINEMENT_ENTRIES,
+  MAX_REFINEMENT_VALUE_LENGTH,
+  refinementOf,
+} from "@/lib/shop/refinement";
 
 /**
  * A refinement answer is an attribute key and a value a control produced.
@@ -68,25 +73,23 @@ const readItemSchema = z
   .object({ bikeId: z.uuid("errors.VALIDATION"), itemId: z.uuid("errors.VALIDATION") })
   .strict();
 
-/** At most this many answers on one item — a part has a handful of attributes. */
-const MAX_REFINEMENT_KEYS = 24;
-
 /**
  * A `Json` column is a shape we WROTE, not one we can assume on read: the row's
  * refinement through the one reader of a stored refinement (`refinementOf`) —
- * the entries the list's loader hands the page, by the same function — and
- * then at most {@link MAX_REFINEMENT_KEYS} of them, which bounds this action's
- * ANSWER and is this reader's only rule of its own.
+ * the entries the list's loader hands the page, by the same function, count
+ * included. This reader has no rule of its own any more.
  *
  * Until 2026-10-13 it was a copy of the loader's filter with the three names
  * added, and the one copy no test held: its bound set to 5 000 characters, or
  * the column returned unfiltered, left every tier green (measured in review;
- * the first of the two measured again before this was rewritten).
+ * the first of the two measured again before this was rewritten). Until
+ * 2026-10-22 it then kept the first 24 entries itself — the one reader that
+ * applied the count, and the one whose answer is never sent back: the
+ * loader, whose answer is, handed a 30-answer row over whole (`.debug/017`
+ * §5.9, V1-1).
  */
 function storedRefinement(value: unknown): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(refinementOf(value) ?? {}).slice(0, MAX_REFINEMENT_KEYS),
-  );
+  return refinementOf(value) ?? {};
 }
 
 /**
@@ -117,7 +120,7 @@ export const setBuildListItemRefinementAction = withUser(
     if (!parsed.success) return fail("VALIDATION");
 
     const refinement = parsed.data.refinement;
-    if (Object.keys(refinement).length > MAX_REFINEMENT_KEYS) return fail("TOO_MANY");
+    if (Object.keys(refinement).length > MAX_REFINEMENT_ENTRIES) return fail("TOO_MANY");
     if (!withinJsonBudget(refinement)) return fail("TOO_MANY");
 
     const updated = await prisma.buildListItem.updateMany({

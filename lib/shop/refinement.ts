@@ -57,6 +57,35 @@
  * application can have written is in the shape — the action and the contract
  * have always held a key to it.
  *
+ * ## One count
+ *
+ * {@link MAX_REFINEMENT_ENTRIES} is how many answers one line holds: the
+ * saved bike's action refuses more (`TOO_MANY`), the import's contract
+ * refuses more, and {@link refinementOf} hands over no more. Until
+ * 2026-10-22 the number was written twice — in `liste/actions.ts` and in
+ * `lib/guest/schema.ts` — and the list's LOADER applied no count at all,
+ * only the action's own reader did, whose answer is never sent back. A row
+ * holding 25 answers was then a line every edit of which was refused
+ * `TOO_MANY` until one answer was cleared, and one holding 30 a line where
+ * clearing one was refused too (measured on PostgreSQL in the review of the
+ * fix; `.debug/017` §5.9). It is the key's reason again: the page hands back
+ * whole what it was handed, so the reader must not hand over what the writer
+ * refuses.
+ *
+ * No form of the application writes a 25th answer: a part has far fewer
+ * questions than that (`tests/unit/checkup/list-refinement.test.ts` holds
+ * every part of the seven presets to the count). A row holding more was
+ * written past the form — by hand in DevTools, then imported while the
+ * import's contract had no cap on entries: production's had none until
+ * PR #27 (merged 2026-10-22), whose branch added it on 2026-10-09.
+ * WHICH of its answers are kept is decided by their keys alone, in code-unit
+ * order, never by where they sit in the stored object: a `jsonb` column
+ * hands keys back shortest first and `localStorage` in the order they were
+ * written, and the same entries must give the same answers in both. Nothing
+ * better is within this module's reach: it knows no part and no question,
+ * so it cannot tell an answer the form shows from one it does not. A row at
+ * or under the count is read exactly as before, in its stored order.
+ *
  * Dropped, not cut: a reader that shortened a stored value would show the
  * visitor something they did not type, and half a number is another number.
  * The control is where a value is stopped ({@link clipRefinementText}).
@@ -72,6 +101,13 @@ export const MAX_REFINEMENT_VALUE_LENGTH = 64;
 
 /** The longest key. Keys are the catalogue's attribute keys; nothing a visitor types. */
 export const MAX_REFINEMENT_KEY_LENGTH = 64;
+
+/**
+ * The most answers one line holds — a part has a handful of attributes. The
+ * saved bike's action refuses more, the import's contract refuses more, and
+ * {@link refinementOf} reads no more.
+ */
+export const MAX_REFINEMENT_ENTRIES = 24;
 
 /** The catalogue's attribute keys are kebab-case ids, and so is the price tier's. */
 const KEY_SHAPE = /^[a-z0-9-]+$/;
@@ -107,14 +143,28 @@ export function isRefinementEntry(key: string, value: unknown): value is string 
 }
 
 /**
- * A stored value, as a refinement: the entries that are answers, or
- * `undefined` when there is none — the value was not an object, or nothing in
- * it could be kept.
+ * A stored value, as a refinement: the entries that are answers — at most
+ * {@link MAX_REFINEMENT_ENTRIES} of them, the first by key when there are
+ * more — or `undefined` when there is none: the value was not an object, or
+ * nothing in it could be kept.
  */
 export function refinementOf(value: unknown): Record<string, string> | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const entries = Object.entries(value).filter(([key, entry]) => isRefinementEntry(key, entry));
-  return entries.length === 0 ? undefined : (Object.fromEntries(entries) as Record<string, string>);
+  if (entries.length === 0) return undefined;
+  if (entries.length <= MAX_REFINEMENT_ENTRIES) {
+    return Object.fromEntries(entries) as Record<string, string>;
+  }
+  // More than a line holds: which ones survive is a property of the keys,
+  // never of the store's order. `sort()` compares code units, like the
+  // engine does everywhere; the stored order is kept among the survivors.
+  const kept = new Set(
+    entries
+      .map(([key]) => key)
+      .sort()
+      .slice(0, MAX_REFINEMENT_ENTRIES),
+  );
+  return Object.fromEntries(entries.filter(([key]) => kept.has(key))) as Record<string, string>;
 }
 
 const HIGH_SURROGATE_FIRST = 0xd800;

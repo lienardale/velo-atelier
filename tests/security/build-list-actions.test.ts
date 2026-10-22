@@ -21,7 +21,8 @@
  *   5. **The item read is a reader of a `Json` column, and it is THE reader**
  *      (`refinementOf`, `lib/shop/refinement.ts`): what it answers for a row
  *      is what the list's loader hands the page for the same row, and never
- *      more than 24 answers. Until 2026-10-13 it was a copy of that filter
+ *      more than 24 answers — the loader's count too since 2026-10-22, when
+ *      it stopped being this reader's own (V1-1). Until 2026-10-13 it was a copy of that filter
  *      which no test held — its bound set to 5 000 characters, or the column
  *      returned as stored, left every tier green (`.debug/017` §5.9, the
  *      review of the fix).
@@ -241,6 +242,12 @@ describe("the item read answers what the list's loader hands the page — a `Jso
     if (!result.ok) return;
     expect(Object.keys(result.data.refinement)).toHaveLength(24);
     expect(thirty).toMatchObject(result.data.refinement);
+    // The same 24 the list's loader hands the page: the page sends back what
+    // it was handed, and the refinement action refuses a 25th.
+    const viaLoader = (await loadBuildList(me.bike.id, me.user.id)).items.find(
+      (line) => line.id === itemId,
+    );
+    expect(viaLoader?.refinement).toEqual(result.data.refinement);
   });
 });
 
