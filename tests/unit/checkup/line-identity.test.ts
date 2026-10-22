@@ -32,6 +32,12 @@
  * `fast-check` draws the verdicts (ok / ko / skipped / unanswered, a symptom or
  * none) from each preset's real plan; the corpus is planned once, at module
  * scope (`.debug/009`).
+ *
+ * Since 2026-10-22 the later checkup is also one LIMITED TO ONE PART, on each
+ * side of every pair of parts a question names (§5.11): the two paths must
+ * still leave the same list, and neither may touch a line about a part outside
+ * that scope — the rear pads' OK closed the front pads' line on both paths
+ * before, which is why "the same list" alone could not see it.
  */
 import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,6 +60,7 @@ const { finishCheckupAction } = await import("@/app/[locale]/velo/[id]/controle/
 const { deriveBuildList, mergeGuestBuildList, recheckedLines } =
   await import("@/lib/checkup/build-list");
 const { planCheckup } = await import("@/lib/checkup/plan");
+const { partsInScope } = await import("@/lib/checkup/scope");
 const { toStored } = await import("@/lib/checkup/storage");
 const { deriveBike } = await import("@/lib/bike/rules");
 const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
@@ -63,6 +70,8 @@ const { makeState } = await import("@/tests/_helpers/checkup");
 type CheckStepRef = import("@/lib/checkup/types").CheckStepRef;
 type CheckupState = import("@/lib/checkup/types").CheckupState;
 type BuildListItem = import("@/lib/checkup/types").BuildListItem;
+type PartId = import("@/lib/domain/data/parts").PartId;
+type CheckupScope = import("@/lib/checkup/types").CheckupScope;
 
 const FR = diskGuides().filter((guide) => guide.locale === "fr");
 
@@ -80,8 +89,25 @@ const rowPair = (row: Record<string, unknown>) =>
 
 const PRESETS = Object.entries(BIKE_PRESETS).map(([id, answers]) => {
   const derived = deriveBike(answers);
-  const steps = planCheckup({ spec: derived.spec, parts: derived.parts }, { kind: "full" }, FR);
-  return { id, derived, steps };
+  const build = { spec: derived.spec, parts: derived.parts };
+  const steps = planCheckup(build, { kind: "full" }, FR);
+  // Each side of every pair: the parts a question's findings name, when they
+  // name more than one — one scope per part, each planned once.
+  const paired = [
+    ...new Set(
+      steps.flatMap((step) => {
+        const named = [...new Set(step.ko.map((consequence) => consequence.partId))];
+        return named.length > 1 ? named : [];
+      }),
+    ),
+  ].sort();
+  const sides = paired
+    .map((partId) => {
+      const scope = { kind: "parts" as const, partIds: [partId] as PartId[] };
+      return { partId, scope, steps: planCheckup(build, scope, FR) };
+    })
+    .filter((side) => side.steps.length > 0);
+  return { id, derived, steps, sides };
 });
 
 interface Draw {
@@ -109,6 +135,7 @@ function stateOf(
   steps: readonly CheckStepRef[],
   draws: readonly Draw[],
   startedAt: string,
+  scope: CheckupScope = { kind: "full" },
 ): CheckupState {
   const answers: Record<string, "ok" | "ko" | "skipped"> = {};
   const symptoms: Record<string, string[]> = {};
@@ -118,7 +145,7 @@ function stateOf(
     answers[step.key] = draw.verdict;
     if (draw.verdict === "ko" && draw.symptom !== undefined) symptoms[step.key] = [draw.symptom];
   });
-  return makeState(steps, { answers, symptoms, startedAt });
+  return makeState(steps, { answers, symptoms, startedAt, scope });
 }
 
 const derivedPairs = (state: CheckupState) =>
@@ -126,7 +153,7 @@ const derivedPairs = (state: CheckupState) =>
 const closingPairs = (state: CheckupState) =>
   new Set(recheckedLines(state).map((line) => pair(line.action, line.partId)));
 
-describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
+describe.each(PRESETS)("$id", ({ id, derived, steps, sides }) => {
   it("never lets a checkup close a line it derives — the pure rule and the guest merge", () => {
     fc.assert(
       fc.property(
@@ -301,5 +328,133 @@ describe.each(PRESETS)("$id", ({ id, derived, steps }) => {
         { numRuns: 50, endOnFailure: true },
       );
     });
+  });
+  describe("a later checkup limited to one side of a pair, guest and server (§5.11)", () => {
+    const USER = {
+      id: "00000000-0000-4000-8000-0000000000a2",
+      email: "camille-scope@velo-atelier.test",
+      name: "Camille",
+      locale: "fr" as const,
+    };
+
+    it("has a pair to check on this bike", () => {
+      expect(sides.length).toBeGreaterThan(0);
+    });
+
+    it.each(sides.map((side) => [side.partId, side] as const))(
+      "%s only: the same list on both paths, and nothing outside the scope touched",
+      async (_partId, side) => {
+        const inside = partsInScope(side.scope) ?? new Set<string>();
+        await fc.assert(
+          fc.asyncProperty(
+            drawsFor(steps),
+            drawsFor(side.steps),
+            fc.array(fc.boolean(), { maxLength: 60 }),
+            async (first, second, ticks) => {
+              fakeDb.reset();
+              setRequestHeaders(sameOriginHeaders());
+              await fakeDb.seed("User", USER);
+              const bikeId = (
+                (await fakeDb.seed("Bike", {
+                  userId: USER.id,
+                  name: id,
+                  answers: derived.answers,
+                  spec: derived.spec,
+                  parts: derived.parts,
+                })) as { id: string }
+              ).id;
+              for (const part of derived.parts) {
+                await fakeDb.seed("BikePartState", {
+                  bikeId,
+                  partId: part.partId,
+                  status: "UNKNOWN",
+                });
+              }
+              setSession(sessionFor(USER));
+
+              // A FULL first checkup: lines on both sides, some ticked by hand.
+              const earlier = stateOf(steps, first, "2026-09-01T08:00:00.000Z");
+              const later = stateOf(side.steps, second, "2026-09-15T08:00:00.000Z", side.scope);
+              const firstList = deriveBuildList(earlier);
+              const ticked = new Set(
+                firstList
+                  .filter((_, index) => ticks.at(index) === true)
+                  .map((item) => pair(item.action, item.partId)),
+              );
+              const guestList = firstList.map((item) =>
+                ticked.has(pair(item.action, item.partId))
+                  ? { ...item, done: true, doneReason: "manual" as const }
+                  : item,
+              );
+              expect((await finishCheckupAction({ bikeId, checkup: toStored(earlier) })).ok).toBe(
+                true,
+              );
+              for (const row of fakeDb.rows("BuildListItem")) {
+                if (ticked.has(rowPair(row))) {
+                  await fakeDb.client.buildListItem.update({
+                    where: { id: row.id as string },
+                    data: { done: true, doneReason: "manual" },
+                  });
+                }
+              }
+              const state = (done: unknown, reason: unknown) => `${String(done)}|${reason ?? ""}`;
+              const outside = (partId: unknown) => !inside.has(String(partId));
+              const before = new Map(
+                fakeDb
+                  .rows("BuildListItem")
+                  .filter((row) => outside(row.partId))
+                  .map((row) => [rowPair(row), state(row.done, row.doneReason)]),
+              );
+              const statusesBefore = new Map(
+                fakeDb.rows("BikePartState").map((row) => [String(row.partId), row.status]),
+              );
+
+              // The later, ONE-SIDED checkup, on both paths.
+              const merged = mergeGuestBuildList(guestList, deriveBuildList(later), later, false);
+              expect((await finishCheckupAction({ bikeId, checkup: toStored(later) })).ok).toBe(
+                true,
+              );
+              const rows = fakeDb.rows("BuildListItem");
+
+              // The same list, line for line (S6).
+              expect(
+                new Map(rows.map((row) => [rowPair(row), state(row.done, row.doneReason)])),
+                `${id} ${side.partId}: server vs guest`,
+              ).toEqual(
+                new Map(
+                  merged.map((line) => [
+                    pair(line.action, line.partId),
+                    state(line.done, line.doneReason),
+                  ]),
+                ),
+              );
+              // Nothing outside the scope was derived, closed or reopened (S5).
+              for (const line of [...deriveBuildList(later), ...recheckedLines(later)]) {
+                expect(inside.has(line.partId), `${side.partId}: ${line.partId}`).toBe(true);
+              }
+              expect(
+                new Map(
+                  rows
+                    .filter((row) => outside(row.partId))
+                    .map((row) => [rowPair(row), state(row.done, row.doneReason)]),
+                ),
+                `${id} ${side.partId}: lines outside the scope`,
+              ).toEqual(before);
+              // And the only statuses it changed are those of the parts inside.
+              const statuses = fakeDb.rows("BikePartState");
+              expect(statuses.length).toBe(derived.parts.length);
+              for (const row of statuses) {
+                if (row.status === statusesBefore.get(String(row.partId))) continue;
+                expect(
+                  inside.has(String(row.partId)),
+                  `${side.partId}: ${String(row.partId)}`,
+                ).toBe(true);
+              }
+            },
+          ),
+          { numRuns: 8, endOnFailure: true },
+        );
+      },
+    );
   });
 });

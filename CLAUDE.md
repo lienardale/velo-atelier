@@ -675,6 +675,33 @@ docs/                contributor and operator docs — every one is linked from 
   and `reason-keys`), which is why `scripts/ci/test-unit.sh` generates them like
   `test-integration.sh` does. `lib/checkup/**` is zod/mini-only (ESLint) and
   carries a 100 % statements/branches gate.
+- **A checkup limited to some parts is about the parts inside its scope, and
+  nothing else** (the maintainer's ruling of 2026-10-22, `.debug/017` §5.11).
+  "Inside" has ONE definition, `partsInScope` (`lib/checkup/scope.ts`): the
+  picked parts, the host each is reached through, and the parts a picked host
+  carries — pick the rear caliper and its pads are inside, pick a tyre and its
+  tube is; picking the chainring does NOT put the bottom bracket inside,
+  although both hang off the crankset. `planCheckup` applies it, and is the
+  only thing that does: a step is asked when it names a part inside AND, if it
+  has findings at all, one finding about a part inside (`hose-leak` names the
+  calipers and sends its only finding to the brake LINES, so a caliper-only
+  checkup does not ask it); the step is then NARROWED — `partIds` the hosts of
+  the parts inside it names, `ko` the findings about parts inside, and
+  `coveredParts` set when anything was left out, which the wizard turns into
+  "Contrôle partiel — votre réponse ne comptera que pour : …" under the prompt
+  and on the summary (FR and EN). Every reader takes a step's parts and
+  findings from the plan, so the rule reaches all of them at once: the part a
+  `CheckupItem` names (`answeredItems`, `partIds[0]`), the statuses
+  (`statusByPart` → `writePartStates`), the lines closed (`recheckedLines` →
+  `closeRecheckedItems` and the guest merge) and derived (`deriveBuildList`),
+  and the import (`lib/guest/import.ts`, which marries a `PARTIAL` checkup to
+  the scoped plan). A FULL checkup has no such set and is unchanged, field for
+  field (`tests/unit/checkup/plan-corpus.test.ts` writes the old rule out and
+  compares). Before, the scope chose the QUESTIONS and nothing after: a
+  rear-caliper checkup stored its items against the front caliper, wrote
+  "Bon état" on it and on the front lever, and a front-tyre KO listed both
+  tyres. Rows written before the fix are not rewritten (§5.11 says what they
+  look like).
 - **A checkup run is its `startedAt`.** The server's `existingCheckup` treats the
   same `startedAt` as the same run, so a re-finish updates its own lines —
   and, since W5, a re-finish is the ONLY thing allowed to delete one: a run
@@ -716,10 +743,15 @@ docs/                contributor and operator docs — every one is linked from 
 - **A build-list line is an `(action, partId)` pair, never a part.**
   `recheckedLines(state)` (`lib/checkup/build-list.ts`) is the ONE rule for what
   a checkup closes: the pairs an OK step's `ko[]` names, minus every pair a KO of
-  the same state derives. The guest merge and `closeRecheckedItems` both apply
+  the same state derives — and a step's `ko[]` is its PLANNED one, so a checkup
+  limited to some parts closes only lines about parts inside its scope (the
+  scope rule above): the rear pads' OK no longer closes the front pads' line.
+  The guest merge and `closeRecheckedItems` both apply
   it and write `doneReason: 'recheck-ok'`; a hand tick is `manual`
   (`setBuildListItemDoneAction`). `tests/unit/checkup/line-identity.test.ts`
-  holds both paths to it over all seven presets' real plans.
+  holds both paths to it over all seven presets' real plans — full ones, and
+  since 2026-10-22 one limited to each side of every pair a question names,
+  where it also asserts that no line about a part outside the scope moved.
 - **`CheckupItem.reasonKeys` and `BuildListItem.doneReason`** arrive in
   migration `20260921090547_checkup_symptoms_done_reason`, written with
   `prisma migrate diff --from-schema <previous schema> --to-schema prisma/schema.prisma --script`
@@ -1259,18 +1291,22 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `imported`, and the browser cleared the rest (found in review, in a browser
   and on PostgreSQL; `.debug/017` §5.6, R1). The full plan asks every question
   any scope of the same bike asks, and is the server's own just as much. The
-  named scope decides one thing, the `Checkup.scope` column: `PARTIAL` while
-  every KEPT answer is a question that scope asks, `FULL` as soon as one is
-  not — which also means an unfinished run that went beyond its parts is
-  resumed on the account over the full plan. The wizard's resume was not
+  named scope decides the `Checkup.scope` column — `effectiveScope`
+  (`lib/checkup/scope.ts`), the rule the account's actions apply too:
+  `PARTIAL` while every KEPT answer is a question that scope asks, `FULL` as
+  soon as one is not, or when the scope names no part — which also means an
+  unfinished run that went beyond its parts is resumed on the account over
+  the full plan. A `PARTIAL` checkup is then married to the SCOPED plan (the
+  same answers, by that rule), so its items, part states and links obey the
+  scope rule above. The wizard's resume was not
   changed: browsers already hold such states. The planner is `planForBuild`
   (`lib/content/checkup-plan.ts`), the ONE plan every server-side write uses
   (`controle/actions.ts` too); it is INJECTED into `lib/guest/import.ts`
   because it reaches `content-collections`, so that module stays plain Node
   with the database and the corpus both passed in. The rows are
   `answeredItems(state)` (`lib/checkup/items.ts`), the function `writeItems`
-  uses: one per answered planned step, `partId` = the step's FIRST part,
-  `reasonKeys` only on a KO. A checkup none of whose answers is a question
+  uses: one per answered planned step, `partId` = the step's FIRST part
+  (inside the scope, for a `PARTIAL` one), `reasonKeys` only on a KO. A checkup none of whose answers is a question
   this bike is asked writes no row (`nothing-kept`).
   **`COMPLETED` if and only if the payload carries `completedAt`** — NOT
   `reconcile`'s verdict, which drops the date as soon as today's plan asks a

@@ -764,6 +764,55 @@ settled (W5 above: one OPEN list per bike), and nothing writes `ABANDONED`
 yet. Abandon the older `IN_PROGRESS` run on the first save of a new one
 (§4.2 b), and surface `TOO_MANY` on the first refused save.
 
+#### A finished checkup writes a KO as `ATTENTION`, where §4.2 (b) says `BROKEN`
+
+`finishCheckupAction` ends in `writePartStates`
+(`app/[locale]/velo/[id]/controle/actions.ts`), which writes
+`statusByPart(state)` to `BikePartState`: `OK` for an OK, `ATTENTION` ("À
+surveiller") for every KO, without reading the symptom or the row, and on
+the step's hosts (§6.4's tint). Plan §4.2 (b) is `KO → BROKEN`, `OK → OK`
+with `lastServicedAt`, `SKIPPED → unchanged`, in one `$transaction`; the
+action writes no `BROKEN`, no `lastServicedAt` and opens no transaction,
+while `prisma/seed-data.ts` and the guest import (`partStatesFrom`,
+`lib/guest/import.ts`) write `BROKEN` and cite that rule. Seen on the launch
+walk of 2026-10-07: the seeded chain went from "À remplacer" to "À
+surveiller" on a KO whose symptom was a chain past its wear limit, a
+`replace` (`.debug/017` §5.6, O3). `tests/integration/checkups.test.ts`
+pins `ATTENTION`; nothing records a decision to depart from §4.2 (b).
+
+_Why deferred_ (ruled 2026-10-22, with the scope fix of `.debug/017` §5.11):
+that fix was about WHICH parts a partial checkup writes; this is about WHAT
+it writes on them, and `BROKEN` is labelled "À remplacer", which would
+overstate a KO whose consequence is to clean or to adjust.
+
+_To pick up_: one rule for the three writers (the action, the import, the
+seed), or an amended §4.2 (b) — what a KO that only cleans or adjusts reads
+as. The two paths visibly disagree today for the same answers: an imported
+bike gets `BROKEN` on the item's part, an account's own checkup `ATTENTION`
+on every host of the step.
+
+#### A hosted part's badge does not follow its closed line
+
+A step's `partIds` are its hosts (`lib/checkup/plan.ts`), so a checkup's
+verdict on the brake pads is written on the caliper, and no checkup ever
+writes a status for a hosted part — pads, tubes, sealant, chainring, bottom
+bracket, headset, brake lines, shift cables, seat clamp. Its line, keyed on
+the real `(action, partId)`, is closed by `closeRecheckedItems` all the
+same. Seen on the launch walk of 2026-10-07 on the seeded bike: "Plaquettes
+ou patins arrière" still read "À remplacer" (the seed's `BROKEN`) while its
+line read "Marqué fait par un contrôle" (`.debug/017` §5.6, O3). On a bike
+nothing seeded, a hosted part has no badge in the parts list and "Non
+contrôlé" in its panel, whatever is found.
+
+_Why deferred_ (ruled 2026-10-22, with `.debug/017` §5.11): whether a
+hosted part has a status of its own is a product decision, and the viewer —
+which tints meshes, and a hosted part has none — is what the status was
+built for.
+
+_To pick up_: decide what the parts list and the panel show for a hosted
+part (its host's tint, a status of its own, or nothing), then make the three
+writers agree.
+
 #### Nothing closes a build list
 
 `BuildListStatus` has `OPEN`, `DONE` and `ARCHIVED`, and nothing under `app/`

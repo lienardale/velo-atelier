@@ -42,11 +42,17 @@ export const FRONT_PADS = { action: "replace", partId: "brake-pads-front" } as c
 export const REAR_PADS = { action: "replace", partId: "brake-pads-rear" } as const;
 export const CHAIN = { action: "replace", partId: "chain" } as const;
 
-/** The parts whose questions the checkups of this file ask. */
-const SCOPE = partsScope("brake-pads-rear", "chain", "rear-derailleur");
+/**
+ * The parts whose questions the checkups of this file ask: BOTH brakes' pads,
+ * because the first checkup below puts both on the list. Until 2026-10-22
+ * this scope named the rear pads only, and the front pads' line came from the
+ * defect `.debug/017` §5.11 records — a checkup limited to one side derived
+ * the other's lines too.
+ */
+const SCOPE = partsScope("brake-pads-front", "brake-pads-rear", "chain", "rear-derailleur");
 
 /**
- * A FINISHED checkup of the brakes, the chain and the rear derailleur, the
+ * A FINISHED checkup of the brake pads, the chain and the rear derailleur, the
  * real plan answered through the real reducer: KO with the named symptom for
  * the keys of `ko`, OK for every other question the plan asks.
  */

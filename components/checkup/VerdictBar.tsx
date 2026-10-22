@@ -25,6 +25,13 @@ import { cn } from "@/lib/utils";
 export interface VerdictBarProps {
   /** The question being answered — shown above the buttons on a wide screen. */
   prompt: string;
+  /**
+   * In a checkup limited to some parts, the sentence that says which of the
+   * parts the question names the verdict counts for (`CheckStepRef.coveredParts`).
+   * The prompt is the guide's and speaks of both sides; this is what keeps the
+   * screen from claiming more than what is recorded (`.debug/017` §5.11).
+   */
+  coveredNote?: string;
   current: CheckupAnswer | undefined;
   skippable: boolean;
   onAnswer: (result: "ok" | "ko") => void;
@@ -34,6 +41,7 @@ export interface VerdictBarProps {
 
 export function VerdictBar({
   prompt,
+  coveredNote,
   current,
   skippable,
   onAnswer,
@@ -53,6 +61,11 @@ export function VerdictBar({
       )}
     >
       <p className="mb-2 text-sm text-ink">{prompt}</p>
+      {coveredNote === undefined ? null : (
+        <p className="mb-2 text-sm text-ink-muted" data-testid="verdict-covered">
+          {coveredNote}
+        </p>
+      )}
       {/* A GRID, not a wrapping flex row: the three columns are a fraction of
           the bar and do not depend on how long "ça ne marche pas" is in this
           locale. A `flex-1` row resolves its widths from content, animates them

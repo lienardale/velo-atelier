@@ -52,10 +52,25 @@ export interface CheckStepRef {
   key: CheckStepKey;
   guideSlug: string;
   stepId: string;
-  /** The parts this step reports on — already expanded from hosted to host. */
+  /**
+   * The parts this step reports on — already expanded from hosted to host, and,
+   * in a checkup limited to some parts, only the ones inside its scope
+   * (`partsInScope`, `./scope.ts`).
+   */
   partIds: readonly PartId[];
-  /** The symptoms a "ça ne marche pas" offers, and what each one costs. */
+  /**
+   * The symptoms a "ça ne marche pas" offers, and what each one costs — in a
+   * checkup limited to some parts, only the consequences about parts inside it.
+   */
   ko: readonly KoConsequence[];
+  /**
+   * Set only when the scope left out some of the parts or findings this
+   * question names: the parts its verdict is recorded for (the real ids, not
+   * hosts — "the rear pads", not "the rear caliper"). A question about both
+   * calipers, asked in a checkup limited to the rear one, counts for the rear
+   * only, and the wizard says so in those words.
+   */
+  coveredParts?: readonly PartId[];
   skippable: boolean;
   tools: readonly ToolRef[];
   /**
