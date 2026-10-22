@@ -49,7 +49,7 @@ runs at [velo-atelier.vercel.app][site], in production since 2026-09-29.
   it or cannot use it, or the bike was already in the account without it — is
   left in the browser, and the site says so.
 - **French and English.** Every screen and every guide in both languages, at
-  localized addresses: 1 685 interface strings per language, kept in step by
+  localized addresses: 1 694 interface strings per language, kept in step by
   [a test][parity-test]. No analytics, no cookie banner.
 
 ## How it is built and checked

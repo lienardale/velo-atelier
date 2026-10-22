@@ -9,7 +9,10 @@
   "resumed": {
     "going": "Picking up the checkup in progress…",
     "partialAsFull": "This checkup was started on a few parts. It carries on here as a full checkup, with every answer you gave — and those answers now count for every part their question names.",
-    "fullInProgress": "A full checkup is already under way on this bike: it carries on here, with every answer you gave. The parts you picked are part of it."
+    "partialAsFullNamed": "This checkup was started on a few parts. It carries on here as a full checkup, with every answer you gave. Your answers to these questions, which name several parts, now count for each of them — check them: {questions}.",
+    "question": "“{title}”",
+    "fullInProgress": "A full checkup is already under way on this bike: it carries on here, with every answer you gave. The parts you picked are part of it.",
+    "ownParts": "A checkup limited to: {parts} is already under way on this bike. It carries on here, on those parts, with your answers, which count for them only. Finish it to start another one."
   },
   "needsBike": "The checkup needs to know which bike you have. Open your bike, then start the checkup from the Actions tab.",
   "openBike": "Open my bike",

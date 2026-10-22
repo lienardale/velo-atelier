@@ -39,6 +39,7 @@ import {
   resumeGuestRun,
   type GuestResumeOptions,
   type GuestVerdict,
+  type Planner,
 } from "@/tests/_helpers/guest-work";
 
 import { guestCheckupKey, importGuestState, type GuestImportStore } from "./import";
@@ -78,6 +79,8 @@ interface RunOptions {
   startedAt?: string;
   /** `null` leaves the checkup in progress. */
   completedAt?: string | null;
+  /** The planner it was answered against. Default: today's. */
+  planner?: Planner;
 }
 
 /** A wizard run over this bike's real plan. */
@@ -88,6 +91,7 @@ function run(build: BikeBuild, options: RunOptions): CheckupState {
     scope: options.parts === undefined ? { kind: "full" } : partsScope(...options.parts),
     verdicts: options.verdicts,
     startedAt: options.startedAt ?? STARTED_AT,
+    ...(options.planner === undefined ? {} : { planner: options.planner }),
     ...(options.completedAt === null ? {} : { completedAt: options.completedAt ?? COMPLETED_AT }),
   });
 }
@@ -502,9 +506,9 @@ describe("a checkup: the server re-plans (§5.4)", () => {
     // Chain first; then "check this part" on the front caliper. `reconcile`
     // drops the chain's answer there (the wizard's doing before 2026-10-22,
     // which a browser that loaded it may still hold), and what is stored is
-    // the caliper's two brake answers under `scope: parts[chain]`. (Three
-    // until the same date: `hose-leak` is not asked for a caliper any more,
-    // its only finding being about the brake lines — `.debug/017` §5.11.)
+    // the three brake answers the planner of THEN asked of a caliper —
+    // `hose-leak` among them, which today's no longer asks of one
+    // (`.debug/017` §5.11, §5.12 B6) — under `scope: parts[chain]`.
     const bike = continued(
       { parts: ["chain"], verdicts: { [CHAIN]: { ko: ["chain-elongation"] } } },
       {
@@ -515,15 +519,17 @@ describe("a checkup: the server re-plans (§5.4)", () => {
       },
     );
     expect(bike.checkups[0].scope).toEqual({ kind: "parts", partIds: ["chain"] });
-    expect(Object.keys(bike.checkups[0].answers).sort()).toEqual([ALIGNMENT, PAD_WEAR].sort());
+    expect(Object.keys(bike.checkups[0].answers).sort()).toEqual(
+      [ALIGNMENT, HOSE, PAD_WEAR].sort(),
+    );
 
     const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
     // Before: `skipped: 'nothing-kept'`, and the visitor was told none of the
-    // answers matched a question asked for this bike. Both do.
+    // answers matched a question asked for this bike. All three do.
     expect(result.ok && result.data.bikes[0].checkups).toEqual([
       { guestKey: CHECKUP_ID, status: "imported" },
     ]);
-    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([PAD_WEAR, ALIGNMENT]);
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toEqual([PAD_WEAR, ALIGNMENT, HOSE]);
     // Not the chain's checkup any more: the column cannot name the caliper.
     expect(rows("Checkup")[0].scope).toBe("FULL");
     expect(rows("BuildListItem").every((line) => line.checkupItemId !== null)).toBe(true);
@@ -817,6 +823,97 @@ describe("part states (§4.2 b)", () => {
     expect(rows("CheckupItem").map((item) => item.partId)).toEqual([
       "brake-caliper-front",
       "brake-caliper-front",
+    ]);
+  });
+
+  it("leaves out an OK to a question the planner of before 2026-10-22 asked of the rear caliper, and writes the rear only", async () => {
+    // What a browser that ran the wizard of then holds (`.debug/017` §5.12,
+    // B6): a rear-caliper checkup planned whole, `hose-leak` among its
+    // questions. Today's rule does not ask `hose-leak` of a caliper — its only
+    // finding is about the brake lines — and an OK to it says nothing about a
+    // part inside. Until this fix it widened the checkup to FULL, and the
+    // import wrote the FRONT caliper BROKEN and the front lever OK from a
+    // rear-caliper checkup.
+    const bike = collected({
+      parts: ["brake-caliper-rear"],
+      verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] }, [ALIGNMENT]: "ok", [HOSE]: "ok" },
+      planner: "before-2026-10-22",
+    });
+    expect(Object.keys(bike.checkups[0].answers).sort()).toEqual(
+      [ALIGNMENT, HOSE, PAD_WEAR].sort(),
+    );
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(rows("Checkup")[0].scope).toBe("PARTIAL");
+    expect(rows("CheckupItem").map((item) => `${item.stepKey}@${item.partId}`)).toEqual([
+      `${PAD_WEAR}@brake-caliper-rear`,
+      `${ALIGNMENT}@brake-caliper-rear`,
+    ]);
+    const written = [...partStates().values()].filter((row) => row.status !== "UNKNOWN");
+    expect(written.map((row) => `${row.partId}=${row.status}`)).toEqual([
+      "brake-caliper-rear=BROKEN",
+    ]);
+  });
+
+  it("keeps a KO to such a question: the checkup is FULL, and the leak is on the list", async () => {
+    // A KO's finding outranks the parts it was asked for: it widens the run,
+    // like an answer beyond its parts always did.
+    const bike = collected({
+      parts: ["brake-caliper-rear"],
+      verdicts: { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok", [HOSE]: { ko: ["hose-leak"] } },
+      planner: "before-2026-10-22",
+    });
+    await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(rows("Checkup")[0].scope).toBe("FULL");
+    expect(rows("CheckupItem").map((item) => item.stepKey)).toContain(HOSE);
+    expect(
+      (rows("BuildListItem") as { partId: string }[]).map((line) => line.partId).sort(),
+    ).toEqual(["brake-line-front", "brake-line-rear"]);
+  });
+
+  it("reports nothing-kept for a partial checkup whose only answer is such an OK", async () => {
+    const bike = collected({
+      parts: ["brake-caliper-rear"],
+      verdicts: { [HOSE]: "ok" },
+      completedAt: null,
+      planner: "before-2026-10-22",
+    });
+    const result = await importGuestState(fakeDb.client, userId, state(bike), deps);
+    expect(result.ok && result.data.bikes[0].checkups).toEqual([
+      { guestKey: CHECKUP_ID, status: "skipped", reason: "nothing-kept" },
+    ]);
+    expect(rows("Checkup")).toHaveLength(0);
+  });
+
+  it("widens a partial checkup whose plan no longer offers a KO's symptom, and keeps the symptom", async () => {
+    // A rim-brake bike's front-caliper checkup of before 2026-10-22: the rim
+    // track asked whole, a worn track reported. Today's front-caliper plan
+    // asks it for the front pads alone, "contaminated" only: married to it,
+    // the KO lost its symptom and listed "clean the front pads"
+    // (`.debug/017` §5.12, RA-2).
+    const RIM_TRACK = "check-brakes-rim#rim-track";
+    const work = guestWork({
+      answers: BIKE_PRESETS["road-rim-2x11"],
+      bikeId: LOCAL_ID,
+      updatedAt: "2026-09-14T09:00:00.000Z",
+      checkup: (build) =>
+        guestRun({
+          id: CHECKUP_ID,
+          build,
+          scope: partsScope("brake-caliper-front"),
+          verdicts: { [RIM_TRACK]: { ko: ["rim-brake-track-worn"] } },
+          startedAt: STARTED_AT,
+          planner: "before-2026-10-22",
+        }),
+    });
+    const payload = JSON.parse(JSON.stringify(work.collect().state)) as GuestState;
+    await importGuestState(fakeDb.client, userId, payload, deps);
+    expect(rows("Checkup")[0].scope).toBe("FULL");
+    expect(rows("CheckupItem")).toEqual([
+      expect.objectContaining({
+        stepKey: RIM_TRACK,
+        result: "KO",
+        reasonKeys: ["rim-brake-track-worn"],
+      }),
     ]);
   });
 

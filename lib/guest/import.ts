@@ -77,10 +77,17 @@
  * The scope the payload names is then taken at its word only while it is
  * still true — `effectiveScope` (`lib/checkup/scope.ts`), the rule the
  * account's actions apply too: `PARTIAL` when the payload says `parts` and
- * every kept answer is a question that scoped plan asks; `FULL` otherwise —
- * the answers themselves show the run went beyond the parts it was opened on,
- * and the column cannot say "these parts, then those". A `parts` scope naming
- * no part names nothing, and is `FULL` without being planned.
+ * that scoped plan holds every kept answer — asks it, and still offers the
+ * symptom a KO was given with; `FULL` otherwise — the answers themselves show
+ * the run went beyond the parts it was opened on, and the column cannot say
+ * "these parts, then those". A `parts` scope naming no part names nothing,
+ * and is `FULL` without being planned. One answer neither widens nor stays:
+ * an OK or a skip given, under the planner of before 2026-10-22, to a
+ * question the scope still touches and no longer asks — `hose-leak` in a
+ * rear-caliper checkup, whose only finding is about the brake lines. It is
+ * left out of the PARTIAL checkup (`.debug/017` §5.12, B6): widening for it
+ * would have written the FRONT caliper from a rear-caliper checkup. A KO
+ * there widens, and keeps its finding.
  *
  * And a PARTIAL checkup is about the parts inside its scope and no others,
  * here as on the account (`.debug/017` §5.11): once the column is `PARTIAL`,
@@ -90,7 +97,8 @@
  * Until 2026-10-22 they came from the full plan, and a rear-caliper checkup's
  * rows named the FRONT caliper and lever and turned them `OK`.
  *
- * A checkup none of whose answers is a question this bike is asked writes NO
+ * A checkup none of whose answers is a question this bike is asked — or, for
+ * a PARTIAL one, whose only answers are the left-out ones above — writes NO
  * row and is reported `skipped: 'nothing-kept'`: an empty `Checkup` would show
  * as a history entry, and the browser keeps its copy.
  *
@@ -171,7 +179,7 @@ import { ok, fail, type ActionResult } from "@/lib/actions/result";
 import { coerceFit, deriveBike, QUOTAS, withinJsonBudget, withinQuota } from "@/lib/bike/rules";
 import { deriveBuildList } from "@/lib/checkup/build-list";
 import { answeredItems, type AnsweredItem } from "@/lib/checkup/items";
-import { effectiveScope } from "@/lib/checkup/scope";
+import { effectiveScope, scopeFacts } from "@/lib/checkup/scope";
 import { fromStored } from "@/lib/checkup/storage";
 import {
   CHECKUP_STATE_VERSION,
@@ -493,21 +501,24 @@ function acceptCheckup(
   const kept = answeredItems(whole);
   if (kept.length === 0) return null;
 
-  // PARTIAL only while it is true: the payload says `parts` AND every answer
-  // that was kept is a question those parts ask. One answer beyond them and
-  // the run was not confined to them, whatever the stored scope still says.
-  const effective = effectiveScope(
-    named,
-    kept.map((item) => item.stepKey),
-    () => new Set(planner.scoped(named).map((step) => step.key)),
-  );
+  // PARTIAL only while it is true: the payload says `parts` AND those parts
+  // hold every answer that was kept — ask it, with the symptom a KO was given
+  // with. One answer beyond them and the run was not confined to them,
+  // whatever the stored scope still says.
+  const effective = effectiveScope(named, whole, () => {
+    const scoped = planner.scoped(named);
+    return { scoped, facts: scopeFacts(named, planner.full(), scoped) };
+  });
   // A PARTIAL checkup is about the parts inside its scope (see the header):
-  // the same answers, married to the scoped plan, which narrows each step.
+  // the same answers, married to the scoped plan, which narrows each step —
+  // and leaves out an OK or a skip given, before 2026-10-22, to a question
+  // these parts no longer ask (`hose-leak` for a caliper: `lib/checkup/scope.ts`).
   const state =
     effective.kind === "full"
       ? { ...whole, scope: effective }
       : against(effective, planner.scoped(effective));
   const items = answeredItems(state).map((item) => ({ ...item, id: randomUUID() }));
+  if (items.length === 0) return null;
   const scope = effective.kind === "full" ? "FULL" : "PARTIAL";
 
   const startedAt = clamp(checkup.startedAt, now);

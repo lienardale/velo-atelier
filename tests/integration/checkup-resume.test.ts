@@ -116,7 +116,9 @@ const { importGuestState } = await import("@/lib/guest/import");
 const { planForBuild } = await import("@/lib/content/checkup-plan");
 const { deriveBike } = await import("@/lib/bike/rules");
 const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
-const { checkupKey } = await import("@/lib/bike/storage-keys");
+const { buildListKey, checkupKey } = await import("@/lib/bike/storage-keys");
+const { toStored } = await import("@/lib/checkup/storage");
+const { encodeSpec } = await import("@/lib/bike/spec-codec");
 const { CONTENT_VERSION } = await import("@/lib/content/generated/version");
 const { guestRun, guestWork, partsScope } = await import("@/tests/_helpers/guest-work");
 
@@ -493,11 +495,11 @@ describe("a saved bike's partial checkup, through the real page, wizard and acti
     });
   }, 60_000);
 
-  it("a partial run on the rear caliper, reopened on the FRONT one: resumed there — the pads' answer then counts for the front (pinned as a decision, docs/backlog.md)", async () => {
-    // The row does not remember its parts, so nothing tells "the rear caliper"
-    // from "the front one" once both ask the pads' question. Resumed on the
-    // page's scope, as ruled; the price is in the backlog. Pinned so that a
-    // change to it is a decision too.
+  it("a partial run on the rear caliper, reopened on the FRONT one: NOT resumed there — its row is the rear caliper's; the full checkup, and the visitor told which answer now counts for both", async () => {
+    // Until the review of 2026-10-22 it was resumed on the front caliper, its
+    // pads' answer stored against the FRONT caliper, with nothing on screen
+    // (pinned here then "as a decision"; `.debug/017` §5.12, RA-1/B1). The row
+    // records the rear caliper, which the front one's scope does not hold.
     const user = await signedInUser("resume-other-side@velo-atelier.test");
     const bikeId = await gravelBike(user.id);
     let page = await open(bikeId, "parts=brake-caliper-rear");
@@ -508,14 +510,19 @@ describe("a saved bike's partial checkup, through the real page, wizard and acti
     expect((await rowsOf(bikeId)).checkups[0].items).toEqual([`${PAD_WEAR}=OK@brake-caliper-rear`]);
 
     page = await open(bikeId, "parts=brake-caliper-front");
-    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle partiel");
-    expect(screen.queryByTestId("checkup-resumed")).not.toBeInTheDocument();
-    await verdict(page.user, ALIGNMENT, "ok");
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "vérifiez-les : « Mesurer l’usure des plaquettes ».",
+    );
+    expect(page.props.steps.length).toBeGreaterThan(20);
+    expect(onScreen()).not.toBe(PAD_WEAR);
+    await page.user.click(screen.getByTestId("verdict-ok"));
     await pagehide();
-    expect((await rowsOf(bikeId)).checkups[0]).toMatchObject({
-      scope: "PARTIAL",
-      items: [`${ALIGNMENT}=OK@brake-caliper-front`, `${PAD_WEAR}=OK@brake-caliper-front`],
-    });
+    const [run] = (await rowsOf(bikeId)).checkups;
+    expect(run.scope).toBe("FULL");
+    expect(run.items).toHaveLength(2);
+    expect(run.items).toContain(`${PAD_WEAR}=OK@brake-caliper-front`);
   }, 60_000);
 
   it("an imported unfinished partial checkup is resumed and finished on the account as the SAME row, its answers in it", async () => {
@@ -747,7 +754,7 @@ describe("a guest's run, in localStorage, through the real page and wizard", () 
     expect(stored()?.scope).toEqual({ kind: "full" });
   }, 60_000);
 
-  it("(c2) a run on the chain, opened on the front caliper: the full checkup, the chain's answer kept", async () => {
+  it("(c2) a run on the chain, opened on the front caliper: back to the chain, then on to the full checkup — its one answer was given whole", async () => {
     let page = await open("demo", "parts=chain");
     await start(page.user);
     await verdict(page.user, CHAIN, { ko: "chain-elongation" });
@@ -756,7 +763,16 @@ describe("a guest's run, in localStorage, through the real page and wizard", () 
     resetStoredCheckupCache();
 
     page = await open("demo", "parts=brake-caliper-front");
-    expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full");
+    expect(leave.replaceDocument).toHaveBeenCalledWith(
+      "/fr/velo/demo/controle?parts=chain&resume=own",
+    );
+    cleanup();
+    resetStoredCheckupCache();
+    // The chain's question is asked of the chain alone either way: the full
+    // checkup asks it about what it was answered for.
+    page = await open("demo", "parts=chain&resume=own");
+    expect(phase()).toBe("resuming");
+    expect(leave.replaceDocument).toHaveBeenLastCalledWith("/fr/velo/demo/controle?resume=full");
     cleanup();
     resetStoredCheckupCache();
     page = await open("demo", "resume=full");
@@ -804,5 +820,430 @@ describe("a guest's run, in localStorage, through the real page and wizard", () 
     await page.user.click(screen.getByTestId("verdict-ok"));
     await pagehide();
     expect(Object.keys(stored()?.answers ?? {})).toHaveLength(brakes.length + 2);
+  }, 60_000);
+});
+
+// ── §5.12: a run resumed under parts that ask its questions about OTHER parts ─
+
+/**
+ * The review of 2026-10-22 (`.debug/017` §5.12): since the scope rule (§5.11)
+ * one question key covers different parts under different scopes, so a page
+ * that ASKS a run's questions may ask them about other parts than the ones
+ * they were answered for — and the run, resumed there, moved its answers
+ * there: the rear pads reported worn ended up as "replace the FRONT pads".
+ */
+
+/** Where the wizard sent the visitor: the address of its last `replaceDocument`. */
+async function follow(bikeParam: string) {
+  const target = leave.replaceDocument.mock.calls.at(-1)?.[0];
+  if (target === undefined) throw new Error("the wizard did not leave");
+  cleanup();
+  resetStoredCheckupCache();
+  return open(bikeParam, new URL(target, "http://localhost").search.replace(/^\?/, ""));
+}
+
+/** Every question on screen answered OK, but `keep`, which is moved past as it stands. */
+async function answerTheRest(user: Clicker, keep: Record<string, "ok" | { ko: string }> = {}) {
+  for (let guard = 0; guard < 80 && phase() === "step"; guard += 1) {
+    const key = onScreen() ?? "";
+    const given = Object.hasOwn(keep, key) ? keep[key] : "ok";
+    await verdict(user, key, given);
+  }
+  expect(phase()).toBe("summary");
+}
+
+const PADS_TITLE = "« Mesurer l’usure des plaquettes »";
+
+async function rimBike(userId: string): Promise<string> {
+  const derived = deriveBike(BIKE_PRESETS["road-rim-2x11"]);
+  const bike = await prisma.bike.create({
+    data: {
+      userId,
+      name: "Route",
+      answers: derived.answers,
+      spec: derived.spec,
+      parts: derived.parts as unknown as Prisma.InputJsonValue,
+      partStates: { create: derived.parts.map((part) => ({ partId: part.partId })) },
+    },
+    select: { id: true },
+  });
+  return bike.id;
+}
+
+describe("§5.12 a saved bike's partial run, reopened on parts that do not hold it", () => {
+  it("R1: the rear pads reported WORN, then the FRONT caliper picked: the rear pads' line is kept, and the screen names the answer that now counts for both", async () => {
+    const user = await signedInUser("resume-r1@velo-atelier.test");
+    const bikeId = await gravelBike(user.id);
+    let page = await open(bikeId, "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, { ko: "pad-worn" });
+    await pagehide();
+    cleanup();
+    expect((await rowsOf(bikeId)).checkups[0].items).toEqual([`${PAD_WEAR}=KO@brake-caliper-rear`]);
+
+    page = await open(bikeId, "parts=brake-caliper-front");
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(PADS_TITLE);
+    await answerTheRest(page.user, { [PAD_WEAR]: { ko: "pad-worn" } });
+    await page.user.click(screen.getByTestId("summary-create"));
+    await answered();
+    const after = await rowsOf(bikeId);
+    // Until this fix: ["REPLACE brake-pads-front"] — the rear finding gone, the
+    // front caliper ATTENTION, nothing said. The rear's line is what the
+    // visitor reported. The front's is what a full checkup makes of an answer
+    // to "chaque plaquette": the row does not say which caliper was picked, so
+    // that much is said on screen and not avoided — exact needs a column
+    // (`.debug/017` §5.12, escalated).
+    expect(after.lines).toContain("REPLACE brake-pads-rear");
+    expect(after.lines).toEqual(["REPLACE brake-pads-front", "REPLACE brake-pads-rear"]);
+    expect(after.checkups[0]).toMatchObject({ scope: "FULL", status: "COMPLETED" });
+  }, 60_000);
+
+  it("R3: both calipers' pads reported worn, then the REAR caliper picked: both lines — the front pads' finding is not dropped", async () => {
+    const user = await signedInUser("resume-r3@velo-atelier.test");
+    const bikeId = await gravelBike(user.id);
+    let page = await open(bikeId, "parts=brake-caliper-front,brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, { ko: "pad-worn" });
+    await pagehide();
+    cleanup();
+
+    page = await open(bikeId, "parts=brake-caliper-rear");
+    // The row names the front caliper, which the rear one's scope does not hold.
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    await answerTheRest(page.user, { [PAD_WEAR]: { ko: "pad-worn" } });
+    await page.user.click(screen.getByTestId("summary-create"));
+    await answered();
+    // Until this fix: ["REPLACE brake-pads-rear"], with no word.
+    expect((await rowsOf(bikeId)).lines).toEqual([
+      "REPLACE brake-pads-front",
+      "REPLACE brake-pads-rear",
+    ]);
+  }, 60_000);
+
+  it("R5: a rim track reported WORN for the front wheel, then the front caliper picked: the symptom stays, and the rim is on the list", async () => {
+    const RIM_TRACK = "check-brakes-rim#rim-track";
+    const user = await signedInUser("resume-r5@velo-atelier.test");
+    const bikeId = await rimBike(user.id);
+    let page = await open(bikeId, "parts=wheel-front");
+    await start(page.user);
+    await verdict(page.user, RIM_TRACK, { ko: "rim-brake-track-worn" });
+    await pagehide();
+    cleanup();
+
+    page = await open(bikeId, "parts=brake-caliper-front");
+    // The caliper's rim-track question offers only "contaminated": resumed
+    // there, the next save dropped the worn track, and the list said "clean
+    // the front pads" (until this fix).
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    await page.user.click(screen.getByTestId("verdict-ok"));
+    await pagehide();
+    const rim = await prisma.checkupItem.findFirstOrThrow({
+      where: { checkup: { bikeId }, stepKey: RIM_TRACK },
+    });
+    expect(rim).toMatchObject({ result: "KO", reasonKeys: ["rim-brake-track-worn"] });
+
+    await answerTheRest(page.user, { [RIM_TRACK]: { ko: "rim-brake-track-worn" } });
+    await page.user.click(screen.getByTestId("summary-create"));
+    await answered();
+    const { lines } = await rowsOf(bikeId);
+    expect(lines).toContain("INSPECT_SHOP wheel-front");
+    expect(lines).not.toContain("CLEAN brake-pads-front");
+  }, 60_000);
+
+  it("R6: through the resume banner, the screen names the answers given for one side that now count for both", async () => {
+    // What it does NOT do, and cannot without a column: keep the rear-only OK
+    // a rear-only OK. The full checkup then closes the front pads' open line
+    // too — said on screen, with the question named (`.debug/017` §5.12).
+    const user = await signedInUser("resume-r6@velo-atelier.test");
+    const bikeId = await gravelBike(user.id);
+    let page = await open(bikeId, "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, "ok");
+    await verdict(page.user, ALIGNMENT, "ok");
+    await pagehide();
+    cleanup();
+
+    page = await open(bikeId);
+    expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull");
+    // Until this fix one sentence for every case; now the two questions.
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "vérifiez-les : « Mesurer l’usure des plaquettes » et « Contrôler l’alignement des étriers ».",
+    );
+  }, 60_000);
+
+  it("S-page: a row about a question the bike is no longer asked widens nothing — the page keeps the parts, and hands the wizard what they are", async () => {
+    const user = await signedInUser("resume-stale-page@velo-atelier.test");
+    const bikeId = await gravelBike(user.id);
+    let page = await open(bikeId, "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, "ok");
+    await pagehide();
+    cleanup();
+    const run = await prisma.checkup.findFirstOrThrow({ where: { bikeId } });
+    // A real question of the corpus that a disc-brake bike is never asked.
+    await prisma.checkupItem.create({
+      data: {
+        checkupId: run.id,
+        stepKey: "check-brakes-rim#pad-wear",
+        partId: "brake-caliper-rear",
+        guideSlug: "check-brakes-rim",
+        result: "OK",
+      },
+    });
+
+    page = await open(bikeId, "parts=brake-caliper-rear");
+    expect(page.props.scope).toEqual({ kind: "parts", partIds: ["brake-caliper-rear"] });
+    expect(page.props.resumeWidened).toBe(false);
+    expect(page.props.steps.map((step) => step.key)).toEqual([PAD_WEAR, ALIGNMENT]);
+    // What lets the wizard decide a guest's run by the same rule: the full
+    // plan's keys, and what this scope touches without asking.
+    const full = planForBuild(
+      {
+        spec: deriveBike(BIKE_PRESETS["gravel-1x11"]).spec,
+        parts: deriveBike(BIKE_PRESETS["gravel-1x11"]).parts,
+      },
+      { kind: "full" },
+    );
+    expect(page.props.scopeFacts?.asked).toEqual(full.map((step) => step.key));
+    expect(page.props.scopeFacts?.touched).toEqual(["check-brakes-disc#hose-leak"]);
+  }, 60_000);
+
+  it("S-actions: finished on the rear caliper with such a row in the run — PARTIAL, the rear only", async () => {
+    const user = await signedInUser("resume-stale-actions@velo-atelier.test");
+    const bikeId = await gravelBike(user.id);
+    const payload = (answers: Record<string, string>, extra: Record<string, unknown> = {}) => ({
+      version: 1,
+      id: "11111111-1111-4111-8111-111111111111",
+      bikeRef: { kind: "demo" },
+      scope: { kind: "parts", partIds: ["brake-caliper-rear"] },
+      locale: "fr",
+      answers,
+      symptoms: {},
+      notes: {},
+      toolsMissing: [],
+      startedAt: "2026-10-20T08:00:00.000Z",
+      contentVersion: CONTENT_VERSION,
+      ...extra,
+    });
+    expect(
+      await actions.saveCheckupAction({ bikeId, checkup: payload({ [PAD_WEAR]: "ok" }) }),
+    ).toEqual({ ok: true, data: null });
+    const run = await prisma.checkup.findFirstOrThrow({ where: { bikeId } });
+    await prisma.checkupItem.create({
+      data: {
+        checkupId: run.id,
+        stepKey: "check-brakes-rim#pad-wear",
+        partId: "brake-caliper-rear",
+        guideSlug: "check-brakes-rim",
+        result: "OK",
+      },
+    });
+    const result = await actions.finishCheckupAction({
+      bikeId,
+      checkup: payload(
+        { [PAD_WEAR]: "ok", [ALIGNMENT]: "ok" },
+        { completedAt: "2026-10-20T08:10:00.000Z" },
+      ),
+    });
+    expect(result.ok).toBe(true);
+    const after = await rowsOf(bikeId);
+    expect(after.checkups[0]).toMatchObject({ scope: "PARTIAL", status: "COMPLETED" });
+    // The stale row is gone — the one deletion left: the bike is not asked
+    // its question at all — and it widened nothing on its way out. Read as a
+    // reason to widen, it made the run FULL and wrote the FRONT caliper.
+    expect(after.checkups[0].items).toEqual([
+      `${ALIGNMENT}=OK@brake-caliper-rear`,
+      `${PAD_WEAR}=OK@brake-caliper-rear`,
+    ]);
+    expect(after.states).toEqual({ "brake-caliper-rear": "OK" });
+  }, 60_000);
+
+  it("B6: a run of before the deploy, with an OK to `hose-leak` among its rows, is resumed and finished on its rear caliper", async () => {
+    // `hose-leak` was asked of a caliper until 2026-10-22; its row names the
+    // front LEVER (the first host of the whole question). An OK there says
+    // nothing about the rear caliper: it widens nothing, and stays as it is.
+    const user = await signedInUser("resume-b6@velo-atelier.test");
+    const bikeId = await gravelBike(user.id);
+    let page = await open(bikeId, "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, { ko: "pad-worn" });
+    await pagehide();
+    cleanup();
+    const run = await prisma.checkup.findFirstOrThrow({ where: { bikeId } });
+    await prisma.checkupItem.create({
+      data: {
+        checkupId: run.id,
+        stepKey: "check-brakes-disc#hose-leak",
+        partId: "brake-lever-front",
+        guideSlug: "check-brakes-disc",
+        result: "OK",
+      },
+    });
+
+    page = await open(bikeId, "parts=brake-caliper-rear");
+    // Until this fix: "Contrôle complet", the pads' answer counted for both sides.
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle partiel");
+    expect(page.props.steps.map((step) => step.key)).toEqual([PAD_WEAR, ALIGNMENT]);
+    await verdict(page.user, ALIGNMENT, "ok");
+    await page.user.click(screen.getByTestId("summary-create"));
+    await answered();
+    const after = await rowsOf(bikeId);
+    expect(after.checkups[0]).toMatchObject({ scope: "PARTIAL", status: "COMPLETED" });
+    expect(after.checkups[0].items).toEqual([
+      `${ALIGNMENT}=OK@brake-caliper-rear`,
+      "check-brakes-disc#hose-leak=OK@brake-lever-front",
+      `${PAD_WEAR}=KO@brake-caliper-rear`,
+    ]);
+    expect(after.lines).toEqual(["REPLACE brake-pads-rear"]);
+    expect(after.states).toEqual({ "brake-caliper-rear": "ATTENTION" });
+  }, 60_000);
+});
+
+describe("§5.12 a guest's partial run, reopened on parts that do not hold it", () => {
+  const stored = () =>
+    JSON.parse(window.localStorage.getItem(checkupKey("demo")) ?? "null") as {
+      scope: unknown;
+      answers: Record<string, string>;
+    } | null;
+  const guestLines = () =>
+    (
+      JSON.parse(window.localStorage.getItem(buildListKey("demo")) ?? "null") as {
+        items: { action: string; partId: string }[];
+      } | null
+    )?.items.map((item) => `${item.action} ${item.partId}`) ?? [];
+
+  it("R2: the rear pads reported WORN, then the FRONT caliper picked: back on the rear caliper, and the list says the REAR pads", async () => {
+    let page = await open("demo", "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, { ko: "pad-worn" });
+    await pagehide();
+    cleanup();
+    resetStoredCheckupCache();
+    const raw = window.localStorage.getItem(checkupKey("demo"));
+
+    page = await open("demo", "parts=brake-caliper-front");
+    expect(phase()).toBe("resuming");
+    expect(leave.replaceDocument).toHaveBeenCalledWith(
+      "/fr/velo/demo/controle?parts=brake-caliper-rear&resume=own",
+    );
+    // Nothing written from the front caliper's page.
+    expect(window.localStorage.getItem(checkupKey("demo"))).toBe(raw);
+
+    page = await follow("demo");
+    expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "ownParts");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "Un contrôle limité à : Étrier de frein arrière est déjà en cours sur ce vélo.",
+    );
+    await verdict(page.user, ALIGNMENT, "ok");
+    await page.user.click(screen.getByTestId("summary-create"));
+    await settle(50);
+    // Until this fix: ["replace brake-pads-front"], the stored scope rewritten
+    // to the front caliper.
+    expect(guestLines()).toEqual(["replace brake-pads-rear"]);
+    expect(stored()?.scope).toEqual({ kind: "parts", partIds: ["brake-caliper-rear"] });
+  }, 60_000);
+
+  it("R4: the rear pads answered OK, then BOTH calipers picked: back on the rear caliper, where the OK counts for the rear pads", async () => {
+    let page = await open("demo", "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, "ok");
+    await pagehide();
+    cleanup();
+    resetStoredCheckupCache();
+
+    await open("demo", "parts=brake-caliper-front,brake-caliper-rear");
+    expect(leave.replaceDocument).toHaveBeenCalledWith(
+      "/fr/velo/demo/controle?parts=brake-caliper-rear&resume=own",
+    );
+    page = await follow("demo");
+    await page.user.click(screen.getByTestId("checkup-back"));
+    expect(onScreen()).toBe(PAD_WEAR);
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    expect(screen.getByTestId("verdict-covered")).toHaveTextContent(
+      "ne comptera que pour : Plaquettes ou patins arrière",
+    );
+  }, 60_000);
+
+  it("RA-3, a guest's: the rear pads answered, then the FULL checkup opened: back on the rear caliper, never counted for the front", async () => {
+    let page = await open("demo", "parts=brake-caliper-rear");
+    await start(page.user);
+    await verdict(page.user, PAD_WEAR, "ok");
+    await pagehide();
+    cleanup();
+    resetStoredCheckupCache();
+
+    page = await open("demo");
+    expect(leave.replaceDocument).toHaveBeenCalledWith(
+      "/fr/velo/demo/controle?parts=brake-caliper-rear&resume=own",
+    );
+    page = await follow("demo");
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle partiel");
+    expect(page.props.steps.map((step) => step.key)).toEqual([PAD_WEAR, ALIGNMENT]);
+  }, 60_000);
+
+  it("R5, a guest's: a front-caliper run of before the deploy, its rim track reported WORN, is not resumed where that symptom is no longer offered", async () => {
+    // The planner of before 2026-10-22 asked the rim-track question whole on
+    // the front caliper, with every symptom. Today's asks it there for the
+    // front pads alone — "contaminated" only: resumed on the caliper, the next
+    // write dropped the worn track from storage (until this fix).
+    const RIM_TRACK = "check-brakes-rim#rim-track";
+    const derived = deriveBike(BIKE_PRESETS["road-rim-2x11"]);
+    const old = guestRun({
+      id: "66666666-6666-4666-8666-666666666666",
+      build: { spec: derived.spec, parts: derived.parts },
+      scope: partsScope("brake-caliper-front"),
+      verdicts: { [RIM_TRACK]: { ko: ["rim-brake-track-worn"] } },
+      startedAt: "2026-10-14T08:00:00.000Z",
+      planner: "before-2026-10-22",
+    });
+    // A guest bike of that kind (`local`): the page reads it from `?spec=`.
+    const raw = JSON.stringify({ ...toStored(old), bikeRef: { kind: "local" } });
+    window.localStorage.setItem(checkupKey("local"), raw);
+    const spec = encodeSpec(BIKE_PRESETS["road-rim-2x11"]);
+
+    await open("local", new URLSearchParams({ spec, parts: "brake-caliper-front" }).toString());
+    expect(phase()).toBe("resuming");
+    expect(leave.replaceDocument).toHaveBeenCalledWith(
+      `/fr/velo/local/controle?${new URLSearchParams({ spec, resume: "full" }).toString()}`,
+    );
+    expect(window.localStorage.getItem(checkupKey("local"))).toBe(raw);
+
+    // Where it is sent, the worn track is offered, and kept.
+    const page = await follow("local");
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    await page.user.click(screen.getByTestId("verdict-ok"));
+    await pagehide();
+    const kept = JSON.parse(window.localStorage.getItem(checkupKey("local")) ?? "null") as {
+      symptoms: Record<string, string[]>;
+    };
+    expect(kept.symptoms[RIM_TRACK]).toEqual(["rim-brake-track-worn"]);
+  }, 60_000);
+
+  it("B6, a guest's: a rear-caliper run of before the deploy, with `hose-leak` answered OK, is resumed on its rear caliper", async () => {
+    const derived = deriveBike(BIKE_PRESETS["gravel-1x11"]);
+    const build = { spec: derived.spec, parts: derived.parts };
+    const old = guestRun({
+      id: "55555555-5555-4555-8555-555555555555",
+      build,
+      scope: partsScope("brake-caliper-rear"),
+      verdicts: { [PAD_WEAR]: { ko: ["pad-worn"] }, "check-brakes-disc#hose-leak": "ok" },
+      startedAt: "2026-10-14T08:00:00.000Z",
+      planner: "before-2026-10-22",
+    });
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify({ ...toStored(old), bikeRef: { kind: "demo" } }),
+    );
+
+    const page = await open("demo", "parts=brake-caliper-rear");
+    // Until this fix: "Reprise…", then the full checkup, the pads counted for both.
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle partiel");
+    await start(page.user);
+    await verdict(page.user, ALIGNMENT, "ok");
+    await page.user.click(screen.getByTestId("summary-create"));
+    await settle(50);
+    expect(guestLines()).toEqual(["replace brake-pads-rear"]);
   }, 60_000);
 });

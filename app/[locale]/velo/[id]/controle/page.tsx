@@ -10,8 +10,7 @@ import { firstValue, parsePartIds } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
 import { planCheckup, scopeFromPartIds, toolsFor, type PlannableGuide } from "@/lib/checkup/plan";
-import { FULL_SCOPE, resumeScope } from "@/lib/checkup/scope";
-import type { StoredCheckup } from "@/lib/checkup/storage";
+import { FULL_SCOPE, resumeTarget, scopeFacts } from "@/lib/checkup/scope";
 import type { CheckStepRef, CheckupScope } from "@/lib/checkup/types";
 import { GUIDES } from "@/lib/content/collection";
 import { CONTENT_VERSION } from "@/lib/content/generated/version";
@@ -20,6 +19,8 @@ import { CLIENT_NAMESPACES } from "@/lib/i18n/client-namespaces";
 import { Link } from "@/lib/i18n/navigation";
 import { routing, type Locale } from "@/lib/i18n/routing";
 import { buildMetadata } from "@/lib/seo/metadata";
+
+import type { StoredRun } from "./load";
 
 interface CheckupPageProps {
   params: Promise<{ locale: string; id: string }>;
@@ -67,19 +68,27 @@ export async function generateMetadata({ params }: CheckupPageProps): Promise<Me
  *   uuid   the owner is checked inside the query, and the stored checkup is
  *          read here so the wizard does not have to flash an empty one.
  *
- * ## An unfinished run is never planned narrower than it is
+ * ## An unfinished run is resumed where its answers mean what they meant
  *
  * The page plans the scope `?parts=` asks for — unless the bike has an
- * unfinished run that scope would not hold: a full one with answers, or a
- * partial one with an answer to a question the scope does not ask. Then it
- * plans the FULL checkup, and the run carries on over a plan holding every
- * answer it has (`resumeScope`, `lib/checkup/scope.ts`). For a saved bike the
- * page reads the run and decides here; a guest's run is in `localStorage`, so
- * the page hands the wizard the keys of the full plan and the wizard decides,
- * and comes back here with `?resume=full` — which this page then plans as the
- * full checkup. Until 2026-10-22 the run was resumed on whatever the page had
- * planned, trimmed to it, and a resumed partial run lost every stored answer
- * (`.debug/017` §5.10).
+ * unfinished run that scope does not hold (`resumeTarget`,
+ * `lib/checkup/scope.ts`): a full one with answers; or a partial one with an
+ * answer the scope does not ask, or asks about other parts than the one it
+ * was given for (one question key is about the rear pads in a rear-caliper
+ * checkup and about the front ones in a front-caliper checkup), or asks
+ * without the symptom it was given with. For a saved bike the page reads the
+ * run and decides here, by the part each row is recorded against; its row
+ * does not say which parts the run was opened on, so the page plans the FULL
+ * checkup, which keeps every answer, and the wizard says which ones now count
+ * for every part their question names. A guest's run is in `localStorage`, so
+ * the page hands the wizard what its scope is against the full plan
+ * (`scopeFacts`) and the wizard decides: it comes back here with `?parts=` the
+ * run's own parts and `?resume=own`, or with `?resume=full` when the full
+ * checkup asks every one of its answers about what it was given for — which
+ * this page then plans. Until 2026-10-22 the run was resumed on whatever the
+ * page had planned, trimmed to it, and a resumed partial run lost every
+ * stored answer (`.debug/017` §5.10); then on any page that asked its
+ * questions, and its answers changed sides (§5.12).
  */
 export default async function CheckupPage({
   params,
@@ -113,11 +122,14 @@ export default async function CheckupPage({
 
   const requestedPartIds = parsePartIds(query.parts);
   /**
-   * `?resume=full` is the wizard coming back for a guest's run that the
-   * scope it was opened on could not hold: the full checkup, and nothing
-   * else changes (see the header).
+   * `?resume=` is the wizard coming back for a guest's run that the page it
+   * was opened on could not hold: `full`, the full checkup; `own`, the parts
+   * of `?parts=`, which are the run's own (see the header). Nothing else
+   * changes.
    */
-  const resumeWidened = firstValue(query.resume) === "full";
+  const resume = firstValue(query.resume);
+  const resumeWidened = resume === "full";
+  const resumedOwn = !resumeWidened && resume === "own";
   const requested = resumeWidened ? FULL_SCOPE : scopeFromPartIds(requestedPartIds);
   /**
    * §6.7: `?parts=` naming nothing this bike has falls back to a FULL checkup
@@ -132,30 +144,33 @@ export default async function CheckupPage({
     planCheckup(build, scope, documents as unknown as PlannableGuide[]);
   let fullPlan: CheckStepRef[] | null = null;
   const full = (): CheckStepRef[] => (fullPlan ??= planFor(FULL_SCOPE));
-  const keysOf = (plan: readonly CheckStepRef[]) => new Set(plan.map((step) => step.key));
 
-  const initialStored = await storedFor(ref, bike.bikeId, resolvedLocale);
+  const run = await storedFor(ref, bike.bikeId, resolvedLocale);
+  const initialStored = run?.checkup ?? null;
   let scope = requested;
   let steps = planFor(requested);
   // A saved bike's unfinished run, read above: resumed on the requested scope
-  // only if that scope holds it.
+  // only if that scope holds it — every answer asked about what it was given
+  // for, by the part each row is recorded against. The row does not say which
+  // parts the run was opened on, so the run is never sent back to them: the
+  // full checkup stands in, and the wizard says which answers now count for
+  // every part their question names (`.debug/017` §5.12).
   let widened = resumeWidened;
-  if (
-    requested.kind === "parts" &&
-    initialStored !== null &&
-    initialStored.completedAt === undefined
-  ) {
-    const asked = keysOf(full());
-    const resumed = resumeScope(
+  if (run !== null && run.checkup.completedAt === undefined) {
+    const target = resumeTarget(
       {
-        scope: initialStored.scope,
-        answered: Object.keys(initialStored.answers).filter((key) => asked.has(key)),
+        scope: run.checkup.scope,
+        answers: run.checkup.answers,
+        symptoms: run.checkup.symptoms,
+        recordedFor: run.recordedFor,
+        knowsItsParts: false,
       },
       requested,
-      () => keysOf(steps),
+      steps,
+      scopeFacts(requested, full(), steps),
     );
-    if (resumed.kind === "full") {
-      scope = resumed;
+    if (target.kind === "full") {
+      scope = FULL_SCOPE;
       steps = full();
       widened = true;
     }
@@ -205,11 +220,13 @@ export default async function CheckupPage({
         scope={scope}
         scopeDropped={scopeDropped}
         resumeWidened={widened}
+        resumedOwn={resumedOwn}
         steps={steps}
-        // With a parts scope, the full plan's keys: a guest's run is read in
-        // the browser, which decides whether this scope holds it — by the
-        // same rule as above, a dropped question widening nothing.
-        {...(scope.kind === "parts" ? { fullStepKeys: full().map((step) => step.key) } : {})}
+        // With a parts scope, what this scope is against the full plan: a
+        // guest's run is read in the browser, which decides whether this scope
+        // holds it — by the same rule as above, a dropped question deciding
+        // nothing.
+        {...(scope.kind === "parts" ? { scopeFacts: scopeFacts(scope, full(), steps) } : {})}
         guideNodes={guideNodes}
         guideRefs={guideRefsFor(steps, bySlug)}
         tools={toolsFor(steps)}
@@ -283,11 +300,13 @@ async function storedFor(
   ref: ReturnType<typeof resolveBikeRef>,
   bikeId: string | null,
   locale: Locale,
-): Promise<StoredCheckup | null> {
+): Promise<StoredRun | null> {
   if (ref.kind !== "db" || bikeId === null) return null;
   const { currentUser } = await import("@/lib/actions/with-user");
   const user = await currentUser();
   if (user === null) return null;
-  const { loadStoredCheckup } = await import("./load");
-  return loadStoredCheckup(bikeId, user.id, locale);
+  // With the part each row is recorded against: what tells a page whose parts
+  // do not hold an answer (`resumeTarget`). The same single query.
+  const { loadStoredCheckupRun } = await import("./load");
+  return loadStoredCheckupRun(bikeId, user.id, locale);
 }
