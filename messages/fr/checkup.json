@@ -9,7 +9,10 @@
   "resumed": {
     "going": "Reprise du contrôle en cours…",
     "partialAsFull": "Ce contrôle avait commencé sur quelques pièces. Il reprend ici en contrôle complet, avec toutes vos réponses : celles déjà données comptent désormais pour toutes les pièces que leur question nomme.",
-    "fullInProgress": "Un contrôle complet est déjà en cours sur ce vélo : il reprend ici, avec toutes vos réponses. Les pièces choisies en font partie."
+    "partialAsFullNamed": "Ce contrôle avait commencé sur quelques pièces. Il reprend ici en contrôle complet, avec toutes vos réponses. Celles déjà données à ces questions, qui nomment plusieurs pièces, comptent désormais pour chacune d'elles — vérifiez-les : {questions}.",
+    "question": "« {title} »",
+    "fullInProgress": "Un contrôle complet est déjà en cours sur ce vélo : il reprend ici, avec toutes vos réponses. Les pièces choisies en font partie.",
+    "ownParts": "Un contrôle limité à : {parts} est déjà en cours sur ce vélo. Il reprend ici, sur ces pièces, avec vos réponses, qui ne comptent que pour elles. Terminez-le pour en commencer un autre."
   },
   "needsBike": "Le contrôle a besoin de savoir quel vélo vous avez. Ouvrez votre vélo, puis relancez le contrôle depuis l'onglet Actions.",
   "openBike": "Ouvrir mon vélo",
