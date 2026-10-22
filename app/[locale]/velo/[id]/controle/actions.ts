@@ -285,10 +285,12 @@ function acceptedState(
     ...(payload.completedAt === undefined ? {} : { completedAt: payload.completedAt }),
     contentVersion: payload.contentVersion,
   };
-  // `fromStored` reconciles: keys that are not in the plan and symptoms the
-  // step does not offer are gone by the time anything is written — and, the
-  // plan being the one the answers bear out, a key that is not in it is a
-  // question this bike is no longer asked.
+  // `fromStored` reconciles against the plan the answers bear out: a key that
+  // is not in it is a question this bike is no longer asked — or, for a
+  // PARTIAL run, an OK or a skip to one its scope only touches (`holds`) — and
+  // a symptom it does not offer is one no plan offers any more (one the scope
+  // withholds would have widened it). Neither is written, and of the rest only
+  // the payload's questions are (`writeItems`).
   return {
     state: fromStored(stored, steps, CONTENT_VERSION),
     asked,
