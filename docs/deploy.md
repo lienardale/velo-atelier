@@ -1612,9 +1612,12 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      O3's third and O6 (a checkup limited to some parts wrote statuses on,
      and listed, parts outside them) were fixed on 2026-10-22 (§5.11), with
      the resume of a partial checkup that the verification of 2026-10-08 had
-     found deleting a saved bike's answers (§5.10); O3's first two and O5 are
-     entries of `docs/backlog.md`. Neither fix had been deployed when this
-     was written.
+     found deleting a saved bike's answers (§5.10), and repaired after a
+     review the same day (§5.12); O3's first two and O5 are entries of
+     `docs/backlog.md`. Neither fix had been deployed when this was written.
+     Nothing stored is rewritten by them: what rows written, and guest
+     checkups answered, before the deploy become after it is in §5.11 and
+     §5.12 ("What production rows … may look like").
 
 2. **All gates** — `bash scripts/ci.sh` prints its PASS table;
    `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh && npm run e2e:docker`;

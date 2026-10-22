@@ -613,14 +613,13 @@ forEachLocale((locale) => {
         href(locale, "/velo/[id]/controle", { id: "local" }, { spec: specCode, ...link }),
       );
       // The wizard resumes the stored run (straight to a question, no tool
-      // list) as a FULL checkup either way, and says so: the other part's
-      // questions do not hold the chain's answer, so that link is sent on to
-      // the full checkup (`?resume=full`) rather than trimming the run to it —
-      // which, until 2026-10-22, it did, and the chain's answer was lost
-      // (`.debug/017` §5.10).
-      if ("parts" in link) {
-        await page.waitForURL((url) => url.searchParams.get("resume") === "full");
-      }
+      // list) as a FULL checkup either way, and says so: neither link holds
+      // the chain's run, so the wizard takes it back to the chain
+      // (`?resume=own`) and, the chain's one answer having been given about
+      // the chain alone, on to the full checkup (`?resume=full`) — rather than
+      // trimming the run to the other part, which, until 2026-10-22, it did,
+      // and the chain's answer was lost (`.debug/017` §5.10, §5.12).
+      await page.waitForURL((url) => url.searchParams.get("resume") === "full");
       await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
       await expect(page.getByTestId("checkup-scope")).toHaveText(CHECKUP[locale].scopeFull);
       await expect(page.getByTestId("checkup-resumed")).toHaveAttribute(

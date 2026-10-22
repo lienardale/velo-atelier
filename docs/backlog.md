@@ -808,6 +808,14 @@ the 50-checkup quota. And on a bike already at 50, a new run's first autosave is
 refused `TOO_MANY` while the wizard shows only the generic "could not be saved"
 chip, until "Créer ma liste" names the limit.
 
+Nor can a run in progress be set aside. Since the review of 2026-10-22
+(`.debug/017` §5.12) a guest's partial run with an answer given for some of
+its question's parts only is brought back to its own parts from any other
+checkup page — the full checkup included — until it is finished: resumed
+anywhere else, that answer would count for parts it was not given for. The
+notice says so ("Terminez-le pour en commencer un autre"); abandoning a run
+would be the other way out.
+
 _To pick up_: on its own now — the list lifecycle it was waiting for is
 settled (W5 above: one OPEN list per bike), and nothing writes `ABANDONED`
 yet. Abandon the older `IN_PROGRESS` run on the first save of a new one
@@ -816,38 +824,77 @@ yet. Abandon the older `IN_PROGRESS` run on the first save of a new one
 #### A saved bike's partial checkup does not remember its parts
 
 `Checkup.scope` is `FULL | PARTIAL`; the parts a partial checkup was limited
-to are stored nowhere. Since the fix of `.debug/017` §5.10 (2026-10-22) an
-unfinished run is resumed on the page's scope when that scope asks every
-question the run answered, and as the FULL checkup otherwise
-(`resumeScope`, `lib/checkup/scope.ts`); no answer is lost either way. What
-that costs, by design, and measured on PostgreSQL through the real page,
-wizard and actions (`tests/integration/checkup-resume.test.ts`) and in
-Chromium (`tests/e2e/checkup-resume.spec.ts`):
+to are stored nowhere. Since the scope rule (`.debug/017` §5.11) one question
+is about different parts under different scopes — the pads' question asked
+for the rear caliper is about the rear pads — so knowing which parts an
+answer was given for is what tells a page that may resume a run from one that
+would move its answers. Since the review of 2026-10-22 (§5.12) no run is
+trimmed, no stored answer is deleted, stripped of its symptom or rewritten
+for a page's sake, and a GUEST's run — its scope is stored whole — is resumed
+only where its answers mean what they meant: on the page, back on its own
+parts, or on the full checkup when that asks every answer about what it was
+given for (`resumeTarget`, `lib/checkup/scope.ts`). A saved bike's run is
+judged by its rows: each names the part it is recorded against, and a page
+whose parts do not include it does not hold the run, which then carries on as
+the full checkup. What that leaves, each measured on PostgreSQL through the
+real page, wizard and actions — the first by
+`tests/integration/checkup-resume.test.ts` (and in Chromium by
+`tests/e2e/checkup-resume.spec.ts`), the other two by a throwaway probe on the
+same harness (`.debug/017` §5.12):
 
-- **The resume banner of a saved bike** links to `/controle` with no
-  `?parts=` (it cannot know them), so a partial run comes back as a full
-  checkup — the same row, its answers kept, its column then `FULL` — and the
-  wizard says so ("Ce contrôle avait commencé sur quelques pièces…"). An
-  answer given there for one side of a question that names both now counts
-  for both: the rear pads' OK, finished as a full checkup, writes the front
-  caliper too. The notice says that much; the visitor can re-answer.
-- **A partial run reopened under ANOTHER selection** whose plan holds every
-  question it answered — the rear caliper picked, the pads answered, then
-  the front caliper picked — is resumed on the new selection, and the pads'
-  answer is then stored against the front caliper (measured on PostgreSQL;
-  the case is pinned in `tests/integration/checkup-resume.test.ts`, so that
-  changing it is a decision). Nothing on screen says so. A guest's browser
-  knows the first selection and could tell; a saved bike's row cannot, and
-  both paths follow one rule.
+- **Carried on as the full checkup** — through the resume banner, which has
+  no `?parts=`, or from parts that do not hold the run — an answer given for
+  one side counts for every part its question names: the rear pads' OK,
+  finished there, closes the front pads' open line and writes the front
+  caliper `OK`; the rear pads' KO lists both sides' pads. The notice says so
+  and names the questions concerned ("…vérifiez-les : « Mesurer l’usure des
+  plaquettes »"); the visitor can re-answer, but one verdict per question
+  cannot be one per side. Nothing is lost.
+- **A one-side row and a both-sides one look alike** when they name the same
+  first part (`answeredItems` stores `partIds[0]`): a run on the front caliper
+  reopened on BOTH calipers is held, and its answer then counts for both,
+  with nothing on screen (measured: the front pads' OK, finished there, wrote
+  both calipers `OK`); one on both calipers reopened on the front caliper is
+  held, and its answer then counts for the front only — the summary's "Ne
+  compte que pour : …" says so, nothing says the rear was dropped (measured:
+  both pads' KO finished as `REPLACE brake-pads-front` alone).
+- **Rows written before the fix** name their question's first part whatever
+  was picked (§5.11): a rear-caliper run of then, reloaded on its own
+  `?parts=` after the deploy, is carried on as the full checkup (said on
+  screen); opened on the front caliper, it is held there (read: its item is
+  inside that scope).
 
-_Why deferred_ (ruled 2026-10-22: no schema change for this fix): knowing
-the parts needs a column.
+_Why deferred_ (ruled 2026-10-22: no schema change for this fix; the review's
+remaining cases need one, escalated the same day): knowing the parts needs a
+column. Nothing in the existing columns can say "the rear pads", "the front
+pads" and "both" apart for one question (`.debug/017` §5.12).
 
 _To pick up_: `Checkup.partIds String[]` (a migration), written by
 `createCheckup` from the posted scope and kept in step by `writeColumn`;
-`loadStoredCheckup` and `loadBikeForRequest().resume` return it, so the
-banner carries `?parts=`; and `resumeScope` resumes a run on its OWN scope
-when the page's differs, instead of the page's.
+`loadStoredCheckupRun` and `loadBikeForRequest().resume` return it, so the
+banner carries `?parts=`; and `resumeTarget` treats a saved bike's run as one
+that knows its parts (`knowsItsParts`), exactly as a guest's.
+
+#### A part none of whose questions has a finding inside its scope asks nothing
+
+Since the scope rule (`.debug/017` §5.11) a question is asked of a partial
+checkup only when one of its findings is about a part inside the scope: a KO
+there could otherwise put nothing on the list. One pickable part is left with
+no question at all — the left shifter, on the two presets that carry one: its
+only question, `check-drivetrain#shifting-index`, sends every finding to the
+derailleurs. "Contrôler les pièces sélectionnées (1)" then shows "Rien à
+contrôler ici" and a link to the full checkup, where it asked that question
+before (`.debug/017` §5.12, RA-5). Other single parts lost questions without
+being left empty (§5.11 lists them).
+
+_Why deferred_: whether a question about a picked part whose findings are all
+outside it should still be asked — and what its KO would then write — is a
+product decision, and so is a "drives" relation (the shifter and the
+derailleur it moves) that `partsInScope` does not have; the ruling of
+2026-10-22 defined "inside" without one.
+
+_To pick up_: a ruling, then either the empty page's sentence (it says no
+question applies to the parts picked, which is true) or the planner.
 
 #### A finished checkup writes a KO as `ATTENTION`, where §4.2 (b) says `BROKEN`
 

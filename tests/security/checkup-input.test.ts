@@ -305,6 +305,39 @@ describe("the scope is a claim, never a reason to delete", () => {
     ).toEqual(["check-drivetrain#cassette-teeth", PLANNED]);
     expectScopedToUser(fakeDb.calls, me.id);
   });
+
+  it("leaves a stored row the payload does not carry exactly as it is — its part and its symptom", async () => {
+    // The rear pads answered in a checkup limited to the rear caliper; then a
+    // payload of the full checkup that does not carry them (another tab, an
+    // old bundle). Until 2026-10-22's review the row was rewritten from the
+    // plan that payload was accepted against: moved to the FRONT caliper
+    // (`.debug/017` §5.12, B2), or stripped of a symptom a narrower plan does
+    // not offer (R5).
+    const PADS = "check-brakes-disc#pad-wear";
+    await saveCheckupAction({
+      bikeId: myBike.id,
+      checkup: payload({
+        scope: { kind: "parts", partIds: ["brake-caliper-rear"] },
+        answers: { [PADS]: "ko" },
+        symptoms: { [PADS]: ["pad-worn"] },
+        notes: {},
+      }),
+    });
+    const before = fakeDb.rows("CheckupItem").find((row) => row.stepKey === PADS);
+    expect(before).toMatchObject({ partId: "brake-caliper-rear", reasonKeys: ["pad-worn"] });
+    fakeDb.resetCalls();
+    await saveCheckupAction({ bikeId: myBike.id, checkup: payload() });
+    expect(fakeDb.rows("CheckupItem").find((row) => row.stepKey === PADS)).toEqual(before);
+    expect(
+      fakeDb.calls.some(
+        (call) =>
+          call.model === "checkupItem" &&
+          call.op === "updateMany" &&
+          JSON.stringify(call.args).includes(PADS),
+      ),
+    ).toBe(false);
+    expectScopedToUser(fakeDb.calls, me.id);
+  });
 });
 
 describe("mass assignment", () => {
@@ -372,6 +405,30 @@ describe("ownership", () => {
     await finishCheckupAction({ bikeId: myBike.id, checkup: payload() });
     expectScopedToUser(fakeDb.calls, me.id);
     expect(fakeDb.rows("Checkup").every((row) => row.bikeId === myBike.id)).toBe(true);
+  });
+
+  it("scopes the write of a run's COLUMN to the caller — a save that turns a PARTIAL run FULL", async () => {
+    // `writeColumn` runs only when the column changes, which no case above
+    // does: with its owner predicate removed, every other test stayed green
+    // (`.debug/017` §5.12, B4).
+    const chain = { kind: "parts", partIds: ["chain"] };
+    await saveCheckupAction({ bikeId: myBike.id, checkup: payload({ scope: chain }) });
+    expect(fakeDb.rows("Checkup")[0]?.scope).toBe("PARTIAL");
+    fakeDb.resetCalls();
+    expect(
+      await saveCheckupAction({
+        bikeId: myBike.id,
+        checkup: payload({
+          answers: { [PLANNED]: "ko", "check-brakes-disc#pad-wear": "ok" },
+        }),
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(fakeDb.rows("Checkup")[0]?.scope).toBe("FULL");
+    const columnWrites = fakeDb.calls.filter(
+      (call) => call.model === "checkup" && call.op === "updateMany",
+    );
+    expect(columnWrites).toHaveLength(1);
+    expectScopedToUser(fakeDb.calls, me.id);
   });
 });
 

@@ -28,6 +28,13 @@ const FROM_PRISMA: Record<CheckupResult, CheckupAnswer> = {
 /** One `CheckupItem` row, as much of it as an answer needs. */
 export interface StoredItemRow {
   stepKey: string;
+  /**
+   * The part the answer is recorded against: the first part its step reports
+   * on, in the scope the run was saved under (`answeredItems`). Not an answer
+   * itself — what tells a page whose parts do not hold the answer
+   * (`resumeTarget`, `lib/checkup/scope.ts`).
+   */
+  partId: string;
   result: CheckupResult;
   notes: string | null;
   reasonKeys: string[];
@@ -55,8 +62,17 @@ export function answersOfRows(
   return { answers, symptoms, notes };
 }
 
+/** A saved bike's run: the wizard's stored shape, and the part each answer is recorded against. */
+export interface StoredRun {
+  checkup: StoredCheckup;
+  /** `stepKey` → `CheckupItem.partId`. */
+  recordedFor: Record<string, string>;
+}
+
 /**
- * The bike's most recent checkup, as the wizard's stored shape.
+ * The bike's most recent checkup, as the wizard's stored shape — with the
+ * part each row is recorded against, which the checkup PAGE reads to tell
+ * whether the parts it was asked for hold the run (`page.tsx`).
  *
  * In-progress first, then the newest — `status` sorts `IN_PROGRESS` before
  * `COMPLETED` in the enum's own order, which is exactly the priority a resume
@@ -73,12 +89,12 @@ export function answersOfRows(
  * the §7.3 budget of three). `db` is injectable for the integration-tier
  * counter; everything else uses the app's client.
  */
-export async function loadStoredCheckup(
+export async function loadStoredCheckupRun(
   bikeId: string,
   userId: string,
   locale: Locale,
   db: Pick<typeof prisma, "checkup"> = prisma,
-): Promise<StoredCheckup | null> {
+): Promise<StoredRun | null> {
   const row = await db.checkup.findFirst({
     where: { bikeId, bike: { userId } },
     orderBy: [{ status: "asc" }, { startedAt: "desc" }],
@@ -87,30 +103,48 @@ export async function loadStoredCheckup(
       scope: true,
       startedAt: true,
       completedAt: true,
-      items: { select: { stepKey: true, result: true, notes: true, reasonKeys: true } },
+      items: {
+        select: { stepKey: true, partId: true, result: true, notes: true, reasonKeys: true },
+      },
     },
   });
   if (row === null) return null;
 
   return {
-    version: 1,
-    id: row.id,
-    bikeRef: { kind: "db", id: bikeId },
-    // A partial checkup's picked parts are not stored (`Checkup.scope` is
-    // `FULL | PARTIAL`), so a PARTIAL row reads as a scope naming NO part: it
-    // says "partial", and nothing about which parts. It is never posted back
-    // and never planned — a scope naming no part plans no question, and the
-    // wizard that once posted this one deleted every answer of the run
-    // (`.debug/017` §5.10). The run is resumed on the PAGE's scope, or on the
-    // full checkup when the page's does not ask every question it answered
-    // (`resumeScope`, `lib/checkup/scope.ts`); the actions refuse a scope
-    // naming no part.
-    scope: row.scope === "FULL" ? { kind: "full" } : { kind: "parts", partIds: [] },
-    locale,
-    ...answersOfRows(row.items),
-    toolsMissing: [],
-    startedAt: row.startedAt.toISOString(),
-    ...(row.completedAt === null ? {} : { completedAt: row.completedAt.toISOString() }),
-    contentVersion: CONTENT_VERSION,
+    checkup: {
+      version: 1,
+      id: row.id,
+      bikeRef: { kind: "db", id: bikeId },
+      // A partial checkup's picked parts are not stored (`Checkup.scope` is
+      // `FULL | PARTIAL`), so a PARTIAL row reads as a scope naming NO part: it
+      // says "partial", and nothing about which parts. It is never posted back
+      // and never planned — a scope naming no part plans no question, and the
+      // wizard that once posted this one deleted every answer of the run
+      // (`.debug/017` §5.10). The run is resumed on the PAGE's scope when that
+      // scope holds it, and on the full checkup otherwise (`resumeTarget`,
+      // `lib/checkup/scope.ts`); the actions refuse a scope naming no part.
+      scope: row.scope === "FULL" ? { kind: "full" } : { kind: "parts", partIds: [] },
+      locale,
+      ...answersOfRows(row.items),
+      toolsMissing: [],
+      startedAt: row.startedAt.toISOString(),
+      ...(row.completedAt === null ? {} : { completedAt: row.completedAt.toISOString() }),
+      contentVersion: CONTENT_VERSION,
+    },
+    recordedFor: Object.fromEntries(row.items.map((item) => [item.stepKey, item.partId])),
   };
+}
+
+/**
+ * The bike's most recent checkup, as the wizard's stored shape — what
+ * `loadCheckupAction` answers. {@link loadStoredCheckupRun}, without the
+ * parts the rows are recorded against.
+ */
+export async function loadStoredCheckup(
+  bikeId: string,
+  userId: string,
+  locale: Locale,
+  db: Pick<typeof prisma, "checkup"> = prisma,
+): Promise<StoredCheckup | null> {
+  return (await loadStoredCheckupRun(bikeId, userId, locale, db))?.checkup ?? null;
 }

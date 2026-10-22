@@ -15,8 +15,10 @@ import type { UserEvent } from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { checkupKey, buildListKey } from "@/lib/bike/storage-keys";
+import { scopeFacts } from "@/lib/checkup/scope";
 import { toStored } from "@/lib/checkup/storage";
 import type { StoredCheckup } from "@/lib/checkup/storage";
+import type { CheckupScope } from "@/lib/checkup/types";
 import { makeState, threeStepPlan } from "@/tests/_helpers/checkup";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 import { routerSpies } from "@/tests/_fakes/session";
@@ -493,19 +495,25 @@ describe("a refused finish (§4.2 c)", () => {
 
 /**
  * An unfinished run, resumed by a page planned for another scope (`.debug/017`
- * §5.10). The page's scope wins when it holds the run; when it does not, the
- * run wins, and the wizard goes to the full checkup rather than trim it.
- * Hand-shaped plans: the real page, actions and database are
- * `tests/integration/checkup-resume.test.ts`.
+ * §5.10, §5.12). The page's scope wins when it holds the run — asks every
+ * answer about what it was given for; when it does not, a guest's run goes
+ * back to its own parts, or on to the full checkup when that asks every answer
+ * about what it was given for, and is never trimmed. Hand-shaped plans: the
+ * real page, actions and database are `tests/integration/checkup-resume.test.ts`.
  */
-describe("an unfinished run, resumed (§5.10)", () => {
+describe("an unfinished run, resumed (§5.10, §5.12)", () => {
   const BIKE = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
   const CHAIN_ONLY = { kind: "parts" as const, partIds: ["chain" as const] };
-  /** The full plan's keys, as the page hands them down with a parts scope. */
-  const FULL_KEYS = PLAN.map((step) => step.key);
+  const FRONT_CALIPER = { kind: "parts" as const, partIds: ["brake-caliper-front" as const] };
+  /** What the page hands down with the chain alone: the full plan's keys, and nothing withheld. */
+  const CHAIN_FACTS = scopeFacts(CHAIN_ONLY, PLAN, [CHAIN]);
+  /** The front pads' question, asked for some of the parts it names. */
+  const NARROWED_PADS = { ...PADS, coveredParts: ["brake-pads-front"] } as typeof PADS;
 
-  const partialRun = (answers: Record<string, "ok" | "ko">, scope = CHAIN_ONLY): StoredCheckup =>
-    toStored(makeState(PLAN, { scope, answers }));
+  const partialRun = (
+    answers: Record<string, "ok" | "ko">,
+    scope: CheckupScope = CHAIN_ONLY,
+  ): StoredCheckup => toStored(makeState(PLAN, { scope, answers }));
 
   it("resumes a partial run on the page's scope, and saves THAT scope — never the one it was stored with", async () => {
     // A saved bike's PARTIAL row reads as a scope naming no part: the payload
@@ -523,7 +531,7 @@ describe("an unfinished run, resumed (§5.10)", () => {
         bikeParam: BIKE,
         scope: CHAIN_ONLY,
         steps: [CHAIN],
-        fullStepKeys: FULL_KEYS,
+        scopeFacts: CHAIN_FACTS,
         initialStored: fromServer,
       }),
     );
@@ -539,16 +547,13 @@ describe("an unfinished run, resumed (§5.10)", () => {
     expect(checkup.answers).toEqual({ [CHAIN.key]: "ok" });
   });
 
-  it("does not restore a guest's partial run the page's parts do not hold: it goes to the full checkup, and writes nothing", async () => {
+  it("does not restore a guest's partial run opened on other parts: it goes back to its own parts, and writes nothing", async () => {
     // Opened on the brakes, answered there; then "check this part" on the chain.
-    const stored = partialRun({ [PADS.key]: "ko" }, {
-      kind: "parts",
-      partIds: ["brake-caliper-front"],
-    } as never);
+    const stored = partialRun({ [PADS.key]: "ko" }, FRONT_CALIPER);
     const raw = JSON.stringify(stored);
     window.localStorage.setItem(checkupKey("demo"), raw);
     leave.replaceDocument.mockClear();
-    await renderWithIntl(wizard({ scope: CHAIN_ONLY, steps: [CHAIN], fullStepKeys: FULL_KEYS }));
+    await renderWithIntl(wizard({ scope: CHAIN_ONLY, steps: [CHAIN], scopeFacts: CHAIN_FACTS }));
 
     await waitFor(() =>
       expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "resuming"),
@@ -557,9 +562,121 @@ describe("an unfinished run, resumed (§5.10)", () => {
       "Reprise du contrôle en cours",
     );
     expect(screen.queryByTestId("verdict-bar")).not.toBeInTheDocument();
-    expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full");
+    expect(leave.replaceDocument).toHaveBeenCalledWith(
+      "/fr/velo/demo/controle?parts=brake-caliper-front&resume=own",
+    );
     // The pads' answer is still in storage, byte for byte.
     expect(window.localStorage.getItem(checkupKey("demo"))).toBe(raw);
+  });
+
+  it("takes a guest's partial run opened on the FULL page back to its own parts too — and keeps `?spec=`", async () => {
+    // Until 2026-10-22's second fix it was carried on as a full checkup right
+    // there, and an answer given for the front pads counted for both.
+    window.localStorage.setItem(
+      checkupKey("local"),
+      JSON.stringify({
+        ...partialRun({ [PADS.key]: "ok" }, FRONT_CALIPER),
+        bikeRef: { kind: "local" },
+      }),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({ bikeRef: { kind: "local" }, bikeParam: "local", specCode: "abc" }),
+    );
+    await waitFor(() =>
+      expect(leave.replaceDocument).toHaveBeenCalledWith(
+        "/fr/velo/local/controle?spec=abc&parts=brake-caliper-front&resume=own",
+      ),
+    );
+  });
+
+  it("back on its own parts, stays there when an answer counts for some of its question's parts — and says so", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [PADS.key]: "ko" }, FRONT_CALIPER)),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({
+        scope: FRONT_CALIPER,
+        steps: [NARROWED_PADS],
+        scopeFacts: scopeFacts(FRONT_CALIPER, PLAN, [NARROWED_PADS]),
+        resumedOwn: true,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "ownParts"),
+    );
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "Un contrôle limité à : Étrier de frein avant est déjà en cours sur ce vélo. Il reprend ici, sur ces pièces, avec vos réponses, qui ne comptent que pour elles.",
+    );
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle partiel");
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+    expect(stored()?.answers).toEqual({ [PADS.key]: "ko" });
+  });
+
+  it("says it in English too", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [PADS.key]: "ko" }, FRONT_CALIPER)),
+    );
+    await renderWithIntl(
+      wizard({
+        locale: "en",
+        scope: FRONT_CALIPER,
+        steps: [NARROWED_PADS],
+        scopeFacts: scopeFacts(FRONT_CALIPER, PLAN, [NARROWED_PADS]),
+        resumedOwn: true,
+      }),
+      { locale: "en" },
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+        "A checkup limited to: Front brake caliper is already under way on this bike.",
+      ),
+    );
+  });
+
+  it("back on its own parts, goes on to the full checkup when every answer was given whole", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [CHAIN.key]: "ko" })),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({ scope: CHAIN_ONLY, steps: [CHAIN], scopeFacts: CHAIN_FACTS, resumedOwn: true }),
+    );
+    await waitFor(() =>
+      expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full"),
+    );
+  });
+
+  it("goes to the full checkup from a page that withholds a symptom a KO was given with", async () => {
+    // `scopeFacts` says the front caliper's pads question no longer offers the
+    // KO's symptom: resumed there, the next save would drop it.
+    const run = toStored(
+      makeState(PLAN, {
+        scope: FRONT_CALIPER,
+        answers: { [PADS.key]: "ko" },
+        symptoms: { [PADS.key]: ["pad-worn"] },
+      }),
+    );
+    window.localStorage.setItem(checkupKey("demo"), JSON.stringify(run));
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({
+        scope: FRONT_CALIPER,
+        steps: [NARROWED_PADS],
+        scopeFacts: {
+          asked: PLAN.map((step) => step.key),
+          touched: [],
+          withheld: { [PADS.key]: ["pad-worn"] },
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(leave.replaceDocument).toHaveBeenCalledWith("/fr/velo/demo/controle?resume=full"),
+    );
   });
 
   it("does not narrow a FULL run with answers into a partial page either, and keeps `?spec=`", async () => {
@@ -578,7 +695,7 @@ describe("an unfinished run, resumed (§5.10)", () => {
         specCode: "abc",
         scope: CHAIN_ONLY,
         steps: [CHAIN],
-        fullStepKeys: FULL_KEYS,
+        scopeFacts: CHAIN_FACTS,
       }),
     );
     await waitFor(() =>
@@ -588,25 +705,34 @@ describe("an unfinished run, resumed (§5.10)", () => {
     );
   });
 
-  it("is not sent anywhere by an answer to a question the corpus dropped", async () => {
+  it("is not sent anywhere by an answer to a question the corpus dropped, nor by an OK to one its parts only touch", async () => {
     window.localStorage.setItem(
       checkupKey("demo"),
-      JSON.stringify(partialRun({ [CHAIN.key]: "ko", "check-retired#gone": "ok" } as never)),
+      JSON.stringify(
+        partialRun({ [CHAIN.key]: "ko", "check-retired#gone": "ok", [PADS.key]: "ok" } as never),
+      ),
     );
     leave.replaceDocument.mockClear();
-    await renderWithIntl(wizard({ scope: CHAIN_ONLY, steps: [CHAIN], fullStepKeys: FULL_KEYS }));
+    await renderWithIntl(
+      wizard({
+        scope: CHAIN_ONLY,
+        steps: [CHAIN],
+        // The pads' question is one the planner of before 2026-10-22 asked here.
+        scopeFacts: { ...CHAIN_FACTS, touched: [PADS.key] },
+      }),
+    );
     await waitFor(() =>
       expect(screen.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "summary"),
     );
     expect(leave.replaceDocument).not.toHaveBeenCalled();
   });
 
-  it("carries a partial run on as a full checkup on a full page, and says what that means", async () => {
+  it("carries a partial run on as a full checkup when the page came back with `?resume=full`, and says what that means", async () => {
     window.localStorage.setItem(
       checkupKey("demo"),
       JSON.stringify(partialRun({ [CHAIN.key]: "ko" })),
     );
-    const { user } = await renderWithIntl(wizard());
+    const { user } = await renderWithIntl(wizard({ resumeWidened: true }));
     await waitFor(() =>
       expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull"),
     );
@@ -618,6 +744,42 @@ describe("an unfinished run, resumed (§5.10)", () => {
     await user.click(screen.getByTestId("verdict-ok"));
     await waitFor(() => expect(stored()?.scope).toEqual({ kind: "full" }));
     expect(stored()?.answers).toMatchObject({ [CHAIN.key]: "ko", [PADS.key]: "ok" });
+  });
+
+  it("names the questions whose answers now count for every part they name — a saved bike's banner", async () => {
+    const fromServer: StoredCheckup = {
+      ...partialRun({ [PADS.key]: "ko", [CHAIN.key]: "ok" }, {
+        kind: "parts",
+        partIds: [],
+      } as never),
+      bikeRef: { kind: "db", id: BIKE },
+    };
+    await renderWithIntl(
+      wizard({ bikeRef: { kind: "db", id: BIKE }, bikeParam: BIKE, initialStored: fromServer }),
+    );
+    // The pads' question names a caliper and its pads; the chain's names the chain alone.
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "Celles déjà données à ces questions, qui nomment plusieurs pièces, comptent désormais pour chacune d'elles — vérifiez-les : « Mesurer l’usure des plaquettes ».",
+    );
+  });
+
+  it("names them in English too", async () => {
+    const fromServer: StoredCheckup = {
+      ...partialRun({ [PADS.key]: "ko" }, { kind: "parts", partIds: [] } as never),
+      bikeRef: { kind: "db", id: BIKE },
+    };
+    await renderWithIntl(
+      wizard({
+        locale: "en",
+        bikeRef: { kind: "db", id: BIKE },
+        bikeParam: BIKE,
+        initialStored: fromServer,
+      }),
+      { locale: "en" },
+    );
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "Your answers to these questions, which name several parts, now count for each of them — check them: “Mesurer l’usure des plaquettes”.",
+    );
   });
 
   it("says a full run carries on when the page came back with `?resume=full`", async () => {

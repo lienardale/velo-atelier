@@ -24,12 +24,16 @@
  * …and a run the guest LEFT and came back to through another link is resumed
  * the way the wizard of BEFORE 2026-10-22 resumed it ({@link resumeGuestRun}):
  * the stored answers against the plan of the NEW link, under the scope the run
- * was first opened with. That stale scope is real — browsers still hold such
- * states — and a fixture that tidied it up hid the fact that the import
- * dropped 33 of a finished checkup's 34 answers (found in review, 2026-10-09).
- * Today's wizard resumes on the page's scope, and goes to the full checkup
- * rather than trim a run (`.debug/017` §5.10); what it stores is held by
- * `tests/integration/checkup-resume.test.ts` and
+ * was first opened with, that plan made by the planner of THEN
+ * ({@link planBeforeTheScopeRule}). That stale scope is real — browsers still
+ * hold such states — and a fixture that tidied it up hid the fact that the
+ * import dropped 33 of a finished checkup's 34 answers (found in review,
+ * 2026-10-09). So is the old planner's question set: it asked `hose-leak` of a
+ * caliper, today's does not, and a fixture planned with today's could not
+ * hold the answer such a browser holds (`.debug/017` §5.12, B6). Today's
+ * wizard resumes a run where its answers mean what they meant — on the page,
+ * on its own parts, or on the full checkup, never trimmed (§5.10, §5.12); what
+ * it stores is held by `tests/integration/checkup-resume.test.ts` and
  * `tests/e2e/guest-import.spec.ts`.
  *
  * Nothing here names a step's part or guide: the plan does. A fixture that
@@ -42,7 +46,7 @@
 import { writeLocalBike, type KeyValueStorage, type LocalBike } from "@/lib/bike/local-bike";
 import { buildListKey, type GuestBikeRef } from "@/lib/bike/storage-keys";
 import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
-import { planCheckup, type PlannableGuide } from "@/lib/checkup/plan";
+import { hostOf, planCheckup, type PlannableGuide } from "@/lib/checkup/plan";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
 import {
   fromStored,
@@ -53,7 +57,7 @@ import {
   writeStoredCheckup,
 } from "@/lib/checkup/storage";
 import type { CheckStepRef, CheckupScope, CheckupState } from "@/lib/checkup/types";
-import type { PartId } from "@/lib/domain/data/parts";
+import { isPartId, type PartId } from "@/lib/domain/data/parts";
 import type { Answers } from "@/lib/domain/schema/decision";
 import type { BikeBuild } from "@/lib/domain/schema/part";
 import { collectGuestState, type GuestCollection } from "@/lib/guest/schema";
@@ -95,6 +99,28 @@ export function planFromDisk(build: BikeBuild, scope: CheckupScope): CheckStepRe
   return planCheckup(build, scope, frenchGuides);
 }
 
+/** Which planner a run was answered against. */
+export type Planner = "today" | "before-2026-10-22";
+
+/**
+ * The plan of before 2026-10-22, written out — the rule
+ * `tests/unit/checkup/plan-corpus.test.ts` writes out too: today's FULL plan,
+ * kept, for a partial scope, to the steps whose hosts meet a picked part's
+ * host, each handed on WHOLE. What a browser that ran the wizard of then holds
+ * was answered against this: both sides of every question, and `hose-leak` for
+ * a caliper.
+ */
+export function planBeforeTheScopeRule(build: BikeBuild, scope: CheckupScope): CheckStepRef[] {
+  const full = planFromDisk(build, { kind: "full" });
+  if (scope.kind === "full") return full;
+  const hosts = new Set(scope.partIds.filter(isPartId).map((partId) => hostOf(partId)));
+  return full.filter((step) => step.partIds.some((host) => hosts.has(host)));
+}
+
+function planBy(planner: Planner, build: BikeBuild, scope: CheckupScope): CheckStepRef[] {
+  return planner === "today" ? planFromDisk(build, scope) : planBeforeTheScopeRule(build, scope);
+}
+
 /** The scope `?parts=` gives the wizard. */
 export function partsScope(...partIds: string[]): CheckupScope {
   return { kind: "parts", partIds: partIds as PartId[] };
@@ -114,6 +140,8 @@ export interface GuestRunOptions {
   startedAt: string;
   /** "Créer ma liste" at this instant; omit for a checkup left in progress. */
   completedAt?: string;
+  /** The planner the run was answered against. Default: today's. */
+  planner?: Planner;
 }
 
 /**
@@ -123,7 +151,7 @@ export interface GuestRunOptions {
  * not throws instead of quietly describing a state no browser can be in.
  */
 export function guestRun(options: GuestRunOptions): CheckupState {
-  const steps = planFromDisk(options.build, options.scope);
+  const steps = planBy(options.planner ?? "today", options.build, options.scope);
   const state = createCheckupState({
     id: options.id,
     bikeRef: { kind: "local" },
@@ -349,13 +377,21 @@ export interface GuestResumeOptions {
   rest?: "ok" | "skipped";
   /** "Créer ma liste" at this instant; omit to leave the run in progress again. */
   completedAt?: string;
+  /**
+   * The planner of the NEW link's plan. Default: the one of before 2026-10-22,
+   * which is the one that wizard ran with — what a browser holding such a
+   * state was asked.
+   */
+  planner?: Planner;
 }
 
 /**
  * The guest comes back to an UNFINISHED checkup through another link, and
- * carries on — as the wizard of before 2026-10-22 did, call for call: what a
- * browser that ran it holds today. (Today's `restore` resumes on the page's
- * scope, and only when that scope holds the run.)
+ * carries on — as the wizard of before 2026-10-22 did, call for call, over a
+ * plan made by the planner of then unless `planner` says otherwise: what a
+ * browser that ran it holds today. (Today's wizard resumes a run only on a
+ * page that holds it, and otherwise leaves for its own parts or for the full
+ * checkup: `resumeTarget`, `lib/checkup/scope.ts`.)
  *
  * The page plans the link's scope; the wizard reads the stored run (its own
  * read, `readStoredCheckup`) and marries it to THAT plan with `fromStored`.
@@ -375,7 +411,7 @@ export function resumeGuestRun(work: GuestWork, options: GuestResumeOptions): Gu
     throw new Error("resumeGuestRun(): a finished checkup is never resumed (isFinished)");
   }
 
-  const plan = planFromDisk(work.build, options.scope);
+  const plan = planBy(options.planner ?? "before-2026-10-22", work.build, options.scope);
   let state = fromStored(stored, plan, stored.contentVersion);
   state = answer(state, options.verdicts ?? {}, "resumeGuestRun()");
   const rest = options.rest;

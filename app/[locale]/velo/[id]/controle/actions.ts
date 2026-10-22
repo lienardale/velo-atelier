@@ -22,18 +22,23 @@
  *
  * A payload names a scope; the plan it is accepted against is the one that
  * scope's ANSWERS bear out (`effectiveScope`, `lib/checkup/scope.ts`): the
- * named scope while every answered question is one it asks, the full checkup
- * as soon as one is not. "Answered" is the payload's answers AND the run's
- * stored ones it does not carry — a stored answer the payload leaves out is
- * kept, never read as withdrawn: the wizard has no event that removes a
- * verdict, so only a page that planned fewer questions than the run holds
- * could leave one out. The column follows on every save and finish
- * (`Checkup.scope`). A `parts` scope that names no part is refused
- * (`VALIDATION`) before anything is planned or written; a row is deleted only
- * when the bike is no longer asked its question at all — never because a plan
- * came back short. Until 2026-10-22 each of the three was the other way
- * round, and a partial run resumed after a reload lost every stored answer to
- * a save that said "Sauvegardé" (`.debug/017` §5.10).
+ * named scope while it holds every answer — asks it, with the symptom a KO
+ * was given with, and, for a stored row, about the part the row is recorded
+ * against — and the full checkup as soon as it does not. "Answered" is the
+ * payload's answers AND the run's stored ones it does not carry — a stored
+ * answer the payload leaves out is kept, never read as withdrawn: the wizard
+ * has no event that removes a verdict, so only a page that planned fewer
+ * questions than the run holds, or a tab holding an older copy of the run,
+ * leaves one out. Such a row is kept AS IT IS: a save writes the rows of the
+ * questions the payload answers, and no other. The column follows on every
+ * save and finish (`Checkup.scope`). A `parts` scope that names no part is
+ * refused (`VALIDATION`) before anything is planned or written; a row is
+ * deleted only when the bike is no longer asked its question at all — never
+ * because a plan came back short, and a plan that would drop a stored
+ * symptom widens instead. Until 2026-10-22 each of these was the other way
+ * round: a partial run resumed after a reload lost every stored answer to a
+ * save that said "Sauvegardé" (`.debug/017` §5.10), and a narrower page then
+ * still stripped a stored symptom and moved its row (§5.12).
  *
  * ## What is stored, and what is not
  *
@@ -92,7 +97,7 @@ import { withUser, type ActionUser } from "@/lib/actions/with-user";
 import { deriveBike, QUOTAS, withinQuota } from "@/lib/bike/rules";
 import { deriveBuildList, recheckedLines, statusByPart } from "@/lib/checkup/build-list";
 import { answeredItems } from "@/lib/checkup/items";
-import { effectiveScope, FULL_SCOPE } from "@/lib/checkup/scope";
+import { effectiveScope, FULL_SCOPE, scopeFacts } from "@/lib/checkup/scope";
 import { fromStored, type StoredCheckup, type StoredCheckupSummary } from "@/lib/checkup/storage";
 import {
   CHECKUP_ANSWERS,
@@ -227,6 +232,11 @@ interface Accepted {
   state: CheckupState;
   /** Every question this bike is asked: a stored row about any other is gone with it. */
   asked: ReadonlySet<string>;
+  /**
+   * The questions the PAYLOAD answers — the only rows a save writes. A stored
+   * row it does not carry is kept as it is, part and symptoms included.
+   */
+  carried: ReadonlySet<string>;
   /** `Checkup.scope`, as the answers bear it out. */
   column: "FULL" | "PARTIAL";
 }
@@ -248,13 +258,20 @@ function acceptedState(
   const asked = new Set(full.map((step) => step.key));
   const answers = withStoredAnswers(payload, rows);
   const named = payload.scope as CheckupScope;
+  // A stored row the payload does not carry is held only by a scope that asks
+  // it about the part it is recorded against (`holds`): a page planned for the
+  // other caliper does not hold the rear one's answer.
+  const recordedFor = Object.fromEntries(
+    rows
+      .filter((row) => !Object.hasOwn(payload.answers, row.stepKey))
+      .map((row) => [row.stepKey, row.partId]),
+  );
   let scoped: CheckStepRef[] | null = null;
   const scopedPlan = (): CheckStepRef[] => (scoped ??= planForBuild(build, named));
-  const effective = effectiveScope(
-    named,
-    Object.keys(answers.answers).filter((key) => asked.has(key)),
-    () => new Set(scopedPlan().map((step) => step.key)),
-  );
+  const effective = effectiveScope(named, { ...answers, recordedFor }, () => {
+    const plan = scopedPlan();
+    return { scoped: plan, facts: scopeFacts(named, full, plan) };
+  });
   const steps = effective.kind === "full" ? full : scopedPlan();
   const stored: StoredCheckup = {
     version: 1,
@@ -275,6 +292,7 @@ function acceptedState(
   return {
     state: fromStored(stored, steps, CONTENT_VERSION),
     asked,
+    carried: new Set(Object.keys(payload.answers)),
     column: effective.kind === "full" ? "FULL" : "PARTIAL",
   };
 }
@@ -304,8 +322,10 @@ async function existingCheckup(
       id: true,
       scope: true,
       // What the run already holds: the answers a payload does not carry are
-      // kept (see the header).
-      items: { select: { stepKey: true, result: true, notes: true, reasonKeys: true } },
+      // kept (see the header), and the part each is recorded against.
+      items: {
+        select: { stepKey: true, partId: true, result: true, notes: true, reasonKeys: true },
+      },
     },
   });
 }
@@ -367,8 +387,17 @@ function tooMany(quota: keyof typeof QUOTA_KEYS): ActionResult<never> {
 }
 
 /**
- * One row per answered step; a row goes only when the bike is no longer asked
- * its question at all — `asked`, the keys of the bike's FULL plan.
+ * One row per question the PAYLOAD answers; a row goes only when the bike is
+ * no longer asked its question at all — `asked`, the keys of the bike's FULL
+ * plan.
+ *
+ * A stored row the payload does not carry is left exactly as it is: its part,
+ * its note and its symptoms. It is still part of the run — read back on the
+ * next load, counted by a finish — but a payload that did not answer it is
+ * not a reason to rewrite it: until 2026-10-22 it was rewritten from the plan
+ * the payload was accepted against, so a narrower page dropped its symptom
+ * (the worn rim track of `.debug/017` §5.12, R5) and a wider one moved it to
+ * the other side's part (§5.12, B2).
  *
  * Never "the rows the payload did not carry": until 2026-10-22 that was the
  * rule, and a payload planned from a scope naming no part carried none, and
@@ -385,15 +414,14 @@ async function writeItems(
   checkupId: string,
   userId: string,
   state: CheckupState,
-  asked: ReadonlySet<string>,
+  { asked, carried }: Pick<Accepted, "asked" | "carried">,
 ): Promise<void> {
   // `answeredItems` is the one definition of a row (`lib/checkup/items.ts`),
   // shared with the guest import: only a KO has a symptom, and `acceptedState`
   // has already dropped any the re-planned step does not offer.
-  const answered = answeredItems(state).map((item) => ({
-    ...item,
-    result: TO_PRISMA[item.result],
-  }));
+  const answered = answeredItems(state)
+    .filter((item) => carried.has(item.stepKey))
+    .map((item) => ({ ...item, result: TO_PRISMA[item.result] }));
 
   const owned = { checkup: { bike: { userId } } };
   if (asked.size > 0) {
@@ -471,12 +499,8 @@ export const saveCheckupAction = withUser(
 
     const bikeId = parsed.data.bikeId;
     const run = await existingCheckup(bikeId, user.id, parsed.data.checkup.startedAt);
-    const { state, asked, column } = acceptedState(
-      parsed.data.checkup,
-      build,
-      bikeId,
-      run?.items ?? [],
-    );
+    const accepted = acceptedState(parsed.data.checkup, build, bikeId, run?.items ?? []);
+    const { state, column } = accepted;
     let checkupId: string;
     if (run === null) {
       if (!(await roomForCheckup(bikeId, user.id))) return tooMany("checkups");
@@ -485,7 +509,7 @@ export const saveCheckupAction = withUser(
       await writeColumn(run, user.id, column);
       checkupId = run.id;
     }
-    await writeItems(checkupId, user.id, state, asked);
+    await writeItems(checkupId, user.id, state, accepted);
 
     revalidatePath("/[locale]/velo/[id]", "page");
     return ok(null);
@@ -506,12 +530,8 @@ export const finishCheckupAction = withUser(
 
     const bikeId = parsed.data.bikeId;
     const run = await existingCheckup(bikeId, user.id, parsed.data.checkup.startedAt);
-    const { state, asked, column } = acceptedState(
-      parsed.data.checkup,
-      build,
-      bikeId,
-      run?.items ?? [],
-    );
+    const accepted = acceptedState(parsed.data.checkup, build, bikeId, run?.items ?? []);
+    const { state, column } = accepted;
 
     // Every quota is checked before the first write, so a refusal leaves the
     // checkup exactly as the visitor left it — nothing half-finished. Which
@@ -536,7 +556,7 @@ export const finishCheckupAction = withUser(
       checkup = await createCheckup(bikeId, column, state.startedAt);
     }
 
-    await writeItems(checkup.id, user.id, state, asked);
+    await writeItems(checkup.id, user.id, state, accepted);
     await prisma.checkup.updateMany({
       where: { id: checkup.id, bike: { userId: user.id } },
       data: { status: "COMPLETED", completedAt: new Date(), scope: column },

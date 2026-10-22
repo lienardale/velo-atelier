@@ -13,7 +13,14 @@
  *   a full run        opened under `?parts=`: resumed whole, never trimmed;
  *   the scope rule    a checkup limited to the rear caliper says nothing about
  *                     the front one; one limited to the front tyre lists the
- *                     front tyre only.
+ *                     front tyre only;
+ *   the other side    a run on the rear caliper, its pads reported worn, then
+ *                     the FRONT caliper picked (§5.12, R1): until the review of
+ *                     2026-10-22 it was resumed on the front caliper and its
+ *                     finding became "replace the FRONT pads" — a guest's is
+ *                     now taken back to the rear caliper, a saved bike's (its
+ *                     row records no parts) carried on as the full checkup,
+ *                     the finding kept and the question named on screen.
  *
  * What is asserted is what PostgreSQL holds (`pg`, the pattern of
  * `checkup-twelfth-run.spec.ts`). Every test writes its own user and bike
@@ -28,6 +35,7 @@ import { buildOf, deriveBike } from "../../lib/bike/rules";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
 import { resolveTestEnv } from "../_fakes/db";
 
+import { storedBuildList, storedCheckup } from "./_checkup";
 import { expect, forEachLocale, href, test, type Locale } from "./_fixtures";
 
 const CHECKUP: Record<Locale, typeof frCheckup> = { fr: frCheckup, en: enCheckup };
@@ -41,6 +49,18 @@ const TREAD = "check-wheels-tires#tread-sidewalls-tubeless";
 const REAR_PADS: Record<Locale, string> = {
   fr: "Plaquettes ou patins arrière",
   en: "Rear pads",
+};
+
+/** The pads question's title, in each guide's language (`content/guides/check-brakes-disc`). */
+const PADS_TITLE: Record<Locale, string> = {
+  fr: "Mesurer l’usure des plaquettes",
+  en: "Measure pad wear",
+};
+
+/** The rear caliper's label (`messages/*\/parts.json`). */
+const REAR_CALIPER: Record<Locale, string> = {
+  fr: "Étrier de frein arrière",
+  en: "Rear brake caliper",
 };
 
 async function withDb<T>(run: (client: Client) => Promise<T>): Promise<T> {
@@ -279,7 +299,14 @@ forEachLocale((locale) => {
     // the workspace under the banner is a WebGL canvas still settling.
     await page.goto(resume);
     await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopeFull);
-    await expect(page.getByTestId("checkup-resumed")).toHaveText(t.resumed.partialAsFull);
+    // The pads' question names both calipers: the answer given on the picked
+    // ones now counts for both, and the sentence NAMES it (`.debug/017` §5.12).
+    await expect(page.getByTestId("checkup-resumed")).toHaveText(
+      t.resumed.partialAsFullNamed.replace(
+        "{questions}",
+        t.resumed.question.replace("{title}", PADS_TITLE[locale]),
+      ),
+    );
     await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
     await page.getByTestId("verdict-ok").click();
     await saved(page);
@@ -382,5 +409,77 @@ forEachLocale((locale) => {
       lines: ["REPLACE tire-front"],
       states: { "tire-front": "ATTENTION" },
     });
+  });
+
+  test(`a guest's rear pads reported worn, then the FRONT caliper picked: back on the rear caliper, the REAR pads on the list (${locale})`, async ({
+    page,
+  }) => {
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: "demo" }, { parts: "brake-caliper-rear" }),
+    );
+    await page.getByTestId("checkup-start").click();
+    await answer(page, PAD_WEAR, { ko: "pad-worn" });
+    await expect.poll(async () => (await storedCheckup(page))?.answers[PAD_WEAR]).toBe("ko");
+
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: "demo" }, { parts: "brake-caliper-front" }),
+    );
+    await page.waitForURL(
+      (url) =>
+        url.searchParams.get("parts") === "brake-caliper-rear" &&
+        url.searchParams.get("resume") === "own",
+    );
+    await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopePartial);
+    await expect(page.getByTestId("checkup-resumed")).toHaveText(
+      t.resumed.ownParts.replace("{parts}", REAR_CALIPER[locale]),
+    );
+    await answer(page, ALIGNMENT, "ok");
+    await page.getByTestId("summary-create").click();
+    await page.waitForURL(
+      (url) => url.pathname === href(locale, "/velo/[id]/liste", { id: "demo" }),
+    );
+    const lines = ((await storedBuildList(page))?.items ?? []).map(
+      (item) => `${item.action} ${item.partId}`,
+    );
+    // Until this fix: ["replace brake-pads-front"].
+    expect(lines).toEqual(["replace brake-pads-rear"]);
+    expect((await storedCheckup(page))?.scope).toEqual({
+      kind: "parts",
+      partIds: ["brake-caliper-rear"],
+    });
+  });
+
+  test(`a saved bike's rear pads reported worn, then the FRONT caliper picked: the full checkup, the finding kept and named (${locale})`, async ({
+    page,
+    signedInContext,
+  }, testInfo) => {
+    const { user, bikeId } = await savedBike(`side-${locale}-${testInfo.project.name}`, locale);
+    await signedInContext(user);
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "brake-caliper-rear" }),
+    );
+    await page.getByTestId("checkup-start").click();
+    await answer(page, PAD_WEAR, { ko: "pad-worn" });
+    await saved(page);
+    expect((await rowsOf(bikeId)).checkups[0].items).toEqual([`${PAD_WEAR}=KO@brake-caliper-rear`]);
+
+    await page.goto(
+      href(locale, "/velo/[id]/controle", { id: bikeId }, { parts: "brake-caliper-front" }),
+    );
+    // Until this fix: "Contrôle partiel" on the front caliper, no notice, and
+    // the pads' KO stored against the front caliper at the next save.
+    await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopeFull);
+    await expect(page.getByTestId("checkup-resumed")).toContainText(
+      t.resumed.question.replace("{title}", PADS_TITLE[locale]),
+    );
+    await answer(page, await onScreen(page), "ok");
+    await saved(page);
+    const [run] = (await rowsOf(bikeId)).checkups;
+    expect(run.scope).toBe("FULL");
+    // The finding is still the run's: a KO on the pads' question. (Which
+    // caliper its row names now — the first the full question names — is the
+    // price of a row that records no parts: `.debug/017` §5.12.)
+    expect(run.items.filter((item) => item.startsWith(`${PAD_WEAR}=KO@`))).toHaveLength(1);
+    expect(run.items).toHaveLength(2);
   });
 });
