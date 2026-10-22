@@ -35,6 +35,12 @@ export interface CheckupSummaryProps {
   onEdit: (key: string) => void;
   onCreate: () => void;
   creating: boolean;
+  /**
+   * The parts a question's verdict counts for, when a checkup limited to some
+   * parts left out others it names (`CheckStepRef.coveredParts`), as a list
+   * the visitor reads — or `null` for a question recorded whole.
+   */
+  coveredOf?: (step: CheckStepRef) => string | null;
   className?: string;
 }
 
@@ -45,6 +51,7 @@ export function CheckupSummary({
   onEdit,
   onCreate,
   creating,
+  coveredOf = () => null,
   className,
 }: CheckupSummaryProps): React.JSX.Element {
   const t = useTranslations("checkup");
@@ -78,7 +85,10 @@ export function CheckupSummary({
                   data-step-key={step.key}
                   className="flex min-h-[var(--tap-min)] flex-wrap items-center justify-between gap-2 py-2"
                 >
-                  <span className="min-w-0 flex-1 text-ink">{step.title}</span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="text-ink">{step.title}</span>
+                    <SummaryCovered parts={coveredOf(step)} />
+                  </span>
                   <Button
                     type="button"
                     variant="outline"
@@ -116,5 +126,16 @@ export function CheckupSummary({
         {t("summary.create")}
       </Button>
     </section>
+  );
+}
+
+/** "Ne compte que pour : …" under a question a partial checkup recorded for some of its parts. */
+function SummaryCovered({ parts }: { parts: string | null }): React.JSX.Element | null {
+  const t = useTranslations("checkup");
+  if (parts === null) return null;
+  return (
+    <span className="text-sm text-ink-muted" data-testid="summary-covered">
+      {t("summary.covered", { parts })}
+    </span>
   );
 }

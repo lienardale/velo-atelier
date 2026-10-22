@@ -173,6 +173,53 @@ describe("answering", () => {
   });
 });
 
+describe("a question a partial checkup asks for some of the parts it names (§5.11)", () => {
+  const REAR_PADS = {
+    ...PADS,
+    partIds: ["brake-caliper-rear"],
+    coveredParts: ["brake-pads-rear"],
+  } as typeof PADS;
+
+  it("says, under the question and on the summary, which parts its verdict counts for", async () => {
+    const { user } = await renderWithIntl(
+      wizard({ scope: { kind: "parts", partIds: ["brake-caliper-rear"] }, steps: [REAR_PADS] }),
+    );
+    await user.click(screen.getByTestId("checkup-start"));
+    expect(screen.getByTestId("verdict-covered")).toHaveTextContent(
+      "Contrôle partiel — votre réponse ne comptera que pour : Plaquettes ou patins arrière.",
+    );
+    await user.click(screen.getByTestId("verdict-ok"));
+    expect(screen.getByTestId("summary-covered")).toHaveTextContent(
+      "Ne compte que pour : Plaquettes ou patins arrière",
+    );
+  });
+
+  it("says it in English too", async () => {
+    const { user } = await renderWithIntl(
+      wizard({
+        locale: "en",
+        scope: { kind: "parts", partIds: ["brake-caliper-rear"] },
+        steps: [REAR_PADS],
+      }),
+      { locale: "en" },
+    );
+    await user.click(screen.getByTestId("checkup-start"));
+    expect(screen.getByTestId("verdict-covered")).toHaveTextContent(
+      "Partial checkup — your answer will count only for: Rear pads.",
+    );
+  });
+
+  it("says nothing for a question recorded whole", async () => {
+    const { user } = await renderWithIntl(wizard({ initialStepKey: PADS.key }));
+    expect(screen.queryByTestId("verdict-covered")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("verdict-ok"));
+    await user.click(screen.getByTestId("verdict-ok"));
+    await user.click(screen.getByTestId("verdict-ok"));
+    expect(screen.getByTestId("checkup-summary")).toBeInTheDocument();
+    expect(screen.queryByTestId("summary-covered")).not.toBeInTheDocument();
+  });
+});
+
 describe("the keyboard", () => {
   it("answers with 1, 2 and 3", async () => {
     const { user } = await renderWithIntl(wizard({ initialStepKey: PADS.key }));

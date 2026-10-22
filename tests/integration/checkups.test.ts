@@ -533,6 +533,199 @@ describe("what a checkup remembers, and what a later one closes (W4, W5)", () =>
   });
 });
 
+/**
+ * A checkup limited to some parts says nothing about the others (§5.11; the
+ * maintainer's ruling: a partial checkup only writes statuses, closes lines
+ * and derives lines for parts inside the picked scope).
+ *
+ * Seen on the launch walk on the seeded bike, and read: a checkup limited to
+ * the REAR caliper stored its items against the front caliper and lever and
+ * turned both "Bon état", and would have closed an open line about the front
+ * pads. The questions are worded for both sides; a FULL checkup rightly
+ * produces both, and the controls below hold that.
+ */
+describe("a checkup limited to some parts (§5.11)", () => {
+  const PADS = "check-brakes-disc#pad-wear";
+  const ALIGNMENT = "check-brakes-disc#caliper-alignment";
+  const TREAD = "check-wheels-tires#tread-sidewalls-tubeless";
+  const rear = { kind: "parts", partIds: ["brake-caliper-rear"] };
+
+  async function statuses(bikeId: string): Promise<Record<string, string>> {
+    const rows = await prisma.bikePartState.findMany({
+      where: { bikeId, partId: { startsWith: "brake-" } },
+    });
+    return Object.fromEntries(rows.map((row) => [row.partId, row.status]));
+  }
+
+  async function lines(bikeId: string) {
+    const rows = await prisma.buildListItem.findMany({
+      where: { buildList: { bikeId } },
+      orderBy: [{ partId: "asc" }, { action: "asc" }],
+    });
+    return rows.map((row) => [row.action, row.partId, row.done, row.doneReason]);
+  }
+
+  /** A FULL checkup that found both sides' pads worn: two lines, both calipers ATTENTION. */
+  async function bothPadsWorn(bikeId: string): Promise<void> {
+    const result = await finishCheckupAction({
+      bikeId,
+      checkup: payload({
+        answers: { [PADS]: "ko" },
+        symptoms: { [PADS]: ["pad-worn"] },
+        notes: {},
+        startedAt: "2026-09-01T08:00:00.000Z",
+      }),
+    });
+    expect(result.ok).toBe(true);
+  }
+
+  it("the rear caliper only, all OK: the front caliper's and front lever's statuses are untouched, no front line is closed", async () => {
+    const user = await signedInUser("scope-rear@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    await bothPadsWorn(bike.id);
+    const before = await statuses(bike.id);
+    expect(before).toMatchObject({
+      "brake-caliper-front": "ATTENTION",
+      "brake-caliper-rear": "ATTENTION",
+      "brake-lever-front": "UNKNOWN",
+    });
+
+    const later = await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        scope: rear,
+        answers: { [PADS]: "ok", [ALIGNMENT]: "ok" },
+        symptoms: {},
+        notes: {},
+        startedAt: "2026-09-15T08:00:00.000Z",
+      }),
+    });
+    expect(later.ok).toBe(true);
+
+    // The rear caliper is fine now; nothing else changed.
+    expect(await statuses(bike.id)).toEqual({ ...before, "brake-caliper-rear": "OK" });
+    // The rear pads' line is closed by the recheck; the front one stays open.
+    expect(await lines(bike.id)).toEqual([
+      ["REPLACE", "brake-pads-front", false, null],
+      ["REPLACE", "brake-pads-rear", true, "recheck-ok"],
+    ]);
+    // Every answer of the rear-only run is stored against the rear caliper.
+    const run = await prisma.checkup.findFirstOrThrow({
+      where: { bikeId: bike.id, startedAt: new Date("2026-09-15T08:00:00.000Z") },
+      include: { items: { orderBy: { stepKey: "asc" } } },
+    });
+    expect(run.scope).toBe("PARTIAL");
+    expect(run.items.map((item) => [item.stepKey, item.partId])).toEqual([
+      [ALIGNMENT, "brake-caliper-rear"],
+      [PADS, "brake-caliper-rear"],
+    ]);
+  });
+
+  it("is the control: the same answers in a FULL checkup close both lines and mark both calipers", async () => {
+    const user = await signedInUser("scope-rear-full@velo-atelier.test");
+    const bike = await gravelBike(user.id);
+    await bothPadsWorn(bike.id);
+
+    await finishCheckupAction({
+      bikeId: bike.id,
+      checkup: payload({
+        answers: { [PADS]: "ok", [ALIGNMENT]: "ok" },
+        symptoms: {},
+        notes: {},
+        startedAt: "2026-09-15T08:00:00.000Z",
+      }),
+    });
+    expect(await statuses(bike.id)).toMatchObject({
+      "brake-caliper-front": "OK",
+      "brake-caliper-rear": "OK",
+    });
+    expect(await lines(bike.id)).toEqual([
+      ["REPLACE", "brake-pads-front", true, "recheck-ok"],
+      ["REPLACE", "brake-pads-rear", true, "recheck-ok"],
+    ]);
+  });
+
+  it("the front tyre only, KO: one line, for the front tyre — and the FULL control lists both", async () => {
+    const user = await signedInUser("scope-tyre@velo-atelier.test");
+    const front = await gravelBike(user.id);
+    await finishCheckupAction({
+      bikeId: front.id,
+      checkup: payload({
+        scope: { kind: "parts", partIds: ["tire-front"] },
+        answers: { [TREAD]: "ko" },
+        symptoms: { [TREAD]: ["tire-worn"] },
+        notes: {},
+      }),
+    });
+    const tyres = (bikeId: string) =>
+      prisma.buildListItem
+        .findMany({ where: { buildList: { bikeId } }, orderBy: { partId: "asc" } })
+        .then((rows) => rows.map((row) => `${row.action} ${row.partId}`));
+    expect(await tyres(front.id)).toEqual(["REPLACE tire-front"]);
+    const tint = await prisma.bikePartState.findMany({
+      where: { bikeId: front.id, partId: { startsWith: "tire-" } },
+      orderBy: { partId: "asc" },
+    });
+    expect(tint.map((row) => [row.partId, row.status])).toEqual([
+      ["tire-front", "ATTENTION"],
+      ["tire-rear", "UNKNOWN"],
+    ]);
+
+    const whole = await gravelBike(user.id);
+    await finishCheckupAction({
+      bikeId: whole.id,
+      checkup: payload({
+        answers: { [TREAD]: "ko" },
+        symptoms: { [TREAD]: ["tire-worn"] },
+        notes: {},
+      }),
+    });
+    expect(await tyres(whole.id)).toEqual(["REPLACE tire-front", "REPLACE tire-rear"]);
+  });
+
+  it("the pads through their caliper, and a tube through its tyre", async () => {
+    const user = await signedInUser("scope-hosted@velo-atelier.test");
+    const gravel = await gravelBike(user.id);
+    await finishCheckupAction({
+      bikeId: gravel.id,
+      checkup: payload({
+        scope: { kind: "parts", partIds: ["brake-caliper-front"] },
+        answers: { [PADS]: "ko" },
+        symptoms: { [PADS]: ["pad-worn"] },
+        notes: {},
+      }),
+    });
+    expect(await lines(gravel.id)).toEqual([["REPLACE", "brake-pads-front", false, null]]);
+
+    const derived = deriveBike(BIKE_PRESETS["city-igh-8-hub-motor"]);
+    const city = await prisma.bike.create({
+      data: {
+        userId: user.id,
+        name: "Ville",
+        answers: derived.answers,
+        spec: derived.spec,
+        parts: derived.parts as unknown as Prisma.InputJsonValue,
+        partStates: { create: derived.parts.map((part) => ({ partId: part.partId })) },
+      },
+      select: { id: true },
+    });
+    const TUBES = "check-wheels-tires#pressure-hold";
+    await finishCheckupAction({
+      bikeId: city.id,
+      checkup: payload({
+        scope: { kind: "parts", partIds: ["tire-front"] },
+        answers: { [TUBES]: "ko" },
+        symptoms: {},
+        notes: {},
+      }),
+    });
+    const tubes = await prisma.buildListItem.findMany({
+      where: { buildList: { bikeId: city.id } },
+    });
+    expect(tubes.map((row) => `${row.action} ${row.partId}`)).toEqual(["REPLACE tube-front"]);
+  });
+});
+
 describe("the schema's own guarantees", () => {
   it("cascades from the bike down to the build-list items", async () => {
     const user = await signedInUser("cascade@velo-atelier.test");
