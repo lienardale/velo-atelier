@@ -130,9 +130,14 @@
  *
  * What is NOT imported for a PARTIAL checkup is the set of parts the visitor
  * picked: `Checkup.scope` is `FULL | PARTIAL` and there is no column for the
- * ids. They are used here, to decide that column, and then they are gone — as
- * they are for a partial checkup started on the account itself, whose resume
- * this import neither changes nor relies on.
+ * ids. They are used here — to decide that column and to narrow the steps —
+ * and then they are gone, as they are for a partial checkup started on the
+ * account itself. The account resumes such a run the way it resumes its own
+ * (`.debug/017` §5.10): on the page's parts when they ask every question the
+ * run answered, otherwise — the resume banner, which cannot know the parts —
+ * as the full checkup, the SAME row, its answers kept and its column then
+ * `FULL` (`tests/integration/checkup-resume.test.ts`). Until 2026-10-22 that
+ * banner's first click deleted every item an imported partial run held.
  *
  * The list's LINES still come from the payload — they hold what the visitor
  * typed (`refinement`, `chosenProduct`, the ticks) — and are never re-derived.

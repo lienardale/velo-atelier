@@ -764,6 +764,42 @@ settled (W5 above: one OPEN list per bike), and nothing writes `ABANDONED`
 yet. Abandon the older `IN_PROGRESS` run on the first save of a new one
 (§4.2 b), and surface `TOO_MANY` on the first refused save.
 
+#### A saved bike's partial checkup does not remember its parts
+
+`Checkup.scope` is `FULL | PARTIAL`; the parts a partial checkup was limited
+to are stored nowhere. Since the fix of `.debug/017` §5.10 (2026-10-22) an
+unfinished run is resumed on the page's scope when that scope asks every
+question the run answered, and as the FULL checkup otherwise
+(`resumeScope`, `lib/checkup/scope.ts`); no answer is lost either way. What
+that costs, by design, and measured on PostgreSQL through the real page,
+wizard and actions (`tests/integration/checkup-resume.test.ts`) and in
+Chromium (`tests/e2e/checkup-resume.spec.ts`):
+
+- **The resume banner of a saved bike** links to `/controle` with no
+  `?parts=` (it cannot know them), so a partial run comes back as a full
+  checkup — the same row, its answers kept, its column then `FULL` — and the
+  wizard says so ("Ce contrôle avait commencé sur quelques pièces…"). An
+  answer given there for one side of a question that names both now counts
+  for both: the rear pads' OK, finished as a full checkup, writes the front
+  caliper too. The notice says that much; the visitor can re-answer.
+- **A partial run reopened under ANOTHER selection** whose plan holds every
+  question it answered — the rear caliper picked, the pads answered, then
+  the front caliper picked — is resumed on the new selection, and the pads'
+  answer is then stored against the front caliper (measured on PostgreSQL;
+  the case is pinned in `tests/integration/checkup-resume.test.ts`, so that
+  changing it is a decision). Nothing on screen says so. A guest's browser
+  knows the first selection and could tell; a saved bike's row cannot, and
+  both paths follow one rule.
+
+_Why deferred_ (ruled 2026-10-22: no schema change for this fix): knowing
+the parts needs a column.
+
+_To pick up_: `Checkup.partIds String[]` (a migration), written by
+`createCheckup` from the posted scope and kept in step by `writeColumn`;
+`loadStoredCheckup` and `loadBikeForRequest().resume` return it, so the
+banner carries `?parts=`; and `resumeScope` resumes a run on its OWN scope
+when the page's differs, instead of the page's.
+
 #### A finished checkup writes a KO as `ATTENTION`, where §4.2 (b) says `BROKEN`
 
 `finishCheckupAction` ends in `writePartStates`

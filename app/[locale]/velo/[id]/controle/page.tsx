@@ -10,7 +10,9 @@ import { firstValue, parsePartIds } from "@/lib/bike3d/query";
 import { loadBikeForRequest } from "@/lib/bike/load-bike";
 import { resolveBikeRef } from "@/lib/bike/resolve-bike-ref";
 import { planCheckup, scopeFromPartIds, toolsFor, type PlannableGuide } from "@/lib/checkup/plan";
+import { FULL_SCOPE, resumeScope } from "@/lib/checkup/scope";
 import type { StoredCheckup } from "@/lib/checkup/storage";
+import type { CheckStepRef, CheckupScope } from "@/lib/checkup/types";
 import { GUIDES } from "@/lib/content/collection";
 import { CONTENT_VERSION } from "@/lib/content/generated/version";
 import type { GuideDocument } from "@/lib/content/types";
@@ -64,6 +66,20 @@ export async function generateMetadata({ params }: CheckupPageProps): Promise<Me
  *          `?spec=` (§5.4); without it, the page says so instead of guessing;
  *   uuid   the owner is checked inside the query, and the stored checkup is
  *          read here so the wizard does not have to flash an empty one.
+ *
+ * ## An unfinished run is never planned narrower than it is
+ *
+ * The page plans the scope `?parts=` asks for — unless the bike has an
+ * unfinished run that scope would not hold: a full one with answers, or a
+ * partial one with an answer to a question the scope does not ask. Then it
+ * plans the FULL checkup, and the run carries on over a plan holding every
+ * answer it has (`resumeScope`, `lib/checkup/scope.ts`). For a saved bike the
+ * page reads the run and decides here; a guest's run is in `localStorage`, so
+ * the page hands the wizard the keys of the full plan and the wizard decides,
+ * and comes back here with `?resume=full` — which this page then plans as the
+ * full checkup. Until 2026-10-22 the run was resumed on whatever the page had
+ * planned, trimmed to it, and a resumed partial run lost every stored answer
+ * (`.debug/017` §5.10).
  */
 export default async function CheckupPage({
   params,
@@ -96,16 +112,54 @@ export default async function CheckupPage({
   }
 
   const requestedPartIds = parsePartIds(query.parts);
-  const scope = scopeFromPartIds(requestedPartIds);
+  /**
+   * `?resume=full` is the wizard coming back for a guest's run that the
+   * scope it was opened on could not hold: the full checkup, and nothing
+   * else changes (see the header).
+   */
+  const resumeWidened = firstValue(query.resume) === "full";
+  const requested = resumeWidened ? FULL_SCOPE : scopeFromPartIds(requestedPartIds);
   /**
    * §6.7: `?parts=` naming nothing this bike has falls back to a FULL checkup
    * — and says so. Silently widening the scope is the failure mode worth
    * naming: the visitor asked about their brakes and got a twelve-question
    * checkup with no explanation.
    */
-  const scopeDropped = query.parts !== undefined && requestedPartIds.length === 0;
+  const scopeDropped = !resumeWidened && query.parts !== undefined && requestedPartIds.length === 0;
   const documents = GUIDES.filter((guide) => guide.locale === resolvedLocale);
-  const steps = planCheckup(bike.build, scope, documents as unknown as PlannableGuide[]);
+  const build = bike.build;
+  const planFor = (scope: CheckupScope): CheckStepRef[] =>
+    planCheckup(build, scope, documents as unknown as PlannableGuide[]);
+  let fullPlan: CheckStepRef[] | null = null;
+  const full = (): CheckStepRef[] => (fullPlan ??= planFor(FULL_SCOPE));
+  const keysOf = (plan: readonly CheckStepRef[]) => new Set(plan.map((step) => step.key));
+
+  const initialStored = await storedFor(ref, bike.bikeId, resolvedLocale);
+  let scope = requested;
+  let steps = planFor(requested);
+  // A saved bike's unfinished run, read above: resumed on the requested scope
+  // only if that scope holds it.
+  let widened = resumeWidened;
+  if (
+    requested.kind === "parts" &&
+    initialStored !== null &&
+    initialStored.completedAt === undefined
+  ) {
+    const asked = keysOf(full());
+    const resumed = resumeScope(
+      {
+        scope: initialStored.scope,
+        answered: Object.keys(initialStored.answers).filter((key) => asked.has(key)),
+      },
+      requested,
+      () => keysOf(steps),
+    );
+    if (resumed.kind === "full") {
+      scope = resumed;
+      steps = full();
+      widened = true;
+    }
+  }
 
   if (steps.length === 0) {
     return (
@@ -150,13 +204,18 @@ export default async function CheckupPage({
         bikeParam={bike.param}
         scope={scope}
         scopeDropped={scopeDropped}
+        resumeWidened={widened}
         steps={steps}
+        // With a parts scope, the full plan's keys: a guest's run is read in
+        // the browser, which decides whether this scope holds it — by the
+        // same rule as above, a dropped question widening nothing.
+        {...(scope.kind === "parts" ? { fullStepKeys: full().map((step) => step.key) } : {})}
         guideNodes={guideNodes}
         guideRefs={guideRefsFor(steps, bySlug)}
         tools={toolsFor(steps)}
         contentVersion={CONTENT_VERSION}
         newCheckupId={crypto.randomUUID()}
-        initialStored={await storedFor(ref, bike.bikeId, resolvedLocale)}
+        initialStored={initialStored}
         initialStepKey={firstValue(query.step) ?? null}
         specCode={specCode ?? null}
       />

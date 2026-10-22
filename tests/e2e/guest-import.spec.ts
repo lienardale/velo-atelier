@@ -613,10 +613,19 @@ forEachLocale((locale) => {
         href(locale, "/velo/[id]/controle", { id: "local" }, { spec: specCode, ...link }),
       );
       // The wizard resumes the stored run (straight to a question, no tool
-      // list) under the header of the link that was followed.
+      // list) as a FULL checkup either way, and says so: the other part's
+      // questions do not hold the chain's answer, so that link is sent on to
+      // the full checkup (`?resume=full`) rather than trimming the run to it —
+      // which, until 2026-10-22, it did, and the chain's answer was lost
+      // (`.debug/017` §5.10).
+      if ("parts" in link) {
+        await page.waitForURL((url) => url.searchParams.get("resume") === "full");
+      }
       await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
-      await expect(page.getByTestId("checkup-scope")).toHaveText(
-        "parts" in link ? CHECKUP[locale].scopePartial : CHECKUP[locale].scopeFull,
+      await expect(page.getByTestId("checkup-scope")).toHaveText(CHECKUP[locale].scopeFull);
+      await expect(page.getByTestId("checkup-resumed")).toHaveAttribute(
+        "data-notice",
+        "partialAsFull",
       );
       const given = await answerToTheSummary(page, { [PAD_WEAR]: "pad-worn" });
       expect(given).toContain(PAD_WEAR);
@@ -635,6 +644,11 @@ forEachLocale((locale) => {
       const answers = Object.keys(stored.value.answers).sort();
       for (const key of given) expect(answers).toContain(key);
       expect(stored.value.answers[PAD_WEAR]).toBe("ko");
+      // The first visit's question is still answered — the walk above passed
+      // over it with an OK — and the run is stored as what it became. Until
+      // 2026-10-22 the other part's page dropped it from the run.
+      expect(Object.hasOwn(stored.value.answers, CHAIN)).toBe(true);
+      expect(stored.value.scope).toEqual({ kind: "full" });
       const [, , storedList] = await storedKeys(page);
       const guestLines = (
         JSON.parse(storedList ?? "null") as { items: { partId: string; action: string }[] }

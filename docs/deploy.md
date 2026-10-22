@@ -1608,8 +1608,13 @@ maintainer has not ruled on: it is neither accepted nor fixed.
      found", 19 responses 500); none after `content:generate`; every server
      action returned 200.
    - Six more observations from the walk — seen first-hand, not checked
-     against the plan — are recorded in `.debug/017` §5.6 for the
-     maintainer's ruling.
+     against the plan — are recorded in `.debug/017` §5.6. Ruled on since:
+     O3's third and O6 (a checkup limited to some parts wrote statuses on,
+     and listed, parts outside them) were fixed on 2026-10-22 (§5.11), with
+     the resume of a partial checkup that the verification of 2026-10-08 had
+     found deleting a saved bike's answers (§5.10); O3's first two and O5 are
+     entries of `docs/backlog.md`. Neither fix had been deployed when this
+     was written.
 
 2. **All gates** — `bash scripts/ci.sh` prints its PASS table;
    `ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash scripts/ci/build.sh && npm run e2e:docker`;
