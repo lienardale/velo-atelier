@@ -1104,7 +1104,8 @@ _To pick up_: two options were written here. **The first is done,
 `main` every day and opens one issue on the first red run, commenting on it on
 every later one and never closing it — the maintainer's ruling after
 `.debug/017` §2.7, where `main` was red by its own rule for 41 hours with
-nothing on GitHub showing it. It has not run on GitHub yet. It does not stop
+nothing on GitHub showing it. Merged on 2026-10-23 (#31); its first run, a
+dispatch that day, was green and wrote no issue. It does not stop
 the red `main` this entry is about — an advisory still lands between two runs,
 and still after a green pull request — it bounds how long nobody knows. The
 second is still open: re-running the `audit` job once before reading it on a
