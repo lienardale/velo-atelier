@@ -27,6 +27,19 @@ touches the database. The GitHub account is **`lienardale`** (the macOS user is
 a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 `next.config.ts` pins `turbopack: { root: process.cwd() }`.
 
+**Renovate writes `package-lock.json` with npm 11** — `constraints.npm` in
+`renovate.json`, the major Node 24 bundles and the one CI's `npm ci` reads the
+lockfile with. Unpinned, the hosted Renovate ran npm 12 (inferred from the
+error, not read from its log), whose default `allow-remote=none` refuses this
+tree under `--package-lock-only`: npm opens `@tailwindcss/oxide-wasm32-wasi`'s
+`bundleDependencies` by fetching its tarball URL (npm/cli#9800, open). The
+failure does not depend on the version bumped (reproduced on npm 12.2.0), so
+every Renovate PR that touches the lockfile would carry `package.json` alone
+and go red on every job that runs `npm ci` — PR #28 was the first
+(`.debug/019`). Move the constraint with `.nvmrc`, and drop it once
+npm/cli#9800 ships a fix. A Renovate PR whose diff has no `package-lock.json`
+is this again: its "Artifact update problem" comment names the npm error.
+
 **`overrides` in `package.json` is the security fix; the audit allowlist is the
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
@@ -1395,6 +1408,15 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   `app/[locale]/`; the guide card already lived beside its page, which is why
   that one always worked. An image route inherits no `params` from the layout
   above it either — both spell out their own `generateStaticParams`.
+  **Nor does it inherit a segment option from its page**: an image route is a
+  route handler of its own, so the guide page's `dynamicParams = false` never
+  reached its card, and the card drew any unknown slug on demand and cached
+  it on disk. Both cards export `dynamicParams = false` themselves, and the
+  site card needs it as much as the guide card: `proxy.ts`'s matcher lets any
+  path with a dot through as a file, so `/de.x/opengraph-image` reaches the
+  image route with no proxy in front of it (`.debug/017` §2.7, measured on
+  16.3.8 and again on 16.4.1 under Turbopack: neither release applies the
+  page's option to the card).
 - **Generated trees** — `lib/generated/**`, `.content-collections/**` and
   `lib/content/generated/**` are gitignored and excluded from ESLint, `tsc` and
   coverage. Escape `[locale]` in globs (`app/\\[locale\\]/**`) or they silently
@@ -1534,10 +1556,10 @@ scripts called with `bash` ran (`.debug/017`;
   including subjects with no locale of their own (the viewer, the sheet, the
   camera). A test stays single only when there is nothing locale-specific to
   visit, and its spec header says why: the bare-origin redirect (`smoke`),
-  `sitemap.xml`/`robots.txt` (`seo`), the scan of the built client chunks (`csp`), the
-  prerender-manifest check (`shop`), auth-login's EN-cookie case, locale-switch's
-  pathnames meta-test, and the 7 preset images of `visual.spec.ts` (the canvas
-  draws no text).
+  `sitemap.xml`/`robots.txt` and an unknown locale's Open Graph card (`seo`),
+  the scan of the built client chunks (`csp`), the prerender-manifest check
+  (`shop`), auth-login's EN-cookie case, locale-switch's pathnames meta-test,
+  and the 7 preset images of `visual.spec.ts` (the canvas draws no text).
 - **Visual baselines are Linux-rendered and recorded only by CI.**
   `tests/e2e/visual.spec.ts` (`@snapshot`, `colorScheme: light` +
   `reducedMotion: reduce`, the canvas after `renderFrames(3)`) takes 20 images:
