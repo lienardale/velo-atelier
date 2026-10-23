@@ -52,25 +52,30 @@ ranges already admit, because the newest release those ranges admit was inside
 the 7-day hold. Each was proved by a green `bash scripts/ci.sh` and a green
 `npm run build` on the resolved tree.
 
-| Override                            | Resolves to | Replaces                          | Fixes                                                                                                                              | Reached through                                                                                                                                   |
-| ----------------------------------- | ----------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `toml: ^4.2.0`                      | 4.3.0       | 3.0.0                             | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j                                                                                           | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
-| `uuid: ^11.1.1`                     | 11.1.1      | 9.0.1 / 8.3.2                     | GHSA-w5hq-g745-h8pq                                                                                                                | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
-| `tmp: ^0.2.7`                       | 0.2.7       | 0.1.0 / 0.0.33                    | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                                                                                           | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
-| `mysql2: 3.23.1`                    | 3.23.1      | 3.15.3                            | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                                                                                           | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
-| `basic-ftp: ^6.2.1`                 | 6.2.1       | 5.3.1                             | GHSA-c475-qrg2-pj4r                                                                                                                | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
-| `js-yaml@^3 > argparse: ^2.0.1`     | 2.0.1       | 1.0.10                            | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile)                                                                | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
-| `@modelcontextprotocol/sdk: 1.32.0` | 1.32.0      | 1.31.0 (1.30.0 before 2026-10-06) | GHSA-6qxp-vccf-f47h; since 2026-10-22 also GHSA-22jm-h49p-29qw, GHSA-46jr-4wx8-v453, GHSA-6prh-2h8m-c8cw, GHSA-rvq5-wwqv-78pq      | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
-| `vite: 8.2.4`                       | 8.2.4       | 8.2.2                             | GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg, GHSA-9jrq-w75r-8gcw (low) | `vitest`, `vitest > @vitest/mocker`, `@vitejs/plugin-react` (peer)                                                                                |
+| Override                            | Resolves to | Replaces                                   | Fixes                                                                                                                              | Reached through                                                                                                                                   |
+| ----------------------------------- | ----------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `toml: ^5.0.1`                      | 5.0.1       | 3.0.0 (`^4.2.0`, 4.3.0, before 2026-10-23) | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j; since 2026-10-23 also GHSA-4qx8-w7c3-pj3p, GHSA-9j65-hcg3-gc64, GHSA-9qmh-m7c6-f92p      | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
+| `uuid: ^11.1.1`                     | 11.1.1      | 9.0.1 / 8.3.2                              | GHSA-w5hq-g745-h8pq                                                                                                                | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
+| `tmp: ^0.2.7`                       | 0.2.7       | 0.1.0 / 0.0.33                             | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                                                                                           | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
+| `mysql2: 3.23.1`                    | 3.23.1      | 3.15.3                                     | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                                                                                           | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
+| `basic-ftp: ^6.2.1`                 | 6.2.1       | 5.3.1                                      | GHSA-c475-qrg2-pj4r                                                                                                                | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
+| `js-yaml@^3 > argparse: ^2.0.1`     | 2.0.1       | 1.0.10                                     | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile)                                                                | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
+| `@modelcontextprotocol/sdk: 1.32.0` | 1.32.0      | 1.31.0 (1.30.0 before 2026-10-06)          | GHSA-6qxp-vccf-f47h; since 2026-10-22 also GHSA-22jm-h49p-29qw, GHSA-46jr-4wx8-v453, GHSA-6prh-2h8m-c8cw, GHSA-rvq5-wwqv-78pq      | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
+| `vite: 8.2.4`                       | 8.2.4       | 8.2.2                                      | GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg, GHSA-9jrq-w75r-8gcw (low) | `vitest`, `vitest > @vitest/mocker`, `@vitejs/plugin-react` (peer)                                                                                |
 
 Compatibility notes, because an override is a version its parent never tested:
 
-- `toml@4` is the one that touches the build. `remark-mdx-frontmatter@4.0.0`
-  does `import { parse as parseToml } from 'toml'`, and 4.x still exports a
-  named `parse` readable from ESM and from `require` (it drops `stringify`,
-  which nothing in this tree calls). `npm run build` and
+- `toml` is the one that touches the build. `remark-mdx-frontmatter@4.0.0`
+  does `import { parse as parseToml } from 'toml'`. 4.x exported a named
+  `parse` readable from ESM and from `require` (it dropped `stringify`, which
+  nothing in this tree calls). **5.0.1**, the override since 2026-10-23, is
+  still CommonJS — `main: index.js`, no `exports` map,
+  `module.exports = { parse }`, `engines.node >=20` — and Node still reads the
+  named `parse` from ESM: imported that way from the unpacked 5.0.1 tarball, it
+  parsed a table (checked 2026-10-23). No file under `content/` has TOML front
+  matter (`+++`), so this corpus never calls it. `npm run build` and
   `npm run content:check -- --strict` compile the whole `content/` corpus
-  through that chain.
+  through that chain anyway.
 - `uuid@11` keeps `v4` on both the CJS and the ESM entry point; `mdx-bundler`
   uses `require("uuid").v4()` for its temporary entry file and `@lhci/cli` for
   its run ids.
@@ -935,6 +940,92 @@ On the result, 2026-10-22:
 
 **Not run:** e2e, perf, Lighthouse and the hooks-on build. None of them loads
 `vite`, `vitest`, the SDK or `hono`.
+
+## Seven advisories of 2026-10-22, two of them critical on `next`
+
+Seven ids entered the feed on 2026-10-22 between 15:50Z and 16:43Z. Three are
+on `next`, which ships: **two critical, unauthenticated remote code
+execution**, and one high. Nothing ran `audit` on `main` until #34 was merged:
+run 39925596793, on `97707a9`, at 2026-10-23 08:34:24Z, 16 h 44 min after the
+first id. Its `npm audit (audit-ci)` and `trivy fs scan` jobs both failed: the
+same gap as on 2026-10-07 and 2026-10-20 (`.debug/017` §2.7). **None is
+allow-listed**: `next` is a shipped direct dependency, and the other two have
+a patched release their parents can reach.
+
+| In the feed (UTC)   | Advisory            | CVE             | Severity | Package and range                                                                             | Fixed by                      |
+| ------------------- | ------------------- | --------------- | -------- | --------------------------------------------------------------------------------------------- | ----------------------------- |
+| 2026-10-22 15:50:34 | GHSA-p3m5-59mp-jv5r | CVE-2026-94482  | high     | `next >=16.0.0 <=16.4.0`: denial of service in the App Router through Server Actions          | `next` 16.3.8 → 16.4.1        |
+| 2026-10-22 15:52:53 | GHSA-2464-fhr4-w9xw | —               | critical | `next >=16.0.0 <=16.4.0`: unauthenticated RCE in the Image Optimization API with SVG files    | `next` 16.4.1                 |
+| 2026-10-22 16:19:39 | GHSA-rxp7-6hxx-x8q5 | CVE-2026-111997 | moderate | `ip-address <=10.7.3`: quadratic zone-id matching in `Address6`                               | `ip-address` 10.7.2 → 10.7.4  |
+| 2026-10-22 16:36:50 | GHSA-9qmh-m7c6-f92p | CVE-2026-114144 | high     | `toml <=5.0.0`: CPU DoS through unbounded integer literals in `toml.parse()`                  | the `toml` override, `^5.0.1` |
+| 2026-10-22 16:38:06 | GHSA-9j65-hcg3-gc64 | CVE-2026-114143 | high     | `toml <=5.0.0`: quadratic DoS through long dotted keys or table paths                         | the `toml` override           |
+| 2026-10-22 16:38:44 | GHSA-4qx8-w7c3-pj3p | CVE-2026-114141 | high     | `toml <=5.0.0`: quadratic DoS through many array-of-tables headers                            | the `toml` override           |
+| 2026-10-22 16:42:31 | GHSA-673q-mjm6-r5xr | —               | critical | `next >=16.0.0 <=16.4.0`: unauthenticated RCE in `use cache` functions returning typed arrays | `next` 16.4.1                 |
+
+“In the feed” is `github_reviewed_at`. `trivy` gates on HIGH and CRITICAL and
+went red with `audit` on `main`.
+
+**Exposure, as read on 2026-10-23, and not what decided the fix.** No file in
+`app/`, `lib/` or `components/` holds `"use cache"`, and none imports
+`next/image`. But `next.config.ts` configures `images` (`remotePatterns` for
+`lh3.googleusercontent.com`, the Google avatars), so the optimizer's route
+exists. Server Actions are the app's write path, so the DoS applies as
+written. Whether Vercel serves `/_next/image` through Next's own handler was
+not checked. The pin moves whatever the answer: a shipped direct dependency is
+bumped.
+
+The three moves:
+
+- **`next` and `eslint-config-next` 16.3.8 → 16.4.1**, together, a minor.
+  16.4.1 is the first patched release for all three ids, published on
+  2026-10-14T17:43Z, 8 d 15 h before the bump: past the hold. 16.4.2 (10-15)
+  fixes nothing this tree needs.
+- **`toml`**: the unscoped override `^4.2.0` → `^5.0.1`, a major. The
+  compatibility note is with the table at the top of this file. 5.0.1 was
+  published on 2026-10-12, past the hold.
+- **`ip-address`** 10.7.2 → 10.7.4 by `npm update ip-address`. It is a dev
+  dependency, reached only through `shadcn` (`@modelcontextprotocol/sdk >
+express-rate-limit`, and `socks`), and both ranges (`^10.2.0`, `^10.1.1`)
+  admit 10.7.4, the newest release, published on 2026-10-11. No override.
+
+**The lockfile moves fourteen entries**, each change applied on its own with
+`--package-lock-only` as the section above recommends: the twelve of the Next
+family (`next`, `eslint-config-next`, `@next/env`, `@next/eslint-plugin-next`
+and the eight `@next/swc-*` binaries — the same twelve as on 2026-09-30 and
+2026-10-09), then `toml`, then `ip-address`. Nothing else moved.
+
+**What a minor of the framework was checked against.** Unlike 16.3.6 → 16.3.8,
+all four files the facts in `instrumentation.ts` rest on differ:
+`router-server.js`, `start-server.js`, `bin/next` and
+`instrumentation-globals.external.js`. `next-server.js` still swallows a
+rejected `prepare()` with `.catch(…)`. So the facts were measured again by
+behaviour, not by identity. The boot tier passed 4/4 on a fresh build of this
+tree, but its refusal case also passes on a server that EXITS, so the refusal
+was measured directly too, with `next start` on that build,
+`VERCEL_ENV=production` and `ENABLE_TEST_PAGES=1`: "Ready", then "Failed to
+prepare server" naming `ENABLE_TEST_PAGES`; 500 on `/api/health` three times,
+`/fr`, `/fr/connexion`, `/robots.txt`, `/sitemap.xml` and `/favicon.ico`; 200 on
+`/tree-drawings.json`; and the process still alive — the shape measured on
+16.3.6 and 16.3.8. The fourth fact, the held request, was not re-polled.
+`scripts/ci/build.sh`'s build printed `●` for `/fr` and `ƒ` for
+`/[locale]/velo/[id]`, `bundle-guard` checked 61 files with no problem, and the
+budget held.
+
+### Gates
+
+On the result, 2026-10-23:
+
+- `bash scripts/ci/audit.sh` exits 0 three runs out of three, with the six
+  allow-listed ids and nothing else.
+- `bash scripts/ci/trivy.sh` is clean.
+- `bash scripts/ci.sh` passed 12/12 in 192 s: 4 369 unit, ui and security
+  tests and 474 integration tests; coverage at 95.56 % of statements and
+  92.18 % of branches; the build, `bundle-guard` and the budget; the boot tier
+  4/4.
+
+**Not run locally:** e2e, perf, Lighthouse and the hooks-on build. A minor of
+the framework is exactly what those are for, so the pull request's CI, where
+all three are required, is the first run of them on 16.4.1.
 
 ## Removed from the array (2026-09-30)
 
