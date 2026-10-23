@@ -27,6 +27,19 @@ touches the database. The GitHub account is **`lienardale`** (the macOS user is
 a stray `/Users/alienard/Code/pnpm-lock.yaml` one directory up is why
 `next.config.ts` pins `turbopack: { root: process.cwd() }`.
 
+**Renovate writes `package-lock.json` with npm 11** — `constraints.npm` in
+`renovate.json`, the major Node 24 bundles and the one CI's `npm ci` reads the
+lockfile with. Unpinned, the hosted Renovate ran npm 12 (inferred from the
+error, not read from its log), whose default `allow-remote=none` refuses this
+tree under `--package-lock-only`: npm opens `@tailwindcss/oxide-wasm32-wasi`'s
+`bundleDependencies` by fetching its tarball URL (npm/cli#9800, open). The
+failure does not depend on the version bumped (reproduced on npm 12.2.0), so
+every Renovate PR that touches the lockfile would carry `package.json` alone
+and go red on every job that runs `npm ci` — PR #28 was the first
+(`.debug/019`). Move the constraint with `.nvmrc`, and drop it once
+npm/cli#9800 ships a fix. A Renovate PR whose diff has no `package-lock.json`
+is this again: its "Artifact update problem" comment names the npm error.
+
 **`overrides` in `package.json` is the security fix; the audit allowlist is the
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
