@@ -63,10 +63,57 @@ describe("GuideFilters", () => {
     // Never Next's own history state: its patched replaceState would skip the
     // router sync and `useSearchParams` would keep the old query (e2e-verified).
     expect(replace.mock.lastCall?.[0]).toBeNull();
+    // The second change keeps the first: the component reads back the query it
+    // wrote, even though this test's router (a fixed `useSearchParams`) never
+    // catches up — as a browser's does, a moment later.
     fireEvent.change(screen.getByRole("combobox", { name: "Que voulez-vous faire ?" }), {
       target: { value: "check" },
     });
-    expect(replace.mock.lastCall?.[2]).toBe("/fr/guides?utm=x&kind=check");
+    expect(replace.mock.lastCall?.[2]).toBe("/fr/guides?utm=x&system=brakes&kind=check");
+  });
+
+  it("shows a change at once, before the router's copy of the URL catches up", async () => {
+    // From Next 16.4.1 the router applies a `replaceState` to `useSearchParams`
+    // up to 133 ms after the event (measured in the CI Linux image), and React
+    // puts a controlled input back at the end of the event: the checkbox read
+    // unchecked in between. Here the router never catches up at all.
+    window.localStorage.setItem(
+      "va:bike:local",
+      JSON.stringify({ version: 1, answers: BIKE_PRESETS["road-rim-2x11"] }),
+    );
+    window.history.replaceState(null, "", "/fr/guides");
+    await renderWithIntl(<GuideFilters guides={guides} />);
+    const toggle = screen.getByRole("checkbox", { name: "Pour mon vélo" });
+    fireEvent.click(toggle);
+    expect(toggle).toBeChecked();
+    expect(sorted(cards())).toEqual(expectedSlugs({ spec: specFor("road-rim-2x11") }));
+    const system = screen.getByRole("combobox", { name: "Partie du vélo" });
+    fireEvent.change(system, { target: { value: "brakes" } });
+    expect(system).toHaveValue("brakes");
+    expect(toggle).toBeChecked();
+  });
+
+  it("drops what it wrote once the router's query moves, a navigation back included", async () => {
+    window.localStorage.setItem(
+      "va:bike:local",
+      JSON.stringify({ version: 1, answers: BIKE_PRESETS["road-rim-2x11"] }),
+    );
+    window.history.replaceState(null, "", "/fr/guides");
+    const { rerender } = await renderWithIntl(<GuideFilters guides={guides} />);
+    const toggle = () => screen.getByRole("checkbox", { name: "Pour mon vélo" });
+    fireEvent.click(toggle()); // written over the empty query
+    expect(toggle()).toBeChecked();
+
+    setNavigationState({ search: "bike=local" }); // the router catches up
+    rerender(<GuideFilters guides={guides} />);
+    expect(toggle()).toBeChecked();
+
+    // A navigation back to the very query the write was made over: what was
+    // written must not come back with it.
+    setNavigationState({ search: "" });
+    rerender(<GuideFilters guides={guides} />);
+    expect(toggle()).not.toBeChecked();
+    expect(cards()).toHaveLength(guides.length);
   });
 
   it("shows the empty state with a reset", async () => {

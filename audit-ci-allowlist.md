@@ -1023,9 +1023,14 @@ On the result, 2026-10-23:
   92.18 % of branches; the build, `bundle-guard` and the budget; the boot tier
   4/4.
 
-**Not run locally:** e2e, perf, Lighthouse and the hooks-on build. A minor of
-the framework is exactly what those are for, so the pull request's CI, where
-all three are required, is the first run of them on 16.4.1.
+**e2e found one change, and it was fixed in the page.** On the pull request's
+first run, `guides-filter.spec.ts` "for my bike" failed on three Chromium
+legs: on 16.4.1 the router applies a `replaceState` to `useSearchParams` up
+to 133 ms after the click, and React puts the controlled checkbox back in the
+meantime. `GuideFilters` now keeps the query it wrote until
+`useSearchParams` moves (`.debug/017` §2.7, CLAUDE.md "URL state"). In
+`npm run e2e:docker` the spec then passed every "for my bike" run; perf and
+Lighthouse ran green in CI on the first commit.
 
 ## Removed from the array (2026-09-30)
 
