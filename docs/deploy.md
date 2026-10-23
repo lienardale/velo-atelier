@@ -113,7 +113,9 @@ not Instant Rollback — and each place where that matters says so. When the pin
 moved to Next 16.3.8, on 2026-10-09, the shape of a refusal was measured again
 locally and had not changed: the 500s, the process that stays up, the two
 files still served, the `[env]` line of a clean boot. Nothing else was
-repeated.
+repeated. When it moved to 16.4.1, a minor, on 2026-10-23, the refusal was
+measured once more with `next start` and had the same shape
+(`audit-ci-allowlist.md`, "Seven advisories of 2026-10-22").
 
 - **A wrong scope fails the BUILD, before anything is migrated.** Next does not
   run `register()` during a build, so the boot hook alone would first meet a

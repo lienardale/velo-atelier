@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import {
   demoSpec,
@@ -46,12 +46,31 @@ const selectClass =
  * `useSearchParams`, which Next keeps in sync with `replaceState`. The page
  * wraps this component in `<Suspense>` with the unfiltered server-rendered list
  * as fallback, so the route stays static and crawlers see every guide.
+ *
+ * **What a change shows does not wait for that sync.** Next applies a
+ * `replaceState` to `useSearchParams` in a transition, and from 16.4.1 that
+ * transition can land 34–133 ms after the event (measured in the CI Linux
+ * image on the "for my bike" click, with the page's prefetches in flight;
+ * `.debug/017` §2.7). A controlled input whose value still comes from the old
+ * query is put BACK by React at the end of the event, so the checkbox showed
+ * unchecked until the router caught up, and Playwright's `check()` failed on
+ * it. So the query this component writes is also kept in state, set inside the
+ * handler — React flushes that before it restores the input — and read until
+ * `useSearchParams` moves. It is dropped as soon as it does, whether the
+ * router caught up or a navigation went elsewhere: kept any longer, a later
+ * navigation back to the query it was written over would show it again.
  */
 export function GuideFilters({ guides }: { guides: readonly GuideSummary[] }): React.JSX.Element {
   const t = useTranslations("guides");
   const tp = useTranslations("parts");
   const searchParams = useSearchParams();
-  const state = parseGuideFilter(searchParams);
+  const routerQuery = searchParams.toString();
+  // The query this component last wrote, and the router's query it was written
+  // over: read only while the router has not moved (see the doc comment).
+  const [written, setWritten] = useState<{ over: string; query: string } | null>(null);
+  if (written !== null && written.over !== routerQuery) setWritten(null);
+  const query = written !== null && written.over === routerQuery ? written.query : routerQuery;
+  const state = parseGuideFilter(new URLSearchParams(query));
   const storedBike = useSyncExternalStore(subscribe, readLocalBike, () => null);
 
   const localSpec = useMemo(() => specFromStoredBike(storedBike), [storedBike]);
@@ -61,12 +80,13 @@ export function GuideFilters({ guides }: { guides: readonly GuideSummary[] }): R
   const visible = filterGuides(guides, { kind: state.kind, system: state.system, spec });
 
   const update = (patch: Partial<GuideFilterState>) => {
-    const query = serializeGuideFilter({ ...state, ...patch }, window.location.search);
+    const next = serializeGuideFilter({ ...state, ...patch }, window.location.search);
+    setWritten({ over: routerQuery, query: next.replace(/^\?/, "") });
     // `null`, NOT `window.history.state`: Next's patched `replaceState` skips the
     // router sync (and `useSearchParams` never updates) when the data already
     // carries its internal `__NA` marker; given `null` it copies that marker in
     // itself (next/dist/client/components/app-router.js, 16.3.4).
-    window.history.replaceState(null, "", `${window.location.pathname}${query}`);
+    window.history.replaceState(null, "", `${window.location.pathname}${next}`);
   };
 
   const filtered = state.kind !== null || state.system !== null || state.bike !== null;

@@ -48,7 +48,7 @@ lowest clearing release is then pinned exactly (`mysql2`;
 `@oxc-project/types` — seventeen entries, all inside the hold, none named by
 an advisory — while the same edits applied in sequence moved thirteen
 (`audit-ci-allowlist.md`, “How the lockfile was resolved”). The first five are written **unscoped**
-(`"toml": "^4.2.0"`, not `"mdx-bundler": { "toml": … }`) on purpose — and the
+(`"toml": "^5.0.1"`, not `"mdx-bundler": { "toml": … }`) on purpose — and the
 reason is what the unscoped form _did_, not what the tree already looked like.
 `main` resolved two of them TWICE: `uuid@8.3.2` beside
 `mdx-bundler/node_modules/uuid@9.0.1`, and `tmp@0.1.0` beside
@@ -128,13 +128,27 @@ and 16.3.8 turned out to be the vendor's fix for these six a week before they
 were. [`audit-ci-allowlist.md`](./audit-ci-allowlist.md) has the table, the
 exposure facts and what the bump changed in the build.
 
+**And again on 2026-10-23, to 16.4.1 — a minor — by the same rule.** Two
+CRITICAL advisories, unauthenticated remote code execution in the Image
+Optimization API with SVG files (GHSA-2464-fhr4-w9xw) and in `use cache`
+functions returning typed arrays (GHSA-673q-mjm6-r5xr), and one high, a Server
+Actions DoS (GHSA-p3m5-59mp-jv5r), were published on 2026-10-22 from 15:50Z
+against every 16.x up to 16.4.0. 16.4.1 is the first patched release and was
+8 d 15 h old, past the hold. A minor changes what the boot hook rests on: all
+four files those facts were checked against differ from 16.3.8, so the
+refusal was measured again by behaviour (below, "A boot refusal is NOT an exit
+code"), not by identity. The same change moved the `toml` override to
+`^5.0.1` (a major; three DoS ids) and `ip-address` to 10.7.4. The allowlist's
+"Seven advisories of 2026-10-22" section has the table, the exposure as read
+and the gates.
+
 ---
 
 ## Stack
 
 | Layer      | Choice                                               | Notes                                                                             |
 | ---------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Framework  | Next.js **16.3.8** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
+| Framework  | Next.js **16.4.1** (App Router, Turbopack)           | `eslint-config-next` pinned to the same exact version                             |
 | Language   | TypeScript **5.9.x**                                 | capped `<7`; the TS 7 Go port breaks `next build` and `@typescript-eslint`        |
 | Runtime    | Node **24**                                          | `.nvmrc`, `engines.node`, CI `node-version-file`                                  |
 | i18n       | next-intl **v4**                                     | `localePrefix: 'always'`, `localeDetection: false`                                |
@@ -311,6 +325,17 @@ docs/                contributor and operator docs — every one is linked from 
   `data-hydrated="true"` on its `<section>` from a ref callback and e2e waits
   for that, not for the element: a click in that window is dropped, and
   `networkidle` is not "Next has finished prefetching" either (`.debug/011`).
+  **A controlled input whose value comes from `useSearchParams` reverts until
+  the router catches up.** Next applies our `replaceState` to
+  `useSearchParams` in a transition, and React puts a controlled input back to
+  its prop at the end of the event. From Next 16.4.1 that transition landed
+  34–133 ms after a click on `/guides`' "for my bike" checkbox (CI Linux image,
+  page prefetches in flight), and Playwright's `check()` failed on the
+  unchecked box. `GuideFilters` therefore also keeps the query it wrote in
+  state, set in the handler and read only until `useSearchParams` moves — and
+  dropped then, or a later navigation back to the old query would show it
+  again (`components/guides/GuideFilters.test.tsx`, `.debug/017` §2.7). A new
+  filter of that shape does the same.
 - **`server-only`** is imported only in `app/**` server files,
   `components/mdx/index.ts` (the MDX rendering boundary: importing that barrel
   from a client component fails the build), `lib/auth/password-policy.ts` and
@@ -506,8 +531,8 @@ docs/                contributor and operator docs — every one is linked from 
   that script — a local or CI build is `npm run build` /
   `bash scripts/ci/build.sh`.
   **A boot refusal is NOT an exit code** (Next 16.3.6, measured with
-  `next start`, and again on 16.3.8 when the pin moved — the W5 plan assumed
-  otherwise). `prepareImpl()` awaits
+  `next start`, and again on 16.3.8 and on 16.4.1 when the pin moved — the W5
+  plan assumed otherwise). `prepareImpl()` awaits
   `register()`, but `NextNodeServer`'s constructor fires
   `this.prepare().catch(err => console.error("Failed to prepare server", err))`,
   so the rejection is logged and swallowed there and `start-server.js`'s
@@ -1401,7 +1426,7 @@ scripts called with `bash` ran (`.debug/017`;
 - **The `boot` Vitest project** (`tests/boot/**`) spawns `next start` against
   the build ON DISK and asserts the environment contract on a real server, in
   four cases. `VERCEL_ENV=production ENABLE_TEST_PAGES=1` never answers
-  `/api/health` — three 500s on Next 16.3.6 and on 16.3.8 — and logs the
+  `/api/health` — three 500s on Next 16.3.6, 16.3.8 and 16.4.1 — and logs the
   `EnvValidationError` with the variable's name. That same refused server
   still serves `/tree-drawings.json`: an observation the design leans on, not
   a requirement, held so it cannot quietly stop being true — it is why the
