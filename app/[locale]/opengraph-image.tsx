@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
 import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
@@ -39,13 +40,22 @@ export function generateStaticParams(): Array<{ locale: string }> {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+/**
+ * Only those two; any other locale is a 404. The proxy redirects an unknown
+ * one (`/de/opengraph-image` → `/fr/de/opengraph-image`, a 404), but its
+ * matcher lets every path with a dot through untouched, as a file: without
+ * this line `/de.x/opengraph-image` reached this route, was drawn on demand
+ * with the default locale's card and cached on disk (.debug/017 §2.7).
+ */
+export const dynamicParams = false;
+
 export default async function SiteOpenGraphImage({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<ImageResponse> {
-  const { locale: requested } = await params;
-  const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
+  const { locale } = await params;
+  if (!hasLocale(routing.locales, locale)) notFound();
   const [t, font] = await Promise.all([
     getTranslations({ locale, namespace: "common" }),
     readFile(join(process.cwd(), "assets", "fonts", "Geist-Regular.ttf")),

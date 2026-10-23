@@ -775,12 +775,18 @@ next reader need not redo it:
   and `--webpack`, the fallback `scripts/ci/build.sh` names for
   prisma/prisma#29025, has never been applied.
   Related, and **not** changed by this bump: `guides/[slug]/page.tsx` sets
-  `dynamicParams = false`, the image route beside it exports no segment option
+  `dynamicParams = false`, the image route beside it exported no segment option
   of its own, and on 16.3.6 and 16.3.8 alike
-  `/fr/guides/<unknown>/opengraph-image` answers 200 with the generic card —
-  rendered on demand, then cached on disk — while the page answers 404. That
-  is this repository's code, not the advisory. It is noted here and left for
-  a change of its own.
+  `/fr/guides/<unknown>/opengraph-image` answered 200 with the generic card —
+  rendered on demand, then cached on disk — while the page answered 404. That
+  was this repository's code, not the advisory, and it was **fixed on
+  2026-10-19 by a change of its own**: both image routes now export
+  `dynamicParams = false` (the site card had the same shape, reached past the
+  proxy by any first segment with a dot in it, `/de.x/opengraph-image`), and
+  on Turbopack builds of 16.3.8 and, on 2026-10-23, of 16.4.1, every
+  unknown pair answers 404 with nothing written to disk. Without the fix,
+  16.4.1 still draws and caches the card. `.debug/017` §2.7 has the
+  measurements.
 - **GHSA-4jqv-mc3x-m676.** Pages Router, self-hosted; the advisory says
   applications deployed on Vercel are not affected. There is no `pages/`
   directory.
