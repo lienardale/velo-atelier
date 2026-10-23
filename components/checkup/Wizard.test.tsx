@@ -973,6 +973,55 @@ describe("an unfinished run, resumed (§5.10, §5.12)", () => {
     );
   });
 
+  it("…but a guest's whose own parts ask NOTHING here opens on the first named answer: it was given for parts the full checkup does not ask it about (§5.14)", async () => {
+    // A front derailleur's run, its bike since rebuilt as a 1x: the page plans
+    // `?parts=front-derailleur&resume=own` as the full checkup for it, handing
+    // down the derailleur's plan — empty.
+    const FRONT_DERAILLEUR = { kind: "parts" as const, partIds: ["front-derailleur" as const] };
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(partialRun({ [PADS.key]: "ok", [CALIPER.key]: "ok" }, FRONT_DERAILLEUR)),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({
+        resumeWidened: true,
+        widenedFrom: {
+          scope: FRONT_DERAILLEUR,
+          steps: [],
+          facts: scopeFacts(FRONT_DERAILLEUR, PLAN, []),
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", PADS.key),
+    );
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "vérifiez-les : « Mesurer l’usure des plaquettes »",
+    );
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+  });
+
+  it("…and so does a guest's whose parts the catalogue no longer knows", async () => {
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(
+        partialRun({ [PADS.key]: "ok", [CALIPER.key]: "ok" }, {
+          kind: "parts",
+          partIds: ["not-a-part"],
+        } as never),
+      ),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(wizard());
+    await waitFor(() =>
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", PADS.key),
+    );
+    expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull");
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+  });
+
   it("names the questions whose answers now count for every part they name — a saved bike's banner", async () => {
     const fromServer: StoredCheckup = {
       ...partialRun({ [PADS.key]: "ko", [CHAIN.key]: "ok" }, {

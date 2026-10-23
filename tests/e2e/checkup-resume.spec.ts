@@ -28,7 +28,12 @@
  *                     caliper — carries on as the full checkup, the answer put
  *                     back in front of the visitor, both lines kept (RA-1);
  *   stale addresses   a guest's run reached through a `?resume=` an earlier
- *                     run left goes back to its own parts (V1-1, V1-2).
+ *                     run left goes back to its own parts (V1-1, V1-2);
+ *   parts that ask    a guest's run on a 2x bike's front derailleur, the bike
+ *   nothing           then rebuilt as a 1x: its own parts ask nothing, and it
+ *                     carries on as the full checkup from every page — until
+ *                     §5.14 every page sent it to the empty page, whose one
+ *                     link sent it back there (V2-1).
  *
  * What is asserted is what PostgreSQL holds (`pg`, the pattern of
  * `checkup-twelfth-run.spec.ts`). Every test writes its own user and bike
@@ -43,8 +48,11 @@ import { buildOf, deriveBike } from "../../lib/bike/rules";
 import { BIKE_PRESETS } from "../../lib/domain/data/presets";
 import { resolveTestEnv } from "../_fakes/db";
 
+import { LOCAL_BIKE_KEY } from "../../lib/bike/storage-keys";
+
 import { storedBuildList, storedCheckup } from "./_checkup";
 import { expect, forEachLocale, href, test, type Locale } from "./_fixtures";
+import { localBikePayload } from "./_local-bike";
 
 const CHECKUP: Record<Locale, typeof frCheckup> = { fr: frCheckup, en: enCheckup };
 
@@ -52,6 +60,13 @@ const PAD_WEAR = "check-brakes-disc#pad-wear";
 const ALIGNMENT = "check-brakes-disc#caliper-alignment";
 const CHAIN = "check-drivetrain#chain-wear";
 const TREAD = "check-wheels-tires#tread-sidewalls-tubeless";
+const SHIFTING = "check-drivetrain#shifting-index";
+
+/** The shifting question's title, in each guide's language (`content/guides/check-drivetrain`). */
+const SHIFTING_TITLE: Record<Locale, string> = {
+  fr: "Essayer tous les rapports",
+  en: "Run through every gear",
+};
 
 /** The labels the covered-parts sentence names, per locale (`messages/*\/parts.json`). */
 const REAR_PADS: Record<Locale, string> = {
@@ -719,5 +734,69 @@ forEachLocale((locale) => {
         url.searchParams.get("resume") === "own",
     );
     await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopePartial);
+  });
+
+  test(`a guest's front-derailleur run, the bike then rebuilt as a 1x: its parts ask nothing, and it carries on as the full checkup from every page — never round an empty page (${locale})`, async ({
+    page,
+  }) => {
+    const twoX = localBikePayload(BIKE_PRESETS["road-rim-2x11"]);
+    const oneX = localBikePayload(BIKE_PRESETS["gravel-1x11"]);
+    const setBike = (raw: string) =>
+      page.evaluate(([key, value]) => window.localStorage.setItem(key, value), [
+        LOCAL_BIKE_KEY,
+        raw,
+      ] as const);
+    await page.goto(href(locale, "/"));
+    await setBike(twoX.raw);
+    await page.goto(
+      href(
+        locale,
+        "/velo/[id]/controle",
+        { id: "local" },
+        { spec: twoX.specCode, parts: "front-derailleur" },
+      ),
+    );
+    await page.getByTestId("checkup-start").click();
+    await answer(page, SHIFTING, "ok");
+    await expect
+      .poll(async () => (await storedCheckup(page, "local"))?.answers[SHIFTING])
+      .toBe("ok");
+    // What the tree writes when the bike is generated again: nothing clears the run.
+    await setBike(oneX.raw);
+
+    const ownParts = (url: URL) =>
+      url.searchParams.get("parts") === "front-derailleur" &&
+      url.searchParams.get("resume") === "own";
+    const notice = t.resumed.partialAsFullNamed.replace(
+      "{questions}",
+      t.resumed.question.replace("{title}", SHIFTING_TITLE[locale]),
+    );
+    const heldThere = async () => {
+      await page.waitForURL(ownParts);
+      // Until §5.14: "Rien à contrôler ici", and its one link sent the run back.
+      await expect(page.getByTestId("checkup-wizard")).toHaveAttribute("data-phase", "step");
+      await expect(page.getByTestId("checkup-scope")).toHaveText(t.scopeFull);
+      await expect(page.getByTestId("checkup-resumed")).toHaveText(notice);
+      await expect(page.getByTestId("checkup-full-cta")).toHaveCount(0);
+    };
+    // The full checkup and a part pick: both go to the run's own parts, which
+    // here ask nothing — the full checkup for the run.
+    const queries: Record<string, string>[] = [
+      { spec: oneX.specCode },
+      { spec: oneX.specCode, parts: "chain" },
+    ];
+    for (const query of queries) {
+      await page.goto(href(locale, "/velo/[id]/controle", { id: "local" }, query));
+      await heldThere();
+    }
+    // The bike page's "Reprendre le contrôle" carries the run's parts: the
+    // empty page — no question applies to them on this bike — whose link is
+    // the full checkup, which takes the run to where it is held.
+    await page.goto(href(locale, "/velo/[id]", { id: "local" }));
+    await page.getByTestId("resume-cta").click();
+    await expect(page.getByTestId("checkup-full-cta")).toHaveText(t.emptyCta);
+    await page.getByTestId("checkup-full-cta").click();
+    await heldThere();
+    expect((await storedCheckup(page, "local"))?.answers[SHIFTING]).toBe("ok");
   });
 });

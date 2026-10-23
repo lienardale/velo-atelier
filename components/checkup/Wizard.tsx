@@ -15,6 +15,7 @@ import { deriveBuildList, mergeGuestBuildList } from "@/lib/checkup/build-list";
 import { createCheckupState, reduce } from "@/lib/checkup/reducer";
 import {
   guestResumeTarget,
+  knownParts,
   scopeFacts,
   type OtherPlan,
   type ResumeTarget,
@@ -671,7 +672,11 @@ function factsOf(props: WizardProps, stored: StoredCheckup): ScopeFacts {
  *                                       again;
  *   its own parts (`?resume=own`)       a partial run opened anywhere else —
  *                                       its answers count for the parts they
- *                                       were given for, and nowhere else.
+ *                                       were given for, and nowhere else. On
+ *                                       parts that ask nothing on this bike
+ *                                       today, that address is planned as the
+ *                                       full checkup for the run, which then
+ *                                       takes it over (`page.tsx`, §5.14).
  *
  * A finished run is history, never resumed, so never a reason. A saved bike's
  * run is judged by the server, which read its rows and planned the page
@@ -711,12 +716,14 @@ function namesSeveralParts(step: CheckStepRef): boolean {
  *
  *   partialAsFull   a run opened on some parts, resumed over every question —
  *                   a saved bike's whose rows cannot tell its parts, or one
- *                   the full checkup takes over (`carriedOnWhole`). Its
+ *                   the full checkup takes over (`carriedOnWhole`; a guest's
+ *                   whose own parts ask nothing on this bike among them). Its
  *                   answers to questions that name several parts now count
  *                   for each of them: the sentence says so and NAMES those
  *                   questions (`questions`), so that the visitor knows which
- *                   answers to check — and a saved bike's wizard opens on the
- *                   first of them ({@link restore});
+ *                   answers to check — and the wizard opens on the first of
+ *                   them where they may count for parts they were not given
+ *                   for ({@link showsNamedFirst});
  *   fullInProgress  a full run in progress, which the parts asked for could
  *                   only have narrowed;
  *   ownParts        a run brought back to the parts it was opened on — a
@@ -786,20 +793,45 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
   // also what a deep link into one question of a checkup means.
   const at = stepIndexOf(restored, props.initialStepKey);
   if (at >= 0) return { ...restored, cursor: at };
-  // A saved bike's partial run carried on as the full checkup opens no later
-  // than the first answer the notice names — given for some of its question's
-  // parts, perhaps, and now counted for every one — so that the visitor, going
-  // on from question to question, sees it again: earlier if a question before
-  // it is still open, never past it (`.debug/017` §5.13, RA-3; until then the
-  // wizard opened on the first open question, after it, and the answer was
-  // never shown). A guest's never needs it: the full checkup takes a guest's
-  // run over only when it asks every answer about what it was given for.
-  const notice = props.bikeRef.kind === "db" ? resumeNoticeOf(props, stored) : null;
+  // A partial run carried on as the full checkup where its answers may now
+  // count for parts they were not given for opens no later than the first
+  // answer the notice names, so that the visitor, going on from question to
+  // question, sees it again: earlier if a question before it is still open,
+  // never past it (`.debug/017` §5.13, RA-3; until then the wizard opened on
+  // the first open question, after it, and the answer was never shown) —
+  // see {@link showsNamedFirst} for which runs.
+  const notice = showsNamedFirst(props, stored) ? resumeNoticeOf(props, stored) : null;
   const named =
     notice?.kind === "partialAsFull" && notice.questions.length > 0
       ? stepIndexOf(restored, notice.questions[0])
       : -1;
   return named < 0 ? restored : { ...restored, cursor: Math.min(named, restored.cursor) };
+}
+
+/**
+ * Does the full checkup count a resumed partial run's answers for parts they
+ * may not have been given for — so that it opens on the first one it names?
+ *
+ *   a saved bike's   yes (§5.13, RA-3): the page carries one on here when its
+ *                    rows cannot tell its parts — an answer given for one
+ *                    side then counts for both — or when the full checkup
+ *                    takes over the run they tell; this component is not
+ *                    told which, and opens on the named answer in both;
+ *   a guest's        only when the parts it was opened on ask NOTHING on
+ *                    this bike today — the page plans `?resume=own` on them as
+ *                    the full checkup for them (`widenedFrom` with no step:
+ *                    the left shifter's run of before 2026-10-22, a front
+ *                    derailleur's once the guest bike is a 1x, `.debug/017`
+ *                    §5.14) — or name no part the catalogue knows. Its
+ *                    answers were then given for parts the full checkup does
+ *                    not ask them about. Otherwise never: the full checkup
+ *                    takes a guest's run over only when it asks every answer
+ *                    about what it was given for (`guestResumeTarget`).
+ */
+function showsNamedFirst(props: WizardProps, stored: StoredCheckup | null): boolean {
+  if (props.bikeRef.kind === "db") return true;
+  if (stored === null || stored.scope.kind !== "parts") return false;
+  return knownParts(stored.scope) === null || props.widenedFrom?.steps.length === 0;
 }
 
 /**

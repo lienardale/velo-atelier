@@ -120,7 +120,9 @@ const { buildListKey, checkupKey } = await import("@/lib/bike/storage-keys");
 const { toStored } = await import("@/lib/checkup/storage");
 const { encodeSpec } = await import("@/lib/bike/spec-codec");
 const { CONTENT_VERSION } = await import("@/lib/content/generated/version");
-const { guestRun, guestWork, partsScope } = await import("@/tests/_helpers/guest-work");
+const { guestRun, guestWork, partsScope, planBeforeTheScopeRule, planFromDisk } =
+  await import("@/tests/_helpers/guest-work");
+const { PARTS } = await import("@/lib/domain/data/parts");
 
 type WizardProps = import("@/components/checkup/Wizard").WizardProps;
 type GuestState = import("@/lib/guest/schema").GuestState;
@@ -1698,4 +1700,527 @@ describe("§5.13 a guest's checkup of before 2026-10-22, imported: a partial che
     expect(rim.reasonKeys).toEqual(["rim-brake-track-worn"]);
     expect(after.states).toEqual({});
   }, 60_000);
+});
+
+// ── §5.14: no page sends a run round an empty page ───────────────────────────
+
+const SHIFTING = "check-drivetrain#shifting-index";
+const SHIFTING_TITLE = "« Essayer tous les rapports »";
+
+/** What the page renders for an address: the wizard, or the empty page and its one link. */
+type Rendered =
+  { kind: "wizard"; props: WizardProps } | { kind: "empty"; cta: Record<string, string> };
+
+/** The element of `node`'s tree whose `data-testid` is `id` — the page's output is not rendered. */
+function byTestId(node: unknown, id: string): React.ReactElement<Record<string, unknown>> | null {
+  if (node === null || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = byTestId(child, id);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+  const element = node as React.ReactElement<Record<string, unknown>>;
+  if (element.props?.["data-testid"] === id) return element;
+  return byTestId(element.props?.children, id);
+}
+
+/** The real page for `bikeParam` at `search`, NOT rendered: the wizard's props, or the empty page's link. */
+async function pageAt(bikeParam: string, search: string): Promise<Rendered> {
+  window.history.replaceState(
+    null,
+    "",
+    `/fr/velo/${bikeParam}/controle${search === "" ? "" : `?${search}`}`,
+  );
+  const element = (await CheckupPage({
+    params: Promise.resolve({ locale: "fr", id: bikeParam }),
+    searchParams: Promise.resolve(Object.fromEntries(new URLSearchParams(search))),
+  })) as React.ReactElement<{ children?: React.ReactElement<WizardProps> }>;
+  const child = element.props.children;
+  if (child !== undefined && child.type === Wizard) {
+    return { kind: "wizard", props: { ...child.props, guideNodes: {} } };
+  }
+  const cta = byTestId(element, "checkup-full-cta");
+  if (cta === null)
+    throw new Error(`the page at "${search}" is neither the wizard nor the empty page`);
+  const href = cta.props.href as { pathname: string; query?: Record<string, string> };
+  expect(href.pathname).toBe("/velo/[id]/controle");
+  return { kind: "empty", cta: href.query ?? {} };
+}
+
+/**
+ * Every page the visitor is taken through from `search`: the wizard's leaves
+ * (`replaceDocument`) and the empty page's one link, followed until a wizard
+ * stays. Fails on an address seen twice — the visitor going round — or after
+ * `limit` pages.
+ */
+async function walk(
+  bikeParam: string,
+  search: string,
+  limit = 5,
+): Promise<{ trail: string[]; props: WizardProps }> {
+  const trail: string[] = [];
+  let at = search;
+  for (let hop = 0; hop < limit; hop += 1) {
+    if (trail.includes(at)) throw new Error(`round again: ${[...trail, at].join(" → ")}`);
+    trail.push(at);
+    cleanup();
+    resetStoredCheckupCache();
+    leave.replaceDocument.mockClear();
+    const rendered = await pageAt(bikeParam, at);
+    if (rendered.kind === "empty") {
+      at = new URLSearchParams(rendered.cta).toString();
+      continue;
+    }
+    await renderWithIntl(createElement(Wizard, rendered.props));
+    await settle();
+    const left = leave.replaceDocument.mock.calls.at(-1)?.[0];
+    if (left === undefined) return { trail, props: rendered.props };
+    at = new URL(left, "http://localhost").search.replace(/^\?/, "");
+  }
+  throw new Error(`no wizard after ${limit} pages: ${trail.join(" → ")}`);
+}
+
+/**
+ * The run's answer to `key` is on screen, or will be before the visitor goes
+ * past it: the wizard opens no later than the first answer the notice names
+ * (`.debug/017` §5.13, RA-3) — earlier when a question before it is open.
+ */
+function notPast(steps: readonly { key: string }[], key: string): void {
+  const at = steps.findIndex((step) => step.key === key);
+  expect(at).toBeGreaterThanOrEqual(0);
+  expect(steps.findIndex((step) => step.key === onScreen())).toBeLessThanOrEqual(at);
+}
+
+type PresetId = keyof typeof BIKE_PRESETS;
+const PRESET_IDS = Object.keys(BIKE_PRESETS) as PresetId[];
+const buildOf = (preset: PresetId) => {
+  const derived = deriveBike(BIKE_PRESETS[preset]);
+  return { spec: derived.spec, parts: derived.parts };
+};
+
+/**
+ * The stored scopes that ask nothing on a preset while a run on them can hold
+ * an answer that preset is asked — computed in the case below, pinned here so
+ * that a corpus change that empties the list fails it instead of making it
+ * vacuous: the left shifter on the two 2x presets (a question until
+ * 2026-10-22, none today), and on the 1x ones the front derailleur, the left
+ * shifter and the two together (a 2x bike rebuilt as a 1x).
+ */
+const EMPTY_OWN_CASES = [
+  "emtb-mid-1x12:front-derailleur",
+  "emtb-mid-1x12:front-derailleur+shifter-left",
+  "emtb-mid-1x12:shifter-left",
+  "gravel-1x11:front-derailleur",
+  "gravel-1x11:front-derailleur+shifter-left",
+  "gravel-1x11:shifter-left",
+  "mtb-full-dropper-1x12:front-derailleur",
+  "mtb-full-dropper-1x12:front-derailleur+shifter-left",
+  "mtb-full-dropper-1x12:shifter-left",
+  "mtb-hardtail-1x12:front-derailleur",
+  "mtb-hardtail-1x12:front-derailleur+shifter-left",
+  "mtb-hardtail-1x12:shifter-left",
+  "road-disc-2x12:shifter-left",
+  "road-rim-2x11:shifter-left",
+];
+
+describe("§5.14 a guest's run whose own parts ask nothing on this bike (V2-1)", () => {
+  const stored = (ref: "demo" | "local" = "local") =>
+    JSON.parse(window.localStorage.getItem(checkupKey(ref)) ?? "null") as {
+      scope: unknown;
+      answers: Record<string, string>;
+    } | null;
+
+  it("VG-TRAP2: a front-derailleur run of a 2x guest bike, the bike rebuilt as a 1x — every checkup page ends on the full checkup, the answer kept, named and on screen", async () => {
+    // Today's planner, on the 2x bike: the front derailleur asks the shifting
+    // question, of itself alone. On the 1x bike it asks nothing.
+    const run = guestRun({
+      id: "99999999-9999-4999-8999-999999999999",
+      build: buildOf("road-rim-2x11"),
+      scope: partsScope("front-derailleur"),
+      verdicts: { [SHIFTING]: "ok" },
+      startedAt: "2026-10-23T08:00:00.000Z",
+    });
+    const raw = JSON.stringify({ ...toStored(run), bikeRef: { kind: "local" } });
+    window.localStorage.setItem(checkupKey("local"), raw);
+    const spec = encodeSpec(BIKE_PRESETS["gravel-1x11"]);
+    const own = new URLSearchParams({ spec, parts: "front-derailleur", resume: "own" }).toString();
+
+    // The full checkup, the chain, a caliper: each sends the run to its own parts.
+    for (const search of [
+      new URLSearchParams({ spec }).toString(),
+      new URLSearchParams({ spec, parts: "chain" }).toString(),
+      new URLSearchParams({ spec, parts: "brake-caliper-front" }).toString(),
+    ]) {
+      cleanup();
+      resetStoredCheckupCache();
+      leave.replaceDocument.mockClear();
+      await open("local", search);
+      expect(phase()).toBe("resuming");
+      expect(leave.replaceDocument).toHaveBeenCalledWith(`/fr/velo/local/controle?${own}`);
+    }
+    // Which, asking nothing here, is the full checkup for the run — until
+    // §5.14 the empty page, whose one link sent the run back to it.
+    cleanup();
+    resetStoredCheckupCache();
+    leave.replaceDocument.mockClear();
+    const page = await open("local", own);
+    expect(page.props.scope).toEqual({ kind: "full" });
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      `comptent désormais pour chacune d'elles — vérifiez-les : ${SHIFTING_TITLE}.`,
+    );
+    // Given for the front derailleur, it now counts for the rear one and the
+    // right shifter: named, and on screen before the visitor goes past it.
+    notPast(page.props.steps, SHIFTING);
+    expect(window.localStorage.getItem(checkupKey("local"))).toBe(raw);
+    for (let guard = 0; guard < 80 && onScreen() !== SHIFTING; guard += 1) {
+      await page.user.click(screen.getByTestId("verdict-ok"));
+    }
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    await pagehide();
+    // Answered on, the run is the full checkup's, the answer still there.
+    expect(stored()?.scope).toEqual({ kind: "full" });
+    expect(stored()?.answers[SHIFTING]).toBe("ok");
+  }, 60_000);
+
+  it("VG-TRAP: a left-shifter run of before 2026-10-22 — a question then, none today — ends on the full checkup from every page", async () => {
+    const build = buildOf("road-rim-2x11");
+    expect(planFromDisk(build, partsScope("shifter-left"))).toEqual([]);
+    expect(planBeforeTheScopeRule(build, partsScope("shifter-left")).map((s) => s.key)).toEqual([
+      SHIFTING,
+    ]);
+    const old = guestRun({
+      id: "88888888-8888-4888-8888-888888888888",
+      build,
+      scope: partsScope("shifter-left"),
+      verdicts: { [SHIFTING]: "ok" },
+      startedAt: "2026-10-14T08:00:00.000Z",
+      planner: "before-2026-10-22",
+    });
+    window.localStorage.setItem(
+      checkupKey("local"),
+      JSON.stringify({ ...toStored(old), bikeRef: { kind: "local" } }),
+    );
+    const spec = encodeSpec(BIKE_PRESETS["road-rim-2x11"]);
+    const own = new URLSearchParams({ spec, parts: "shifter-left", resume: "own" }).toString();
+    for (const search of [
+      new URLSearchParams({ spec }).toString(),
+      new URLSearchParams({ spec, parts: "chain" }).toString(),
+      new URLSearchParams({ spec, parts: "brake-caliper-front" }).toString(),
+    ]) {
+      expect((await walk("local", search)).trail).toEqual([search, own]);
+    }
+    // The bike page's "Reprendre le contrôle" carries the run's own parts: the
+    // empty page — true, no question applies to them — whose link is the full
+    // checkup, which takes the run to the page that holds it.
+    const banner = new URLSearchParams({ spec, parts: "shifter-left" }).toString();
+    const { trail, props } = await walk("local", banner);
+    expect(trail).toEqual([banner, `spec=${spec}`, own]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(SHIFTING_TITLE);
+    notPast(props.steps, SHIFTING);
+  }, 60_000);
+
+  it("every stored scope that asks nothing on a preset, from every page, ends on a wizard that holds the run's answer — never round an empty page", async () => {
+    // Every run that can hold an answer such a page cannot ask: on each preset,
+    // every part (and the union of them) that asks nothing there, answered on
+    // any preset by today's planner or by the one of before 2026-10-22 — and
+    // two scopes the page cannot read at all.
+    const full = new Map(PRESET_IDS.map((id) => [id, planFromDisk(buildOf(id), { kind: "full" })]));
+    const cases: { on: PresetId; partIds: string[]; key: string }[] = [];
+    for (const on of PRESET_IDS) {
+      const asked = new Set(full.get(on)?.map((step) => step.key));
+      const empty = PARTS.map((part) => part.id).filter(
+        (partId) => planFromDisk(buildOf(on), partsScope(partId)).length === 0,
+      );
+      const answerable = (partIds: string[]): string | undefined =>
+        PRESET_IDS.flatMap((from) => [
+          ...planFromDisk(buildOf(from), partsScope(...partIds)),
+          ...planBeforeTheScopeRule(buildOf(from), partsScope(...partIds)),
+        ])
+          .map((step) => step.key)
+          .find((key) => asked.has(key));
+      for (const partId of empty) {
+        const key = answerable([partId]);
+        if (key !== undefined) cases.push({ on, partIds: [partId], key });
+      }
+      const all = empty.filter((partId) => answerable([partId]) !== undefined);
+      if (all.length > 1 && planFromDisk(buildOf(on), partsScope(...all)).length === 0) {
+        cases.push({ on, partIds: all, key: answerable(all) as string });
+      }
+    }
+    // The corpus as it stands: the shifting question, through the left
+    // shifter on the two 2x presets, the front derailleur and the left
+    // shifter on the four 1x ones (the city bike's hub gear is not asked it).
+    expect(new Set(cases.map((entry) => entry.key))).toEqual(new Set([SHIFTING]));
+    expect(cases.map((entry) => `${entry.on}:${entry.partIds.join("+")}`).sort()).toEqual(
+      EMPTY_OWN_CASES,
+    );
+
+    for (const { on, partIds, key } of cases) {
+      const run = {
+        ...toStored(
+          guestRun({
+            id: "77777777-7777-4777-8777-777777777771",
+            build: buildOf(on),
+            scope: { kind: "full" },
+            verdicts: { [key]: "ok" },
+            startedAt: "2026-10-14T08:00:00.000Z",
+          }),
+        ),
+        scope: partsScope(...partIds),
+        bikeRef: { kind: "local" as const },
+      };
+      window.localStorage.setItem(checkupKey("local"), JSON.stringify(run));
+      const spec = encodeSpec(BIKE_PRESETS[on]);
+      const parts = partIds.join(",");
+      const queries: Record<string, string>[] = [
+        { spec },
+        { spec, parts },
+        { spec, parts: "chain" },
+        { spec, parts, resume: "own" },
+        { spec, parts, resume: "full" },
+        { spec, resume: "full" },
+      ];
+      for (const query of queries) {
+        const search = new URLSearchParams(query).toString();
+        const { trail, props } = await walk("local", search);
+        // The page that stays: the full checkup, the run's answer named and
+        // not past, nothing written by the pages on the way.
+        expect({
+          on,
+          parts,
+          trail,
+          scope: screen.getByTestId("checkup-scope").textContent,
+        }).toEqual({ on, parts, trail, scope: "Contrôle complet" });
+        expect(screen.getByTestId("checkup-resumed")).toHaveAttribute(
+          "data-notice",
+          "partialAsFull",
+        );
+        notPast(props.steps, key);
+        expect(stored()?.answers).toEqual({ [key]: "ok" });
+      }
+    }
+
+    // A scope the page cannot read — no part, or none the catalogue knows —
+    // and an answer the corpus dropped: a wizard everywhere too.
+    const spec = encodeSpec(BIKE_PRESETS["gravel-1x11"]);
+    for (const [scope, answers] of [
+      [{ kind: "parts", partIds: [] }, { [CHAIN]: "ok" }],
+      [{ kind: "parts", partIds: ["not-a-part"] }, { [CHAIN]: "ok" }],
+      [partsScope("shifter-left"), { "check-retired#gone": "ok" }],
+    ] as const) {
+      window.localStorage.setItem(
+        checkupKey("local"),
+        JSON.stringify({
+          ...toStored(
+            guestRun({
+              id: "77777777-7777-4777-8777-777777777772",
+              build: buildOf("gravel-1x11"),
+              scope: { kind: "full" },
+              verdicts: {},
+              startedAt: "2026-10-14T08:00:00.000Z",
+            }),
+          ),
+          scope,
+          answers,
+          bikeRef: { kind: "local" },
+        }),
+      );
+      const queries: Record<string, string>[] = [
+        { spec },
+        { spec, parts: "chain" },
+        { spec, parts: "shifter-left" },
+        { spec, parts: "shifter-left", resume: "own" },
+        { spec, resume: "full" },
+      ];
+      for (const query of queries) {
+        await walk("local", new URLSearchParams(query).toString());
+        expect(screen.getByTestId("checkup-wizard")).toBeInTheDocument();
+      }
+    }
+  }, 240_000);
+});
+
+describe("§5.14 a saved bike's run whose parts ask nothing: every page ends on a wizard", () => {
+  it("an imported left-shifter run of before 2026-10-22 — its one row on the left shifter — from the banner, its own parts and another part", async () => {
+    const user = await signedInUser("resume-v21-import@velo-atelier.test");
+    const work = guestWork({
+      answers: BIKE_PRESETS["road-rim-2x11"],
+      bikeId: "31111111-2222-4333-8444-555555555555",
+      checkup: (build) =>
+        guestRun({
+          id: "8f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a93",
+          build,
+          scope: partsScope("shifter-left"),
+          verdicts: { [SHIFTING]: "ok" },
+          startedAt: "2026-10-14T08:00:00.123Z",
+          planner: "before-2026-10-22",
+        }),
+      list: false,
+    });
+    const payload = JSON.parse(JSON.stringify(work.collect().state)) as GuestState;
+    const imported = await importGuestState(prisma, user.id, payload, { plan: planForBuild });
+    if (!imported.ok || imported.data.bikeId === null) throw new Error("not imported");
+    const bikeId = imported.data.bikeId;
+    expect((await rowsOf(bikeId)).checkups[0]).toMatchObject({
+      scope: "PARTIAL",
+      status: "IN_PROGRESS",
+      items: [`${SHIFTING}=OK@shifter-left`],
+    });
+
+    // Its rows tell the left shifter, which asks nothing: the full checkup
+    // takes the run over from every page (`savedResumeTarget` never sends a
+    // run to parts that ask nothing — `own` needs an answer narrowed there).
+    expect((await walk(bikeId, "")).trail).toEqual([""]);
+    expect((await walk(bikeId, "parts=chain")).trail).toEqual(["parts=chain"]);
+    // Its own parts: the empty page — no question applies to them — and its
+    // link, the full checkup.
+    const { trail, props } = await walk(bikeId, "parts=shifter-left");
+    expect(trail).toEqual(["parts=shifter-left", ""]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(SHIFTING_TITLE);
+    notPast(props.steps, SHIFTING);
+    // Opening pages wrote nothing.
+    expect((await rowsOf(bikeId)).checkups[0].items).toEqual([`${SHIFTING}=OK@shifter-left`]);
+  }, 60_000);
+
+  it("a front-derailleur run of a 2x bike, the bike then rebuilt as a 1x: the full checkup from every page", async () => {
+    const user = await signedInUser("resume-v21-rebuilt@velo-atelier.test");
+    const two = deriveBike(BIKE_PRESETS["road-rim-2x11"]);
+    const bike = await prisma.bike.create({
+      data: {
+        userId: user.id,
+        name: "Route",
+        answers: two.answers,
+        spec: two.spec,
+        parts: two.parts as unknown as Prisma.InputJsonValue,
+        partStates: { create: two.parts.map((part) => ({ partId: part.partId })) },
+      },
+      select: { id: true },
+    });
+    const page = await open(bike.id, "parts=front-derailleur");
+    await start(page.user);
+    await verdict(page.user, SHIFTING, "ok");
+    await pagehide();
+    cleanup();
+    expect((await rowsOf(bike.id)).checkups[0].items).toEqual([`${SHIFTING}=OK@front-derailleur`]);
+    // `updateBikeAction`'s write: the bike is a 1x now.
+    const one = deriveBike(BIKE_PRESETS["gravel-1x11"]);
+    await prisma.bike.update({
+      where: { id: bike.id },
+      data: {
+        answers: one.answers,
+        spec: one.spec,
+        parts: one.parts as unknown as Prisma.InputJsonValue,
+      },
+    });
+    for (const search of ["", "parts=chain", "parts=front-derailleur", "parts=shifter-left"]) {
+      const { trail, props } = await walk(bike.id, search);
+      expect(trail).toEqual([search]);
+      expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+      expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(SHIFTING_TITLE);
+      notPast(props.steps, SHIFTING);
+    }
+    expect((await rowsOf(bike.id)).checkups[0].items).toEqual([`${SHIFTING}=OK@front-derailleur`]);
+  }, 60_000);
+});
+
+describe("§5.14 an unfinished old partial checkup, imported with a touched KO (V2-3)", () => {
+  it("VI-B6KO-UNFINISHED: imported PARTIAL on its rear caliper; the account's first page carries it on as the full checkup, says so and shows it first — as the guest's own browser does", async () => {
+    const user = await signedInUser("resume-v23@velo-atelier.test");
+    const verdicts = { [PAD_WEAR]: { ko: ["pad-worn"] }, [HOSE_LEAK]: { ko: ["hose-leak"] } };
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: "9f1d7a52-2222-4333-8444-555555555555",
+      checkup: (build) =>
+        guestRun({
+          id: "9f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a92",
+          build,
+          scope: partsScope("brake-caliper-rear"),
+          verdicts,
+          startedAt: "2026-10-14T08:00:00.123Z",
+          planner: "before-2026-10-22",
+        }),
+      list: false,
+    });
+    const payload = JSON.parse(JSON.stringify(work.collect().state)) as GuestState;
+    const imported = await importGuestState(prisma, user.id, payload, { plan: planForBuild });
+    if (!imported.ok || imported.data.bikeId === null) throw new Error("not imported");
+    const bikeId = imported.data.bikeId;
+    // The import acts on nothing: an unfinished checkup writes rows only.
+    expect(await rowsOf(bikeId)).toMatchObject({
+      checkups: [
+        {
+          scope: "PARTIAL",
+          status: "IN_PROGRESS",
+          items: [`${HOSE_LEAK}=KO@brake-caliper-rear`, `${PAD_WEAR}=KO@brake-caliper-rear`],
+        },
+      ],
+      lines: [],
+      states: {},
+    });
+
+    // The banner. The rows tell the rear caliper, but its page cannot hold a
+    // KO to a question it only touches: the full checkup takes the run over.
+    const page = await open(bikeId);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      `vérifiez-les : ${PADS_TITLE} et « Chercher une fuite de liquide ».`,
+    );
+    expect(onScreen()).toBe(PAD_WEAR);
+    await answerTheRest(page.user, {
+      [PAD_WEAR]: { ko: "pad-worn" },
+      [HOSE_LEAK]: { ko: "hose-leak" },
+    });
+    await page.user.click(screen.getByTestId("summary-create"));
+    await answered();
+    const after = await rowsOf(bikeId);
+    expect(after.checkups).toHaveLength(1);
+    expect(after.checkups[0]).toMatchObject({ scope: "FULL", status: "COMPLETED" });
+    expect(after.checkups[0].items).toEqual(
+      expect.arrayContaining([
+        `${PAD_WEAR}=KO@brake-caliper-front`,
+        `${HOSE_LEAK}=KO@brake-lever-front`,
+      ]),
+    );
+    expect(after.lines).toEqual([
+      "INSPECT_SHOP brake-line-front",
+      "INSPECT_SHOP brake-line-rear",
+      "REPLACE brake-pads-front",
+      "REPLACE brake-pads-rear",
+    ]);
+
+    // The same run in the guest's own browser: also the full checkup (S6).
+    cleanup();
+    resetStoredCheckupCache();
+    leave.replaceDocument.mockClear();
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify({
+        ...toStored(
+          guestRun({
+            id: "9f1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a93",
+            build: buildOf("gravel-1x11"),
+            scope: partsScope("brake-caliper-rear"),
+            verdicts,
+            startedAt: "2026-10-14T08:00:00.123Z",
+            planner: "before-2026-10-22",
+          }),
+        ),
+        bikeRef: { kind: "demo" },
+      }),
+    );
+    const { trail } = await walk("demo", "");
+    expect(trail).toEqual([
+      "",
+      "parts=brake-caliper-rear&resume=own",
+      "parts=brake-caliper-rear&resume=full",
+    ]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+  }, 90_000);
 });

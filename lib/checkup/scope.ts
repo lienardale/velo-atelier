@@ -88,7 +88,14 @@
  *     rear caliper); and on from there to the full checkup only when the full
  *     checkup asks every one of its answers about what it was given for —
  *     which the full page checks again for itself, from the parts its own
- *     address names, rather than taking `?resume=full` at its word (V1-2);
+ *     address names, rather than taking `?resume=full` at its word (V1-2) —
+ *     or when those parts ask NOTHING on this bike today (the left shifter's
+ *     run of before 2026-10-22; a front derailleur's, once the guest bike is
+ *     rebuilt as a 1x): the page plans their address as the full checkup for
+ *     the run, whose plan of them, empty, narrows no answer
+ *     ({@link carriedOnWhole}), and the wizard says what the answers now
+ *     count for and opens on them (§5.14, V2-1: until then that address was
+ *     the empty page, whose one link sent the run back to it);
  *   - a SAVED bike's run does not: `Checkup.scope` is `FULL | PARTIAL`, and
  *     there is no column for the parts. {@link savedResumeTarget} reads them
  *     from two things that can say it. The page's own address, when it
@@ -353,7 +360,11 @@ export function narrowedAnswer(run: RunAnswers, scoped: readonly PlannedQuestion
  *   - `scope` does not hold the run: a run of before 2026-10-22, answered
  *     beyond its parts (§5.10, R1), or with a touched KO or a withheld
  *     symptom (§5.12) — its answers were given to whole questions;
- *   - or no answer is to a question `scope` asks of only some of its parts.
+ *   - or no answer is to a question `scope` asks of only some of its parts —
+ *     which is also true when `scope` asks nothing at all: its parts then
+ *     have no page of their own to resume on (§5.14), and the full checkup
+ *     is the only one left. That is the one case where it counts an answer
+ *     for more than it was given for, and the wizard says so.
  */
 export function carriedOnWhole(
   run: RunAnswers,
@@ -407,10 +418,16 @@ export interface GuestRun extends RunAnswers {
  *   on its own parts                     → the page when it holds the run,
  *                                          the full checkup otherwise.
  *
+ * Own parts that ask nothing on this bike today have no page: the page plans
+ * `?resume=own` on them as the full checkup reached FOR the run, with their
+ * empty plan as `widenedFrom` (`page.tsx`, `.debug/017` §5.14), and the run
+ * is held there — so no run is ever sent to a page with no question.
+ *
  * Nothing the address says decides which part an answer counts for: `?resume=`
  * only chooses between two pages that both ask every answer about what it was
  * given for (`.debug/017` §5.13, V1-1 and V1-2 — the address was once taken
- * at its word, and a stale one moved a run's answers).
+ * at its word, and a stale one moved a run's answers) — or, for own parts
+ * that ask nothing here, leads to the one page left, which says so.
  */
 export function guestResumeTarget(
   run: GuestRun,
