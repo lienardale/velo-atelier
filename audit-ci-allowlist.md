@@ -35,25 +35,33 @@ the same **19** vulnerable packages — 0 critical, 17 high, 2 moderate — unde
 the same **six** ids, and the six are exactly the array. Minutes earlier, on
 `main`'s tree, it found 20 — `next` among them — under twelve.
 
+Re-recorded on 2026-10-22, same Node and npm, after the advisories under
+“Thirteen advisories of 2026-10-20 and 21” were fixed: `npm audit` finds the
+same **19** vulnerable packages — 0 critical, 17 high, 2 moderate — under the
+same **six** ids, and the six are exactly the array. On `main`'s tree it found
+25 — 19 high, 6 moderate — under nineteen.
+
 ## Pinned through `overrides` instead of allow-listed
 
-These seven are **fixed**, not tolerated. For the first five the parent's
+These eight are **fixed**, not tolerated. For the first five the parent's
 declared range excludes the patched version, so npm needs the override to reach
-it. The last two are different shapes, each with its own note below: `argparse`
-removes a package that has no patched version at all, and
-`@modelcontextprotocol/sdk` pins a version its parent's range already admits,
-because the newest release that range admits was one day old. Each was proved by a green
-`bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
+it. The last three are different shapes, each with its own note below:
+`argparse` removes a package that has no patched version at all, and
+`@modelcontextprotocol/sdk` and `vite` each pin a version their parents'
+ranges already admit, because the newest release those ranges admit was inside
+the 7-day hold. Each was proved by a green `bash scripts/ci.sh` and a green
+`npm run build` on the resolved tree.
 
-| Override                            | Resolves to | Replaces       | Fixes                                                               | Reached through                                                                                                                                   |
-| ----------------------------------- | ----------- | -------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `toml: ^4.2.0`                      | 4.3.0       | 3.0.0          | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j                            | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
-| `uuid: ^11.1.1`                     | 11.1.1      | 9.0.1 / 8.3.2  | GHSA-w5hq-g745-h8pq                                                 | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
-| `tmp: ^0.2.7`                       | 0.2.7       | 0.1.0 / 0.0.33 | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                            | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
-| `mysql2: 3.23.1`                    | 3.23.1      | 3.15.3         | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                            | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
-| `basic-ftp: ^6.2.1`                 | 6.2.1       | 5.3.1          | GHSA-c475-qrg2-pj4r                                                 | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
-| `js-yaml@^3 > argparse: ^2.0.1`     | 2.0.1       | 1.0.10         | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile) | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
-| `@modelcontextprotocol/sdk: 1.31.0` | 1.31.0      | 1.30.0         | GHSA-6qxp-vccf-f47h                                                 | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
+| Override                            | Resolves to | Replaces                          | Fixes                                                                                                                              | Reached through                                                                                                                                   |
+| ----------------------------------- | ----------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `toml: ^4.2.0`                      | 4.3.0       | 3.0.0                             | GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j                                                                                           | `@content-collections/mdx > mdx-bundler > remark-mdx-frontmatter > toml`                                                                          |
+| `uuid: ^11.1.1`                     | 11.1.1      | 9.0.1 / 8.3.2                     | GHSA-w5hq-g745-h8pq                                                                                                                | `@content-collections/mdx > mdx-bundler`, `@lhci/cli`                                                                                             |
+| `tmp: ^0.2.7`                       | 0.2.7       | 0.1.0 / 0.0.33                    | GHSA-ph9p-34f9-6g65, GHSA-52f5-9888-hmc6                                                                                           | `@lhci/cli`, `@lhci/cli > inquirer > external-editor`                                                                                             |
+| `mysql2: 3.23.1`                    | 3.23.1      | 3.15.3                            | GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3                                                                                           | `prisma > mysql2` (optional MySQL driver; this project is PostgreSQL only)                                                                        |
+| `basic-ftp: ^6.2.1`                 | 6.2.1       | 5.3.1                             | GHSA-c475-qrg2-pj4r                                                                                                                | `@lhci/cli > proxy-agent > pac-proxy-agent > get-uri > basic-ftp`                                                                                 |
+| `js-yaml@^3 > argparse: ^2.0.1`     | 2.0.1       | 1.0.10                            | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile)                                                                | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
+| `@modelcontextprotocol/sdk: 1.32.0` | 1.32.0      | 1.31.0 (1.30.0 before 2026-10-06) | GHSA-6qxp-vccf-f47h; since 2026-10-22 also GHSA-22jm-h49p-29qw, GHSA-46jr-4wx8-v453, GHSA-6prh-2h8m-c8cw, GHSA-rvq5-wwqv-78pq      | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
+| `vite: 8.2.4`                       | 8.2.4       | 8.2.2                             | GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg, GHSA-9jrq-w75r-8gcw (low) | `vitest`, `vitest > @vitest/mocker`, `@vitejs/plugin-react` (peer)                                                                                |
 
 Compatibility notes, because an override is a version its parent never tested:
 
@@ -183,6 +191,25 @@ Compatibility notes, because an override is a version its parent never tested:
   `shadcn`'s own floor reaches 1.31, or be raised when Renovate proposes a
   release that has aged through the hold — `shadcn@4.21.3`, the newest, still
   declares `^1.26.0`.
+  **Raised to 1.32.0 on 2026-10-22**, for four advisories published on
+  2026-10-20 that all end at `<1.32.0` (“Thirteen advisories of 2026-10-20 and
+  21”). 1.32.0 is the lowest release that clears them, and at 19 d 20 h old it
+  was past the hold. It declares the same seventeen dependencies as 1.31.0, and
+  `npx shadcn --version` was run against it. The pin is still the right shape:
+  `shadcn@4.22.0` and `4.22.1` now declare `^1.32.0`, but they were published
+  on 2026-10-16 and 2026-10-18, inside the hold. The day one of them has aged
+  through it, a `shadcn` bump makes this pin redundant.
+- `vite` is pinned **exactly**, at 8.2.4, for the same reason (2026-10-22). Its
+  three parents admit every 8.x: `@vitejs/plugin-react@6.1.1` (peer `^8.0.0`),
+  and `vitest` and `@vitest/mocker` 4.1.12 (`^6.0.0 || ^7.0.0 || ^8.0.0`). So
+  `npm update vite` would take 8.3.5, published 2026-10-21, inside the hold.
+  8.2.4 is the lowest release that clears all six ids on the 8.2 line, and it
+  was 16 d old. It declares `rolldown: ~1.2.4`, as 8.2.2 does, so `rolldown`
+  stays at 1.2.8 — but see “How the lockfile was resolved” below for what one
+  `npm install` did to it. `vite` runs here only inside Vitest: the site is
+  built by Next's Turbopack, so `bash scripts/ci.sh`'s three test tiers are its
+  whole exercise, and they passed. The pin can go when the range's newest
+  release has aged through the hold.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
   it is the one gate that exercises `uuid` and `tmp`. The three call sites above
   were read against the resolved tree and the APIs they use still exist, so the
@@ -808,6 +835,107 @@ reads the other kind.
 hooks-on `scripts/ci/build.sh` passed on the result; e2e, perf and Lighthouse
 were not run, and their jobs on the pull request are the first to put 16.3.8
 in front of a browser.
+
+## Thirteen advisories of 2026-10-20 and 21
+
+Thirteen ids entered the feed between 2026-10-20 14:36Z and 2026-10-21
+19:54Z, against four packages. Every one sits under a developer tool.
+Nothing ran `audit` on `main` until #27 was merged: run 39784476611, on
+`0ad0982`, at 2026-10-22 13:10:05Z, 46 h 34 min after the first id. That run's
+`npm audit (audit-ci)` job was its only failure. `trivy`, which gates on HIGH
+and CRITICAL, passed. This is the same gap §2.7 of `.debug/017` records for
+2026-10-07. Measured on `main`'s lockfile, `npm audit` names 25 packages under
+nineteen ids, the six in the array and these thirteen. **None is allow-listed.**
+Each has a patched release its parent can reach, so each is fixed, by the rule
+at the top of this file.
+
+| In the feed (UTC)   | Advisory            | CVE             | Severity | Package and range                                                        | Fixed by                      |
+| ------------------- | ------------------- | --------------- | -------- | ------------------------------------------------------------------------ | ----------------------------- |
+| 2026-10-20 14:36:11 | GHSA-5r4p-p66f-jhc7 | CVE-2026-111757 | moderate | `hono >=4.12.4 <4.13.11`: `serveStatic` decodes the path twice           | `hono` 4.13.7 → 4.13.13       |
+| 2026-10-20 18:26:30 | GHSA-6prh-2h8m-c8cw | CVE-2026-111769 | moderate | `@modelcontextprotocol/sdk <1.32.0`: client transports follow redirects  | the SDK pin, 1.31.0 → 1.32.0  |
+| 2026-10-20 18:26:54 | GHSA-22jm-h49p-29qw | CVE-2026-111767 | high     | `@modelcontextprotocol/sdk >=1.24.0 <1.32.0`: tasks not session-bound    | the SDK pin                   |
+| 2026-10-20 18:30:24 | GHSA-698v-4r3x-3vcv | CVE-2026-112943 | moderate | `launch-editor`, bundled in `vite >=8.2.0 <=8.2.3`                       | the `vite` pin, 8.2.2 → 8.2.4 |
+| 2026-10-20 19:43:36 | GHSA-rvq5-wwqv-78pq | CVE-2026-111771 | moderate | `@modelcontextprotocol/sdk >=1.6.0 <1.32.0`: bearer token audience       | the SDK pin                   |
+| 2026-10-20 19:48:25 | GHSA-587h-7wmj-h5pm | CVE-2026-112942 | high     | `launch-editor`, bundled in `vite >=8.2.0 <=8.2.3`                       | the `vite` pin                |
+| 2026-10-20 19:51:52 | GHSA-r825-w8mm-5pxw | CVE-2026-112944 | moderate | `launch-editor`, bundled in `vite >=8.2.0 <=8.2.3`                       | the `vite` pin                |
+| 2026-10-20 20:06:35 | GHSA-46jr-4wx8-v453 | CVE-2026-111768 | high     | `@modelcontextprotocol/sdk >=1.3.0 <1.32.0`: one request exhausts memory | the SDK pin                   |
+| 2026-10-21 16:47:15 | GHSA-vfpm-58rq-9qcg | CVE-2026-112947 | moderate | `vite >=8.2.0 <=8.2.3`: four bytes outside `server.fs`                   | the `vite` pin                |
+| 2026-10-21 16:47:42 | GHSA-rq7h-c2jc-7f22 | CVE-2026-112946 | moderate | `vite >=8.2.0 <=8.2.3`: files outside `server.fs.allow`                  | the `vite` pin                |
+| 2026-10-21 16:48    | GHSA-9jrq-w75r-8gcw | —               | low      | `vite >=8.2.0 <=8.2.3`: cross-origin script through custom middleware    | the `vite` pin                |
+| 2026-10-21 19:48:38 | GHSA-xp26-3454-mjgp | CVE-2026-112950 | moderate | `@vitest/mocker >=4.1.11 <4.1.12`: Windows backslash traversal           | `vitest` 4.1.11 → 4.1.12      |
+| 2026-10-21 19:54:26 | GHSA-qxg6-89mg-rqv8 | CVE-2026-112949 | moderate | `@vitest/mocker <4.1.12`: unauthenticated manual mock registration       | `vitest` 4.1.11 → 4.1.12      |
+
+“In the feed” is `github_reviewed_at`. The low one is below the threshold
+`audit-ci.json` fails at, so it never failed the gate, and the `vite` pin
+clears it with the others. Three of the `vite` ids name `launch-editor`, which
+is not in `node_modules`: `vite` bundles it into its own `dist`.
+
+The four moves, each by the rule that fits its shape:
+
+- **`@modelcontextprotocol/sdk`**: the exact override moves 1.31.0 → 1.32.0,
+  the lowest release that clears all four (note above). Renovate's #33 proposes
+  the same move, with `package.json` only and no lockfile change. This change
+  carries both.
+- **`hono`** is reached through the SDK (`^4.11.4`) and `@hono/node-server`
+  (peer `^4`). Both ranges admit the fix, and the newest release they admit,
+  4.13.13, was published on 2026-10-04 and is past the hold. So
+  `npm update hono` is the whole fix: no override.
+- **`vite`**: an exact override at 8.2.4, because `npm update` would take a
+  release inside the hold (note above).
+- **`vitest` and `@vitest/coverage-v8`**, 4.1.11 → 4.1.12 together: one pin,
+  as `renovate.json`'s `vitest` group says, and both are direct
+  `devDependencies`, so they are bumped, not overridden. `vitest@4.1.12` pins
+  `@vitest/mocker` to 4.1.12, the first patched release for both ids. Those
+  three were published on 2026-10-15 between 14:39Z and 14:51Z. At the bump,
+  2026-10-22 about 13:45Z, they were 6 d 23 h old, about an hour short of the
+  hold. They are the lowest releases that clear the two ids, so waiting for the
+  hold would only have kept `main` red longer: the hold's own waiver for a
+  security response.
+
+**The lockfile moves thirteen entries**, and its count is 1898 before and
+after: `@modelcontextprotocol/sdk`, `hono`, `vite`, `vitest`,
+`@vitest/coverage-v8`, the seven other `@vitest/*` packages (`expect`,
+`mocker`, `pretty-format`, `runner`, `snapshot`, `spy`, `utils`), and `chai`. `chai` moves 6.2.2 → 6.3.0, which
+no advisory names: `@vitest/expect@4.1.12` declares `^6.2.2`, as 4.1.11 does,
+and npm takes the newest release when it re-resolves the range. 6.3.0 was
+published on 2026-09-30, past the hold.
+
+### How the lockfile was resolved: one change at a time
+
+Resolved in ONE `npm install` with all four changes in `package.json`, npm
+11.13.0 moved **thirty** entries, not thirteen. The extra seventeen were
+`rolldown` 1.2.8 → 1.2.15 with its fifteen `@rolldown/binding-*` packages, and
+`@oxc-project/types` 0.149.0 → 0.155.0. `rolldown` 1.2.15 was published on
+2026-10-21, one day before, and `@oxc-project/types` 0.155.0 on 2026-10-19.
+That is seventeen packages inside the hold that nothing asked for:
+`vite` 8.2.4 declares `rolldown: ~1.2.4`, as 8.2.2 does, and 1.2.8 satisfies
+it.
+
+Each change on its own, applied with `npm install --package-lock-only` to
+`main`'s lockfile, left `rolldown` at 1.2.8. Applied in sequence on the same
+lockfile — the `vite` override, the SDK pin, the `vitest` pair, then
+`npm update hono` — the result is the thirteen entries above, with a
+`package.json` identical to the one-step attempt. That sequenced lockfile is
+the one committed, installed with `npm ci`. **Read the lockfile diff of a
+security change before trusting it**: the advisory names four packages, and
+the one-step install would have brought in seventeen others published in the
+week the hold exists for.
+
+### Gates
+
+On the result, 2026-10-22:
+
+- `bash scripts/ci/audit.sh` exits 0, with the six allow-listed ids and
+  nothing else.
+- `bash scripts/ci/trivy.sh` is clean.
+- `bash scripts/ci.sh` passed 12/12 in 491 s. That includes 4 369 unit, ui and
+  security tests and 474 integration tests on `vitest` 4.1.12; coverage at
+  95.56 % of statements and 92.18 % of branches; and the boot tier 4/4.
+- `ast-v8-to-istanbul`, which reads the `c8 ignore` / `v8 ignore` hints for
+  `@vitest/coverage-v8`, stays at 1.0.6.
+
+**Not run:** e2e, perf, Lighthouse and the hooks-on build. None of them loads
+`vite`, `vitest`, the SDK or `hono`.
 
 ## Removed from the array (2026-09-30)
 
