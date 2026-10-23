@@ -810,13 +810,14 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
 
 /**
  * Does the full checkup count a resumed partial run's answers for parts they
- * may not have been given for — so that it opens on the first one it names?
+ * may not have been given for — so that it opens no later than the first one
+ * the notice names?
  *
  *   a saved bike's   yes (§5.13, RA-3): the page carries one on here when its
  *                    rows cannot tell its parts — an answer given for one
  *                    side then counts for both — or when the full checkup
  *                    takes over the run they tell; this component is not
- *                    told which, and opens on the named answer in both;
+ *                    told which, and does it in both;
  *   a guest's        only when the parts it was opened on ask NOTHING on
  *                    this bike today — the page plans `?resume=own` on them as
  *                    the full checkup for them (`widenedFrom` with no step:
