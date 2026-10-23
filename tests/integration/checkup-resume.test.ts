@@ -2194,6 +2194,12 @@ describe("§5.14 an unfinished old partial checkup, imported with a touched KO (
       "REPLACE brake-pads-front",
       "REPLACE brake-pads-rear",
     ]);
+    expect(after.states).toMatchObject({
+      "brake-caliper-front": "ATTENTION",
+      "brake-caliper-rear": "ATTENTION",
+      "brake-lever-front": "ATTENTION",
+      "brake-lever-rear": "ATTENTION",
+    });
 
     // The same run in the guest's own browser: also the full checkup (S6).
     cleanup();
