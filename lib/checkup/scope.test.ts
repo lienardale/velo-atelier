@@ -468,6 +468,31 @@ describe("guestResumeTarget — a guest's run, which knows its parts", () => {
     ).toEqual({ kind: "full", from: REAR });
   });
 
+  it("stays on the full checkup reached for a run whose own parts ask NOTHING — they have no page to go back to (§5.14, V2-1)", () => {
+    // The page plans `?parts=<own>&resume=own` on such parts as the full
+    // checkup for them, with their empty plan: until §5.14 it was the empty
+    // page, whose one link sent the run back there.
+    const shifter = parts("shifter-left") as PartsScope;
+    const nothing = { scope: shifter, steps: [], facts: scopeFacts(shifter, FULL_PLAN, []) };
+    const left = guest(shifter, { [PADS]: "ok" });
+    expect(carriedOnWhole(left, shifter, [], nothing.facts)).toBe(true);
+    expect(
+      guestResumeTarget(left, FULL_SCOPE, FULL_PLAN, FULL_FACTS, { widenedFrom: nothing }),
+    ).toEqual({ kind: "page" });
+    // A KO too: no answer can be narrowed where nothing is asked.
+    expect(
+      guestResumeTarget(guest(shifter, { [PADS]: "ko" }), FULL_SCOPE, FULL_PLAN, FULL_FACTS, {
+        widenedFrom: nothing,
+      }),
+    ).toEqual({ kind: "page" });
+    // Another run, reaching that address: back to ITS own parts.
+    expect(
+      guestResumeTarget(guest(REAR, { [PADS]: "ok" }), FULL_SCOPE, FULL_PLAN, FULL_FACTS, {
+        widenedFrom: nothing,
+      }),
+    ).toEqual({ kind: "own", scope: REAR });
+  });
+
   it("reads a run whose scope names no part it knows as confined to none", () => {
     const loose = guest(parts(), { [PADS]: "ok" });
     expect(guestResumeTarget(loose, FULL_SCOPE, FULL_PLAN, FULL_FACTS)).toEqual({ kind: "page" });
@@ -676,6 +701,22 @@ describe("savedResumeTarget — a saved bike's run, judged by its address and it
     expect(savedResumeTarget(rear, FULL_SCOPE, FULL_PLAN, FULL_FACTS, evidence)).toEqual({
       kind: "own",
       scope: REAR,
+    });
+  });
+
+  it("never sends a run to parts its rows tell that ask nothing: the full checkup takes it over (§5.14)", () => {
+    // An imported left-shifter run of before 2026-10-22: its one row is on the
+    // left shifter, which today's planner asks nothing. `own` needs an answer
+    // narrowed on the parts the rows tell, and nothing is asked there.
+    const shifter = parts("shifter-left") as PartsScope;
+    const facts = scopeFacts(shifter, FULL_PLAN, []);
+    const imported = saved({ [PADS]: "ok" }, { [PADS]: "shifter-left" });
+    const evidence = { ownAddress: false, recorded: { scope: shifter, steps: [], facts } };
+    expect(savedResumeTarget(imported, FULL_SCOPE, FULL_PLAN, FULL_FACTS, evidence)).toEqual({
+      kind: "page",
+    });
+    expect(savedResumeTarget(imported, CHAIN_ONLY, CHAIN_PLAN, CHAIN_FACTS, evidence)).toEqual({
+      kind: "full",
     });
   });
 
