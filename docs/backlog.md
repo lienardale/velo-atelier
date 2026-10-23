@@ -766,7 +766,8 @@ checkup page — the full checkup included — until it is finished: resumed
 anywhere else, that answer would count for parts it was not given for; and
 since §5.13 so is a saved bike's whose rows tell its parts. The notice says so
 ("Terminez-le pour en commencer un autre"); abandoning a run would be the
-other way out.
+other way out. (Parts that ask nothing on the bike today have no page to be
+brought back to: since §5.14 such a run carries on as the full checkup.)
 
 _To pick up_: on its own now — the list lifecycle it was waiting for is
 settled (W5 above: one OPEN list per bike), and nothing writes `ABANDONED`
@@ -781,11 +782,16 @@ is about different parts under different scopes — the pads' question asked
 for the rear caliper is about the rear pads — so knowing which parts an
 answer was given for is what tells a page that may resume a run from one that
 would move its answers. Since the reviews of 2026-10-22 (§5.12, §5.13) no run
-is trimmed, no stored answer is deleted, stripped of its symptom or rewritten
-for a page's sake, a GUEST's run — its scope is stored whole — is resumed only
-on its own parts or on the full checkup when that takes it over
-(`guestResumeTarget`, `lib/checkup/scope.ts`), and a SAVED bike's run is
-resumed on the parts that two things can tell (`savedResumeTarget`): the
+is trimmed and no stored answer is deleted or stripped of its symptom for a
+page's sake — though a saved bike's run carried on as the full checkup (the
+first point below) has each row moved to its whole question's first part,
+verdict, note and symptoms kept, its answer then counting for every part
+that question names (until §5.14 this sentence said no answer was
+"rewritten", which the first point below contradicted); a GUEST's run — its
+scope is stored whole — is resumed only on its own parts, or on the full
+checkup when that takes it over or when its parts ask nothing on the bike
+(§5.14; `guestResumeTarget`, `lib/checkup/scope.ts`); and a SAVED bike's run
+is resumed on the parts that two things can tell (`savedResumeTarget`): the
 page's own address, which carries the run's `startedAt` (`?run=`, written by
 the wizard beside `?parts=` on the page that shows the run — so a reload,
 Back or Forward keeps it there); and the rows, each of which names the FIRST
@@ -845,8 +851,28 @@ product decision, and so is a "drives" relation (the shifter and the
 derailleur it moves) that `partsInScope` does not have; the ruling of
 2026-10-22 defined "inside" without one.
 
+What the visitor sees today (`.debug/017` §5.14, V2-1). Picking the left
+shifter alone: "Rien à contrôler ici", "Aucune question ne s'applique aux
+pièces choisies. Essayez un contrôle complet." and "Lancer un contrôle
+complet", which opens the full checkup. An unfinished run on parts that ask
+nothing on the bike — a guest's or an imported left-shifter run of before
+2026-10-22, when the planner still asked it the shifting question, or a 2x
+bike's front-derailleur run once the bike is rebuilt as a 1x — is carried on
+as the full checkup from every checkup page: "Contrôle complet", the notice
+naming « Essayer tous les rapports », the wizard opening no later than that
+answer, which now counts for every part the question names on this bike.
+Through an address that names those parts without `?resume=` — the bike
+page's "Reprendre le contrôle" for a guest, the parts panel picking them —
+the empty page comes first, and its link then resumes the run on the full
+checkup. Until §5.14 a guest's such run sent every checkup page of the bike to
+`?parts=…&resume=own`, the empty page, whose link sent it back there: no
+checkup could be done on that bike until storage was cleared.
+
 _To pick up_: a ruling, then either the empty page's sentence (it says no
-question applies to the parts picked, which is true) or the planner.
+question applies to the parts picked, which is true) or the planner — and,
+whichever, whether "Reprendre le contrôle" should skip the empty page for a
+run on such parts (the page cannot see a guest's run; the bike page does not
+plan).
 
 #### A finished checkup writes a KO as `ATTENTION`, where §4.2 (b) says `BROKEN`
 

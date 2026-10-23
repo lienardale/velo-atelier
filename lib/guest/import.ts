@@ -97,14 +97,22 @@
  * offers (a worn rim track, in a rear-caliper checkup that asks the rim-track
  * question of the rear pads alone). Each is IMPORTED — a row, against the
  * part the scope picked (`touchedPart`) or the part its narrowed question
- * reports on — and NEVER ACTED ON: no part state, no link. Its finding is
- * already on the list the payload brings, which the browser derived with the
- * planner of then. Until §5.13 a KO of either kind widened the checkup to
- * `FULL`, and a `FULL` checkup's states land on each item's first part: a
- * rear-caliper checkup's leak, or worn rear rim, made the FRONT caliper, or
- * the front wheel, `BROKEN`, and said nothing of the rear (B6); and an OK or
- * a skip to a touched question was left out, so the browser, told
- * `imported`, forgot an answer the account did not have (V1-3).
+ * reports on — and NEVER ACTED ON by the import: no part state, no link. Its
+ * finding is already on the list the payload brings, which the browser
+ * derived with the planner of then. That holds of the import, not of what
+ * the account does next: an UNFINISHED checkup holding a KO of either kind
+ * is not resumed on its parts — their page cannot hold the KO — and the
+ * account's first page carries it on as the full checkup (said, the answers
+ * named and the first shown), which acts on it for every part its question
+ * names when the visitor finishes it: what the guest's own browser does with
+ * the same run (`guestResumeTarget`; `.debug/017` §5.14, V2-3). An OK or a
+ * skip to a touched question widens nothing, there or here. Until §5.13 the import
+ * itself widened a checkup with a KO of either kind to `FULL`, and a `FULL`
+ * checkup's states land on each item's first part: a rear-caliper checkup's
+ * leak, or worn rear rim, made the FRONT caliper, or the front wheel,
+ * `BROKEN`, and said nothing of the rear (B6); and an OK or a skip to a
+ * touched question was left out, so the browser, told `imported`, forgot an
+ * answer the account did not have (V1-3).
  *
  * A checkup none of whose answers is a question this bike is asked writes NO
  * row and is reported `skipped: 'nothing-kept'`: an empty `Checkup` would show
@@ -153,7 +161,8 @@
  * on the parts its rows tell when they tell them — a rear-caliper run's rows
  * name the rear caliper, the touched ones included — and as the full
  * checkup, the SAME row, its answers kept and its column then `FULL`, when
- * they cannot or when the full checkup takes the run over
+ * they cannot or when the full checkup takes the run over: a touched KO or a
+ * withheld symptom, above, or parts that ask nothing on the bike
  * (`tests/integration/checkup-resume.test.ts`). Until 2026-10-22 the resume
  * banner's first click deleted every item an imported partial run held.
  *
