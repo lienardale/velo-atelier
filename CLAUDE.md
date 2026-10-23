@@ -325,6 +325,17 @@ docs/                contributor and operator docs — every one is linked from 
   `data-hydrated="true"` on its `<section>` from a ref callback and e2e waits
   for that, not for the element: a click in that window is dropped, and
   `networkidle` is not "Next has finished prefetching" either (`.debug/011`).
+  **A controlled input whose value comes from `useSearchParams` reverts until
+  the router catches up.** Next applies our `replaceState` to
+  `useSearchParams` in a transition, and React puts a controlled input back to
+  its prop at the end of the event. From Next 16.4.1 that transition landed
+  34–133 ms after a click on `/guides`' "for my bike" checkbox (CI Linux image,
+  page prefetches in flight), and Playwright's `check()` failed on the
+  unchecked box. `GuideFilters` therefore also keeps the query it wrote in
+  state, set in the handler and read only until `useSearchParams` moves — and
+  dropped then, or a later navigation back to the old query would show it
+  again (`components/guides/GuideFilters.test.tsx`, `.debug/017` §2.7). A new
+  filter of that shape does the same.
 - **`server-only`** is imported only in `app/**` server files,
   `components/mdx/index.ts` (the MDX rendering boundary: importing that barrel
   from a client component fails the build), `lib/auth/password-policy.ts` and
