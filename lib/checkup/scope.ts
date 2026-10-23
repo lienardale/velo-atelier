@@ -94,8 +94,9 @@
  *     rebuilt as a 1x): the page plans their address as the full checkup for
  *     the run, whose plan of them, empty, narrows no answer
  *     ({@link carriedOnWhole}), and the wizard says what the answers now
- *     count for and opens on them (§5.14, V2-1: until then that address was
- *     the empty page, whose one link sent the run back to it);
+ *     count for and opens no later than the first it names (§5.14, V2-1:
+ *     until then that address was the empty page, whose one link sent the
+ *     run back to it);
  *   - a SAVED bike's run does not: `Checkup.scope` is `FULL | PARTIAL`, and
  *     there is no column for the parts. {@link savedResumeTarget} reads them
  *     from two things that can say it. The page's own address, when it

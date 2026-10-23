@@ -742,8 +742,10 @@ docs/                contributor and operator docs — every one is linked from 
   `summary.covered`; FR and EN). A part none of whose questions has a finding
   inside its scope asks nothing: the left shifter alone plans no question and
   gets "Rien à contrôler ici" (`.debug/017` §5.12, RA-5; a question for the
-  maintainer in `docs/backlog.md`). Every reader takes a step's parts and
-  findings from the plan, so the rule reaches all of them at once: the part a
+  maintainer in `docs/backlog.md`) — and an unfinished run on such parts is
+  carried on as the full checkup (the resume rule below, §5.14). Every
+  reader takes a step's parts and findings from the plan, so the rule
+  reaches all of them at once: the part a
   `CheckupItem` names (`answeredItems`, `partIds[0]`), the statuses
   (`statusByPart` → `writePartStates`), the lines closed (`recheckedLines` →
   `closeRecheckedItems` and the guest merge) and derived (`deriveBuildList`),
@@ -755,10 +757,20 @@ docs/                contributor and operator docs — every one is linked from 
   "Bon état" on it and on the front lever, and a front-tyre KO listed both
   tyres. Rows written before the fix are not rewritten (§5.11 says what they
   look like).
-- **An unfinished run is never trimmed, its answers are never moved to parts
-  they were not given for, and the server never deletes or rewrites an answer
-  for a page's sake** (`.debug/017` §5.10, §5.12, §5.13; the maintainer's
-  rulings of 2026-10-22). Since the scope rule above, ONE question key is
+- **An unfinished run is never trimmed, and no stored answer is deleted or
+  stripped of its symptom for a page's sake. A page holds a run only where it
+  asks each answer about the parts it was given for; anywhere else the run
+  goes back to those parts or carries on as the full checkup — when that
+  checkup takes it over, when nothing can tell its parts, or when they ask
+  nothing on the bike today. Only on the full checkup can an answer count for
+  more parts than it was given for (one side's, for both); a saved bike's
+  rows then move to their whole question's first part, verdict, note and
+  symptoms kept, and the visitor is told: the notice names the answers
+  concerned, and the wizard puts the first back in front of them where it
+  may (below)** (`.debug/017` §5.10, §5.12, §5.13, §5.14; the maintainer's
+  rulings of 2026-10-22; until §5.14 this sentence said answers were never
+  moved and rows never rewritten, which the last paragraph of this very
+  bullet contradicted). Since the scope rule above, ONE question key is
   about different parts under different scopes — the pads' question asked
   for the rear caliper is about the rear pads — so a page HOLDS a run only if
   it asks every answer about what it was given for: `holds`
@@ -786,7 +798,13 @@ docs/                contributor and operator docs — every one is linked from 
     back to its own, and the full page plans the parts of its own address
     (`widenedFrom`) to check the run again: a stale history entry once held
     a front-caliper run on the rear caliper (V1-1) and carried a rear-only OK
-    on as the full checkup (V1-2);
+    on as the full checkup (V1-2). Its own parts may ask NOTHING on the bike
+    today — the left shifter's run of before 2026-10-22, a 2x bike's front
+    derailleur once the guest bike is rebuilt as a 1x in the tree: the page
+    plans `?parts=<them>&resume=own` as `?resume=full` on them, the full
+    checkup for the run, which takes it over (their empty plan narrows no
+    answer) — never the empty page, whose one link is the full checkup, which
+    sent the run back to it, for ever (§5.14, V2-1);
   - **a SAVED bike's run** does not: its `PARTIAL` row stores no parts, and
     `loadStoredCheckup` reads it as a scope naming NO part — a marker, never
     posted and never planned. The page decides on the server
@@ -816,13 +834,24 @@ docs/                contributor and operator docs — every one is linked from 
     questions that name several parts — their answers now count for each of
     them (`resumed.partialAsFullNamed`) — and a saved bike's wizard opens no
     later than the first of them, so the visitor sees it again before going on
-    (§5.13, RA-3); "Un contrôle complet est déjà en cours…"
+    (§5.13, RA-3), as does a guest's whose own parts ask nothing on the bike
+    or are unknown to the catalogue (`showsNamedFirst`, §5.14) — a guest's
+    taken over otherwise opens where it was, every answer there asked about
+    what it was given for; "Un contrôle complet est déjà en cours…"
     (`resumed.fullInProgress`) for a full run. Every leave is a full navigation
     (`components/checkup/replace-document.ts`: a soft `router.replace` never
     committed in Chromium), a question the corpus dropped decides nothing, and
     a run is sent back only by parts the page reads back the same way
-    (`knownParts`), so nothing loops. The actions refuse a `parts` scope naming
-    no part (`VALIDATION`, before any query — an old tab's payload); accept the
+    (`knownParts`) and never to parts that ask nothing (a saved bike's
+    `savedResumeTarget` sends a run to its parts only when an answer is
+    narrowed there; a guest's is planned as above), so nothing loops:
+    `tests/integration/checkup-resume.test.ts` walks every stored scope that
+    asks nothing on a preset, from six addresses, and fails on an address
+    seen twice. The empty page is still where `?parts=` on such parts lands
+    without `?resume=` — the bike page's "Reprendre le contrôle" included —
+    and its one link, the full checkup, then resumes the run. The actions
+    refuse a `parts` scope naming no part (`VALIDATION`, before any query —
+    an old tab's payload); accept the
     payload with every stored answer of the run it does not carry, against the
     plan those answers bear out (`effectiveScope`, by `holds`), and write
     `Checkup.scope` from it on every save and finish; write the rows of the
@@ -1524,11 +1553,19 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   uses them to decide that column and to narrow its steps, and they are then
   gone, exactly as for a partial checkup started on the account, save for
   what each row's part says of them — which the account resumes by the rule
-  above: on the parts its rows tell (a rear-caliper run's, the touched rows
-  included, name the rear caliper), otherwise as the full checkup, the SAME
-  row, its answers kept and its column then `FULL`
-  (`tests/integration/checkup-resume.test.ts`). Until 2026-10-22 the resume
-  banner's first click deleted every item an imported partial run held.
+  above: on the parts its rows tell when those parts hold the run (a
+  rear-caliper run's rows, a touched OK's included, name the rear caliper),
+  otherwise as the full checkup, the SAME row, its answers kept and its column
+  then `FULL` (`tests/integration/checkup-resume.test.ts`). An UNFINISHED one
+  holding a KO to a question its scope only touches, or a KO whose symptom
+  the narrowed question withholds, is the second kind: its parts' page cannot
+  hold that KO, so the account's first page carries it on as the full
+  checkup — said, the answers named and the first shown — and, finished
+  there, its findings count for both sides, exactly as the guest's own
+  browser carries the same run on (`guestResumeTarget`; VI-B6KO-UNFINISHED,
+  §5.14, V2-3). "Never acted on" is the IMPORT's: it writes no part state
+  and no link from such a row. Until 2026-10-22 the resume banner's first
+  click deleted every item an imported partial run held.
   (`finishCheckupAction` writes a KO as `ATTENTION`, host-expanded through
   `statusByPart`; the two are deliberately NOT aligned — a separate ruling.)
   **All or nothing per bike**: the bike, its part states, checkups, items,
