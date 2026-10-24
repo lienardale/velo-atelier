@@ -315,7 +315,16 @@ puppeteer-core > @puppeteer/browsers > extract-zip@2.0.1`. **There is no
   (Since 2026-10-24 the second no longer does: `body-parser@2.4.0` declares
   `qs ^6.16.1`, npm nested `qs@6.16.1` under the SDK, and the SDK's Express
   resolves that copy, outside both ranges — measured with `npm ls qs`. The two
-  ids stand for the first path, “Ten advisories of 2026-10-23”.)
+  ids stand for `express@4.22.2`'s `qs@6.15.3`, which two chains reach: the
+  first path, and the peer `express@">= 4.11"` of `express-rate-limit@8.7.0`
+  under `shadcn > @modelcontextprotocol/sdk`, which that hoisted Express
+  satisfies (`npm explain express`). That edge is never loaded either: the SDK
+  uses `express-rate-limit` only in its `server/auth/handlers`,
+  `express-rate-limit` imports `express` in its type declarations and not at
+  run time (read), and the three SDK modules `shadcn` imports load 300
+  modules, through `require` and through `import` alike, none of them
+  `express`, `express-rate-limit` or `qs` (measured on 2026-10-24). “Ten
+  advisories of 2026-10-23”.)
   A **scoped** override (`"express": { "qs": "^6.16.0" }`) is mechanically
   available — npm does nest a second copy when a range demands one, and this
   very tree proves it: `node_modules/body-parser@1.20.9` (1.20.8 until 2026-10-24) declares `qs: "~6.16.0"`
@@ -393,7 +402,16 @@ exists, and none is needed.
   four files of `dist/` that import zod is a string's `.min(2)` (searched). A
   size cap is the one case 4.6.6 changes — an uncapped array still costs one
   issue per failing element on 4.6.6 (“`zod` 4.5.4 → 4.6.6: what changed”,
-  below).
+  below). **This entry does not meet condition (c)** of the rule of thumb at
+  the top of this file, and does not rest on it: a registry item fetched from
+  ui.shadcn.com is input this repository does not control. It rests instead on
+  the vulnerable construct, a size-capped collection, being absent from every
+  schema that copy of zod runs: the fix acts on a capped collection and on
+  nothing else (`capSize`, below), so on these schemas the patched release
+  would allocate what 3.25.76 does. That is this change's decision, written
+  here so that it is not read as an oversight. The `chromium-bidi` copy below
+  does meet (c): it is never loaded, and would parse only the protocol
+  traffic of the browser our own Lighthouse runs start.
 - **`chromium-bidi`** (`@lhci/cli > lighthouse@12.6.1 > puppeteer-core@24.43.1 >
 chromium-bidi@14.0.0`): `puppeteer-core` pins it exactly, 24.43.1 is the
   newest 24.x, `lighthouse` asks for `^24.10.0`, and every `chromium-bidi`
@@ -1273,9 +1291,12 @@ equal to the registry's), and measured where it says so:
 - **Packaging**: the `exports` map is identical, and `package.json` differs by
   the version, one build flag (`sealCjsExports`) and its scripts; neither
   release has a dependency. **No runtime export is removed** from `zod`,
-  `zod/mini`, `zod/v4`, `zod/v4/core` or `zod/v3`; six are added (`INVALID`,
-  `ZodIBAN` / `ZodMiniIBAN`, `ZodInstanceOf`, `currencyCode`, `iban`,
-  `withParser`). `maxLength`, `minLength`, `minValue`, `maxValue`, `isInt` and
+  `zod/mini`, `zod/v4`, `zod/v4/core` or `zod/v3`. Added, by entry point:
+  six to `zod` and `zod/v4` (`INVALID`, `ZodIBAN`, `ZodInstanceOf`,
+  `currencyCode`, `iban`, `withParser`); five to `zod/mini` (the same, with
+  `ZodMiniIBAN` and no `ZodInstanceOf`); ten to `zod/v4/core`; none to
+  `zod/v3` (measured: the keys of each entry point, loaded with `require` from
+  each tarball). `maxLength`, `minLength`, `minValue`, `maxValue`, `isInt` and
   `format` are no longer own enumerable properties of a schema, and are still
   readable (measured); nothing here reads them.
 - **Behaviour changes read in the diff**: `safeParse` builds its `error` on
@@ -1284,6 +1305,34 @@ equal to the registry's), and measured where it says so:
   `validate` / `validateAsync` stop at the first aborting issue. Nothing in
   `app/`, `lib/`, `components/`, `scripts/` or `prisma/` reads `_zod` or
   `.bag`, calls `z.validate`, or builds a discriminated union.
+- **Formats** (`src/v4/core/regexes.ts`, and `$ZodURL`). The **`email`**
+  pattern is rewritten, and the sign-up action validates with `z.email()`
+  (`app/[locale]/(auth)/inscription/actions.ts`): the local part's
+  `^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@` became
+  `^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@`, the domain
+  part unchanged but for a non-capturing group. Read, the two describe the same strings — no leading dot,
+  no two dots in a row, a last character before the `@` that is neither a dot
+  nor an apostrophe; the old whole-string `(?!.*\.\.)` never had a pair to
+  find in the domain, whose labels each start with a letter or a digit — and
+  the new one says it without lookaheads. Measured, `z.email()` from each
+  tarball over 39 146 835 generated strings — every local part of 0 to 7
+  characters over `a.'+-_9Z` before each of 14 domains (`x..co`, `.x.co`,
+  `x-.co`, `x.co@y.co` among them), and every string of 0 to 11 characters
+  over `a.@'` — accepts 5 949 114 on 4.5.4, and 4.6.6 gives the same answer
+  for every one. **`base64url`** is tightened (a length of 1 modulo 4 is now
+  refused) and so is **`emoji`** (one pictograph, regional indicator or
+  keycap is now required); nothing here calls `z.base64url()` or `z.emoji()`
+  — `lib/auth/tokens.ts`'s `base64url` is Node's `Buffer`, not zod's. A bare
+  **`z.url()`**, `lib/env.ts`'s, now asks `URL.canParse` instead of
+  constructing a `URL` (read); measured on twelve inputs, `localhost:3000`
+  and `http:example.com` among them, it gives the same verdict and the same
+  output on both.
+- **Objects**: a key whose `.default()` resolves to `undefined` is now present
+  in the output — `z.object({ u: z.string().optional().default(undefined) })`
+  parses `{}` to `{}` on 4.5.4 and to `{ u: undefined }` on 4.6.6 (measured).
+  The only `.default()` calls here are `lib/env.ts`'s, whose defaults are
+  `false`, `"development"` and `12`; a schema of those three shapes parses
+  `{}` to the same object on both (measured).
 - **What this tree pins about zod, measured again on 4.6.6**: an own
   `__proto__` key in a `z.record` is skipped, and on a `strictObject` refused,
   in classic zod and in `zod/mini`, exactly as on 4.5.4. The four comments that
@@ -1306,6 +1355,25 @@ contract's outer shape — `strictObject`, `bikes: z.array(…)` with
 4.6.6, returns one issue for that payload (measured). So a signed-in request
 could have the server allocate a hundred thousand issue objects, every time,
 before any bucket was consumed.
+
+**What the bump does not bound: a record.** 4.6.6 stops a capped array, map
+or set at its cap before its elements are parsed. The contract's records — a
+checkup's `answers`, `symptoms` and `notes`, a line's `refinement` — are held
+to their count by `maxEntries`, a `z.refine`: a check, which runs once every
+entry has been parsed, and is skipped once an entry has failed. So a record
+whose entries each fail still costs one issue per entry, on 4.6.6 as on
+4.5.4, and what bounds it is the 256 KB budget, not the cap. Measured on
+2026-10-24: one checkup whose `answers` hold 32 928 entries of `0` under
+base-36 keys, `{ version: 2, bikes: [{ checkups: [{ answers }] }] }`, is
+262 144 bytes, exactly the budget, and `parseGuestState` on the installed
+4.6.6 returns 32 939 issues in 35 to 43 ms (four runs); a record schema of
+the same shape in `zod/mini`, capped by a refine at 250, makes 32 928 issues
+from each tarball, 4.5.4 and 4.6.6 alike. Linear in the budget, and so not the
+advisory's unbounded case, but not one issue either. Counting a record's keys
+before its entries are parsed, as `capSize` does for an array, is in
+`docs/backlog.md` (“The guest import's records are counted after their
+entries are parsed”); it is a change to the contract, not to the dependency,
+and is not made here.
 
 ### The hold, skipped on a ruling
 
