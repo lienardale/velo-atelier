@@ -106,13 +106,19 @@
  * named and the first shown), which acts on it for every part its question
  * names when the visitor finishes it: what the guest's own browser does with
  * the same run (`guestResumeTarget`; `.debug/017` §5.14, V2-3). An OK or a
- * skip to a touched question widens nothing, there or here. Until §5.13 the import
- * itself widened a checkup with a KO of either kind to `FULL`, and a `FULL`
- * checkup's states land on each item's first part: a rear-caliper checkup's
- * leak, or worn rear rim, made the FRONT caliper, or the front wheel,
- * `BROKEN`, and said nothing of the rear (B6); and an OK or a skip to a
- * touched question was left out, so the browser, told `imported`, forgot an
- * answer the account did not have (V1-3).
+ * skip to a touched question does not by itself take a run off its parts,
+ * there or here — but a run whose ONLY answers are such has none narrowed
+ * on them, so, unfinished, it is held only by the page of its parts opened
+ * as such: opened from any other page it is carried on as the full checkup,
+ * on the account as in the guest's own browser, which acts on those answers
+ * once finished (§5.14, V3-TOUCHED-ONLY: the leak question's OK closed both
+ * brake lines' open lines). Until §5.13 the import itself widened a checkup
+ * with a KO of either kind to `FULL`, and a `FULL` checkup's states land on
+ * each item's first part: a rear-caliper checkup's leak, or worn rear rim,
+ * made the FRONT caliper, or the front wheel, `BROKEN`, and said nothing of
+ * the rear (B6); and an OK or a skip to a touched question was left out, so
+ * the browser, told `imported`, forgot an answer the account did not have
+ * (V1-3).
  *
  * A checkup none of whose answers is a question this bike is asked writes NO
  * row and is reported `skipped: 'nothing-kept'`: an empty `Checkup` would show

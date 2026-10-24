@@ -100,19 +100,19 @@ export async function generateMetadata({ params }: CheckupPageProps): Promise<Me
  *                  2026-10-22 could be anything's — the page plans the FULL
  *                  checkup, which keeps every answer; the wizard says which
  *                  answers now count for every part their question names,
- *                  and opens on the first of them;
+ *                  and opens no later than the first of them;
  *   a guest        the run is in `localStorage`, so the page hands the wizard
  *                  what its scope is against the full plan (`scopeFacts`) and
  *                  the wizard decides: it comes back here with `?parts=` the
  *                  run's own parts and `?resume=own`, or with the run's own
- *                  parts and `?resume=full` when the full checkup asks every
- *                  one of its answers about what it was given for — which
- *                  this page then plans, handing the wizard that run's own
- *                  plan (`widenedFrom`) so that it checks it again rather
- *                  than taking the address at its word. Its own parts may
- *                  ask nothing on this bike today: `?resume=own` is then
- *                  planned as `?resume=full` on them, so that no address
- *                  sends the visitor round an empty page (§5.14).
+ *                  parts and `?resume=full` when the full checkup takes the
+ *                  run over (`carriedOnWhole`) — which this page then plans,
+ *                  handing the wizard that run's own plan (`widenedFrom`) so
+ *                  that it checks it again rather than taking the address at
+ *                  its word. Its own parts may ask nothing on this bike
+ *                  today: `?resume=own` is then planned as `?resume=full` on
+ *                  them, so that no address sends the visitor round an empty
+ *                  page (§5.14).
  *
  * Until 2026-10-22 the run was resumed on whatever the page had planned,
  * trimmed to it, and a resumed partial run lost every stored answer

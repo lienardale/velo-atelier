@@ -61,11 +61,16 @@
  * part's — `hose-leak` for a caliper — and today's rule no longer asks some of
  * them (their every finding is outside). Such a question is TOUCHED by the
  * scope ({@link scopeFacts}); an OK or a skip given to it has nothing to say
- * about a part inside and widens nothing. It is KEPT — in a guest's storage,
- * as a saved bike's row, as an imported row — and never acted on: no status,
- * no line (§5.13, V1-3: until then a guest's copy was dropped at the next
- * save, and the import left it out). A KO there widens the run like any
- * other: its finding is kept and acted on, by the full checkup.
+ * about a part inside and does not by itself take the run off its parts
+ * ({@link holds} lets it pass). It is KEPT — in a guest's storage, as a saved
+ * bike's row, as an imported row — and never acted on by the partial
+ * checkup: no status, no line (§5.13, V1-3: until then a guest's copy was
+ * dropped at the next save, and the import left it out). A run whose ONLY
+ * answers are such has none narrowed on its parts, so every page but theirs,
+ * opened as such, carries it on as the full checkup
+ * ({@link carriedOnWhole}), where they are a full checkup's answers (§5.14,
+ * V3-TOUCHED-ONLY). A KO there widens the run like any other: its finding is
+ * kept and acted on, by the full checkup.
  *
  * ## Which scope a run is
  *
@@ -86,17 +91,21 @@
  *     is sent back to its own parts, whatever the address says it came for
  *     (§5.13, V1-1: a stale `?resume=own` once held a front-caliper run on the
  *     rear caliper); and on from there to the full checkup only when the full
- *     checkup asks every one of its answers about what it was given for —
- *     which the full page checks again for itself, from the parts its own
- *     address names, rather than taking `?resume=full` at its word (V1-2) —
- *     or when those parts ask NOTHING on this bike today (the left shifter's
- *     run of before 2026-10-22; a front derailleur's, once the guest bike is
+ *     checkup takes it over ({@link carriedOnWhole}: none of its answers is
+ *     narrowed on its own parts, or they do not hold it) — which the full
+ *     page checks again for itself, from the parts its own address names,
+ *     rather than taking `?resume=full` at its word (V1-2). That includes
+ *     parts that ask NOTHING on this bike today (the left shifter's run of
+ *     before 2026-10-22; a front derailleur's, once the guest bike is
  *     rebuilt as a 1x): the page plans their address as the full checkup for
- *     the run, whose plan of them, empty, narrows no answer
- *     ({@link carriedOnWhole}), and the wizard says what the answers now
- *     count for and opens no later than the first it names (§5.14, V2-1:
+ *     the run, whose plan of them, empty, narrows no answer (§5.14, V2-1:
  *     until then that address was the empty page, whose one link sent the
- *     run back to it);
+ *     run back to it). The wizard says what the answers now count for, and
+ *     where they can count for more than the page of the run's own parts
+ *     would ({@link outgrowsParts}: those parts ask nothing, or no longer ask
+ *     one of its answers — V3-PARTLY-EMPTY, a 2x's front derailleur and
+ *     chain once the bike is a 1x) it opens no later than the first it
+ *     names;
  *   - a SAVED bike's run does not: `Checkup.scope` is `FULL | PARTIAL`, and
  *     there is no column for the parts. {@link savedResumeTarget} reads them
  *     from two things that can say it. The page's own address, when it
@@ -234,7 +243,8 @@ export interface ScopeFacts {
    * and does not ask: what the planner of before 2026-10-22 asked a partial
    * checkup and today's rule narrows away (`hose-leak` for a caliper, the
    * bottom bracket's two for the chainring). An OK or a skip given to one
-   * widens nothing and is kept, unacted on (see the header).
+   * does not by itself take a run off its parts, and is kept, unacted on by
+   * the partial checkup (see the header).
    */
   touched: readonly CheckStepKey[];
   /**
@@ -353,19 +363,29 @@ export function narrowedAnswer(run: RunAnswers, scoped: readonly PlannedQuestion
 
 /**
  * Does the full checkup take over a run whose parts are `scope` (its plan
- * `scoped`) — asking every one of its answers about what it was given for, or
- * being the only page that holds them? Then a visitor who came for other
- * parts carries on there rather than on the run's own parts: nothing it
- * counts an answer for is more than that answer was given for.
+ * `scoped`)? Then a visitor who came for other parts carries on there rather
+ * than on the run's own parts:
  *
- *   - `scope` does not hold the run: a run of before 2026-10-22, answered
+ *   - `scope` does not hold the run. A run of before 2026-10-22 — answered
  *     beyond its parts (§5.10, R1), or with a touched KO or a withheld
- *     symptom (§5.12) — its answers were given to whole questions;
- *   - or no answer is to a question `scope` asks of only some of its parts —
- *     which is also true when `scope` asks nothing at all: its parts then
- *     have no page of their own to resume on (§5.14), and the full checkup
- *     is the only one left. That is the one case where it counts an answer
- *     for more than it was given for, and the wizard says so.
+ *     symptom (§5.12) — gave its answers to whole questions, which the full
+ *     checkup asks as they were asked. But a guest's checkup belongs to the
+ *     slot, not to the bike (`va:checkup:local`): once the guest bike is
+ *     replaced — a 2x rebuilt as a 1x — `scope` can stop asking an answer
+ *     given on the old bike to a question narrowed there (§5.14,
+ *     V3-PARTLY-EMPTY: the shifting question, asked of the front derailleur
+ *     alone), and on the full checkup that answer, and any other given to a
+ *     narrowed question, counts for every part its question names here;
+ *   - or no answer is to a question `scope` asks of only some of its parts:
+ *     the full checkup asks every answer `scope` asks exactly as `scope`
+ *     does. That is also true when `scope` asks nothing at all: its parts
+ *     then have no page of their own to resume on (§5.14), and the full
+ *     checkup, the only page left, counts the answers for the parts their
+ *     question names here, which may not be the parts they were given for.
+ *
+ * Where the full checkup can count an answer for more than the page of the
+ * run's own parts would, {@link outgrowsParts} says so, and the wizard names
+ * the answers and opens no later than the first of them.
  */
 export function carriedOnWhole(
   run: RunAnswers,
@@ -374,6 +394,40 @@ export function carriedOnWhole(
   facts: ScopeFacts,
 ): boolean {
   return !holds(scope, run, scoped, facts) || !narrowedAnswer(run, scoped);
+}
+
+/**
+ * Can the full checkup count one of `run`'s answers for more parts than the
+ * page of its own parts — `scope`, planned `scoped` — would? Taken to be so
+ * whenever that page does not hold the run, or does not ask one of its
+ * answers (one the bike is still asked), because nothing in a stored run
+ * says which bike or which planner an answer was given under:
+ *
+ *   - its parts ask nothing on this bike (§5.14), or no longer ask one of its
+ *     answers since the guest bike was replaced (V3-PARTLY-EMPTY): an answer
+ *     given on the old bike to a question narrowed to those parts now counts
+ *     for every part its question names here, and so does every narrowed
+ *     answer beside it;
+ *   - a run of before 2026-10-22, answered beyond its parts or with a touched
+ *     answer or a withheld symptom: its answers were given whole, and the
+ *     full checkup asks them as they were — counted all the same, since
+ *     opening on an answer the visitor has already given costs nothing.
+ *
+ * Otherwise that page holds the run and asks every answer of it the bike is
+ * still asked: the full checkup takes the run over only when none of them is
+ * narrowed there ({@link carriedOnWhole}), and then asks each exactly as that
+ * page does.
+ */
+export function outgrowsParts(
+  run: RunAnswers,
+  scope: CheckupScope,
+  scoped: readonly PlannedQuestion[],
+  facts: ScopeFacts,
+): boolean {
+  if (!holds(scope, run, scoped, facts)) return true;
+  const planned = new Set(scoped.map((step) => step.key));
+  const asked = new Set(facts.asked);
+  return Object.keys(run.answers).some((key) => asked.has(key) && !planned.has(key));
 }
 
 /** Where an unfinished run is resumed. */
@@ -424,11 +478,15 @@ export interface GuestRun extends RunAnswers {
  * empty plan as `widenedFrom` (`page.tsx`, `.debug/017` §5.14), and the run
  * is held there — so no run is ever sent to a page with no question.
  *
- * Nothing the address says decides which part an answer counts for: `?resume=`
- * only chooses between two pages that both ask every answer about what it was
- * given for (`.debug/017` §5.13, V1-1 and V1-2 — the address was once taken
- * at its word, and a stale one moved a run's answers) — or, for own parts
- * that ask nothing here, leads to the one page left, which says so.
+ * Nothing the address says decides which part an answer counts for:
+ * `?resume=` only leads to the run's own parts or to the full checkup planned
+ * for them, and the run is checked against the page it leads to, by the rules
+ * above (`.debug/017` §5.13, V1-1 and V1-2 — the address was once taken at
+ * its word, and a stale one moved a run's answers). On the full checkup the
+ * wizard names the answers that now count for every part their question
+ * names, as for every partial run carried on there, and where they can count
+ * for more than the run's own parts would ({@link outgrowsParts}) it opens no
+ * later than the first of them.
  */
 export function guestResumeTarget(
   run: GuestRun,

@@ -16,6 +16,7 @@ import { createCheckupState, reduce } from "@/lib/checkup/reducer";
 import {
   guestResumeTarget,
   knownParts,
+  outgrowsParts,
   scopeFacts,
   type OtherPlan,
   type ResumeTarget,
@@ -721,9 +722,9 @@ function namesSeveralParts(step: CheckStepRef): boolean {
  *                   answers to questions that name several parts now count
  *                   for each of them: the sentence says so and NAMES those
  *                   questions (`questions`), so that the visitor knows which
- *                   answers to check — and the wizard opens on the first of
- *                   them where they may count for parts they were not given
- *                   for ({@link showsNamedFirst});
+ *                   answers to check — and the wizard opens no later than the
+ *                   first of them where they may count for parts they were
+ *                   not given for ({@link showsNamedFirst});
  *   fullInProgress  a full run in progress, which the parts asked for could
  *                   only have narrowed;
  *   ownParts        a run brought back to the parts it was opened on — a
@@ -818,21 +819,38 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
  *                    side then counts for both — or when the full checkup
  *                    takes over the run they tell; this component is not
  *                    told which, and does it in both;
- *   a guest's        only when the parts it was opened on ask NOTHING on
- *                    this bike today — the page plans `?resume=own` on them as
- *                    the full checkup for them (`widenedFrom` with no step:
- *                    the left shifter's run of before 2026-10-22, a front
- *                    derailleur's once the guest bike is a 1x, `.debug/017`
- *                    §5.14) — or name no part the catalogue knows. Its
- *                    answers were then given for parts the full checkup does
- *                    not ask them about. Otherwise never: the full checkup
- *                    takes a guest's run over only when it asks every answer
- *                    about what it was given for (`guestResumeTarget`).
+ *   a guest's        when the page of the parts it was opened on, planned
+ *                    for this bike and handed down as `widenedFrom`, does not
+ *                    hold it or does not ask one of its answers
+ *                    (`outgrowsParts`): those parts ask NOTHING here — the
+ *                    left shifter's run of before 2026-10-22, a front
+ *                    derailleur's once the guest bike is a 1x (`.debug/017`
+ *                    §5.14) — or no longer ask one of its answers — a 2x's
+ *                    front derailleur and chain, or front derailleur and
+ *                    front caliper, once the guest bike is a 1x; the
+ *                    second's front-only pads' answer then counts for both
+ *                    calipers (V3-PARTLY-EMPTY) — or a run of before
+ *                    2026-10-22 went beyond them or holds a touched answer;
+ *                    and when they name no part the catalogue knows.
+ *                    Otherwise not: those parts' page holds the run, asks
+ *                    every answer of it the bike is still asked and narrows
+ *                    none (`carriedOnWhole`), and the full checkup asks each
+ *                    exactly as that page does.
  */
 function showsNamedFirst(props: WizardProps, stored: StoredCheckup | null): boolean {
   if (props.bikeRef.kind === "db") return true;
   if (stored === null || stored.scope.kind !== "parts") return false;
-  return knownParts(stored.scope) === null || props.widenedFrom?.steps.length === 0;
+  if (knownParts(stored.scope) === null) return true;
+  const own = props.widenedFrom;
+  return (
+    own !== undefined &&
+    outgrowsParts(
+      { answers: stored.answers, symptoms: stored.symptoms },
+      own.scope,
+      own.steps,
+      own.facts,
+    )
+  );
 }
 
 /**

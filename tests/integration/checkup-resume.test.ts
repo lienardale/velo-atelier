@@ -842,6 +842,17 @@ describe("a guest's run, in localStorage, through the real page and wizard", () 
     expect(window.localStorage.getItem(checkupKey("demo"))).toBe(raw);
     const page = await follow("demo");
     expect(screen.getByTestId("checkup-resumed")).toHaveAttribute("data-notice", "partialAsFull");
+    // Its own parts — the chain — do not ask its brake answers: nothing in the
+    // stored run says they were given whole, so the wizard opens on the first
+    // answer the notice names (`outgrowsParts`, `.debug/017` §5.14, V3-2),
+    // shown as given; the visitor goes on to the first open question.
+    expect(onScreen()).toBe(PAD_WEAR);
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    const unanswered = (): boolean => !Object.hasOwn(stored()?.answers ?? {}, onScreen() ?? "");
+    for (let guard = 0; guard < 80 && !unanswered(); guard += 1) {
+      await page.user.click(screen.getByTestId("verdict-ok"));
+    }
+    expect(Object.keys(stored()?.answers ?? {})).toHaveLength(brakes.length + 1);
     await page.user.click(screen.getByTestId("verdict-ok"));
     await pagehide();
     expect(Object.keys(stored()?.answers ?? {})).toHaveLength(brakes.length + 2);
@@ -2228,5 +2239,269 @@ describe("§5.14 an unfinished old partial checkup, imported with a touched KO (
       "parts=brake-caliper-rear&resume=full",
     ]);
     expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+  }, 90_000);
+});
+
+describe("§5.14 the fourth verification (V3): own parts that no longer ask ONE of a run's answers; an imported run whose one answer is touched", () => {
+  const stored = () =>
+    JSON.parse(window.localStorage.getItem(checkupKey("local")) ?? "null") as {
+      scope: unknown;
+      answers: Record<string, string>;
+    } | null;
+
+  /** A guest's run on `partIds` of `from`, every question there answered OK — then the guest bike is `to`. */
+  function rebuiltRun(from: PresetId, partIds: string[], id: string) {
+    const plan = planFromDisk(buildOf(from), partsScope(...partIds));
+    const run = guestRun({
+      id,
+      build: buildOf(from),
+      scope: partsScope(...partIds),
+      verdicts: Object.fromEntries(plan.map((step) => [step.key, "ok" as const])),
+      startedAt: "2026-10-23T08:00:00.000Z",
+    });
+    const raw = JSON.stringify({ ...toStored(run), bikeRef: { kind: "local" } });
+    window.localStorage.setItem(checkupKey("local"), raw);
+    return { plan, raw };
+  }
+
+  it("V3-PARTLY-EMPTY: a 2x's front derailleur and chain, the guest bike then a 1x — its parts ask the chain and not the shifting question: the full checkup, that answer named and not past", async () => {
+    const { plan, raw } = rebuiltRun(
+      "road-rim-2x11",
+      ["front-derailleur", "chain"],
+      "c9999999-9999-4999-8999-999999999999",
+    );
+    // On the 2x the shifting question is asked of the front derailleur alone.
+    expect(plan.map((step) => [step.key, step.partIds, step.coveredParts])).toEqual([
+      [CHAIN, ["chain"], undefined],
+      [SHIFTING, ["front-derailleur"], ["front-derailleur"]],
+    ]);
+    const one = buildOf("gravel-1x11");
+    expect(planFromDisk(one, partsScope("front-derailleur", "chain")).map((s) => s.key)).toEqual([
+      CHAIN,
+    ]);
+    const spec = encodeSpec(BIKE_PRESETS["gravel-1x11"]);
+    const parts = "front-derailleur,chain";
+    const { trail, props } = await walk("local", new URLSearchParams({ spec }).toString());
+    expect(trail).toEqual([
+      new URLSearchParams({ spec }).toString(),
+      new URLSearchParams({ spec, parts, resume: "own" }).toString(),
+      new URLSearchParams({ spec, parts, resume: "full" }).toString(),
+    ]);
+    expect(props.widenedFrom?.steps.map((step) => step.key)).toEqual([CHAIN]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      `comptent désormais pour chacune d'elles — vérifiez-les : ${SHIFTING_TITLE}.`,
+    );
+    // Given for the front derailleur, it now counts for the rear one and the
+    // right shifter.
+    expect(props.steps.find((step) => step.key === SHIFTING)?.partIds).toEqual([
+      "rear-derailleur",
+      "shifter-right",
+    ]);
+    notPast(props.steps, SHIFTING);
+    expect(window.localStorage.getItem(checkupKey("local"))).toBe(raw);
+  }, 60_000);
+
+  it("…with the front caliper for the chain: its front-only pads' answer, now counting for both calipers, is where the wizard opens — as the account opens the same run", async () => {
+    // The probe that found it (every preset pair, every one- and two-part
+    // pick): `road-disc-2x12` then `gravel-1x11` is the corpus's shape where
+    // the first named answer comes before the first open question.
+    const { plan, raw } = rebuiltRun(
+      "road-disc-2x12",
+      ["front-derailleur", "brake-caliper-front"],
+      "c9999999-9999-4999-8999-999999999998",
+    );
+    expect(plan.map((step) => [step.key, step.partIds])).toEqual([
+      [PAD_WEAR, ["brake-caliper-front"]],
+      [ALIGNMENT, ["brake-caliper-front"]],
+      [SHIFTING, ["front-derailleur"]],
+    ]);
+    const spec = encodeSpec(BIKE_PRESETS["gravel-1x11"]);
+    const parts = "front-derailleur,brake-caliper-front";
+    const { trail, props } = await walk("local", new URLSearchParams({ spec }).toString());
+    expect(trail.at(-1)).toBe(new URLSearchParams({ spec, parts, resume: "full" }).toString());
+    expect(props.widenedFrom?.steps.map((step) => step.key)).toEqual([PAD_WEAR, ALIGNMENT]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      `vérifiez-les : ${PADS_TITLE}, « Contrôler l’alignement des étriers » et ${SHIFTING_TITLE}.`,
+    );
+    expect(props.steps.find((step) => step.key === PAD_WEAR)?.partIds).toEqual([
+      "brake-caliper-front",
+      "brake-caliper-rear",
+    ]);
+    // The pads' answer, given for the front caliper and now counting for both,
+    // is on screen: the first open question, the rotors', comes after it.
+    expect(props.steps.findIndex((step) => !Object.hasOwn(stored()?.answers ?? {}, step.key))).toBe(
+      1,
+    );
+    expect(onScreen()).toBe(PAD_WEAR);
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    expect(window.localStorage.getItem(checkupKey("local"))).toBe(raw);
+
+    // A saved bike, the same run, the same rebuild: its rows cannot tell the
+    // front derailleur on a 1x, and the full checkup opens on the same answer.
+    cleanup();
+    resetStoredCheckupCache();
+    const user = await signedInUser("resume-v32-rebuilt@velo-atelier.test");
+    const two = deriveBike(BIKE_PRESETS["road-disc-2x12"]);
+    const bike = await prisma.bike.create({
+      data: {
+        userId: user.id,
+        name: "Route",
+        answers: two.answers,
+        spec: two.spec,
+        parts: two.parts as unknown as Prisma.InputJsonValue,
+        partStates: { create: two.parts.map((part) => ({ partId: part.partId })) },
+      },
+      select: { id: true },
+    });
+    const page = await open(bike.id, `parts=${parts}`);
+    await start(page.user);
+    for (const key of [PAD_WEAR, ALIGNMENT, SHIFTING]) await verdict(page.user, key, "ok");
+    await pagehide();
+    cleanup();
+    expect((await rowsOf(bike.id)).checkups[0].items).toEqual([
+      `${ALIGNMENT}=OK@brake-caliper-front`,
+      `${PAD_WEAR}=OK@brake-caliper-front`,
+      `${SHIFTING}=OK@front-derailleur`,
+    ]);
+    const one = deriveBike(BIKE_PRESETS["gravel-1x11"]);
+    await prisma.bike.update({
+      where: { id: bike.id },
+      data: {
+        answers: one.answers,
+        spec: one.spec,
+        parts: one.parts as unknown as Prisma.InputJsonValue,
+      },
+    });
+    const account = await walk(bike.id, "");
+    expect(account.trail).toEqual([""]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    expect(onScreen()).toBe(PAD_WEAR);
+  }, 90_000);
+
+  /** An old rear-caliper run of `gravel-1x11` whose one answer is the leak question's OK, imported unfinished. */
+  async function importedTouchedOnly(email: string, prefix: string) {
+    const user = await signedInUser(email);
+    const work = guestWork({
+      answers: BIKE_PRESETS["gravel-1x11"],
+      bikeId: `${prefix}-2222-4333-8444-555555555555`,
+      checkup: (build) =>
+        guestRun({
+          id: `${prefix}-9c1e-4f2b-8d7a-0b4f2c6e1a92`,
+          build,
+          scope: partsScope("brake-caliper-rear"),
+          verdicts: { [HOSE_LEAK]: "ok" },
+          startedAt: "2026-10-14T08:00:00.123Z",
+          planner: "before-2026-10-22",
+        }),
+      list: false,
+    });
+    const payload = JSON.parse(JSON.stringify(work.collect().state)) as GuestState;
+    const imported = await importGuestState(prisma, user.id, payload, { plan: planForBuild });
+    if (!imported.ok || imported.data.bikeId === null) throw new Error("not imported");
+    expect(imported.data.bikes[0].checkups).toEqual([
+      { guestKey: `${prefix}-9c1e-4f2b-8d7a-0b4f2c6e1a92`, status: "imported" },
+    ]);
+    return imported.data.bikeId;
+  }
+
+  it("V3-TOUCHED-ONLY: imported PARTIAL on its rear caliper, whose page holds it — and every other page carries it on as the full checkup, no answer being narrowed there; as the guest's own browser does", async () => {
+    const bikeId = await importedTouchedOnly("resume-v31@velo-atelier.test", "af1d7a52");
+    const imported = await rowsOf(bikeId);
+    expect(imported).toMatchObject({
+      checkups: [
+        { scope: "PARTIAL", status: "IN_PROGRESS", items: [`${HOSE_LEAK}=OK@brake-caliper-rear`] },
+      ],
+      lines: [],
+      states: {},
+    });
+    // Its own page holds it: the leak question is only touched there.
+    const own = await walk(bikeId, "parts=brake-caliper-rear");
+    expect(own.trail).toEqual(["parts=brake-caliper-rear"]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle partiel");
+    expect(screen.queryByTestId("checkup-resumed")).not.toBeInTheDocument();
+    // The banner, another part: the full checkup takes it over, the answer named.
+    for (const search of ["", "parts=chain"]) {
+      const { trail } = await walk(bikeId, search);
+      expect(trail).toEqual([search]);
+      expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+      expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+        "vérifiez-les : « Chercher une fuite de liquide ».",
+      );
+    }
+    // Opening pages wrote nothing.
+    expect(await rowsOf(bikeId)).toEqual(imported);
+
+    // The same run in the guest's own browser.
+    cleanup();
+    resetStoredCheckupCache();
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify({
+        ...toStored(
+          guestRun({
+            id: "af1d7a52-9c1e-4f2b-8d7a-0b4f2c6e1a93",
+            build: buildOf("gravel-1x11"),
+            scope: partsScope("brake-caliper-rear"),
+            verdicts: { [HOSE_LEAK]: "ok" },
+            startedAt: "2026-10-14T08:00:00.123Z",
+            planner: "before-2026-10-22",
+          }),
+        ),
+        bikeRef: { kind: "demo" },
+      }),
+    );
+    const guest = await walk("demo", "");
+    expect(guest.trail).toEqual([
+      "",
+      "parts=brake-caliper-rear&resume=own",
+      "parts=brake-caliper-rear&resume=full",
+    ]);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+  }, 90_000);
+
+  it("V3-TOUCHED-ONLY-FINISH: finished from the banner, it is a full checkup — its leak answer closes both brake lines' open lines", async () => {
+    const bikeId = await importedTouchedOnly("resume-v31-finish@velo-atelier.test", "bf1d7a52");
+    const earlier = await prisma.checkup.create({
+      data: {
+        bikeId,
+        scope: "FULL",
+        status: "COMPLETED",
+        startedAt: new Date("2026-09-01T08:00:00.000Z"),
+        completedAt: new Date("2026-09-01T08:30:00.000Z"),
+      },
+    });
+    const list = await prisma.buildList.create({
+      data: { bikeId, checkupId: earlier.id, name: "" },
+    });
+    await prisma.buildListItem.createMany({
+      data: ["brake-line-front", "brake-line-rear"].map((partId, sortOrder) => ({
+        buildListId: list.id,
+        partId,
+        action: "INSPECT_SHOP" as const,
+        reasonKey: "hose-leak",
+        sortOrder,
+      })),
+    });
+    const page = await open(bikeId);
+    expect(screen.getByTestId("checkup-scope")).toHaveTextContent("Contrôle complet");
+    await start(page.user);
+    await answerTheRest(page.user);
+    await page.user.click(screen.getByTestId("summary-create"));
+    await answered();
+    const after = await rowsOf(bikeId);
+    expect(after.checkups[1]).toMatchObject({ scope: "FULL", status: "COMPLETED" });
+    expect(after.checkups[1].items).toContain(`${HOSE_LEAK}=OK@brake-lever-front`);
+    expect(after.lines).toEqual([
+      "INSPECT_SHOP brake-line-front recheck-ok",
+      "INSPECT_SHOP brake-line-rear recheck-ok",
+    ]);
+    expect(after.states).toMatchObject({
+      "brake-caliper-front": "OK",
+      "brake-caliper-rear": "OK",
+      "brake-lever-front": "OK",
+      "brake-lever-rear": "OK",
+    });
   }, 90_000);
 });
