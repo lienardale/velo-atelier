@@ -379,7 +379,8 @@ describe("mass assignment", () => {
     expectNoWrites();
 
     // In a RECORD, zod 4 skips the key instead of failing the parse (measured
-    // on 4.5.4; `tests/integration/build-lists.test.ts` pins the same for a
+    // on 4.5.4, and on 4.6.6 on 2026-10-24;
+    // `tests/integration/build-lists.test.ts` pins the same for a
     // refinement). So the pin is on what follows: the key is gone before the
     // plan is consulted, it becomes no row, and the real answers beside it
     // are kept.
@@ -1236,11 +1237,12 @@ describe("a refinement answer under a key the account's own action refuses", () 
   });
 
   it("never stores an own `__proto__` key either: the record drops it (zod 4 behaviour)", async () => {
-    // Verified against the installed zod 4.5.4: a record SKIPS an own
-    // `__proto__` key instead of failing on it, in `zod/mini` as in classic
-    // zod (`tests/integration/build-lists.test.ts` pins the same for the
-    // action). The end state is what matters — the key never reaches the
-    // column — so it is asserted rather than forced into a refusal.
+    // Verified against the installed zod (4.5.4, and 4.6.6 on 2026-10-24): a
+    // record SKIPS an own `__proto__` key instead of failing on it, in
+    // `zod/mini` as in classic zod (`tests/integration/build-lists.test.ts`
+    // pins the same for the action). The end state is what matters — the key
+    // never reaches the column — so it is asserted rather than forced into a
+    // refusal.
     const payload = withKey('{"__proto__":"x","speeds":"11"}');
     const sent = (payload as { bikes: { lists: { items: { refinement: object }[] }[] }[] }).bikes[0]
       .lists[0].items[0].refinement;

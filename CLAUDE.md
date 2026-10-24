@@ -43,8 +43,9 @@ is this again: its "Artifact update problem" comment names the npm error.
 **`overrides` in `package.json` is the security fix; the audit allowlist is the
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
-`basic-ftp` today, plus the scoped `argparse` entry and the exact
-`@modelcontextprotocol/sdk` and `vite` pins described below — and its
+`basic-ftp` today, plus the scoped `argparse` entry, the exact
+`@modelcontextprotocol/sdk` and `vite` pins and the scoped exact
+`jsdom > undici` pin described below — and its
 GHSA id is then **removed** from `audit-ci.json`,
 so a regression fails the `audit` job instead of passing it silently. Every
 override is an untested version for its parent, so each one carries a
@@ -55,7 +56,10 @@ needs no override, only `npm update <pkg>` — **unless the newest release that
 range admits is inside the 7-day hold**: `npm update` takes the newest, so the
 lowest clearing release is then pinned exactly (`mysql2`;
 `@modelcontextprotocol/sdk` at 1.31.0 while 1.32.1 was a day old, raised to
-1.32.0 on 2026-10-22; `vite` at 8.2.4 while 8.3.5 was a day old).
+1.32.0 on 2026-10-22; `vite` at 8.2.4 while 8.3.5 was a day old; `undici`
+at 8.12.2 while 8.12.3 was five days old, scoped to `jsdom` because `shadcn`
+and `@dotenvx/dotenvx` are on the 7.x line, which an unscoped pin would hand
+a major they never declared).
 **Resolve such a change one edit at a time and read the lockfile diff**: on
 2026-10-22, one `npm install` over four edits also floated `rolldown` and
 `@oxc-project/types` — seventeen entries, all inside the hold, none named by
@@ -97,11 +101,18 @@ there in the same commit.
 **A shipped direct dependency is bumped — never overridden, never
 allow-listed.** `overrides` exists for a transitive whose parent pins it too
 low, and the allowlist for a transitive **under** a dev tool that cannot reach
-a request. Every id in the array today is one of those: `deepmerge-ts` under
-`prisma`, `extract-zip` and `qs` under `@lhci/cli`, and `braces` under three
-dev-tool glob chains. No entry is on a direct
-dependency of any kind, and whether a direct `devDependency` could itself be
-allow-listed has never come up here — do not read one out of this rule. A
+a request. Every entry in the array today is one of those: `deepmerge-ts`
+under `prisma`, `extract-zip` and `qs` under `@lhci/cli`, and — by dependency
+**path**, never by id — the two dev-only `zod@3.25.76` copies under `shadcn`
+and under `@lhci/cli > lighthouse > puppeteer-core > chromium-bidi`. (`braces`
+left on 2026-10-24: its advisory was withdrawn.) No entry is on a direct
+dependency of any kind. GHSA-mrhx-c7xc-m3w5 is also the shipped `zod`'s id,
+which is why its entries are paths: an id entry would pass a `zod` back at
+4.5.4 in silence, and with the root reverted the gate fails on
+`GHSA-mrhx-c7xc-m3w5|zod` (measured). The `shadcn>zod` entry is on `shadcn`'s
+own copy of `zod`, not on `shadcn`: whether a direct `devDependency` could
+itself be allow-listed has never come up here — do not read one out of this
+rule. A
 `dependencies` entry has neither excuse: it ships, and this repository owns
 its version, so an advisory on one is answered by changing that version.
 `next` is the worked example: GHSA-vcvr-r3jv-pc5j
@@ -154,6 +165,23 @@ code"), not by identity. The same change moved the `toml` override to
 `^5.0.1` (a major; three DoS ids) and `ip-address` to 10.7.4. The allowlist's
 "Seven advisories of 2026-10-22" section has the table, the exposure as read
 and the gates.
+
+**The same rule moved `zod` on 2026-10-24, 4.5.4 → 4.6.6**, the exact pin
+kept. GHSA-mrhx-c7xc-m3w5 (high: memory exhaustion validating an oversized
+constrained collection, `<4.6.6`) entered the feed on 2026-10-23 with nine
+ids on other packages, and the scheduled check found `main` red. 4.6.6 is the
+first patched release and was 13 d old; the diff was read for what this tree
+uses (no export removed; a size-capped array, set or map now fails its cap
+before any element is parsed). The guest import's contract is that case: a
+200 KB payload inside every budget made 100 001 issues on 4.5.4 and one on
+4.6.6 (measured). The two dev-only copies of zod 3 have no patched
+release, and an override to zod 4 broke `shadcn` at load — hence the path
+entries above. The same change pinned `undici` under `jsdom`, took
+`body-parser` 1.20.9 / 2.4.0 and `fast-uri` 3.1.9 **inside** the hold on the
+maintainer's ruling, recorded with the date each clears it, and left the low
+`serialize-javascript` id for after the hold, since it delays nothing. The
+allowlist's "Ten advisories of 2026-10-23" and "`zod@3.25.76`, two dev-only
+copies" sections have the tables, the proofs and the gates.
 
 ---
 

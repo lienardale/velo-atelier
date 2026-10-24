@@ -41,15 +41,24 @@ same **19** vulnerable packages — 0 critical, 17 high, 2 moderate — under th
 same **six** ids, and the six are exactly the array. On `main`'s tree it found
 25 — 19 high, 6 moderate — under nineteen.
 
+Re-recorded on 2026-10-24, same Node and npm, after the advisories under
+“Ten advisories of 2026-10-23” were answered: `npm audit` finds **15**
+vulnerable packages — 0 critical, 12 high, 2 moderate, 1 low — under **seven**
+ids: the five the array names by id, GHSA-mrhx-c7xc-m3w5, which it names by
+dependency path only, and one low id below the threshold, not taken (that
+section says why). The `braces` id has left the array: the advisory was
+withdrawn. On `main`'s tree it found 18 packages under fifteen ids.
+
 ## Pinned through `overrides` instead of allow-listed
 
-These eight are **fixed**, not tolerated. For the first five the parent's
+These nine are **fixed**, not tolerated. For the first five the parent's
 declared range excludes the patched version, so npm needs the override to reach
-it. The last three are different shapes, each with its own note below:
+it. The last four are different shapes, each with its own note below:
 `argparse` removes a package that has no patched version at all, and
-`@modelcontextprotocol/sdk` and `vite` each pin a version their parents'
-ranges already admit, because the newest release those ranges admit was inside
-the 7-day hold. Each was proved by a green `bash scripts/ci.sh` and a green
+`@modelcontextprotocol/sdk`, `vite` and `undici` under `jsdom` each pin a
+version their parents' ranges already admit, because the newest release those
+ranges admit was inside the 7-day hold — the last of them **scoped**, because
+the tree's two `undici` majors have different parents. Each was proved by a green `bash scripts/ci.sh` and a green
 `npm run build` on the resolved tree.
 
 | Override                            | Resolves to | Replaces                                   | Fixes                                                                                                                              | Reached through                                                                                                                                   |
@@ -62,6 +71,7 @@ the 7-day hold. Each was proved by a green `bash scripts/ci.sh` and a green
 | `js-yaml@^3 > argparse: ^2.0.1`     | 2.0.1       | 1.0.10                                     | GHSA-hp3w-g68c-fv3c (`sprintf-js@1.0.3`, which leaves the lockfile)                                                                | `gray-matter > js-yaml@3` (under `@content-collections/core` and `@content-collections/mdx > mdx-bundler`), `@lhci/cli > @lhci/utils > js-yaml@3` |
 | `@modelcontextprotocol/sdk: 1.32.0` | 1.32.0      | 1.31.0 (1.30.0 before 2026-10-06)          | GHSA-6qxp-vccf-f47h; since 2026-10-22 also GHSA-22jm-h49p-29qw, GHSA-46jr-4wx8-v453, GHSA-6prh-2h8m-c8cw, GHSA-rvq5-wwqv-78pq      | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
 | `vite: 8.2.4`                       | 8.2.4       | 8.2.2                                      | GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg, GHSA-9jrq-w75r-8gcw (low) | `vitest`, `vitest > @vitest/mocker`, `@vitejs/plugin-react` (peer)                                                                                |
+| `jsdom > undici: 8.12.2`            | 8.12.2      | 8.10.2                                     | GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c                                                                      | `jsdom` (the Vitest `ui` tier's environment)                                                                                                      |
 
 Compatibility notes, because an override is a version its parent never tested:
 
@@ -215,6 +225,23 @@ Compatibility notes, because an override is a version its parent never tested:
   built by Next's Turbopack, so `bash scripts/ci.sh`'s three test tiers are its
   whole exercise, and they passed. The pin can go when the range's newest
   release has aged through the hold.
+- `undici` under `jsdom` is pinned **exactly**, at 8.12.2, for the reason
+  `mysql2`, the SDK and `vite` are (2026-10-24). `jsdom@30.0.1` declares
+  `^8.9.0`, which admits the fix, so `npm update undici` would have been the
+  whole answer — but it takes 8.12.3, published 2026-10-19 and inside the hold
+  until 2026-10-26T14:02Z (measured on a scratch copy: that one command moved
+  `jsdom`'s copy to 8.12.3). 8.12.2 is the lowest 8.x that clears all three
+  ids, and was 9 d 1 h old. **Scoped**, unlike the SDK and `vite` pins,
+  because the tree holds two `undici` majors with different parents:
+  `shadcn` (`^7.27.2`) and `@dotenvx/dotenvx` (`^7.11.0`) are on 7.x, and an
+  unscoped `"undici": "8.12.2"` would hand them a major they never declared.
+  Their copies moved by `npm update undici` to 7.30.1, the newest 7.x, past the
+  hold. One lockfile entry moves for the pin. `jsdom/lib/api.js` requires
+  `undici` at load, so the `ui` tier is its exercise; it passed. **Renovate
+  reads an override as a dependency**, so `renovate.json` caps this one below
+  9: `jsdom` declares `^8`, and a v9 proposal would put a major under it that
+  it never declared. The pin can go once 8.12.3 has aged through the hold:
+  `npm update undici` then takes a release past it.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
   it is the one gate that exercises `uuid` and `tmp`. The three call sites above
   were read against the resolved tree and the APIs they use still exist, so the
@@ -285,9 +312,13 @@ puppeteer-core > @puppeteer/browsers > extract-zip@2.0.1`. **There is no
   which stops one minor short of the `6.16.0` fix; `express@5.2.1` declares
   `^6.14.0` and would take it, but both hoist to the one top-level `qs@6.15.3`,
   so an unscoped override hands LHCI's Express a minor it never shipped with.
+  (Since 2026-10-24 the second no longer does: `body-parser@2.4.0` declares
+  `qs ^6.16.1`, npm nested `qs@6.16.1` under the SDK, and the SDK's Express
+  resolves that copy, outside both ranges — measured with `npm ls qs`. The two
+  ids stand for the first path, “Ten advisories of 2026-10-23”.)
   A **scoped** override (`"express": { "qs": "^6.16.0" }`) is mechanically
   available — npm does nest a second copy when a range demands one, and this
-  very tree proves it: `node_modules/body-parser@1.20.8` declares `qs: "~6.16.0"`
+  very tree proves it: `node_modules/body-parser@1.20.9` (1.20.8 until 2026-10-24) declares `qs: "~6.16.0"`
   and got `node_modules/body-parser/node_modules/qs@6.16.0` beside the
   top-level 6.15.3. It is declined, not impossible: it would still be an
   untested minor under two servers that never listen, and the gate that would
@@ -295,12 +326,128 @@ puppeteer-core > @puppeteer/browsers > extract-zip@2.0.1`. **There is no
   would change the answer: an `express@4` release whose range reaches
   `qs@6.16`, or a `qs` in something that handles a real request.
 
+## `zod@3.25.76`, two dev-only copies — allow-listed by path, never by id
+
+**GHSA-mrhx-c7xc-m3w5** (high, `zod <4.6.6`) has **no patched 3.x release**:
+3.25.76 is the newest 3.x, and two packages in the tree still declare
+`zod ^3.24.1` — `shadcn@4.21.0`, and `chromium-bidi@14.0.0` under
+`@lhci/cli > lighthouse > puppeteer-core`. Each kept its own nested copy when
+the root moved to 4.6.6 (“Ten advisories of 2026-10-23”, below). They are
+accepted by **path**, three strings in `audit-ci.json`, the first entries of
+that form here:
+
+```text
+GHSA-mrhx-c7xc-m3w5|@lhci/cli>lighthouse>puppeteer-core>chromium-bidi>zod
+GHSA-mrhx-c7xc-m3w5|@lhci/utils>lighthouse>puppeteer-core>chromium-bidi>zod>
+GHSA-mrhx-c7xc-m3w5|shadcn>zod
+```
+
+**Why a path and not the id.** The id is also the shipped `zod`'s. An id
+entry would accept the advisory on the direct dependency too, and a `zod` back
+at 4.5.4 — a bad merge, a revert — would pass `audit` without a word, which
+“What is **not** allow-listed” forbids. audit-ci 7.1.0 compares a path entry
+with the whole path string, exactly, unless the entry holds a `*`
+(`matchString`); these hold none, and the shipped copy's path is the bare
+`zod`. Measured on 2026-10-24 on scratch copies of this tree's `package.json`
+and lockfile, `audit-ci --directory <copy> --config <variant>`:
+
+| Configuration, tree                                                                                      | Exit | Path named                                                                      |
+| -------------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------- |
+| the committed array, this tree                                                                           | 0    | —                                                                               |
+| without the `shadcn>zod` entry                                                                           | 1    | `GHSA-mrhx-c7xc-m3w5\|shadcn>zod`                                               |
+| without the `@lhci/cli>…` entry                                                                          | 1    | `GHSA-mrhx-c7xc-m3w5\|@lhci/cli>lighthouse>puppeteer-core>chromium-bidi>zod`    |
+| without the `@lhci/utils>…` entry                                                                        | 1    | `GHSA-mrhx-c7xc-m3w5\|@lhci/utils>lighthouse>puppeteer-core>chromium-bidi>zod>` |
+| the committed array, root `zod` back at 4.5.4 (`npm install zod@4.5.4 --save-exact --package-lock-only`) | 1    | `GHSA-mrhx-c7xc-m3w5\|zod`                                                      |
+
+Run with `--show-not-found`, the committed array reports no entry unused.
+
+**The trailing `>` is audit-ci's, and the entry needs it.** audit-ci builds an
+npm 7+ path by walking a vulnerable package's `effects` up to the root
+(`recursiveMagic` in `dist/chunk-FA3SOWIW.js`, read). `@lhci/utils` is an
+effect of `lighthouse` and `@lhci/cli` an effect of `@lhci/utils`; when the
+walk meets `@lhci/cli` a second time it returns the path built so far, before
+the slice that drops the trailing separator. That string is what audit-ci
+compares, so it is what the entry says. A path is recomputed from the report
+on every run: a new effect in the chain — an advisory on `lighthouse` itself —
+changes it, and the gate goes red rather than wider.
+
+**`trivy` needs no entry, and has none.** trivy 0.71.0 leaves dev dependencies
+out of an npm lockfile scan unless it is given `--include-dev-deps`, which
+`scripts/ci/trivy.sh` does not pass, and both copies are `dev`: on this tree
+the gate is clean. Run with the flag, it reports `zod 3.25.76 CVE-2023-54404`,
+which is how that reason was checked. The shipped copy is a production one, so
+trivy still sees it: `trivy.sh`'s two passes and its allowlist translation,
+pointed at the scratch tree with the root at 4.5.4, exit 1 on
+`zod 4.5.4 CVE-2023-54404 / GHSA-mrhx-c7xc-m3w5`. The translation accepts a
+finding whose id or `VendorIDs` equals an entry of the array, and a path string
+equals none, so these three accept nothing on trivy's side. No `.trivyignore`
+exists, and none is needed.
+
+- **`shadcn`** (`devDependencies`, `^4.21.0`, locked at 4.21.0): every 4.21.x
+  declares `zod ^3.24.1`; 4.22.0 (2026-10-16) is the first on `^4.2.0`.
+  Nothing in this repository runs the CLI — no script, hook, workflow or test
+  names it — so its zod runs when a developer types `npx shadcn`, on
+  `components.json` and on registry items fetched from ui.shadcn.com. Its
+  schemas hold **no** size-capped collection: the 345 reachable from its two
+  schema chunks, walked under zod 3, have none, and the only size check in the
+  four files of `dist/` that import zod is a string's `.min(2)` (searched). A
+  size cap is the one case 4.6.6 changes — an uncapped array still costs one
+  issue per failing element on 4.6.6 (“`zod` 4.5.4 → 4.6.6: what changed”,
+  below).
+- **`chromium-bidi`** (`@lhci/cli > lighthouse@12.6.1 > puppeteer-core@24.43.1 >
+chromium-bidi@14.0.0`): `puppeteer-core` pins it exactly, 24.43.1 is the
+  newest 24.x, `lighthouse` asks for `^24.10.0`, and every `chromium-bidi`
+  release through 17.0.2 still declares `zod ^3.24.1` — no upstream release
+  moves it. **`lhci autorun` never loads it** (read on 2026-10-24):
+  `puppeteer-core` requires it only from `bidi/BidiOverCdp.js`, which a
+  connection reaches with `protocol: 'webDriverBiDi'`; Lighthouse connects with
+  `puppeteer.connect({browserURL, defaultViewport: null})`, CDP by default,
+  and LHCI launches Puppeteer itself only for a `puppeteerScript`, which
+  `lighthouserc.cjs` does not set. Its 2 371 reachable schemas hold no
+  size-capped collection either (42 arrays with a minimum only).
+
+**Two fixes were tried and declined**, both measured on 2026-10-24:
+
+- _A scoped override to zod 4._ `"shadcn": { "zod": "$zod" }` resolved to one
+  lockfile change — the nested copy removed — and a CLI that no longer starts:
+  every command, `--version` included, exits 1 at load with
+  `TypeError: o.deepPartial is not a function` (zod 4 has no `deepPartial`).
+  It was reverted with `npm install`, and the lockfile came back
+  byte-identical. For `chromium-bidi` the dependent tool cannot exercise one —
+  it never loads the package — so the parser was loaded on its own, from a
+  scratch copy with zod 4.6.6 beside it: it loads, and answers differently.
+  `parseCreateParams({type: "tab"})` gains `"background": false`, and an
+  invalid `session.subscribe` throws
+  `TypeError: Cannot read properties of undefined (reading 'map')` where zod 3
+  gives its `InvalidArgumentException`.
+- _`shadcn` 4.22.0_, the vendor's own move to zod 4, past the hold since
+  2026-10-23T13:26Z. On a scratch copy, `npm install shadcn@4.22.0
+--package-lock-only` moved 26 lockfile entries, among them `caniuse-lite` and
+  `baseline-browser-mapping` — no `dev` flag, `next` declares both — and
+  `browserslist` 4.28.9 → 4.29.4, all three inside the hold. Restricted with
+  `--before=2026-10-17T16:00Z` it still moved 26, the same two build-data
+  packages among them: 4.22.0 asks for `browserslist ^4.29.3`, and 4.29.3 for
+  `caniuse-lite ^1.0.30001813`. A dev CLI's advisory is not a reason to move
+  the browser data the production build compiles against.
+
+What would change the answer: a `shadcn` bump to 4.22 or later — then the
+`shadcn>zod` entry goes **in the same change**, because a dead entry is silent
+here (`show-not-found: false`); a `chromium-bidi` on zod 4, or a
+`puppeteer-core` without it — then the other two go.
+
 ## What is **not** allow-listed
 
 Anything in `dependencies` that ships to the server or the browser: `next`,
 `react`, `react-dom`, `next-auth`, `@auth/prisma-adapter`, `@prisma/client`,
 `@prisma/adapter-pg`, `pg`, `bcryptjs`, `zod`, `three` and the React Three
 Fiber stack. An advisory on any of those blocks the pipeline until it is fixed.
+
+`zod` is the one name in that list that also appears in the array, since
+2026-10-24 — and only by dependency **path**, for two dev-only `zod@3.25.76`
+copies under `shadcn` and `chromium-bidi`. The shipped copy was bumped to
+4.6.6, and with it back at 4.5.4 the `audit` gate fails on
+`GHSA-mrhx-c7xc-m3w5|zod` (measured; “`zod@3.25.76`, two dev-only copies”,
+above).
 
 ### That rule was tested on this branch: `next` (2026-09-30)
 
@@ -1039,6 +1186,237 @@ meantime. `GuideFilters` now keeps the query it wrote until
 `npm run e2e:docker` the spec then passed every "for my bike" run; perf and
 Lighthouse ran green in CI on the first commit.
 
+## Ten advisories of 2026-10-23, one of them on `zod`, which ships
+
+Ten ids entered the feed on 2026-10-23 between 18:26Z and 22:14Z, against
+five packages, and one left it: GitHub withdrew the `braces` advisory at
+12:53Z. One of the five ships: **`zod`**, the validator the server actions,
+the guest import's contract and the environment contract are written in. The
+scheduled check is what read them on `main`: its run of 2026-10-24 at 09:37Z
+and issue #39 are as reported to this branch, not read here. Measured on this
+branch at 16:28Z, on a fresh `npm ci` of `main`'s `e4011fd`:
+`bash scripts/ci/audit.sh` exits 1 on seven ids, `npm audit` names 18
+packages under fifteen ids, and `trivy` (database of 2026-10-24 07:11Z) finds
+one id outside the array, `zod` 4.5.4 as CVE-2023-54404. **The shipped `zod`
+is bumped, and nothing is allow-listed by id.** Two dev-only copies of zod 3
+have no patched release and are allow-listed by **path** (“`zod@3.25.76`,
+two dev-only copies”, above).
+
+| In the feed (UTC)   | Advisory            | CVE             | Severity | Package and range                                                                           | Answer                                                         |
+| ------------------- | ------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 2026-10-23 18:26:50 | GHSA-mrhx-c7xc-m3w5 | CVE-2023-54404  | high     | `zod <4.6.6`: memory exhaustion validating oversized constrained collections                | `zod` 4.5.4 → 4.6.6; two `zod@3.25.76` copies by path          |
+| 2026-10-23 20:53:11 | GHSA-27r3-jxmh-p828 | CVE-2026-111181 | high     | `body-parser <1.20.9`, `>=2.0.0 <2.4.0`: DoS through trailing bytes after a compressed body | `npm update`: 1.20.9 and 2.4.0, **inside the hold**            |
+| 2026-10-23 21:36:40 | GHSA-333x-w4r6-6crp | CVE-2026-110725 | low      | `fast-uri >=3.0.0 <3.1.9`: scheme injection through a first-segment colon                   | `npm update`: 3.1.9, **inside the hold**                       |
+| 2026-10-23 21:37:59 | GHSA-wjr9-j795-jxcr | CVE-2026-110180 | moderate | `fast-uri >=3.1.3 <3.1.9`: host confusion in WHATWG host canonicalisation                   | the same                                                       |
+| 2026-10-23 21:39:34 | GHSA-xhq7-xmqj-769h | CVE-2026-110095 | low      | `fast-uri >=3.0.0 <3.1.9`: path equivalence in relative-reference normalisation             | the same                                                       |
+| 2026-10-23 21:41:36 | GHSA-w74x-v6f9-j3xg | CVE-2026-110306 | moderate | `fast-uri >=3.0.0 <3.1.9`: scheme spoofing through percent-encoded decoding                 | the same                                                       |
+| 2026-10-23 22:09:52 | GHSA-m5mm-p8h7-m29v | CVE-2026-115897 | low      | `serialize-javascript <7.1.3`: XSS through an unescaped `</script` in a function body       | **not taken** (below)                                          |
+| 2026-10-23 22:12:57 | GHSA-f72v-6w45-q472 | CVE-2026-109841 | moderate | `undici >=7.15.0 <7.30.1`, `>=8.0.0 <8.12.2`: SRI bypass through non-lowercase tokens       | 7.30.1 by `npm update`; 8.12.2 by an exact override on `jsdom` |
+| 2026-10-23 22:13:29 | GHSA-4qv8-2p9j-2685 | CVE-2026-109924 | moderate | `undici >=7.0.0 <7.30.1`, `>=8.0.0 <8.12.2`: unbounded memory in the EventSource parser     | the same                                                       |
+| 2026-10-23 22:14:31 | GHSA-xjj6-f33q-929c | CVE-2026-109869 | high     | `undici >=7.18.0 <7.30.1`, `>=8.0.0 <8.12.2`: DoS through excessive content-encodings       | the same                                                       |
+
+“In the feed” is `github_reviewed_at` (`gh api /advisories/<id>`). For nine
+of the ten it equals `published_at`; GHSA-mrhx-c7xc-m3w5 was published on
+2026-10-01 and reviewed on 2026-10-23, which is when `npm audit` began to
+report it. The three low ids fail no gate here (`audit-ci.json` fails at
+`moderate`). `trivy` gates on HIGH and CRITICAL and scans the production tree
+only (“`zod@3.25.76`, two dev-only copies”), so of the ten it reported `zod`.
+
+The moves, each by the rule that fits its shape:
+
+- **`zod` 4.5.4 → 4.6.6**, the exact pin kept (`npm install zod@4.6.6
+--save-exact`). A shipped direct dependency is bumped — never overridden,
+  never allow-listed. 4.6.6 is the first patched release, published
+  2026-10-11T16:18Z, 13 d old: past the hold. 4.6.7 (2026-10-12) fixes nothing
+  the advisory names. What changed, and what was checked, is below.
+- **`undici`**: the 7.x copies under `shadcn` and `@dotenvx/dotenvx` by
+  `npm update undici`, to 7.30.1, the newest 7.x and 9 d 2 h old; `jsdom`'s
+  8.x copy by an exact, scoped override at 8.12.2, because `npm update` takes
+  8.12.3, five days old (the compatibility note under the overrides table).
+- **`body-parser`** by `npm update body-parser`: 1.20.9 under `@lhci/cli`'s
+  `express@4.22.2` (`~1.20.5`), 2.4.0 under the SDK's `express@5.2.1`
+  (`^2.2.1`). Each is the first patched release and the newest of its line,
+  and each is two days old — inside the hold, taken on the maintainer's ruling
+  (“The hold, skipped on a ruling”, below).
+- **`fast-uri`** by `npm update fast-uri`: 3.1.9, the one copy, under four
+  `ajv@8` (`^3.0.1`). First patched and newest; four days old, inside the
+  hold, on the same ruling.
+- **`serialize-javascript`**, low: **not taken**. Both releases that clear it
+  are inside the hold — 7.1.3 until 2026-10-29T21:24Z, 7.1.4 until
+  2026-10-30T14:53Z — and a low id fails no gate, so nothing is delayed and
+  the waiver does not apply: `CLAUDE.md` says it “is not a licence to skip the
+  hold when nothing is delayed”. It is also the one of the five that runs in
+  the production build: `@content-collections/core`, a `dependencies` entry,
+  declares `^7.0.5`, which admits both. `npm update serialize-javascript` once
+  the release it takes has aged through the hold.
+- **`braces`**, GHSA-vfj7-8cjw-p6xm: **removed from the array**. The advisory
+  was withdrawn on 2026-10-23 at 12:53:02Z (`withdrawn_at`), and `npm audit`
+  no longer reports it: on this tree, audit-ci run with `--show-not-found` and
+  the old array prints “Consider not allowlisting advisory:
+  GHSA-vfj7-8cjw-p6xm.” `audit-ci.json` sets `show-not-found: false`, so a dead
+  entry says nothing — the reason it is removed rather than left: re-published,
+  the advisory turns `audit` red and somebody decides. Its section below is
+  kept, with the date.
+
+### `zod` 4.5.4 → 4.6.6: what changed, and what this tree uses
+
+Read from the two tarballs (`npm pack zod@4.5.4 zod@4.6.6`, each `integrity`
+equal to the registry's), and measured where it says so:
+
+- **The fix** is a `capSize` wrapper on `$ZodArray`, `$ZodMap` and `$ZodSet`
+  (`src/v4/core/schemas.ts`): a container larger than its smallest size cap
+  fails that check before any element is parsed. Measured with 100 000 numbers
+  against `z.array(z.string()).max(10)`: 100 001 issues on 4.5.4, **one** on
+  4.6.6 (and 100 001 on both `zod@3.25.76` copies). Without a cap the count is
+  100 000 on every copy, 4.6.6 included: the release bounds a constrained
+  collection, not an unconstrained one. `z.record` has no such wrapper.
+- **Packaging**: the `exports` map is identical, and `package.json` differs by
+  the version, one build flag (`sealCjsExports`) and its scripts; neither
+  release has a dependency. **No runtime export is removed** from `zod`,
+  `zod/mini`, `zod/v4`, `zod/v4/core` or `zod/v3`; six are added (`INVALID`,
+  `ZodIBAN` / `ZodMiniIBAN`, `ZodInstanceOf`, `currencyCode`, `iban`,
+  `withParser`). `maxLength`, `minLength`, `minValue`, `maxValue`, `isInt` and
+  `format` are no longer own enumerable properties of a schema, and are still
+  readable (measured); nothing here reads them.
+- **Behaviour changes read in the diff**: `safeParse` builds its `error` on
+  the first read of that property; checks no longer fill the internal
+  `_zod.bag` when attached; an ambiguous discriminator value throws; and
+  `validate` / `validateAsync` stop at the first aborting issue. Nothing in
+  `app/`, `lib/`, `components/`, `scripts/` or `prisma/` reads `_zod` or
+  `.bag`, calls `z.validate`, or builds a discriminated union.
+- **What this tree pins about zod, measured again on 4.6.6**: an own
+  `__proto__` key in a `z.record` is skipped, and on a `strictObject` refused,
+  in classic zod and in `zod/mini`, exactly as on 4.5.4. The four comments that
+  said “verified against the installed zod 4.5.4” (`lib/guest/schema.ts`,
+  `tests/integration/build-lists.test.ts`, two in
+  `tests/security/guest-import.test.ts`) now name both.
+- **The tiers, run once the five lockfile changes below were in, and before
+  any document changed**: `tsc` clean; unit and security 2 810 tests, ui and
+  bike3d 1 134, integration 474, all green. The bundle, with `zod/mini` in it,
+  is under “Gates”.
+
+**Exposure, for the record: it was fixed without an exposure argument**,
+because it ships. It did apply. `importGuestStateAction` runs `withUser`, then
+the 256 KB budget, then `parseGuestState`, and only then the rate limiter. The
+contract's outer shape — `strictObject`, `bikes: z.array(…)` with
+`.check(z.maxLength(10))` — handed `{ version: 2, bikes: Array(100000).fill(0) }`,
+200 023 bytes of JSON, inside that budget and inside `next.config.ts`'s
+`serverActions.bodySizeLimit` of `512kb`, made 100 001 issues on 4.5.4's
+`zod/mini` and one on 4.6.6's; `parseGuestState` itself, on the installed
+4.6.6, returns one issue for that payload (measured). So a signed-in request
+could have the server allocate a hundred thousand issue objects, every time,
+before any bucket was consumed.
+
+### The hold, skipped on a ruling
+
+| Release                          | Published (UTC)  | Age at the bump (2026-10-24 16:45Z) | Clears the advisory             | Clears the 7-day hold          |
+| -------------------------------- | ---------------- | ----------------------------------- | ------------------------------- | ------------------------------ |
+| `zod` 4.6.6                      | 2026-10-11 16:18 | 13 d 0 h                            | yes (first patched)             | yes                            |
+| `undici` 7.30.1                  | 2026-10-15 14:18 | 9 d 2 h                             | yes (first patched, newest 7.x) | yes                            |
+| `undici` 8.12.2                  | 2026-10-15 15:05 | 9 d 1 h                             | yes (first patched)             | yes                            |
+| `undici` 8.12.3 — not taken      | 2026-10-19 14:02 | 5 d 2 h                             | yes                             | no, until 2026-10-26 14:02     |
+| `qs` 6.16.1 (new, under the SDK) | 2026-10-14 22:06 | 9 d 18 h                            | — (no advisory names it)        | yes                            |
+| **`body-parser` 1.20.9**         | 2026-10-22 11:38 | **2 d 5 h**                         | yes (first patched, newest 1.x) | **no, until 2026-10-29 11:38** |
+| **`body-parser` 2.4.0**          | 2026-10-22 11:39 | **2 d 5 h**                         | yes (first patched, newest 2.x) | **no, until 2026-10-29 11:39** |
+| **`fast-uri` 3.1.9**             | 2026-10-19 23:05 | **4 d 17 h**                        | yes (first patched, newest 3.x) | **no, until 2026-10-26 23:05** |
+
+The three in bold are in the lockfile inside the hold, **on the maintainer's
+ruling of 2026-10-24**, and this is the record of why — a decision, not an
+oversight, and not a precedent:
+
+- _Something was delayed._ `audit` is a required check: it has been red on
+  `main` since the scheduled run, and on every pull request with it. Waiting
+  for 2026-10-29 would have kept every change out for five more days. That is
+  the delay the waiver (`vulnerabilityAlerts.minimumReleaseAge: null`) exists
+  to remove, and the lowest-release rule still chose the versions: only the
+  date was waived.
+- _The reach is dev-only_ (below): neither Express listens, and `fast-uri`
+  resolves the URIs of schemas its packages ship.
+- _What was checked in place of the hold_ (measured): each lockfile entry's
+  `integrity` equals the registry's `dist.integrity`; all three were published
+  from GitHub Actions with a SLSA provenance attestation, and the audit of
+  signatures (`npm audit signatures`) exits 0 on the resolved tree: 1 698
+  registry signatures and 567 attestations verified, these three among them
+  (its JSON output, with attestations included, lists each). None is a new
+  package. The one new entry, `qs` 6.16.1, is past the hold, and carries a
+  registry signature but no attestation.
+
+**Exposure**, read and measured:
+
+- **`body-parser`** needs a server that parses a compressed request body.
+  Neither Express here listens (the `qs` paragraph under “Lighthouse CI
+  chain”): LHCI's is the static fallback server `lighthouserc.cjs` never
+  configures, the SDK's belongs to HTTP transports `shadcn` never imports.
+  Measured all the same, both Express copies started in-process on
+  `127.0.0.1:0` with their own `json()` and `urlencoded()`: a plain and a
+  gzip-compressed JSON body and a nested form each round-trip, on 1.20.9 with
+  `qs` 6.16.0 and on 2.4.0 with `qs` 6.16.1. `@lhci/cli`'s
+  `fallback-server.js` loads.
+- **`fast-uri`** is `ajv@8`'s URI resolver for `$id` and `$ref`. Its four
+  `ajv` copies sit under the SDK, `ajv-formats`, `conf` (`@dotenvx/dotenvx`,
+  under `shadcn`) and `@prisma/streams-local` (`prisma dev`, never run here);
+  each validates its own package's schemas. Measured on the first three: a
+  cross-document `$ref` resolves and validates as before.
+- **`undici`**: `jsdom/lib/api.js` requires it at load, so the Vitest `ui`
+  tier runs on 8.12.2; `shadcn`'s 7.30.1 is its registry client. Measured:
+  eight `shadcn` commands — `--version`, `info --json`, `view button`,
+  `search @shadcn -q button --json`, `add button --dry-run`, and `info` and
+  `add --dry-run` against an invalid `components.json` — give byte-identical
+  output and the same exit codes before and after this change; `view`,
+  `search` and `add` fetch the registry through it. `shadcn --version` prints
+  `4.21.0`.
+
+### How the lockfile was resolved: one change at a time
+
+Each change made by npm in the worktree, then `npm ls <pkg>` and the audit,
+and the lockfile diff read after each:
+
+1. `npm install zod@4.6.6 --save-exact` — one entry, `zod` 4.5.4 → 4.6.6.
+2. `"jsdom": { "undici": "8.12.2" }` in `overrides`, then `npm install` — one
+   entry, `undici` 8.10.2 → 8.12.2 (`npm explain`: `overridden
+undici@"8.12.2" (was "^8.9.0") from jsdom@30.0.1`). Run alone on a scratch
+   copy, `npm update undici` had moved it to 8.12.3.
+3. `npm update undici` — two entries, the 7.x copies 7.29.1 → 7.30.1.
+4. `npm update body-parser` — two entries, 1.20.8 → 1.20.9 and 2.3.0 → 2.4.0,
+   and **one added**, `@modelcontextprotocol/sdk/node_modules/qs` 6.16.1:
+   2.4.0 declares `qs ^6.16.1` where 2.3.0 declared `^6.15.2`. The SDK's
+   `express@5.2.1` (`qs ^6.14.0`) resolves the nested copy too, so it leaves
+   `qs@6.15.3` — and with it, one of the two paths the `qs` entries were
+   written for (“Lighthouse CI chain”).
+5. `npm update fast-uri` — one entry, 3.1.8 → 3.1.9.
+
+Eight entries move and one is added, 1898 → 1899. Nothing else moved.
+
+### Gates
+
+On the result, 2026-10-24:
+
+- `bash scripts/ci/audit.sh` exits 0 three runs of three (17:22Z), the five
+  ids the array names by id found, the three path entries matched; run with
+  `--show-not-found`, audit-ci reports no entry unused.
+- `bash scripts/ci/trivy.sh` is clean: `deepmerge-ts` accepted, nothing else
+  found.
+- `bash scripts/ci.sh` passed 12/12 in 172 s: 3 944 unit, ui, bike3d and
+  security tests and 474 integration tests; coverage at 95.57 % of statements
+  and 92.22 % of branches; the build, `bundle-guard` (61 files) and the
+  budget; the boot tier 4/4. The route table prints `●` for `/fr`, `/en` and
+  every guide, `ƒ` for `/[locale]/velo/[id]` and its sub-routes.
+- First-load JS, gzip, against its ceiling in `perf.budgets.json`:
+  `/[locale]` 195 870 B of 216 064, `/[locale]/velo/[id]` 248 971 of
+  275 456, `/controle` 221 596 of 244 736, `/liste` 242 380 of 269 312; every
+  budgeted route is 9 to 10 % under.
+- The hooks-on build (`ENABLE_TEST_PAGES=1 NEXT_PUBLIC_TEST_HOOKS=1 bash
+scripts/ci/build.sh`, `bundle-guard` 63 files), then
+  `npx playwright test --project=desktop-chromium` on `guest-import.spec.ts`,
+  `checkup-partial.spec.ts` and `auth-signup.spec.ts` — `zod/mini` in the
+  browser, classic `zod` in the actions: 44 passed, FR and EN.
+- `bash scripts/ci/renovate-config.sh`: valid. `npx shadcn --version`: 4.21.0.
+  `npm audit signatures`: exit 0.
+
+**Not run:** perf, Lighthouse, the other e2e specs and the other Playwright
+projects. `lhci autorun` loads `body-parser` 1.20.9 through LHCI's Express when
+it starts; the `lighthouse` job on the pull request is its first run.
+
 ## Removed from the array (2026-09-30)
 
 Seven ids left the allowlist because the vulnerable version is no longer in the
@@ -1048,7 +1426,18 @@ job goes red, which is the point: GHSA-82x6-q7mm-w9cf, GHSA-v5mp-jgw5-2x6j
 GHSA-52f5-9888-hmc6 (`tmp`), GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3
 (`mysql2`).
 
+**2026-10-24**: GHSA-vfj7-8cjw-p6xm (`braces`) left it too, for a different
+reason: GitHub withdrew the advisory on 2026-10-23 at 12:53:02Z, and audit-ci
+then reported the entry unused (“Ten advisories of 2026-10-23”). Its section
+below is kept, dated.
+
 ## `braces`, through three dev-tool glob chains — no patched release
+
+**Withdrawn, and removed from the array on 2026-10-24.** GitHub withdrew
+GHSA-vfj7-8cjw-p6xm on 2026-10-23 at 12:53:02Z (`withdrawn_at`, read with
+`gh api /advisories/GHSA-vfj7-8cjw-p6xm`), and `npm audit` stopped reporting
+it. What follows is the entry's reason as written on 2026-10-06, kept for the
+record.
 
 **GHSA-vfj7-8cjw-p6xm** (high, published 2026-09-18): stack exhaustion on deeply
 nested patterns, `braces <= 3.0.3`, and **3.0.3 is the latest release** — there

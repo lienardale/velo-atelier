@@ -354,11 +354,12 @@ describe("the refinement", () => {
   });
 
   it("drops an own `__proto__` key rather than storing it (zod 4 behaviour)", async () => {
-    // Verified against the installed zod 4.5.4: `z.record` SKIPS an own
-    // `__proto__` key instead of failing the parse, so the payload a browser
-    // could send arrives sanitised rather than refused. The end state is what
-    // matters — the key never reaches the column, and the stored object is a
-    // plain one — so this is asserted rather than forced into a refusal.
+    // Verified against the installed zod (4.5.4, and 4.6.6 on 2026-10-24):
+    // `z.record` SKIPS an own `__proto__` key instead of failing the parse, so
+    // the payload a browser could send arrives sanitised rather than refused.
+    // The end state is what matters — the key never reaches the column, and
+    // the stored object is a plain one — so this is asserted rather than
+    // forced into a refusal.
     const { list } = await seededList();
     const chain = list.items.find((item) => item.partId === "chain")!;
     const refinement = JSON.parse('{"__proto__": "x", "speeds": "11"}') as Record<string, string>;

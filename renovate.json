@@ -136,6 +136,13 @@
       "minimumReleaseAge": "7 days"
     },
     {
+      "description": "undici is an override, not a dependency: \"jsdom\": { \"undici\": \"8.12.2\" } pins jsdom's copy at the lowest release that clears GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472 and GHSA-xjj6-f33q-929c, because the newest release jsdom's ^8.9.0 admits (8.12.3) was inside the hold on 2026-10-24. jsdom declares ^8, so a v9 override would put an untested major under it. The pin can go once 8.12.3 has aged through the hold. See audit-ci-allowlist.md.",
+      "matchPackageNames": ["undici"],
+      "matchDepTypes": ["overrides"],
+      "allowedVersions": "<9",
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Type definitions are low risk — automerge them on a branch.",
       "matchPackageNames": ["@types/**"],
       "groupName": "type definitions",

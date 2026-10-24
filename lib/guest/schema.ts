@@ -51,7 +51,8 @@
  * step-key and reason-key enums, which is why ids are matched by PATTERN here
  * and by the re-planned plan on the server. `z.strictObject` refuses unknown
  * keys exactly like `.strict()` does on the server — verified against the
- * installed zod 4.5.4, see `schema.test.ts`.
+ * installed zod (4.5.4, and again on 4.6.6 on 2026-10-24), see
+ * `schema.test.ts`.
  *
  * That sentence was false until 2026-10-09: `KO_ACTIONS` was imported as a
  * VALUE from `lib/domain/schema/procedure.ts`, which is classic zod, and the
