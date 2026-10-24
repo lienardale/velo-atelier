@@ -418,12 +418,22 @@ this checkup"), then the action behind it, with its row in
 
 react-dom 19.2.8 keeps text typed before hydration in the DOM but never passes
 it to state: on `/acheter`'s free-text box the words stay visible and no vendor
-link appears. A guest bike's `MeasurementForm` is worse — it re-seeds its draft
-when `va:bike:local` resolves, in the render after hydration, wiping what was
-typed (`.debug/015` §2, §9). The e2e specs wait until React owns the field.
+link appears. On a guest bike's fit page they do not even stay: the form
+renders again as soon as `va:bike:local` has been read, and that render writes
+its state back over them — "380" typed at 72 ms with the JS chunks held back
+3 s, an empty field after hydration (2026-10-13, `.debug/018` §5; `.debug/015`
+§2, §9). The e2e specs wait until React owns the field.
 
-_To pick up_: read the field's DOM value into state on mount; re-seed only the
-fields the visitor has not touched.
+_Done_ (2026-10-13, `.debug/018`): the half that was `MeasurementForm`'s own.
+It re-seeded every field of a card whenever the record changed, so it also
+wiped what was typed AFTER React had attached — when the guest bike was read,
+and whenever another card of the page was saved. It now re-seeds only the
+fields the visitor has not typed in.
+
+_To pick up_: read the field's DOM value into state on mount. It is every
+controlled input's on a prerendered page, not one form's, so it wants one
+answer (a shared hook) rather than one per component; on the fit page the
+value read that way is a field typed in, and the form already keeps those.
 
 #### A number field left holding text the browser cannot read clears its attribute
 

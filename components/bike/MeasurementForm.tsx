@@ -47,6 +47,25 @@ import { useBikeActionText } from "./action-text";
  * `updateBikeFitAction`), so this component is identical on the guest and the
  * signed-in fit page.
  *
+ * ## What is typed is the visitor's
+ *
+ * The fit page draws one of these per card, all over ONE bike, so the record
+ * a form was seeded from changes under it: another card is saved, another tab
+ * saves, the guest bike is read out of storage after hydration, a
+ * revalidation hands a saved bike's cards a fresh `fit`. None of that may
+ * take what the visitor has typed here and not saved:
+ *
+ *   - a field that still shows what was on record follows the record;
+ *   - a field showing anything else — emptied by hand included — is left as
+ *     typed, until THIS card is saved: then it shows what was stored;
+ *   - except when ANOTHER bike has taken the record's place (a guest bike with
+ *     another id in the slot, or one where there was none; another saved
+ *     bike): what was typed was typed for the first, and every field takes
+ *     the new bike's value. The guest bike being read for the first time is
+ *     not that, and neither is its removal — nothing has taken its place.
+ *
+ * Until 2026-10-13 every change re-seeded the whole card (`.debug/018`).
+ *
  * ## Inputs
  *
  * `inputMode="decimal"` and `text-base` (16 px): anything smaller makes iOS
@@ -106,32 +125,84 @@ export function MeasurementForm({
   );
 
   const fields = fitFieldsFor(measureId);
-  const [stored, setStored] = useState<BikeFit>(known);
-  const [draft, setDraft] = useState<Record<string, string>>(() => draftOf(fields, known));
+  // WHOSE record `known` is. For a guest it is the bike in the slot, by its own
+  // id — `local` is the route's word for the slot, not a bike — and "storage
+  // has not been read yet" is an answer of its own, which is neither a bike
+  // nor the absence of one.
+  const owner: RecordOwner =
+    refKind !== "local"
+      ? bikeId
+      : snapshot === LOCAL_BIKE_PENDING
+        ? LOCAL_BIKE_PENDING
+        : (snapshot?.id ?? null);
+  const [card, setCard] = useState<Card>(() => ({
+    owner,
+    known,
+    shown: known,
+    draft: draftOf(fields, known),
+    sent: null,
+  }));
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorKey, setErrorKey] = useState<string>("errors.VALIDATION");
   const [, startTransition] = useTransition();
 
-  // Seeding the inputs from what is on record, adjusted during render rather
-  // than in an effect: `known` only changes when storage does (the snapshot is
-  // memoised on the raw string), so this runs once per real change instead of
-  // scheduling a second render every time.
-  if (stored !== known) {
-    setStored(known);
-    setDraft(draftOf(fields, known));
+  // Bringing the inputs in line with a record that has been read again,
+  // adjusted during render rather than in an effect: `known` is another object
+  // only then (the snapshot is memoised on the raw string, a saved bike's `fit`
+  // is a prop), so this runs once per read instead of scheduling a second
+  // render every time — and changes nothing when the card's values did not
+  // move. It is also the render a keystroke causes, when the change was another
+  // card's save in this tab — which fires no `storage` event — so `card.draft`
+  // here already holds that keystroke, and `follow` is what keeps it.
+  if (card.known !== known || card.owner !== owner) {
+    // Another bike where this one was. Not the first read of the guest bike
+    // (nothing was seeded from a bike before it) and not its removal (nothing
+    // has taken its place): those follow field by field like any other change.
+    const replaced = card.owner !== LOCAL_BIKE_PENDING && owner !== null && card.owner !== owner;
+    const from = draftOf(fields, card.shown);
+    const to = draftOf(fields, known);
+    setCard({
+      owner,
+      known,
+      shown: known,
+      draft: replaced ? to : follow(fields, card.draft, from, to),
+      // A save on its way is told too: a field it sent untouched has just
+      // moved with the record, and must not pass for "typed since" when the
+      // answer comes. A save sent for a bike that is no longer the card's has
+      // nothing to say to it.
+      sent: replaced || card.sent === null ? null : follow(fields, card.sent, from, to),
+    });
   }
 
   if (fields.length === 0) return null;
 
+  const { draft } = card;
   const numbers = numbersOf(draft);
   const patch = patchFor(measureId, numbers);
 
   const save = (): void => {
+    // What the inputs showed when the button was pressed — `patch` is made of
+    // it: the answer can be a server's, and the visitor goes on typing while it
+    // is on its way.
+    setCard((current) => ({ ...current, sent: draft }));
     setState("saving");
     startTransition(async () => {
       const result = await repo.setFit(patch);
       if (result.ok) {
-        setStored(result.data);
+        // The card shows what was stored — which is not always what was typed
+        // (`patchFor`) — in every field the visitor has left alone since the
+        // save was sent. A field typed in since is a new number, not saved
+        // yet. `sent` is `null` when another bike took the card meanwhile.
+        setCard((current) =>
+          current.sent === null
+            ? current
+            : {
+                ...current,
+                shown: result.data,
+                draft: follow(fields, current.draft, current.sent, draftOf(fields, result.data)),
+                sent: null,
+              },
+        );
         setState("saved");
         return;
       }
@@ -176,13 +247,16 @@ export function MeasurementForm({
               // once the handler returns, and a state updater runs during the
               // next render — long after that.
               const next = event.currentTarget.value;
-              setDraft((current) => ({ ...current, [field.key]: next }));
+              setCard((current) => ({
+                ...current,
+                draft: { ...current.draft, [field.key]: next },
+              }));
             }}
           />
         </div>
       ))}
 
-      <Readout measureId={measureId} build={build} values={numbers} stored={stored} />
+      <Readout measureId={measureId} build={build} values={numbers} stored={card.shown} />
 
       {repo.canEdit ? (
         <div className="flex items-center gap-3">
@@ -215,9 +289,65 @@ export function MeasurementForm({
   );
 }
 
+/** `LOCAL_BIKE_PENDING` until a guest's storage has been read; `null` for no bike at all. */
+type RecordOwner = string | null | typeof LOCAL_BIKE_PENDING;
+
+/** The inputs, and what they were last brought in line with. */
+interface Card {
+  owner: RecordOwner;
+  /** The record as it was read then; another object here is a record read again. */
+  known: BikeFit;
+  /**
+   * What a field nobody has typed in shows: `known`, or what this card stored
+   * since — a save is ahead of the record it will be read back from, and a
+   * saved bike's `fit` prop only catches up if the page is rendered again.
+   */
+  shown: BikeFit;
+  /** What the inputs hold. */
+  draft: Record<string, string>;
+  /**
+   * What the inputs held when the last save was sent, moved with the record
+   * wherever the record has moved an untouched field since. Read only by that
+   * save's answer, when it has succeeded; `null` before any save, once one has
+   * been shown, and when another bike has taken the card.
+   */
+  sent: Record<string, string> | null;
+}
+
 function draftOf(fields: readonly FitFieldDef[], fit: BikeFit): Record<string, string> {
   return Object.fromEntries(
     fields.map((field) => [field.key, fit[field.key] === undefined ? "" : String(fit[field.key])]),
+  );
+}
+
+/**
+ * `draft` once what stood behind it has gone from `from` to `to` — three sets
+ * of inputs, each holding every field of the card.
+ *
+ * A field still showing what `from` shows has not been typed in, and follows.
+ * A field showing anything else is the visitor's and comes back exactly as it
+ * is. Compared as the TEXT in the input, not as numbers and not through a
+ * "touched" flag: a number typed and then deleted is an untouched field again,
+ * and `from` is just as well what the inputs showed when a save was sent.
+ *
+ * Two corners that come with comparing text, both left as they are. A number
+ * typed and not saved that the record then comes to hold — another tab saved
+ * the same one — is an untouched field from there on, and follows the next
+ * change. And a number input reports "" for text it cannot read (a lone "-"),
+ * so a half-typed field over an empty record counts as untouched until it
+ * reads as a number.
+ */
+function follow(
+  fields: readonly FitFieldDef[],
+  draft: Record<string, string>,
+  from: Record<string, string>,
+  to: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    fields.map((field) => [
+      field.key,
+      draft[field.key] === from[field.key] ? to[field.key] : draft[field.key],
+    ]),
   );
 }
 
