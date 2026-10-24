@@ -1075,8 +1075,9 @@ Checks" — `@modelcontextprotocol/sdk` to 1.32.1, the release #15's exact pin
 at 1.31.0 was written to hold back, and a lockfile update of `basic-ftp` to
 6.2.2. An override here is a security pin whose version was checked against
 its parent, call site by call site (`audit-ci-allowlist.md`); a bump is an
-untested version for that parent. Only `argparse` is capped (`renovate.json`:
-`matchDepTypes: ["overrides"]`, below 3).
+untested version for that parent. Two are capped (`renovate.json`:
+`matchDepTypes: ["overrides"]`): `argparse` below 3, and since 2026-10-24 the
+exact `jsdom > undici` pin below 9.
 
 _Why deferred_ (W5): found while clearing the advisories of 2026-10-05 and
 2026-10-06 and not fixed there — the rule to write covers every override at
