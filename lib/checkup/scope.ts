@@ -66,11 +66,15 @@
  * bike's row, as an imported row — and never acted on by the partial
  * checkup: no status, no line (§5.13, V1-3: until then a guest's copy was
  * dropped at the next save, and the import left it out). A run whose ONLY
- * answers are such has none narrowed on its parts, so every page but theirs,
- * opened as such, carries it on as the full checkup
- * ({@link carriedOnWhole}), where they are a full checkup's answers (§5.14,
- * V3-TOUCHED-ONLY). A KO there widens the run like any other: its finding is
- * kept and acted on, by the full checkup.
+ * answers are such has none narrowed on its parts: a guest's is then held by
+ * its own parts' page alone and carried on as the full checkup
+ * ({@link carriedOnWhole}) from every other; a saved bike's is held by any
+ * page that touches the question — a touched answer passes {@link holds}
+ * there and neither plan asks it ({@link sameEffects}, in
+ * {@link savedResumeTarget}) — and carried on as the full checkup from the
+ * others. Either way, finished there they are a full checkup's answers
+ * (§5.14, V3-TOUCHED-ONLY and V4). A KO there widens the run like any other:
+ * its finding is kept and acted on, by the full checkup.
  *
  * ## Which scope a run is
  *

@@ -108,11 +108,13 @@
  * the same run (`guestResumeTarget`; `.debug/017` §5.14, V2-3). An OK or a
  * skip to a touched question does not by itself take a run off its parts,
  * there or here — but a run whose ONLY answers are such has none narrowed
- * on them, so, unfinished, it is held only by the page of its parts opened
- * as such: opened from any other page it is carried on as the full checkup,
- * on the account as in the guest's own browser, which acts on those answers
- * once finished (§5.14, V3-TOUCHED-ONLY: the leak question's OK closed both
- * brake lines' open lines). Until §5.13 the import itself widened a checkup
+ * on them, and where it resumes, unfinished, then differs: the guest's own
+ * browser holds it on the page of its parts alone, while the account holds
+ * it on every page that touches its question (a touched answer passes
+ * `holds` there, and neither plan asks it: `savedResumeTarget`'s
+ * `sameEffects`); each carries it on as the full checkup from the other
+ * pages, which acts on those answers once finished (§5.14, V3-TOUCHED-ONLY
+ * and V4: the leak question's OK closed both brake lines' open lines). Until §5.13 the import itself widened a checkup
  * with a KO of either kind to `FULL`, and a `FULL` checkup's states land on
  * each item's first part: a rear-caliper checkup's leak, or worn rear rim,
  * made the FRONT caliper, or the front wheel, `BROKEN`, and said nothing of
