@@ -19,7 +19,7 @@ import { scopeFacts } from "@/lib/checkup/scope";
 import { toStored } from "@/lib/checkup/storage";
 import type { StoredCheckup } from "@/lib/checkup/storage";
 import type { CheckupScope } from "@/lib/checkup/types";
-import { makeState, threeStepPlan } from "@/tests/_helpers/checkup";
+import { makeState, makeStep, threeStepPlan } from "@/tests/_helpers/checkup";
 import { renderWithIntl } from "@/tests/_helpers/intl";
 import { routerSpies } from "@/tests/_fakes/session";
 
@@ -497,8 +497,8 @@ describe("a refused finish (§4.2 c)", () => {
  * An unfinished run, resumed by a page planned for another scope (`.debug/017`
  * §5.10, §5.12). The page's scope wins when it holds the run — asks every
  * answer about what it was given for; when it does not, a guest's run goes
- * back to its own parts, or on to the full checkup when that asks every answer
- * about what it was given for, and is never trimmed. Hand-shaped plans: the
+ * back to its own parts, or on to the full checkup when that takes it over
+ * (`carriedOnWhole`), and is never trimmed. Hand-shaped plans: the
  * real page, actions and database are `tests/integration/checkup-resume.test.ts`.
  */
 describe("an unfinished run, resumed (§5.10, §5.12)", () => {
@@ -999,6 +999,69 @@ describe("an unfinished run, resumed (§5.10, §5.12)", () => {
     expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
     expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
       "vérifiez-les : « Mesurer l’usure des plaquettes »",
+    );
+    expect(leave.replaceDocument).not.toHaveBeenCalled();
+  });
+
+  it("…and so does a guest's whose own parts no longer ask ONE of its answers, the bike rebuilt: a front-only answer now counts for both sides (V3-PARTLY-EMPTY)", async () => {
+    // A 2x's front derailleur and front caliper: there the pads' and the
+    // alignment's questions were asked of the front caliper alone, the
+    // shifting one of the front derailleur. The guest bike is a 1x now: the
+    // page of those parts asks the first two and not the third, so it does
+    // not hold the run, and the full checkup takes it over — where the pads'
+    // question names every part it names here. With §5.14's rule as first
+    // written — an EMPTY plan of those parts only — the wizard opened on the
+    // first open question, the chain's, past the pads' answer (the same run
+    // on the presets, `road-disc-2x12` then `gravel-1x11`:
+    // `tests/integration/checkup-resume.test.ts`).
+    const SHIFTING = makeStep({
+      guideSlug: "check-drivetrain",
+      stepId: "shifting-index",
+      number: 2,
+      title: "Essayer tous les rapports",
+      partIds: ["rear-derailleur", "shifter-right"] as never,
+      skippable: false,
+      ko: [
+        {
+          action: "fix",
+          partId: "rear-derailleur",
+          reasonKey: "shifting-imprecise",
+          guideSlug: "adjust-rear-derailleur",
+        },
+      ],
+    });
+    const FULL = [...PLAN, SHIFTING];
+    const OWN = {
+      kind: "parts" as const,
+      partIds: ["front-derailleur", "brake-caliper-front"] as never,
+    };
+    window.localStorage.setItem(
+      checkupKey("demo"),
+      JSON.stringify(
+        partialRun({ [PADS.key]: "ok", [CALIPER.key]: "ok", [SHIFTING.key]: "ok" }, OWN),
+      ),
+    );
+    leave.replaceDocument.mockClear();
+    await renderWithIntl(
+      wizard({
+        steps: FULL,
+        resumeWidened: true,
+        widenedFrom: {
+          scope: OWN,
+          steps: [PADS, CALIPER],
+          facts: scopeFacts(OWN, FULL, [PADS, CALIPER]),
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("step-card")).toHaveAttribute("data-step-key", PADS.key),
+    );
+    expect(screen.getByTestId("verdict-bar")).toHaveAttribute("data-verdict", "ok");
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "« Mesurer l’usure des plaquettes »",
+    );
+    expect(screen.getByTestId("checkup-resumed")).toHaveTextContent(
+      "« Essayer tous les rapports »",
     );
     expect(leave.replaceDocument).not.toHaveBeenCalled();
   });

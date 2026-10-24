@@ -17,6 +17,7 @@ import {
   knownParts,
   namesParts,
   narrowedAnswer,
+  outgrowsParts,
   partsInScope,
   recordedScope,
   sameEffects,
@@ -343,6 +344,39 @@ describe("narrowedAnswer and carriedOnWhole", () => {
     ).toBe(true);
     expect(carriedOnWhole(run({ [CHAIN]: "ok" }), CHAIN_ONLY, CHAIN_PLAN, CHAIN_FACTS)).toBe(true);
     expect(carriedOnWhole(run({ [PADS]: "ok" }), REAR, REAR_PLAN, REAR_FACTS)).toBe(false);
+  });
+});
+
+describe("outgrowsParts — where the full checkup can count an answer for more than its own parts would", () => {
+  it("is not, for a run its own parts hold, asking every answer: the full checkup asks each as they do", () => {
+    // Taken over whole (no answer narrowed there), and asked exactly as there.
+    expect(carriedOnWhole(run({ [CHAIN]: "ok" }), CHAIN_ONLY, CHAIN_PLAN, CHAIN_FACTS)).toBe(true);
+    expect(outgrowsParts(run({ [CHAIN]: "ok" }), CHAIN_ONLY, CHAIN_PLAN, CHAIN_FACTS)).toBe(false);
+    expect(outgrowsParts(run({ [PADS]: "ok" }), REAR, REAR_PLAN, REAR_FACTS)).toBe(false);
+    // A question the bike is no longer asked decides nothing.
+    expect(
+      outgrowsParts(run({ [PADS]: "ok", "check-retired#gone": "ok" }), REAR, REAR_PLAN, REAR_FACTS),
+    ).toBe(false);
+  });
+
+  it("is, when its own parts ask NONE of its answers here (§5.14) or no longer ask ONE of them (V3-PARTLY-EMPTY)", () => {
+    const shifter = parts("shifter-left");
+    expect(
+      outgrowsParts(run({ [PADS]: "ok" }), shifter, [], scopeFacts(shifter, FULL_PLAN, [])),
+    ).toBe(true);
+    // The rear caliper's page asks the pads and not the chain: a run holding
+    // both was answered where its parts asked more — on another bike, or by
+    // the planner of before 2026-10-22.
+    expect(outgrowsParts(run({ [PADS]: "ok", [CHAIN]: "ok" }), REAR, REAR_PLAN, REAR_FACTS)).toBe(
+      true,
+    );
+  });
+
+  it("is, for a run its own parts do not hold, and for a touched answer: a stored run cannot say which planner it was given under", () => {
+    expect(outgrowsParts(run({ [HOSE]: "ko" }), REAR, REAR_PLAN, REAR_FACTS)).toBe(true);
+    expect(outgrowsParts(run({ [HOSE]: "ok" }), REAR, REAR_PLAN, REAR_FACTS)).toBe(true);
+    const worn = run({ [RIM]: "ko" }, { symptoms: { [RIM]: ["rim-brake-track-worn"] } });
+    expect(outgrowsParts(worn, FRONT, FRONT_PLAN, FRONT_FACTS)).toBe(true);
   });
 });
 

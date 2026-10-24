@@ -614,8 +614,25 @@ What that repair did NOT touch, because none of it goes through the repo:
 - **The guest checkup and build list are keyed by the slot too**
   (`va:checkup:local`, `va:buildlist:local`), and neither control that stores
   a new guest bike touches them (read in `components/decision-tree/Summary.tsx`
-  and `forkDemoToLocal`). What the new bike's pages then show of them was
-  not looked at.
+  and `forkDemoToLocal`). What the new bike's checkup pages show of the
+  checkup was measured on 2026-10-23 by the fourth adversarial verification
+  of `w5/partial-checkup` (`.debug/017` §5.14): a guest run left unfinished
+  on a 2x road bike, then the guest bike a 1x — in Chromium a NEW guest bike
+  written into the slot by the tests' own helper (`localBikePayload` →
+  `writeLocalBike`), in jsdom only the 1x's `?spec=`, which is what the page
+  plans from; never through the two controls, which were not driven. The
+  new bike's checkup pages carry the OLD bike's stored answers on into
+  the new bike's full checkup, announced by the notice ("Ce contrôle avait
+  commencé sur quelques pièces…", naming « Essayer tous les rapports »):
+  for a front-derailleur run in Chromium on a production build with the
+  test hooks (`desktop-chromium` and `mobile-chromium`, French and
+  English), and for a front-derailleur-and-chain run in jsdom, through the
+  real page and wizard. The wizard opens no later than the first answer
+  that notice names whenever the old bike's answers are to questions the
+  run's parts no longer ask here (`outgrowsParts`; for the second run since
+  the fourth verification's fix, V3-2). What the new bike's pages show of
+  the build list (`va:buildlist:local`) was not looked at. The keying
+  predates this unit, and nothing here changes it.
 
 Not measured anywhere: WebKit and Firefox. And a person's tab switch is not
 the case that was fixed: it takes the focus out of the field, which commits
@@ -913,7 +930,9 @@ answer, which now counts for every part the question names on this bike.
 Through an address that names those parts without `?resume=` — the bike
 page's "Reprendre le contrôle" for a guest, the parts panel picking them —
 the empty page comes first, and its link then resumes the run on the full
-checkup. Until §5.14 a guest's such run sent every checkup page of the bike to
+checkup (seen again on 2026-10-23 by the fourth verification, V3-3, in
+Chromium: "Reprendre le contrôle" on a guest bike rebuilt as a 1x, "Nothing
+to check here", then its link, the full checkup with the notice). Until §5.14 a guest's such run sent every checkup page of the bike to
 `?parts=…&resume=own`, the empty page, whose link sent it back there: no
 checkup could be done on that bike until storage was cleared.
 

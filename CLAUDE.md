@@ -782,11 +782,18 @@ docs/                contributor and operator docs — every one is linked from 
   name the front one — until §5.13 it was, and a rear-only OK closed the
   front pads' line. An OK or a skip to a question the scope only TOUCHES
   (`scopeFacts().touched`: the planner of before 2026-10-22 asked it there,
-  `hose-leak` for a caliper; today's does not) widens nothing and is KEPT,
-  never acted on — in a guest's storage (the wizard's `keepTouched`), as a
-  saved bike's row, as an imported row (§5.13, V1-3: a guest's copy used to
-  lose it at the next save); a KO there widens, its finding acted on by the
-  full checkup. Where an unfinished run resumes:
+  `hose-leak` for a caliper; today's does not) does not by itself take the
+  run off its parts, and is KEPT, never acted on by the partial checkup — in
+  a guest's storage (the wizard's `keepTouched`), as a saved bike's row, as
+  an imported row (§5.13, V1-3: a guest's copy used to lose it at the next
+  save). A run whose only answers are such has none narrowed on its parts,
+  so, like every run with none narrowed there, it is held only by the page
+  of its parts opened as such; opened from any other page it is carried on
+  as the full checkup, a saved bike's and a guest's alike (§5.14,
+  V3-TOUCHED-ONLY), which acts on those answers once finished — on a saved
+  bike the leak question's OK closed both brake lines' open lines. A KO
+  there widens, its finding acted on by the full checkup. Where an
+  unfinished run resumes:
   - **a GUEST's run** knows its parts — its scope is stored whole — and
     resumes on them and nowhere else (`guestResumeTarget`): opened anywhere
     else it goes back to them (`?parts=…&resume=own`, "Un contrôle limité
@@ -834,10 +841,17 @@ docs/                contributor and operator docs — every one is linked from 
     questions that name several parts — their answers now count for each of
     them (`resumed.partialAsFullNamed`) — and a saved bike's wizard opens no
     later than the first of them, so the visitor sees it again before going on
-    (§5.13, RA-3), as does a guest's whose own parts ask nothing on the bike
-    or are unknown to the catalogue (`showsNamedFirst`, §5.14) — a guest's
-    taken over otherwise opens where it was, every answer there asked about
-    what it was given for; "Un contrôle complet est déjà en cours…"
+    (§5.13, RA-3), as does a guest's whenever the page of its own parts would
+    not hold it or does not ask one of its answers (`showsNamedFirst` →
+    `outgrowsParts`, §5.14): those parts ask nothing on the bike, or no
+    longer ask one of its answers since the guest bike was replaced — a 2x's
+    front derailleur and front caliper on a 1x, whose front-only pads'
+    answer then counts for both calipers (V3-2) — or the run, of before
+    2026-10-22, went beyond them or holds a touched answer (given whole, but
+    a stored run cannot say so); or its parts are unknown to the catalogue.
+    A guest's taken over otherwise opens where it was: its parts' page holds
+    it, asks every answer and narrows none, and the full checkup asks each
+    exactly as that page does; "Un contrôle complet est déjà en cours…"
     (`resumed.fullInProgress`) for a full run. Every leave is a full navigation
     (`components/checkup/replace-document.ts`: a soft `router.replace` never
     committed in Chromium), a question the corpus dropped decides nothing, and
@@ -1553,19 +1567,26 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   uses them to decide that column and to narrow its steps, and they are then
   gone, exactly as for a partial checkup started on the account, save for
   what each row's part says of them — which the account resumes by the rule
-  above: on the parts its rows tell when those parts hold the run (a
-  rear-caliper run's rows, a touched OK's included, name the rear caliper),
-  otherwise as the full checkup, the SAME row, its answers kept and its column
-  then `FULL` (`tests/integration/checkup-resume.test.ts`). An UNFINISHED one
-  holding a KO to a question its scope only touches, or a KO whose symptom
-  the narrowed question withholds, is the second kind: its parts' page cannot
-  hold that KO, so the account's first page carries it on as the full
-  checkup — said, the answers named and the first shown — and, finished
-  there, its findings count for both sides, exactly as the guest's own
-  browser carries the same run on (`guestResumeTarget`; VI-B6KO-UNFINISHED,
-  §5.14, V2-3). "Never acted on" is the IMPORT's: it writes no part state
-  and no link from such a row. Until 2026-10-22 the resume banner's first
-  click deleted every item an imported partial run held.
+  above (a rear-caliper run's rows, a touched OK's included, name the rear
+  caliper): the page of the parts its rows tell holds it when those parts
+  hold the run; any other page sends it there when, besides, one of its
+  answers is narrowed there, and otherwise carries it on as the full
+  checkup, the SAME row, its answers kept and its column then `FULL`
+  (`tests/integration/checkup-resume.test.ts`). So a run whose one answer is
+  a touched OK — none narrowed — is held by its rear caliper's page alone:
+  the banner and every other page carry it on as the full checkup, as the
+  guest's own browser does, and finished there its OK is a full checkup's,
+  closing both brake lines' open lines (§5.14, V3-TOUCHED-ONLY). An
+  UNFINISHED one holding a KO to a question its scope only touches, or a KO
+  whose symptom the narrowed question withholds, is not held even by its
+  parts' page, which cannot hold that KO: the account's first page carries
+  it on as the full checkup — said, the answers named and the first shown —
+  and, finished there, its findings count for both sides, exactly as the
+  guest's own browser carries the same run on (`guestResumeTarget`;
+  VI-B6KO-UNFINISHED, §5.14, V2-3). "Never acted on" is the IMPORT's: it
+  writes no part state and no link from such a row. Until 2026-10-22 the
+  resume banner's first click deleted every item an imported partial run
+  held.
   (`finishCheckupAction` writes a KO as `ATTENTION`, host-expanded through
   `statusByPart`; the two are deliberately NOT aligned — a separate ruling.)
   **All or nothing per bike**: the bike, its part states, checkups, items,
