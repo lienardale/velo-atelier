@@ -847,8 +847,9 @@ docs/                contributor and operator docs — every one is linked from 
     longer ask one of its answers since the guest bike was replaced — a 2x's
     front derailleur and front caliper on a 1x, whose front-only pads'
     answer then counts for both calipers (V3-2) — or the run, of before
-    2026-10-22, went beyond them or holds a touched answer (given whole, but
-    a stored run cannot say so); or its parts are unknown to the catalogue.
+    2026-10-22, went beyond them or holds a touched answer or a withheld
+    symptom (given whole, but a stored run cannot say so); or its parts are
+    unknown to the catalogue.
     A guest's taken over otherwise opens where it was: its parts' page holds
     it, asks every answer and narrows none, and the full checkup asks each
     exactly as that page does; "Un contrôle complet est déjà en cours…"
