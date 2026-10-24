@@ -79,7 +79,9 @@ vulnerable; an unscoped one also covers a second parent arriving later, which
 is the direction that matters for a security pin. Scope one the day two parents
 need different majors.
 
-**The scoped override is that day, and a different shape:**
+**The first scoped override was that day, and a different shape** (the
+second, `jsdom > undici` since 2026-10-24, is the plain one: two parents on
+two majors, above):
 `"js-yaml@^3": { "argparse": "^2.0.1" }` pins a package that is not vulnerable
 in order to remove one that is. `sprintf-js` (GHSA-hp3w-g68c-fv3c) has no
 patched release, its only parent in the lockfile is `argparse@1`, and
@@ -172,9 +174,12 @@ constrained collection, `<4.6.6`) entered the feed on 2026-10-23 with nine
 ids on other packages, and the scheduled check found `main` red. 4.6.6 is the
 first patched release and was 13 d old; the diff was read for what this tree
 uses (no export removed; a size-capped array, set or map now fails its cap
-before any element is parsed). The guest import's contract is that case: a
-200 KB payload inside every budget made 100 001 issues on 4.5.4 and one on
-4.6.6 (measured). The two dev-only copies of zod 3 have no patched
+before any element is parsed). The guest import's contract is that case for
+its arrays: a 200 KB payload inside every budget made 100 001 issues on 4.5.4
+and one on 4.6.6 (measured). Not for its records, whose cap is a refine that
+runs after their entries are parsed: one record inside the 256 KB budget
+still makes about 33 000 issues on either version (measured; `docs/backlog.md`
+has it). The two dev-only copies of zod 3 have no patched
 release, and an override to zod 4 broke `shadcn` at load — hence the path
 entries above. The same change pinned `undici` under `jsdom`, took
 `body-parser` 1.20.9 / 2.4.0 and `fast-uri` 3.1.9 **inside** the hold on the

@@ -358,6 +358,33 @@ _To pick up_: before any log drain or error tracker is added, decide whether
 last line only, for instance — and pin the choice in
 `tests/unit/db/log.test.ts`.
 
+#### The guest import's records are counted after their entries are parsed
+
+`lib/guest/schema.ts` caps each record of the import's contract — a
+checkup's `answers`, `symptoms` and `notes`, a line's `refinement` — with
+`maxEntries`, a `z.refine`. A refine is a check: it runs once every entry has
+been parsed, and is skipped once one has failed. So a record of entries that
+each fail costs one zod issue per entry, and `importGuestStateAction` parses
+before it consumes a rate-limit bucket. Measured on 2026-10-24 on zod 4.6.6:
+32 928 entries in one checkup's `answers`, 262 144 bytes — exactly the 256 KB
+budget — make 32 939 issues in 35 to 43 ms, and 4.5.4 made as many. zod 4.6.6
+(GHSA-mrhx-c7xc-m3w5) stops a capped array, map or set at its cap before its
+elements are parsed (`capSize`); `z.record` has no such wrapper
+(`audit-ci-allowlist.md`, “Ten advisories of 2026-10-23”).
+
+_Why deferred_ (W5): found in review of the advisory fix of 2026-10-24, whose
+change is the dependency and not the contract. The cost is bounded by the
+payload budget and linear in it. What the bump removed was the larger case: a
+capped array inside the same budget, 100 001 issues for 200 023 bytes on
+4.5.4, one on 4.6.6 (measured).
+
+_To pick up_: count a record's keys before its entries are parsed — a
+`z.pipe` from a `z.custom` that refuses more than `max` own keys into the
+`z.record`, or the same check in `parseGuestState` ahead of the schema — and
+hold it with a test that sends a record over its cap inside the budget and
+expects one issue. `lib/guest/schema.ts` is loaded in the browser, so the
+change stays in `zod/mini` (`tests/unit/guest/module-graph.test.ts`).
+
 ### Content and search
 
 #### Search index
