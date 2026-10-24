@@ -1319,8 +1319,10 @@ equal to the registry's), and measured where it says so:
   characters over `a.'+-_9Z` before each of 14 domains (`x..co`, `.x.co`,
   `x-.co`, `x.co@y.co` among them), and every string of 0 to 11 characters
   over `a.@'` — accepts 5 949 114 on 4.5.4, and 4.6.6 gives the same answer
-  for every one. **`base64url`** is tightened (a length of 1 modulo 4 is now
-  refused) and so is **`emoji`** (one pictograph, regional indicator or
+  for every one. The exported **`regexes.base64url`** is tightened (a length
+  of 1 modulo 4 is now refused by the regex; `z.base64url()` already refused
+  it on 4.5.4 — the same verdicts on both tarballs, measured in review) and
+  so is **`emoji`** (one pictograph, regional indicator or
   keycap is now required); nothing here calls `z.base64url()` or `z.emoji()`
   — `lib/auth/tokens.ts`'s `base64url` is Node's `Buffer`, not zod's. A bare
   **`z.url()`**, `lib/env.ts`'s, now asks `URL.canParse` instead of
@@ -1368,12 +1370,31 @@ base-36 keys, `{ version: 2, bikes: [{ checkups: [{ answers }] }] }`, is
 262 144 bytes, exactly the budget, and `parseGuestState` on the installed
 4.6.6 returns 32 939 issues in 35 to 43 ms (four runs); a record schema of
 the same shape in `zod/mini`, capped by a refine at 250, makes 32 928 issues
-from each tarball, 4.5.4 and 4.6.6 alike. Linear in the budget, and so not the
-advisory's unbounded case, but not one issue either. Counting a record's keys
-before its entries are parsed, as `capSize` does for an array, is in
-`docs/backlog.md` (“The guest import's records are counted after their
-entries are parsed”); it is a change to the contract, not to the dependency,
-and is not made here.
+from each tarball, 4.5.4 and 4.6.6 alike. Linear in the budget — as the
+capped array of before the bump was, 100 001 issues for 200 023 bytes on
+4.5.4: the two differ by a constant factor, not in kind — but not one issue
+either. Nor does 4.6.6 bound the case the advisory's own DESCRIPTION opens
+with, a collection with no length constraint at all (its table above quotes
+the summary): an uncapped array still costs one issue per failing element
+(measured unchanged above).
+
+**And the shipped actions' records have no entry cap at all.** Three server
+actions parse a `z.record` from a signed-in request, with no count of any
+kind and no rate limiter in front, inside the 512 KB body limit
+(`next.config.ts`): `updateBikeFitAction`'s `fit`
+(`app/[locale]/velo/[id]/reglages/actions.ts`), `updateBikePartAction`'s
+`attributes` (`app/[locale]/velo/[id]/actions.ts`) and the list's
+`refinement` (`app/[locale]/velo/[id]/liste/actions.ts`, whose 24 is
+counted after the parse; read). Measured in review on 2026-10-24, on schemas
+copied verbatim from the first two: a `fit` of 57 221 entries of `""` under
+base-36 keys, 524 279 bytes of JSON, makes 57 221 issues in 37 ms; the same
+keys as `attributes`, each value `{}` (a failing three-way union), 57 221 in
+124 ms — on 4.6.6 and on the 4.5.4 tarball alike. Bounded by the body limit
+and linear in it, so not a dependency problem, and no part of this bump.
+Counting a record's keys before its entries are parsed, as `capSize` does
+for an array, is in `docs/backlog.md` (“A request's records are counted
+after their entries are parsed”); it is a change to the schemas, not to the
+dependency, and is not made here.
 
 ### The hold, skipped on a ruling
 

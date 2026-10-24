@@ -178,8 +178,9 @@ before any element is parsed). The guest import's contract is that case for
 its arrays: a 200 KB payload inside every budget made 100 001 issues on 4.5.4
 and one on 4.6.6 (measured). Not for its records, whose cap is a refine that
 runs after their entries are parsed: one record inside the 256 KB budget
-still makes about 33 000 issues on either version (measured; `docs/backlog.md`
-has it). The two dev-only copies of zod 3 have no patched
+still makes about 33 000 issues on either version, and the uncapped records
+of three signed-in actions (`fit`, `attributes`, `refinement`) about 57 000
+inside the 512 KB body limit (measured; `docs/backlog.md` has it). The two dev-only copies of zod 3 have no patched
 release, and an override to zod 4 broke `shadcn` at load — hence the path
 entries above. The same change pinned `undici` under `jsdom`, took
 `body-parser` 1.20.9 / 2.4.0 and `fast-uri` 3.1.9 **inside** the hold on the
