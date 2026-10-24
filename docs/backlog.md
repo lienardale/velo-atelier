@@ -358,7 +358,7 @@ _To pick up_: before any log drain or error tracker is added, decide whether
 last line only, for instance — and pin the choice in
 `tests/unit/db/log.test.ts`.
 
-#### The guest import's records are counted after their entries are parsed
+#### A request's records are counted after their entries are parsed
 
 `lib/guest/schema.ts` caps each record of the import's contract — a
 checkup's `answers`, `symptoms` and `notes`, a line's `refinement` — with
@@ -372,6 +372,15 @@ budget — make 32 939 issues in 35 to 43 ms, and 4.5.4 made as many. zod 4.6.6
 elements are parsed (`capSize`); `z.record` has no such wrapper
 (`audit-ci-allowlist.md`, “Ten advisories of 2026-10-23”).
 
+The guest import is not the only one, nor the largest. Three server actions
+parse a `z.record` from a signed-in request with no entry cap of any kind
+and no rate limiter in front, inside the 512 KB body limit:
+`updateBikeFitAction`'s `fit`, `updateBikePartAction`'s `attributes` and the
+list's `refinement` (counted to 24 only after the parse). Measured in review
+on schemas copied verbatim from the first two: 57 221 entries, 524 279 bytes,
+make 57 221 issues — in 37 ms for `fit`, 124 ms for `attributes` — on 4.6.6
+and on 4.5.4 alike.
+
 _Why deferred_ (W5): found in review of the advisory fix of 2026-10-24, whose
 change is the dependency and not the contract. The cost is bounded by the
 payload budget and linear in it. What the bump removed was the larger case: a
@@ -383,7 +392,10 @@ _To pick up_: count a record's keys before its entries are parsed — a
 `z.record`, or the same check in `parseGuestState` ahead of the schema — and
 hold it with a test that sends a record over its cap inside the budget and
 expects one issue. `lib/guest/schema.ts` is loaded in the browser, so the
-change stays in `zod/mini` (`tests/unit/guest/module-graph.test.ts`).
+change stays in `zod/mini` (`tests/unit/guest/module-graph.test.ts`). For
+the three actions, the same count before the parse — `fit` holds a few
+measurements, `attributes` one part's attributes, `refinement` 24 answers —
+each with a row in `tests/security/`.
 
 ### Content and search
 
