@@ -787,12 +787,18 @@ docs/                contributor and operator docs — every one is linked from 
   a guest's storage (the wizard's `keepTouched`), as a saved bike's row, as
   an imported row (§5.13, V1-3: a guest's copy used to lose it at the next
   save). A run whose only answers are such has none narrowed on its parts,
-  so, like every run with none narrowed there, it is held only by the page
-  of its parts opened as such; opened from any other page it is carried on
-  as the full checkup, a saved bike's and a guest's alike (§5.14,
-  V3-TOUCHED-ONLY), which acts on those answers once finished — on a saved
-  bike the leak question's OK closed both brake lines' open lines. A KO
-  there widens, its finding acted on by the full checkup. Where an
+  and where it resumes then differs by path, by the two rules below: a
+  GUEST's is held by its own parts' page alone and carried on as the full
+  checkup from any other; a SAVED bike's is held by any page that holds it
+  and asks every answer as its parts did, which a touched answer is on every
+  page that touches its question — an imported rear-caliper run whose one
+  answer is the leak question's OK is held by the front caliper's page, and
+  by the rear caliper's with the chain — and carried on as the full checkup
+  from the others, the banner and `?parts=chain` among them (§5.14,
+  V3-TOUCHED-ONLY and V4). Finished as the full checkup, those answers are
+  a full checkup's: on a saved bike the leak question's OK closed both brake
+  lines' open lines. A KO there widens, its finding acted on by the full
+  checkup. Where an
   unfinished run resumes:
   - **a GUEST's run** knows its parts — its scope is stored whole — and
     resumes on them and nowhere else (`guestResumeTarget`): opened anywhere
@@ -1567,17 +1573,20 @@ previousParts)` is the only way a `Bike` row's `answers`/`spec`/`parts` are
   scoped to have no column (`Checkup.scope` is `FULL | PARTIAL`): the import
   uses them to decide that column and to narrow its steps, and they are then
   gone, exactly as for a partial checkup started on the account, save for
-  what each row's part says of them — which the account resumes by the rule
-  above (a rear-caliper run's rows, a touched OK's included, name the rear
-  caliper): the page of the parts its rows tell holds it when those parts
-  hold the run; any other page sends it there when, besides, one of its
-  answers is narrowed there, and otherwise carries it on as the full
-  checkup, the SAME row, its answers kept and its column then `FULL`
+  what each row's part says of them — which the account resumes by the
+  saved-bike rule above (a rear-caliper run's rows, a touched OK's included,
+  name the rear caliper): on the page itself when that page holds the run
+  and asks every answer as those parts did; otherwise on those parts, when
+  one of its answers is narrowed there; otherwise as the full checkup, the
+  SAME row, its answers kept and its column then `FULL`
   (`tests/integration/checkup-resume.test.ts`). So a run whose one answer is
-  a touched OK — none narrowed — is held by its rear caliper's page alone:
-  the banner and every other page carry it on as the full checkup, as the
-  guest's own browser does, and finished there its OK is a full checkup's,
-  closing both brake lines' open lines (§5.14, V3-TOUCHED-ONLY). An
+  a touched OK — none narrowed — is held by every page that touches the leak
+  question (the rear caliper's, the front caliper's, both calipers', the
+  rear caliper's with the chain) and carried on as the full checkup from the
+  others (the banner, `?parts=chain`), where the guest's own browser holds
+  it on its rear caliper's page alone; finished as the full checkup its OK
+  is a full checkup's, closing both brake lines' open lines (§5.14,
+  V3-TOUCHED-ONLY and V4). An
   UNFINISHED one holding a KO to a question its scope only touches, or a KO
   whose symptom the narrowed question withholds, is not held even by its
   parts' page, which cannot hold that KO: the account's first page carries

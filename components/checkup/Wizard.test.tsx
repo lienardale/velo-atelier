@@ -495,10 +495,11 @@ describe("a refused finish (§4.2 c)", () => {
 
 /**
  * An unfinished run, resumed by a page planned for another scope (`.debug/017`
- * §5.10, §5.12). The page's scope wins when it holds the run — asks every
- * answer about what it was given for; when it does not, a guest's run goes
- * back to its own parts, or on to the full checkup when that takes it over
- * (`carriedOnWhole`), and is never trimmed. Hand-shaped plans: the
+ * §5.10, §5.12). For a saved bike the page's scope wins when it holds the
+ * run — asks every answer about what it was given for. A guest's run is held
+ * by its own parts' page alone: on any other it goes back to its own parts,
+ * or on to the full checkup when that takes it over (`carriedOnWhole`). It
+ * is never trimmed. Hand-shaped plans: the
  * real page, actions and database are `tests/integration/checkup-resume.test.ts`.
  */
 describe("an unfinished run, resumed (§5.10, §5.12)", () => {
