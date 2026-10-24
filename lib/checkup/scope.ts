@@ -102,10 +102,11 @@
  *     until then that address was the empty page, whose one link sent the
  *     run back to it). The wizard says what the answers now count for, and
  *     where they can count for more than the page of the run's own parts
- *     would ({@link outgrowsParts}: those parts ask nothing, or no longer ask
- *     one of its answers — V3-PARTLY-EMPTY, a 2x's front derailleur and
- *     chain once the bike is a 1x) it opens no later than the first it
- *     names;
+ *     would ({@link outgrowsParts}: that page does not hold the run or does
+ *     not ask one of its answers — its parts ask nothing, or no longer ask
+ *     one since the guest bike was replaced, V3-PARTLY-EMPTY: a 2x's front
+ *     derailleur and chain once the bike is a 1x) it opens no later than the
+ *     first it names;
  *   - a SAVED bike's run does not: `Checkup.scope` is `FULL | PARTIAL`, and
  *     there is no column for the parts. {@link savedResumeTarget} reads them
  *     from two things that can say it. The page's own address, when it

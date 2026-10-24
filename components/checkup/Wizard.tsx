@@ -830,8 +830,9 @@ function restore(props: WizardProps, stored: StoredCheckup | null): CheckupState
  *                    front caliper, once the guest bike is a 1x; the
  *                    second's front-only pads' answer then counts for both
  *                    calipers (V3-PARTLY-EMPTY) — or a run of before
- *                    2026-10-22 went beyond them or holds a touched answer;
- *                    and when they name no part the catalogue knows.
+ *                    2026-10-22 went beyond them or holds a touched answer
+ *                    or a withheld symptom; and when they name no part the
+ *                    catalogue knows.
  *                    Otherwise not: those parts' page holds the run, asks
  *                    every answer of it the bike is still asked and narrows
  *                    none (`carriedOnWhole`), and the full checkup asks each
