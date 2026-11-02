@@ -44,8 +44,10 @@ is this again: its "Artifact update problem" comment names the npm error.
 last resort.** A transitive dependency whose patched release its parent's
 declared range excludes is pinned there — `toml`, `uuid`, `tmp`, `mysql2` and
 `basic-ftp` today, plus the scoped `argparse` entry, the exact
-`@modelcontextprotocol/sdk` and `vite` pins and the scoped exact
-`jsdom > undici` pin described below — and its
+`@modelcontextprotocol/sdk` and `vite` pins, the scoped exact
+`jsdom > undici` pin, and since 2026-11-02 the exact `qs`,
+`systeminformation` and `@hono/node-server` pins and the ranged
+`express@^4` pin described below — and its
 GHSA id is then **removed** from `audit-ci.json`,
 so a regression fails the `audit` job instead of passing it silently. Every
 override is an untested version for its parent, so each one carries a
@@ -104,10 +106,12 @@ there in the same commit.
 allow-listed.** `overrides` exists for a transitive whose parent pins it too
 low, and the allowlist for a transitive **under** a dev tool that cannot reach
 a request. Every entry in the array today is one of those: `deepmerge-ts`
-under `prisma`, `extract-zip` and `qs` under `@lhci/cli`, and — by dependency
+under `prisma`, `extract-zip` under `@lhci/cli`, `minimatch` under the ESLint,
+typescript-eslint, `ts-morph` and LHCI chains, and — by dependency
 **path**, never by id — the two dev-only `zod@3.25.76` copies under `shadcn`
 and under `@lhci/cli > lighthouse > puppeteer-core > chromium-bidi`. (`braces`
-left on 2026-10-24: its advisory was withdrawn.) No entry is on a direct
+left on 2026-10-24: its advisory was withdrawn; the two `qs` ids left on
+2026-11-02, fixed.) No entry is on a direct
 dependency of any kind. GHSA-mrhx-c7xc-m3w5 is also the shipped `zod`'s id,
 which is why its entries are paths: an id entry would pass a `zod` back at
 4.5.4 in silence, and with the root reverted the gate fails on
@@ -188,6 +192,26 @@ maintainer's ruling, recorded with the date each clears it, and left the low
 `serialize-javascript` id for after the hold, since it delays nothing. The
 allowlist's "Ten advisories of 2026-10-23" and "`zod@3.25.76`, two dev-only
 copies" sections have the tables, the proofs and the gates.
+
+**Issue #41 (2026-11-02) answered five ids, none on a shipped package, by the
+same rules.** `systeminformation` (one high), `@hono/node-server` and `qs`
+are pinned EXACTLY at the lowest release that clears them, because what
+`npm update` takes is inside the hold (5.33.19, 2.1.6 — published that
+morning — and 6.16.2). `qs` needed `express@4.22.3` first: 4.22.2 declares
+`~6.15.1`, and **`npm update express` does not move an `express@4` node that
+two parents share** (it bumped the SDK's `express@5` instead, measured), so a
+ranged `express@^4` override moves it. With that, one `qs@6.16.1` sits inside
+every parent's range and the two older `qs` ids leave the array. `minimatch`
+has no patched release short of 11.0.1 — inside the hold, and a major that
+breaks ESLint, which calls `require("minimatch")` as a function (the 3.x API;
+10 and 11 export an object) — so it is allow-listed, **by id**: audit-ci's
+path for it changes between runs of the SAME tree (ESLint's dependency
+cycles; three runs, 3, 1 and 3 unmatched paths), and a path entry that flakes
+is a gate that measures the run. `npm ls minimatch --omit=dev` is empty. Each
+new override has its cap in `renovate.json`. The deferred low
+`serialize-javascript` id was taken by `npm update` (7.1.4, past the hold).
+The allowlist's "Five advisories of 2026-10-27 to 30" has the tables, the
+lockfile resolution and the gates.
 
 ---
 
