@@ -709,8 +709,13 @@ describe("strict mode", () => {
   });
 
   it("brands.yaml: missing, invalid, and well-formed but wrong", () => {
-    const root = makeRoot();
-    rmSync(join(root, "content", "brands.yaml"), { force: true });
+    // The brands rule reads content/brands.yaml and the part catalogue, never
+    // a guide: a root WITHOUT the corpus proves the same four messages, four
+    // strict runs in milliseconds instead of four over all 47 guides (6.3 s
+    // on CI, past the 5 s timeout, once every guide was full). The real
+    // corpus's brands.yaml is held by the strict runs over the repository.
+    const root = makeRoot({ content: false });
+    mkdirSync(join(root, "content"), { recursive: true });
     expect(messages(root, true)).toContain("content/brands.yaml:1: missing content/brands.yaml");
     writeFileSync(join(root, "content", "brands.yaml"), "a: [");
     expect(
