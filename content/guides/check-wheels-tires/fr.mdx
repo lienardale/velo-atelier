@@ -49,6 +49,14 @@ steps:
           partId: tire-rear
           reasonKey: tire-worn
           guideSlug: replace-tube-tire
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-damaged
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-damaged
+          guideSlug: replace-tube-tire
   - id: tread-sidewalls-tubeless
     title: Inspecter les pneus tubeless
     partIds: [tire-front, tire-rear]
@@ -66,6 +74,14 @@ steps:
         - action: replace
           partId: tire-rear
           reasonKey: tire-worn
+          guideSlug: replace-tire-tubeless
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-damaged
+          guideSlug: replace-tire-tubeless
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-damaged
           guideSlug: replace-tire-tubeless
   - id: pressure-hold
     title: Vérifier que la pression tient
@@ -85,6 +101,14 @@ steps:
         - action: replace
           partId: tube-rear
           reasonKey: tube-punctured
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tube-front
+          reasonKey: valve-damaged
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tube-rear
+          reasonKey: valve-damaged
           guideSlug: replace-tube-tire
   - id: sealant
     title: Vérifier le préventif tubeless
@@ -113,6 +137,12 @@ steps:
         - action: inspect-shop
           partId: wheel-rear
           reasonKey: wheel-out-of-true
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: spoke-broken
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: spoke-broken
   - id: hub-play
     title: Chercher du jeu dans les moyeux
     partIds: [wheel-front, wheel-rear]
@@ -154,7 +184,7 @@ steps:
 
 Faites tourner chaque roue lentement et regardez le pneu sur tout le tour, au milieu puis sur les deux flancs. Beaucoup de pneus de route ont de petits trous témoins sur la bande de roulement : quand ils ont disparu, le pneu est usé. Un pneu arrière dont le centre est devenu plat, « carré », l’est aussi.
 
-Cherchez ensuite les coupures profondes, les cailloux ou éclats de verre plantés, qui se retirent avec la pointe d’un couteau. Une bosse sur le flanc, une craquelure fine et régulière due à l’âge ou au soleil, ou la trame du tissu visible sous la gomme imposent un pneu neuf : il peut éclater sans prévenir.
+Cherchez ensuite les coupures profondes, les cailloux ou éclats de verre plantés, qui se retirent avec la pointe d’un couteau. Une coupure de plus de quelques millimètres, une bosse sur le flanc, une craquelure fine et régulière due à l’âge ou au soleil, ou la trame du tissu visible sous la gomme imposent un pneu neuf : il peut éclater sans prévenir.
 
 </Step>
 

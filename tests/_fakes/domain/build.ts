@@ -35,6 +35,35 @@ export function specFor(preset: PresetId): BikeSpec {
   return buildBikeSpec(answerWithDefaults(BIKE_PRESETS[preset]));
 }
 
+/**
+ * The bike no preset describes: a 3×7 hybrid with thumb shifters and
+ * V-brakes. From 5 to 7 speeds a derailleur bike carries a threaded freewheel
+ * instead of a cassette (`lib/domain/data/parts/drivetrain.ts`), and until
+ * 2026-11-02 every finding of `check-drivetrain#cassette-teeth` named the
+ * cassette, so the planner — which drops a finding about a part the bike does
+ * not carry — asked this bike's cog question with none. The corpus tests run
+ * it beside the seven presets for that reason.
+ *
+ * Written like a preset: complete, and no answer the tree does not ask —
+ * `tests/unit/checkup/plan-corpus.test.ts` holds
+ * `answerWithDefaults(FREEWHEEL_ANSWERS)` to it.
+ */
+export const FREEWHEEL_ID = "hybrid-3x7-freewheel";
+
+export const FREEWHEEL_ANSWERS: Answers = {
+  drive: "muscular",
+  discipline: "city-hybrid",
+  "wheel-size": "700c",
+  "brake-type": "v-brake",
+  cockpit: "flat",
+  drivetrain: "derailleur-3x",
+  speeds: "7",
+  shifter: "thumb",
+  pedals: "flat",
+  suspension: "rigid",
+  "tire-system": "clincher-tube",
+};
+
 /** The spec of a bike described by nothing at all: the city-hybrid default. */
 export const DEFAULT_SPEC: BikeSpec = buildBikeSpec(answerWithDefaults({}));
 

@@ -51,6 +51,10 @@ steps:
           partId: chain
           reasonKey: chain-dirty
           guideSlug: clean-chain
+        - action: clean
+          partId: chain
+          reasonKey: chain-stiff-link
+          guideSlug: clean-chain
   - id: cassette-teeth
     title: Inspecter les dents des pignons
     partIds: [cassette, freewheel]
@@ -67,6 +71,13 @@ steps:
           guideSlug: replace-cassette
         - action: clean
           partId: cassette
+          reasonKey: drivetrain-dirty
+          guideSlug: clean-drivetrain
+        - action: inspect-shop
+          partId: freewheel
+          reasonKey: freewheel-worn
+        - action: clean
+          partId: freewheel
           reasonKey: drivetrain-dirty
           guideSlug: clean-drivetrain
   - id: chainring-teeth
@@ -125,9 +136,9 @@ Pédalez ensuite en arrière en regardant la chaîne passer dans le dérailleur 
 
 <Step id="cassette-teeth">
 
-Regardez les pignons que vous utilisez le plus, souvent ceux du milieu. Une dent saine est symétrique, avec un sommet arrondi. Une dent usée se creuse d’un côté et prend la forme d’un aileron de requin.
+Regardez les pignons de la cassette ou de la roue libre que vous utilisez le plus, souvent ceux du milieu. Une dent saine est symétrique, avec un sommet arrondi. Une dent usée se creuse d’un côté et prend la forme d’un aileron de requin.
 
-Le vrai test se fait en roulant, surtout après avoir changé la chaîne : sur chaque pignon, appuyez fort sur les pédales, en danseuse. Si la chaîne saute ou glisse sur les dents alors que les vitesses sont bien réglées, la cassette, ou la roue libre sur les vélos à 7 vitesses et moins, est usée. Une chaîne très allongée l’use presque toujours : on remplace alors les deux ensemble.
+Le vrai test se fait en roulant, surtout après avoir changé la chaîne : sur chaque pignon, appuyez fort en danseuse. Si la chaîne saute ou glisse sur les dents alors que les vitesses sont bien réglées, la cassette, ou la roue libre de nombreux vélos à 7 vitesses et moins, est usée. Une chaîne très allongée l’use presque toujours : on remplace alors les deux ensemble. Une roue libre ne se dévisse qu’avec un extracteur adapté : un atelier la change vite.
 
 </Step>
 

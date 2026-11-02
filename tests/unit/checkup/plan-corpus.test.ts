@@ -18,22 +18,40 @@ import { hostOf, planCheckup, toolsFor } from "@/lib/checkup/plan";
 import { partsInScope } from "@/lib/checkup/scope";
 import { deriveBike } from "@/lib/bike/rules";
 import { makeState } from "@/tests/_helpers/checkup";
+import { answerWithDefaults } from "@/lib/domain/engine/decision";
 import { BIKE_PRESETS, type PresetId } from "@/lib/domain/data/presets";
 import type { PartId } from "@/lib/domain/data/parts";
+import type { Answers } from "@/lib/domain/schema/decision";
 import type { BikeBuild } from "@/lib/domain/schema/part";
+import { FREEWHEEL_ANSWERS, FREEWHEEL_ID } from "@/tests/_fakes/domain/build";
 import { diskGuides } from "@/tests/_helpers/guides";
 
 const FR = diskGuides().filter((guide) => guide.locale === "fr");
 
+function buildFor(answers: Answers): BikeBuild {
+  const derived = deriveBike(answers);
+  return { spec: derived.spec, parts: derived.parts };
+}
+
 function buildOf(preset: PresetId): BikeBuild {
   // eslint-disable-next-line security/detect-object-injection -- `preset` is a PresetId literal
-  const derived = deriveBike(BIKE_PRESETS[preset]);
-  return { spec: derived.spec, parts: derived.parts };
+  return buildFor(BIKE_PRESETS[preset]);
 }
 
 const GRAVEL = buildOf("gravel-1x11");
 const ROAD_RIM = buildOf("road-rim-2x11");
 const EMTB = buildOf("emtb-mid-1x12");
+/** The 3×7 hybrid no preset describes: a threaded freewheel, no cassette. */
+const FREEWHEEL = buildFor(FREEWHEEL_ANSWERS);
+
+/** Every preset, and the freewheel bike none of them is. */
+const EVERY_BUILD: [string, BikeBuild][] = [
+  ...(Object.keys(BIKE_PRESETS) as PresetId[]).map((preset): [string, BikeBuild] => [
+    preset,
+    buildOf(preset),
+  ]),
+  [FREEWHEEL_ID, FREEWHEEL],
+];
 
 const ROAD_RIM_FULL = planCheckup(ROAD_RIM, { kind: "full" }, FR);
 const GRAVEL_FULL = planCheckup(GRAVEL, { kind: "full" }, FR);
@@ -58,16 +76,42 @@ describe("a full checkup asks only what this bike can answer", () => {
     expect(GRAVEL_FULL.at(-1)?.key).toBe("check-frame-bolts#frame-inspect");
   });
 
-  it("names a key, a guide, a part, a prompt and at least one consequence for every step", () => {
-    const broken = GRAVEL_FULL.filter(
-      (step) =>
-        step.key !== `${step.guideSlug}#${step.stepId}` ||
-        step.partIds.length === 0 ||
-        step.prompt.length === 0 ||
-        step.title.length === 0 ||
-        step.ko.length === 0,
+  // A step with no consequence is a question whose KO puts nothing on the
+  // list. The planner drops the findings about parts a bike does not carry,
+  // so this is a property of each BUILD, not of the corpus: it held on the
+  // demo bike alone while the freewheel bike's cog question had none.
+  it.each(EVERY_BUILD)(
+    "%s: names a key, a guide, a part, a prompt and at least one consequence for every step",
+    (_name, build) => {
+      const broken = planCheckup(build, { kind: "full" }, FR).filter(
+        (step) =>
+          step.key !== `${step.guideSlug}#${step.stepId}` ||
+          step.partIds.length === 0 ||
+          step.prompt.length === 0 ||
+          step.title.length === 0 ||
+          step.ko.length === 0,
+      );
+      expect(broken.map((step) => step.key)).toEqual([]);
+    },
+  );
+
+  it("builds the freewheel bike as the tree would: a freewheel, no cassette", () => {
+    expect(answerWithDefaults(FREEWHEEL_ANSWERS)).toEqual(FREEWHEEL_ANSWERS);
+    const fitted = FREEWHEEL.parts.map((part) => part.partId);
+    expect(fitted).toContain("freewheel");
+    expect(fitted).not.toContain("cassette");
+  });
+
+  it("asks the freewheel bike's cog question about its freewheel, with findings of its own", () => {
+    const cogs = planCheckup(FREEWHEEL, { kind: "full" }, FR).find(
+      (step) => step.key === "check-drivetrain#cassette-teeth",
     );
-    expect(broken.map((step) => step.key)).toEqual([]);
+    expect(cogs?.partIds).toEqual(["freewheel"]);
+    // No replace-freewheel guide exists, so wear is a shop's finding.
+    expect(cogs?.ko.map((ko) => `${ko.action} ${ko.partId} ${ko.reasonKey}`)).toEqual([
+      "inspect-shop freewheel freewheel-worn",
+      "clean freewheel drivetrain-dirty",
+    ]);
   });
 
   it("plans the same checkup whichever locale of the corpus it is given", () => {
@@ -118,6 +162,7 @@ describe("a partial checkup asks about the parts that were picked", () => {
     expect(plan[0].ko.map((consequence) => consequence.reasonKey)).toEqual([
       "chain-elongation",
       "chain-dirty",
+      "chain-stiff-link",
     ]);
   });
 
@@ -158,14 +203,14 @@ describe("a partial checkup asks about the parts that were picked", () => {
 });
 
 /**
- * The scope rule over every preset and every part it carries (§5.11): a
+ * The scope rule over every preset — and the freewheel bike — and every part
+ * it carries (§5.11): a
  * checkup limited to one part reports on nothing outside it — what an item is
  * stored against (`partIds[0]`), what is tinted (`partIds`), what is closed
  * and derived (`ko`) — and a full checkup is exactly what it was before the
  * rule existed, field for field.
  */
-describe.each(Object.keys(BIKE_PRESETS) as PresetId[])("%s: the scope rule", (preset) => {
-  const build = buildOf(preset);
+describe.each(EVERY_BUILD)("%s: the scope rule", (_name, build) => {
   const full = planCheckup(build, { kind: "full" }, FR);
   const fitted = new Set(build.parts.map((part) => part.partId));
 

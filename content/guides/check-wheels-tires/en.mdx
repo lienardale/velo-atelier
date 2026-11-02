@@ -49,6 +49,14 @@ steps:
           partId: tire-rear
           reasonKey: tire-worn
           guideSlug: replace-tube-tire
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-damaged
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-damaged
+          guideSlug: replace-tube-tire
   - id: tread-sidewalls-tubeless
     title: Inspect tubeless tyres
     partIds: [tire-front, tire-rear]
@@ -66,6 +74,14 @@ steps:
         - action: replace
           partId: tire-rear
           reasonKey: tire-worn
+          guideSlug: replace-tire-tubeless
+        - action: replace
+          partId: tire-front
+          reasonKey: tire-damaged
+          guideSlug: replace-tire-tubeless
+        - action: replace
+          partId: tire-rear
+          reasonKey: tire-damaged
           guideSlug: replace-tire-tubeless
   - id: pressure-hold
     title: Check that pressure holds
@@ -85,6 +101,14 @@ steps:
         - action: replace
           partId: tube-rear
           reasonKey: tube-punctured
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tube-front
+          reasonKey: valve-damaged
+          guideSlug: replace-tube-tire
+        - action: replace
+          partId: tube-rear
+          reasonKey: valve-damaged
           guideSlug: replace-tube-tire
   - id: sealant
     title: Check the tubeless sealant
@@ -113,6 +137,12 @@ steps:
         - action: inspect-shop
           partId: wheel-rear
           reasonKey: wheel-out-of-true
+        - action: inspect-shop
+          partId: wheel-front
+          reasonKey: spoke-broken
+        - action: inspect-shop
+          partId: wheel-rear
+          reasonKey: spoke-broken
   - id: hub-play
     title: Feel for play in the hubs
     partIds: [wheel-front, wheel-rear]
@@ -154,7 +184,7 @@ steps:
 
 Spin each wheel slowly and look at the tyre all the way round, in the middle and then on both sidewalls. Many road tyres have small wear-indicator dimples in the tread: once they have gone, the tyre is worn. A rear tyre whose centre has turned flat, or squared off, is worn too.
 
-Next look for deep cuts and for stones or glass stuck in the rubber, which you can pick out with the tip of a knife. A bulge in the sidewall, fine regular cracks from age or sunlight, or the fabric casing showing through the rubber all call for a new tyre: it can burst without warning.
+Next look for deep cuts and for stones or glass stuck in the rubber, which you can pick out with the tip of a knife. A cut longer than a few millimetres, a bulge in the sidewall, fine regular cracks from age or sunlight, or the fabric casing showing through the rubber all call for a new tyre: it can burst without warning.
 
 </Step>
 
