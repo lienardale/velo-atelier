@@ -16,7 +16,7 @@
  *
  * Guide drawings are laid out in a 320 × 240 box (4/3). W1-T4 shipped the first
  * 14 as labelled placeholders with their callouts in place and W2-T4a drew
- * them; the stub guides' promotion added 22 more the same way. Whether a
+ * them; the stub guides' promotion added 23 more the same way. Whether a
  * drawing is finished is its frame's `placeholder` prop, which the UI tests
  * hold to `false` for every guide drawing.
  *
@@ -62,6 +62,7 @@ export const GUIDE_ILLUSTRATION_IDS = [
   "b-screw-gap",
   "chain-length-big-big",
   "tire-sidewall-markings",
+  "front-derailleur-height-limits",
 ] as const;
 
 export type GuideIllustrationId = (typeof GUIDE_ILLUSTRATION_IDS)[number];

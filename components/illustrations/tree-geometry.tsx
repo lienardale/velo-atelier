@@ -24,7 +24,7 @@
  *
  * `scripts/gen-tree-drawings.ts` runs this at build time and writes
  * `public/tree-drawings.json`. The drawings are still rendered from
- * `components/illustrations`, by server code, so the 72-component barrel
+ * `components/illustrations`, by server code, so the illustration barrel
  * reaches no client bundle — the contract in `CLAUDE.md`.
  *
  * Plain Node, no `server-only` in its import graph: it is reached from

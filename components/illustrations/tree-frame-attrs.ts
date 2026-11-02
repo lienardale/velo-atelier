@@ -18,7 +18,7 @@ import { ILLUSTRATIONS, type IllustrationId } from "@/lib/domain";
  * change to one that is not made to the other fails the suite.
  *
  * No React here on purpose: `TreeDrawing` is a `"use client"` module and must
- * never reach `components/illustrations/index.ts`, the 72-component barrel.
+ * never reach `components/illustrations/index.ts`, the illustration barrel.
  */
 export function treeFrameAttrs(id: IllustrationId): {
   viewBox: string;

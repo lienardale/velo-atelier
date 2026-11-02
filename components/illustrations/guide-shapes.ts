@@ -1,5 +1,5 @@
 /**
- * Shared presentation attributes for the guide drawings (§5.3), so the 14
+ * Shared presentation attributes for the guide drawings (§5.3), so the
  * pictures read as one set: the part outlines use the frame's 2 px
  * `currentColor` stroke, and these add the three secondary styles.
  *

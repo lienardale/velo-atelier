@@ -1,20 +1,73 @@
 import { calloutText, GuideIllustrationFrame } from "./guide-frame";
+import { fine, leader, solid, tint } from "./guide-shapes";
 import type { IllustrationProps } from "./placeholder";
 
 /**
- * `rotor-mount-6bolt-centerlock` — NOT DRAWN YET: a placeholder with its numbered callouts in
- * place, so guides and the build list can reference the id. The drawing
- * replaces this body and passes `placeholder={false}`.
+ * `rotor-mount-6bolt-centerlock` — two rotors seen face-on, side by side,
+ * alike but for their centre. Left, a 6-bolt rotor: six Torx bolts on a
+ * circle around the axle. Right, a Centerlock rotor: no bolts, one lockring
+ * with notched splines for the tool, holding the rotor on the hub's splines.
  */
 export function IllRotorMount6boltCenterlock(props: IllustrationProps) {
   return (
-    <GuideIllustrationFrame id="rotor-mount-6bolt-centerlock" {...props}>
-      <circle data-callout="1" cx={40} cy={40} r={11} />
-      <text x={40} y={40} {...calloutText}>
+    <GuideIllustrationFrame id="rotor-mount-6bolt-centerlock" placeholder={false} {...props}>
+      {/* 6-bolt: braking track with its holes, arms, centre with six Torx bolts */}
+      <path
+        d="M22 106 A62 62 0 1 0 146 106 A62 62 0 1 0 22 106 Z M34 106 A50 50 0 1 1 134 106 A50 50 0 1 1 34 106 Z"
+        fillRule="evenodd"
+        {...tint}
+      />
+      <path
+        d="M135.6 120.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M121.1 145.6 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M96 160.1 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M67 160.1 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M41.9 145.6 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M27.4 120.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M27.4 91.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M41.9 66.4 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M67 51.9 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M96 51.9 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M121.1 66.4 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M135.6 91.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0"
+        {...fine}
+      />
+      <path
+        d="M109.4 96.8 Q121.5 97.3 133.5 113 M104.7 123.4 Q110.3 134.2 102.7 152.4 M79.3 132.6 Q72.7 142.8 53.2 145.4 M58.6 115.2 Q46.5 114.7 34.5 99 M63.3 88.6 Q57.7 77.8 65.3 59.6 M88.7 79.4 Q95.3 69.2 114.8 66.6"
+        strokeWidth={5}
+      />
+      <circle cx={84} cy={106} r={27} />
+      <circle cx={84} cy={106} r={10} {...fine} />
+      <circle cx={84} cy={125} r={5.5} {...solid} />
+      <circle cx={67.5} cy={115.5} r={5.5} {...solid} />
+      <circle cx={67.5} cy={96.5} r={5.5} {...solid} />
+      <circle cx={84} cy={87} r={5.5} {...solid} />
+      <circle cx={100.5} cy={96.5} r={5.5} {...solid} />
+      <circle cx={100.5} cy={115.5} r={5.5} {...solid} />
+      <path
+        d="M84 121.7 L85 123.4 L86.9 123.4 L85.9 125 L86.9 126.7 L85 126.6 L84 128.3 L83.1 126.6 L81.1 126.7 L82.1 125 L81.1 123.4 L83.1 123.4 Z M67.5 112.2 L68.5 113.9 L70.4 113.9 L69.4 115.5 L70.4 117.2 L68.5 117.1 L67.5 118.8 L66.6 117.1 L64.6 117.2 L65.6 115.5 L64.6 113.9 L66.6 113.9 Z M67.5 93.2 L68.5 94.9 L70.4 94.9 L69.4 96.5 L70.4 98.2 L68.5 98.1 L67.5 99.8 L66.6 98.1 L64.6 98.2 L65.6 96.5 L64.6 94.9 L66.6 94.9 Z M84 83.7 L85 85.4 L86.9 85.4 L85.9 87 L86.9 88.7 L85 88.6 L84 90.3 L83.1 88.6 L81.1 88.7 L82.1 87 L81.1 85.4 L83.1 85.4 Z M100.5 93.2 L101.5 94.9 L103.4 94.9 L102.4 96.5 L103.4 98.2 L101.5 98.1 L100.5 99.8 L99.6 98.1 L97.6 98.2 L98.6 96.5 L97.6 94.9 L99.6 94.9 Z M100.5 112.2 L101.5 113.9 L103.4 113.9 L102.4 115.5 L103.4 117.2 L101.5 117.1 L100.5 118.8 L99.6 117.1 L97.6 117.2 L98.6 115.5 L97.6 113.9 L99.6 113.9 Z"
+        {...fine}
+      />
+
+      {/* Centerlock: same rotor, its centre held by a lockring */}
+      <path
+        d="M174 106 A62 62 0 1 0 298 106 A62 62 0 1 0 174 106 Z M186 106 A50 50 0 1 1 286 106 A50 50 0 1 1 186 106 Z"
+        fillRule="evenodd"
+        {...tint}
+      />
+      <path
+        d="M287.6 120.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M273.1 145.6 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M248 160.1 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M219 160.1 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M193.9 145.6 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M179.4 120.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M179.4 91.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M193.9 66.4 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M219 51.9 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M248 51.9 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M273.1 66.4 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M287.6 91.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0"
+        {...fine}
+      />
+      <path
+        d="M261.4 96.8 Q273.5 97.3 285.5 113 M256.7 123.4 Q262.3 134.2 254.7 152.4 M231.3 132.6 Q224.7 142.8 205.2 145.4 M210.6 115.2 Q198.5 114.7 186.5 99 M215.3 88.6 Q209.7 77.8 217.3 59.6 M240.7 79.4 Q247.3 69.2 266.8 66.6"
+        strokeWidth={5}
+      />
+      <circle cx={236} cy={106} r={27} />
+      <path
+        d="M214.5 106 A21.5 21.5 0 1 0 257.5 106 A21.5 21.5 0 1 0 214.5 106 Z M249.4 104.4 L252.4 104 A16.5 16.5 0 0 1 252.4 108 L249.4 107.6 A13.5 13.5 0 0 1 248.4 111.3 L251.2 112.4 A16.5 16.5 0 0 1 249.2 115.9 L246.8 114.1 A13.5 13.5 0 0 1 244.1 116.8 L245.9 119.2 A16.5 16.5 0 0 1 242.4 121.2 L241.3 118.4 A13.5 13.5 0 0 1 237.6 119.4 L238 122.4 A16.5 16.5 0 0 1 234 122.4 L234.4 119.4 A13.5 13.5 0 0 1 230.7 118.4 L229.6 121.2 A16.5 16.5 0 0 1 226.1 119.2 L227.9 116.8 A13.5 13.5 0 0 1 225.2 114.1 L222.8 115.9 A16.5 16.5 0 0 1 220.8 112.4 L223.6 111.3 A13.5 13.5 0 0 1 222.6 107.6 L219.6 108 A16.5 16.5 0 0 1 219.6 104 L222.6 104.4 A13.5 13.5 0 0 1 223.6 100.7 L220.8 99.6 A16.5 16.5 0 0 1 222.8 96.1 L225.2 97.9 A13.5 13.5 0 0 1 227.9 95.2 L226.1 92.8 A16.5 16.5 0 0 1 229.6 90.8 L230.7 93.6 A13.5 13.5 0 0 1 234.4 92.6 L234 89.6 A16.5 16.5 0 0 1 238 89.6 L237.6 92.6 A13.5 13.5 0 0 1 241.3 93.6 L242.4 90.8 A16.5 16.5 0 0 1 245.9 92.8 L244.1 95.2 A13.5 13.5 0 0 1 246.8 97.9 L249.2 96.1 A16.5 16.5 0 0 1 251.2 99.6 L248.4 100.7 A13.5 13.5 0 0 1 249.4 104.4 Z"
+        fillRule="evenodd"
+        {...solid}
+      />
+      <circle cx={236} cy={106} r={7} {...fine} />
+
+      <path d="M84 193 V131" {...leader} />
+      <circle data-callout="1" cx={84} cy={204} r={11} />
+      <text x={84} y={204} {...calloutText}>
         1
       </text>
-      <circle data-callout="2" cx={100} cy={40} r={11} />
-      <text x={100} y={40} {...calloutText}>
+      <path d="M236 193 V128" {...leader} />
+      <circle data-callout="2" cx={236} cy={204} r={11} />
+      <text x={236} y={204} {...calloutText}>
         2
       </text>
     </GuideIllustrationFrame>

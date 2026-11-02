@@ -3,13 +3,13 @@
 Illustrations are **React SVG components**, not image files: they inherit the
 palette through `currentColor` and the colour tokens, work in both colour
 schemes with no `dark:` variant, and their text is translated like every other
-string. There are 68, in two families.
+string. There are 91, in two families.
 
 |                 | Guide drawings                                                                                         | Decision-tree drawings                                                                                                                                         |
 | --------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Ids             | no prefix: `pad-wear-disc`                                                                             | `ill-<question>` (the aid in a question's help) and `ill-<question>-<option>` (an option thumbnail)                                                            |
 | Registry        | `GUIDE_ILLUSTRATION_IDS` in `lib/content/illustrations.ts`                                             | `ILLUSTRATION_IDS` / `ILLUSTRATIONS` in `lib/domain/data/illustrations.ts`                                                                                     |
-| Count           | 14                                                                                                     | 54: 16 help drawings (aspect `4/3`) and 38 thumbnails (`1/1`)                                                                                                  |
+| Count           | 37                                                                                                     | 54: 16 help drawings (aspect `4/3`) and 38 thumbnails (`1/1`)                                                                                                  |
 | Frame           | `GuideIllustrationFrame` (`guide-frame.tsx`): 320 × 240, 2 px strokes                                  | `TreeIllustrationFrame` (`tree-frame.tsx`): help drawings 320 × 240 with 2-unit strokes, thumbnails 120 × 120 with 3-unit strokes                              |
 | Shared shapes   | `guide-shapes.ts`: `tint`, `solid`, `leader`, `fine`                                                   | `tree-parts.tsx` (parts placed with `Place`), and in `tree-frame.tsx`: `ACCENT`, `MASK`, `ACCENT_MASK`, `FAINT`, `calloutCircle`, `calloutDigit`, `partNumber` |
 | Rendered by     | the server, through `components/mdx/Illustration.tsx`                                                  | the build: shapes pre-rendered into `public/tree-drawings.json`, framed in the browser by `components/decision-tree/TreeDrawing.tsx`                           |
@@ -19,7 +19,7 @@ string. There are 68, in two families.
 
 | What                        | Where                                                                                |
 | --------------------------- | ------------------------------------------------------------------------------------ |
-| The single registry         | `CONTENT_ILLUSTRATIONS` (`lib/content/illustrations.ts`) = both families, 68 entries |
+| The single registry         | `CONTENT_ILLUSTRATIONS` (`lib/content/illustrations.ts`) = both families, 91 entries |
 | Components                  | `components/illustrations/Ill<PascalId>.tsx` (`pad-wear-disc` → `IllPadWearDisc`)    |
 | Barrel (generated)          | `components/illustrations/index.ts`, with the name → component map                   |
 | Alt text and callouts       | `messages/{fr,en}/illustrations.json` → `illustrations.<id>.alt`, `.callouts.<n>`    |
@@ -44,12 +44,12 @@ the write are one syscall and no `existsSync` answer can go stale between them
 
 No CI job runs this script, so **the lines below are its only guard** — a
 change to one of them belongs in the same commit as the change that caused it.
-Counts are the tree of the day; 68 is the count at the time of writing.
+Counts are the tree of the day; 91 is the count at the time of writing.
 
 | When                       | Stream   | Exit | Output                                                                                                                                                |
 | -------------------------- | -------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| write mode                 | `stdout` | 0    | `illustrations: N placeholder(s) created, 68 component(s) exported.` — `N` is 0 on an up-to-date tree                                                 |
-| `--check`, all present     | `stdout` | 0    | `illustrations: 68 components, barrel up to date.`                                                                                                    |
+| write mode                 | `stdout` | 0    | `illustrations: N placeholder(s) created, 91 component(s) exported.` — `N` is 0 on an up-to-date tree                                                 |
+| `--check`, all present     | `stdout` | 0    | `illustrations: 91 components, barrel up to date.`                                                                                                    |
 | `--check`, N missing       | `stderr` | 1    | `Missing N illustration component(s):`, then one indented `<id> → <Name>.tsx` per entry, then `Run: npx tsx scripts/gen-illustration-placeholders.ts` |
 | `--check`, barrel is stale | `stderr` | 1    | `<absolute path to components/illustrations/index.ts> is out of date. Run: npx tsx scripts/gen-illustration-placeholders.ts`                          |
 
@@ -177,9 +177,11 @@ and the attribute must not be able to reference anything outside the drawing.
 - `tests/ui/illustrations.test.tsx` renders every registered drawing in FR and
   EN: `role="img"`, the `<title>` equals the alt text, the `data-callout` circles
   equal the message keys, the box is the family's, and the text is
-  `aria-hidden`.
+  `aria-hidden`. Every guide drawing must render `data-status="final"`: the
+  frame's `placeholder` prop defaults to `true`, so a drawing that forgets
+  `placeholder={false}` fails here rather than shipping a dashed box.
 - `tests/unit/content/illustrations.test.ts` validates the registry: the tree
-  entries unchanged, the 14 guide entries with derived component names, unique
+  entries unchanged, the 37 guide entries with derived component names, unique
   components, safe lookups.
 - `tests/unit/domain/schema.test.ts` requires every drawing the tree shows to be
   `final` — one of the W5 launch gates.
@@ -190,13 +192,24 @@ and the attribute must not be able to reference anything outside the drawing.
 
 ## Status
 
-Nothing is left to draw (2026-09-21).
+Nothing is left to draw (2026-11-02).
 
 - **Decision tree, 54**: every entry of `lib/domain/data/illustrations.ts` is
   `status: "final"` since W2-T4c.
-- **Guides, 14** (W2-T4a): `pad-wear-disc`, `pad-wear-rim`, `rotor-true-check`,
+- **Guides, 37.** Fourteen from W2-T4a: `pad-wear-disc`, `pad-wear-rim`, `rotor-true-check`,
   `chain-wear-checker`, `derailleur-limit-screws-h-l-b`, `barrel-adjuster`,
   `saddle-height-heel-method`, `cleat-ball-of-foot`, `sag-measure-oring`,
   `axle-qr-vs-thru`, `headset-threaded-vs-threadless`, `ebike-battery-connector`,
-  `tire-lever-technique`, `presta-valve-core`. Part outlines use the frame's
+  `tire-lever-technique`, `presta-valve-core`. Twenty-three drawn on
+  2026-11-02 when the 21 stub guides went full, nine of them also the build
+  list's "Comment mesurer" drawings (`lib/shop/measure-drawings.ts`):
+  `brake-lever-reach-screw`, `bar-tape-wrap`, `pedal-thread-direction`,
+  `cassette-lockring-chain-whip`, `grip-lock-on-clamp`,
+  `frame-inspection-points`, `drivetrain-grime-points`, `cassette-cog-count`,
+  `freehub-body-profiles`, `rotor-mount-6bolt-centerlock`, `rotor-diameter`,
+  `saddle-rail-clamp`, `saddle-width-sit-bones`, `valve-length-rim-depth`,
+  `cable-pinch-bolt-end-cap`, `chain-ruler-12-links`,
+  `saddle-setback-plumb-line`, `inseam-book-wall`, `reach-and-drop`,
+  `b-screw-gap`, `chain-length-big-big`, `tire-sidewall-markings`,
+  `front-derailleur-height-limits`. Part outlines use the frame's
   2 px stroke; `leader` lines run from each numbered callout to what it names.

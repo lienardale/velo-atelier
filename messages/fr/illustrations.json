@@ -423,7 +423,7 @@
   "freehub-body-profiles": {
     "alt": "Trois corps de roue libre vus de bout : Shimano HG, Shimano Micro Spline et SRAM XD/XDR.",
     "callouts": {
-      "1": "Shimano HG : cannelures larges, une plus large que les autres",
+      "1": "Shimano HG : cannelures larges, une rainure plus large que les autres",
       "2": "Shimano Micro Spline : nombreuses cannelures fines",
       "3": "SRAM XD / XDR : corps plus petit, fileté"
     }
@@ -438,7 +438,7 @@
   "rotor-diameter": {
     "alt": "Disque de frein vu de face : son diamètre mesuré d’un bord à l’autre, et l’adaptateur qui place l’étrier au bon diamètre.",
     "callouts": {
-      "1": "Diamètre, d’un bord à l’autre (140 à 203 mm)",
+      "1": "Diamètre, d’un bord à l’autre (140 à 220 mm)",
       "2": "Adaptateur : il place l’étrier pour ce diamètre"
     }
   },
@@ -521,6 +521,14 @@
       "1": "Taille ETRTO, ex. 28-622 : la largeur, puis le diamètre",
       "2": "Plage de pression",
       "3": "Sens de rotation"
+    }
+  },
+  "front-derailleur-height-limits": {
+    "alt": "Dérailleur avant vu côté transmission : ses vis de butée L et H, et l’écart de 1 à 3 mm entre la chape extérieure et les dents du grand plateau.",
+    "callouts": {
+      "1": "Vis L : butée intérieure, côté petit plateau",
+      "2": "Vis H : butée extérieure, côté grand plateau",
+      "3": "1 à 3 mm entre la chape et les dents du grand plateau"
     }
   }
 }
