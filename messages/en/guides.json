@@ -236,6 +236,7 @@
     "chain-dirty": "Chain dirty, dry or rusty.",
     "chain-stiff-link": "Stiff link that makes the chain skip.",
     "cassette-worn": "Cassette teeth worn into shark fins: the chain skips.",
+    "freewheel-worn": "Freewheel teeth worn into shark fins: the chain skips.",
     "chainring-worn": "Chainring teeth worn or bent.",
     "hanger-bent": "Derailleur hanger bent: the derailleur is no longer parallel to the sprockets.",
     "shifting-imprecise": "Shifting imprecise, noisy or slow.",

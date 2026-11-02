@@ -236,6 +236,7 @@
     "chain-dirty": "Chaîne encrassée, sèche ou rouillée.",
     "chain-stiff-link": "Maillon raide qui fait sauter la chaîne.",
     "cassette-worn": "Dents de la cassette usées en aileron de requin : la chaîne saute.",
+    "freewheel-worn": "Dents de la roue libre usées en aileron de requin : la chaîne saute.",
     "chainring-worn": "Dents du plateau usées ou tordues.",
     "hanger-bent": "Patte de dérailleur tordue : le dérailleur n’est plus parallèle aux pignons.",
     "shifting-imprecise": "Passages de vitesses imprécis, bruyants ou lents.",

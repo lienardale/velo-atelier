@@ -355,5 +355,172 @@
       "1": "Lock nut",
       "2": "Removable core"
     }
+  },
+  "brake-lever-reach-screw": {
+    "alt": "Flat-bar brake lever seen from above: the reach adjustment screw, the lever blade, and the distance from the grip to the lever.",
+    "callouts": {
+      "1": "Reach adjustment screw",
+      "2": "Lever blade",
+      "3": "Reach: distance from the grip to the lever"
+    }
+  },
+  "bar-tape-wrap": {
+    "alt": "Drop handlebar seen from the side while wrapping the tape: the start at the bar end, the one-third overlap and the figure-eight around the lever.",
+    "callouts": {
+      "1": "Start at the bar end, the tape overhanging for the plug",
+      "2": "Overlap of about a third of the width",
+      "3": "Figure-eight around the lever clamp"
+    }
+  },
+  "pedal-thread-direction": {
+    "alt": "Both pedals seen from each side of the bike: the right one with a standard thread, the left one with a reverse thread, and the loosening direction, the top of the wrench towards the back of the bike.",
+    "callouts": {
+      "1": "Right pedal: standard thread",
+      "2": "Left pedal: reverse thread",
+      "3": "To loosen: the top of the wrench moves towards the back of the bike"
+    }
+  },
+  "cassette-lockring-chain-whip": {
+    "alt": "Cassette seen from the drive side: the chain whip holds a large sprocket while the lockring tool and wrench undo the lockring.",
+    "callouts": {
+      "1": "Chain whip on a large sprocket",
+      "2": "Lockring tool and wrench",
+      "3": "To loosen: anticlockwise, seen from the drive side"
+    }
+  },
+  "grip-lock-on-clamp": {
+    "alt": "Lock-on grip seen from the side at the end of the handlebar: the lock ring and its bolt, the grip and the bar-end plug.",
+    "callouts": {
+      "1": "Lock ring and its bolt",
+      "2": "Grip",
+      "3": "Bar-end plug"
+    }
+  },
+  "frame-inspection-points": {
+    "alt": "Frame seen from the side with the four areas to inspect after washing: the head-tube joints, the bottom bracket and chainstays, the seat cluster and the rear dropouts.",
+    "callouts": {
+      "1": "Head-tube joints",
+      "2": "Bottom bracket and chainstays",
+      "3": "Seat cluster",
+      "4": "Rear dropouts"
+    }
+  },
+  "drivetrain-grime-points": {
+    "alt": "Drivetrain seen from the drive side with the places where grime builds up: between the sprockets, on the chainring teeth and on the jockey wheels.",
+    "callouts": {
+      "1": "Between the sprockets",
+      "2": "Chainring teeth",
+      "3": "Jockey wheels"
+    }
+  },
+  "cassette-cog-count": {
+    "alt": "Cassette seen from the side: the smallest and the largest sprocket, whose tooth counts give the range.",
+    "callouts": {
+      "1": "Smallest sprocket: the first number (11 in 11-34)",
+      "2": "Largest sprocket: the second number (34 in 11-34)"
+    }
+  },
+  "freehub-body-profiles": {
+    "alt": "Three freehub bodies seen end-on: Shimano HG, Shimano Micro Spline and SRAM XD/XDR.",
+    "callouts": {
+      "1": "Shimano HG: broad splines, one wider than the rest",
+      "2": "Shimano Micro Spline: many fine splines",
+      "3": "SRAM XD / XDR: smaller, threaded body"
+    }
+  },
+  "rotor-mount-6bolt-centerlock": {
+    "alt": "Two ways a rotor fits the hub: six Torx bolts, or Centerlock splines held by a lockring.",
+    "callouts": {
+      "1": "6-bolt: six Torx bolts",
+      "2": "Centerlock: splines and lockring"
+    }
+  },
+  "rotor-diameter": {
+    "alt": "Brake rotor seen face-on: its diameter measured edge to edge, and the adapter that sets the caliper for that diameter.",
+    "callouts": {
+      "1": "Diameter, edge to edge (140 to 203 mm)",
+      "2": "Adapter: it sets the caliper for that diameter"
+    }
+  },
+  "saddle-rail-clamp": {
+    "alt": "Saddle seen from the side on its seatpost: the rails, the clamp that grips them, and the marks to clamp between.",
+    "callouts": {
+      "1": "Rails",
+      "2": "Seatpost clamp",
+      "3": "Clamping marks on the rails"
+    }
+  },
+  "saddle-width-sit-bones": {
+    "alt": "Saddle seen from above: its width across the widest part at the back, and the two points where the sit bones rest.",
+    "callouts": {
+      "1": "Width, across the widest part at the back",
+      "2": "Where the sit bones rest"
+    }
+  },
+  "valve-length-rim-depth": {
+    "alt": "Cross-section of a rim with its tubeless valve: the rim depth, and the part of the valve that must stick out for the pump.",
+    "callouts": {
+      "1": "Rim depth",
+      "2": "Valve sticking out: enough for the pump head"
+    }
+  },
+  "cable-pinch-bolt-end-cap": {
+    "alt": "A cable anchor: the pinch bolt and the groove the cable sits in, the 2 to 3 cm left past it, and the crimped end cap on the end.",
+    "callouts": {
+      "1": "Pinch bolt: the cable in its groove",
+      "2": "2 to 3 cm left past the bolt",
+      "3": "Crimped end cap"
+    }
+  },
+  "chain-ruler-12-links": {
+    "alt": "Chain laid along a steel rule: zero on the centre of a pin, and the centre of the 24th pin at 304.8 mm on a new chain.",
+    "callouts": {
+      "1": "Zero on the centre of a pin",
+      "2": "Centre of the 24th pin: 304.8 mm on a new chain"
+    }
+  },
+  "saddle-setback-plumb-line": {
+    "alt": "Bike seen from the side with the cranks vertical: the plumb line hanging from the saddle nose, the centre of the bottom bracket axle, and the setback measured horizontally between them.",
+    "callouts": {
+      "1": "Plumb line against the saddle nose",
+      "2": "Centre of the bottom bracket axle",
+      "3": "Setback: the horizontal distance"
+    }
+  },
+  "inseam-book-wall": {
+    "alt": "Measuring the inseam with your back to a wall: the book held level, and the height from the floor to the mark of its top edge.",
+    "callouts": {
+      "1": "Book held level against the crotch",
+      "2": "Inseam: from the floor to the mark"
+    }
+  },
+  "reach-and-drop": {
+    "alt": "Bike seen from the side: the saddle-to-bar reach, from the saddle nose to the hands, and the height difference between the top of the saddle and the bar.",
+    "callouts": {
+      "1": "Saddle-to-bar reach: from the saddle nose to the middle of the hands",
+      "2": "Height difference: from the top of the saddle to the bar"
+    }
+  },
+  "b-screw-gap": {
+    "alt": "Rear derailleur seen from the side on the largest sprocket: the B-screw, and the 5 to 6 mm gap between the upper jockey wheel and the sprocket teeth.",
+    "callouts": {
+      "1": "B-screw",
+      "2": "Jockey-to-sprocket gap: 5 to 6 mm"
+    }
+  },
+  "chain-length-big-big": {
+    "alt": "New chain wrapped around the big chainring and the big sprocket without going through the derailleur, with the two links to add where the ends meet.",
+    "callouts": {
+      "1": "Big chainring and big sprocket, not through the derailleur",
+      "2": "Plus two links: one inner and one outer"
+    }
+  },
+  "tire-sidewall-markings": {
+    "alt": "Tyre sidewall with its moulded markings: the ETRTO size, the pressure range and the direction-of-rotation arrow.",
+    "callouts": {
+      "1": "ETRTO size, e.g. 28-622: the width, then the diameter",
+      "2": "Pressure range",
+      "3": "Direction of rotation"
+    }
   }
 }

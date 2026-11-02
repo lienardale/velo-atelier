@@ -355,5 +355,172 @@
       "1": "Écrou de blocage",
       "2": "Obus démontable"
     }
+  },
+  "brake-lever-reach-screw": {
+    "alt": "Levier de frein de cintre plat vu de dessus : la vis de réglage de garde, le levier, et la distance entre la poignée et le levier.",
+    "callouts": {
+      "1": "Vis de réglage de garde",
+      "2": "Levier",
+      "3": "Garde : distance entre la poignée et le levier"
+    }
+  },
+  "bar-tape-wrap": {
+    "alt": "Cintre route vu de profil pendant la pose de la guidoline : le départ en bout de cintre, le recouvrement d’un tiers et le passage en huit autour du levier.",
+    "callouts": {
+      "1": "Départ en bout de cintre, la guidoline dépasse pour le bouchon",
+      "2": "Recouvrement d’un tiers de largeur",
+      "3": "Passage en huit autour du collier du levier"
+    }
+  },
+  "pedal-thread-direction": {
+    "alt": "Les deux pédales vues de chaque côté du vélo : la droite au filetage normal, la gauche au filetage inversé, et le sens de dévissage, le haut de la clé vers l’arrière du vélo.",
+    "callouts": {
+      "1": "Pédale droite : filetage normal",
+      "2": "Pédale gauche : filetage inversé",
+      "3": "Pour dévisser : le haut de la clé part vers l’arrière du vélo"
+    }
+  },
+  "cassette-lockring-chain-whip": {
+    "alt": "Cassette vue côté transmission : le fouet à chaîne retient un grand pignon pendant que le démonte-cassette et la clé débloquent l’écrou.",
+    "callouts": {
+      "1": "Fouet à chaîne sur un grand pignon",
+      "2": "Démonte-cassette et clé",
+      "3": "Débloquer : sens inverse des aiguilles d’une montre, vu côté transmission"
+    }
+  },
+  "grip-lock-on-clamp": {
+    "alt": "Poignée à collier vue de profil en bout de cintre : le collier de serrage et sa vis, la poignée et le bouchon de cintre.",
+    "callouts": {
+      "1": "Collier de serrage et sa vis",
+      "2": "Poignée",
+      "3": "Bouchon de cintre"
+    }
+  },
+  "frame-inspection-points": {
+    "alt": "Cadre vu de profil avec les quatre zones à inspecter après le lavage : les raccords du tube de direction, le boîtier de pédalier et les bases, le raccord de selle et les pattes arrière.",
+    "callouts": {
+      "1": "Raccords du tube de direction",
+      "2": "Boîtier de pédalier et bases",
+      "3": "Raccord de selle",
+      "4": "Pattes arrière"
+    }
+  },
+  "drivetrain-grime-points": {
+    "alt": "Transmission vue côté droit avec les endroits où le cambouis s’accumule : entre les pignons, sur les dents des plateaux et sur les galets du dérailleur.",
+    "callouts": {
+      "1": "Entre les pignons",
+      "2": "Dents des plateaux",
+      "3": "Galets du dérailleur"
+    }
+  },
+  "cassette-cog-count": {
+    "alt": "Cassette vue de profil : le plus petit et le plus grand pignon, dont les nombres de dents donnent l’étagement.",
+    "callouts": {
+      "1": "Le plus petit pignon : le premier nombre (11 dans 11-34)",
+      "2": "Le plus grand pignon : le second nombre (34 dans 11-34)"
+    }
+  },
+  "freehub-body-profiles": {
+    "alt": "Trois corps de roue libre vus de bout : Shimano HG, Shimano Micro Spline et SRAM XD/XDR.",
+    "callouts": {
+      "1": "Shimano HG : cannelures larges, une plus large que les autres",
+      "2": "Shimano Micro Spline : nombreuses cannelures fines",
+      "3": "SRAM XD / XDR : corps plus petit, fileté"
+    }
+  },
+  "rotor-mount-6bolt-centerlock": {
+    "alt": "Deux fixations de disque sur le moyeu : six vis Torx, ou des cannelures Centerlock tenues par une bague de serrage.",
+    "callouts": {
+      "1": "6 trous : six vis Torx",
+      "2": "Centerlock : cannelures et bague de serrage"
+    }
+  },
+  "rotor-diameter": {
+    "alt": "Disque de frein vu de face : son diamètre mesuré d’un bord à l’autre, et l’adaptateur qui place l’étrier au bon diamètre.",
+    "callouts": {
+      "1": "Diamètre, d’un bord à l’autre (140 à 203 mm)",
+      "2": "Adaptateur : il place l’étrier pour ce diamètre"
+    }
+  },
+  "saddle-rail-clamp": {
+    "alt": "Selle vue de profil sur sa tige : les rails, le chariot qui les serre, et les repères entre lesquels serrer.",
+    "callouts": {
+      "1": "Rails",
+      "2": "Chariot de la tige de selle",
+      "3": "Repères de serrage sur les rails"
+    }
+  },
+  "saddle-width-sit-bones": {
+    "alt": "Selle vue de dessus : sa largeur au plus large de l’arrière, et les deux points d’appui des ischions.",
+    "callouts": {
+      "1": "Largeur, au plus large de l’arrière",
+      "2": "Appui des ischions"
+    }
+  },
+  "valve-length-rim-depth": {
+    "alt": "Coupe d’une jante avec sa valve tubeless : la hauteur de jante, et la partie de valve qui doit dépasser pour la pompe.",
+    "callouts": {
+      "1": "Hauteur de jante",
+      "2": "Partie de valve qui dépasse : assez pour la tête de pompe"
+    }
+  },
+  "cable-pinch-bolt-end-cap": {
+    "alt": "Fixation d’un câble : la vis de pincement et la rainure où passe le câble, les 2 à 3 cm laissés au-delà, et l’embout serti au bout.",
+    "callouts": {
+      "1": "Vis de pincement : le câble dans sa rainure",
+      "2": "Dépassement de 2 à 3 cm",
+      "3": "Embout serti"
+    }
+  },
+  "chain-ruler-12-links": {
+    "alt": "Chaîne posée le long d’un réglet : le zéro au centre d’un axe, et le centre du 24e axe à 304,8 mm sur une chaîne neuve.",
+    "callouts": {
+      "1": "Zéro au centre d’un axe",
+      "2": "Centre du 24e axe : 304,8 mm sur une chaîne neuve"
+    }
+  },
+  "saddle-setback-plumb-line": {
+    "alt": "Vélo vu de profil, manivelles verticales : le fil lesté suspendu au bec de selle, le centre de l’axe du pédalier, et le recul mesuré à l’horizontale entre les deux.",
+    "callouts": {
+      "1": "Fil lesté contre le bec de selle",
+      "2": "Centre de l’axe du pédalier",
+      "3": "Recul : la distance à l’horizontale"
+    }
+  },
+  "inseam-book-wall": {
+    "alt": "Mesure de l’entrejambe dos au mur : le livre tenu à l’horizontale, et la hauteur du sol jusqu’à la marque de son arête.",
+    "callouts": {
+      "1": "Livre tenu à l’horizontale contre l’entrejambe",
+      "2": "Entrejambe : du sol jusqu’à la marque"
+    }
+  },
+  "reach-and-drop": {
+    "alt": "Vélo vu de profil : la distance selle-cintre, du bec de selle aux mains, et la différence de hauteur entre le dessus de la selle et le cintre.",
+    "callouts": {
+      "1": "Distance selle-cintre : du bec de selle au milieu des mains",
+      "2": "Différence de hauteur : du dessus de la selle au cintre"
+    }
+  },
+  "b-screw-gap": {
+    "alt": "Dérailleur arrière vu de profil sur le plus grand pignon : la vis B, et l’écart de 5 à 6 mm entre le galet supérieur et les dents du pignon.",
+    "callouts": {
+      "1": "Vis B",
+      "2": "Écart galet-pignon : 5 à 6 mm"
+    }
+  },
+  "chain-length-big-big": {
+    "alt": "Chaîne neuve passée sur le grand plateau et le grand pignon sans traverser le dérailleur, avec les deux maillons à ajouter là où les bouts se rejoignent.",
+    "callouts": {
+      "1": "Grand plateau et grand pignon, sans passer par le dérailleur",
+      "2": "Plus deux maillons : un intérieur et un extérieur"
+    }
+  },
+  "tire-sidewall-markings": {
+    "alt": "Flanc de pneu avec ses inscriptions moulées : la taille ETRTO, la plage de pression et la flèche du sens de rotation.",
+    "callouts": {
+      "1": "Taille ETRTO, ex. 28-622 : la largeur, puis le diamètre",
+      "2": "Plage de pression",
+      "3": "Sens de rotation"
+    }
   }
 }
