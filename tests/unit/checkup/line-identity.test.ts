@@ -1,6 +1,7 @@
 /**
  * `(action, partId)` is the identity of a build-list LINE, not of a question —
- * over every preset's full plan, on both paths (§5.4, §6.7; W3 follow-up (a)).
+ * over every preset's full plan and the freewheel bike's (`FREEWHEEL_ANSWERS`,
+ * `tests/_fakes/domain/build.ts`), on both paths (§5.4, §6.7; W3 follow-up (a)).
  *
  * Two rules, and the two paths that must apply them identically:
  *
@@ -64,6 +65,7 @@ const { partsInScope } = await import("@/lib/checkup/scope");
 const { toStored } = await import("@/lib/checkup/storage");
 const { deriveBike } = await import("@/lib/bike/rules");
 const { BIKE_PRESETS } = await import("@/lib/domain/data/presets");
+const { FREEWHEEL_ANSWERS, FREEWHEEL_ID } = await import("@/tests/_fakes/domain/build");
 const { diskGuides } = await import("@/tests/_helpers/guides");
 const { makeState } = await import("@/tests/_helpers/checkup");
 
@@ -87,28 +89,32 @@ const pair = (action: string, partId: string) => `${action}|${partId}`;
 const rowPair = (row: Record<string, unknown>) =>
   `${Object.entries(PRISMA_ACTION).find(([, value]) => value === row.action)?.[0]}|${String(row.partId)}`;
 
-const PRESETS = Object.entries(BIKE_PRESETS).map(([id, answers]) => {
-  const derived = deriveBike(answers);
-  const build = { spec: derived.spec, parts: derived.parts };
-  const steps = planCheckup(build, { kind: "full" }, FR);
-  // Each side of every pair: the parts a question's findings name, when they
-  // name more than one — one scope per part, each planned once.
-  const paired = [
-    ...new Set(
-      steps.flatMap((step) => {
-        const named = [...new Set(step.ko.map((consequence) => consequence.partId))];
-        return named.length > 1 ? named : [];
-      }),
-    ),
-  ].sort();
-  const sides = paired
-    .map((partId) => {
-      const scope = { kind: "parts" as const, partIds: [partId] as PartId[] };
-      return { partId, scope, steps: planCheckup(build, scope, FR) };
-    })
-    .filter((side) => side.steps.length > 0);
-  return { id, derived, steps, sides };
-});
+// The seven presets, and the 3×7 hybrid none of them is: the one build whose
+// cog question is about a freewheel, and whose findings name it.
+const PRESETS = Object.entries({ ...BIKE_PRESETS, [FREEWHEEL_ID]: FREEWHEEL_ANSWERS }).map(
+  ([id, answers]) => {
+    const derived = deriveBike(answers);
+    const build = { spec: derived.spec, parts: derived.parts };
+    const steps = planCheckup(build, { kind: "full" }, FR);
+    // Each side of every pair: the parts a question's findings name, when they
+    // name more than one — one scope per part, each planned once.
+    const paired = [
+      ...new Set(
+        steps.flatMap((step) => {
+          const named = [...new Set(step.ko.map((consequence) => consequence.partId))];
+          return named.length > 1 ? named : [];
+        }),
+      ),
+    ].sort();
+    const sides = paired
+      .map((partId) => {
+        const scope = { kind: "parts" as const, partIds: [partId] as PartId[] };
+        return { partId, scope, steps: planCheckup(build, scope, FR) };
+      })
+      .filter((side) => side.steps.length > 0);
+    return { id, derived, steps, sides };
+  },
+);
 
 interface Draw {
   verdict: "ok" | "ko" | "skipped" | "none";

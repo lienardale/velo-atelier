@@ -426,9 +426,20 @@ describe("lines per list", () => {
     const { deriveBuildList } = await import("@/lib/checkup/build-list");
     const { diskGuides } = await import("@/tests/_helpers/guides");
     const { makeState } = await import("@/tests/_helpers/checkup");
+    const { FREEWHEEL_ANSWERS, FREEWHEEL_ID } = await import("@/tests/_fakes/domain/build");
     const guides = diskGuides().filter((guide) => guide.locale === "fr");
 
-    for (const [preset, answers] of Object.entries(BIKE_PRESETS)) {
+    // No preset has 5 to 7 speeds behind a derailleur, the one build with a
+    // threaded freewheel instead of a cassette — and this one has a front
+    // derailleur, a left shifter and inner tubes besides, so it is held to the
+    // cap too.
+    const builds = { ...BIKE_PRESETS, [FREEWHEEL_ID]: FREEWHEEL_ANSWERS };
+    expect(
+      deriveBike(FREEWHEEL_ANSWERS).parts.map((part) => part.partId),
+      FREEWHEEL_ID,
+    ).toContain("freewheel");
+
+    for (const [preset, answers] of Object.entries(builds)) {
       const derived = deriveBike(answers);
       const steps = planCheckup(
         { spec: derived.spec, parts: derived.parts },

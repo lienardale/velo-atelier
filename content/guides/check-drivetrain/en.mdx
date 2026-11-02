@@ -51,6 +51,10 @@ steps:
           partId: chain
           reasonKey: chain-dirty
           guideSlug: clean-chain
+        - action: clean
+          partId: chain
+          reasonKey: chain-stiff-link
+          guideSlug: clean-chain
   - id: cassette-teeth
     title: Inspect the cog teeth
     partIds: [cassette, freewheel]
@@ -67,6 +71,13 @@ steps:
           guideSlug: replace-cassette
         - action: clean
           partId: cassette
+          reasonKey: drivetrain-dirty
+          guideSlug: clean-drivetrain
+        - action: inspect-shop
+          partId: freewheel
+          reasonKey: freewheel-worn
+        - action: clean
+          partId: freewheel
           reasonKey: drivetrain-dirty
           guideSlug: clean-drivetrain
   - id: chainring-teeth
@@ -125,9 +136,9 @@ Then pedal backwards while watching the chain run through the derailleur: a stif
 
 <Step id="cassette-teeth">
 
-Look at the cogs you use most, often the middle ones. A healthy tooth is symmetrical with a rounded tip. A worn tooth is hollowed out on one side and looks like a shark fin.
+Look at the cassette or freewheel cogs you use most, often the middle ones. A healthy tooth is symmetrical with a rounded tip. A worn tooth is hollowed out on one side and looks like a shark fin.
 
-The real test is on the road, especially right after fitting a new chain: on each cog, push hard on the pedals out of the saddle. If the chain skips or slides over the teeth while the gears are properly adjusted, the cassette, or the freewheel on bikes with 7 speeds or fewer, is worn. A badly stretched chain almost always wears it out: replace both together.
+The real test is on the road, especially right after fitting a new chain: on each cog, push hard on the pedals out of the saddle. If the chain skips or slides over the teeth while the gears are properly adjusted, the cassette, or the freewheel common on bikes with 7 speeds or fewer, is worn. A badly stretched chain almost always wears it out: replace both together. A freewheel only unscrews with a matching remover tool: a shop swaps it quickly.
 
 </Step>
 
