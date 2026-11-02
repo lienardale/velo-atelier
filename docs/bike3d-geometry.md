@@ -2,8 +2,11 @@
 
 ## Axes and units
 
-Metres. Origin = bottom-bracket centre. +X forward, +Y up, +Z the rider's left;
-the drive side is −Z (§3.2). The default camera looks at the drive side.
+Metres. Origin = bottom-bracket centre. +X forward, +Y up, and — the scene is
+right-handed — +Z the rider's right, which is the drive side (`DRIVE_SIDE_Z`);
+the rider's left is −Z (`LEFT_Z`). The plan's §3.2 had the two sides the other
+way round, which mirrored the render (`.debug/020`). The default camera looks at
+the drive side, front wheel on the right.
 
 ## Inputs, not outputs
 
@@ -38,11 +41,12 @@ runs in `lib/bike3d/solver.test.ts` as `expect.soft` (±20 mm stack, ±10 mm rea
 8. Drivetrain: pitch radius `r(T) = 0.0127 / (2·sin(π/T))`; chainrings from
    `chainring.teeth` (2× = T, T−16; 3× = T, T−12, T−22); cassette teeth from
    `cassette.range` × `speeds` (`cassettes.ts`); cog _i_ (0 = largest, nearest the
-   spokes) at `z = −(0.0335 + i·pitch)`; the chain runs on the middle cog
+   spokes) at `z = +(0.0335 + i·pitch)`; the chain runs on the middle cog
    (`floor(n/2)`) and the big ring (middle ring of a triple); the chain path is
    the two external tangents plus both wraps; hub gears and single speeds use one
    18T sprocket (24T for a belt).
-9. Rotors in the plane `axle + [0, 0, +0.03]`, radius `rotor-*.diameter / 2000`.
+9. Rotors in the plane `axle + [0, 0, −0.03]` (the rider's left), radius
+   `rotor-*.diameter / 2000`.
 10. The solver throws only when an anchor would not be finite
     (`chainstay ≤ bbDrop`, `AC ≤ rake`, a NaN input).
 

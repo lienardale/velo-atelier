@@ -18,7 +18,7 @@ import {
   solverInputFor,
   stackReach,
 } from "./solver";
-import type { BikeAnchors, SolverInput, Vec3 } from "./types";
+import { type BikeAnchors, DRIVE_SIDE_Z, LEFT_Z, type SolverInput, type Vec3 } from "./types";
 import { isFiniteVec } from "./vec";
 
 const BUILDS = enumerateBuilds();
@@ -77,17 +77,22 @@ describe("solver invariants over the enumerated spec space", () => {
       // A saddle above the frame, a positive chain.
       expect(a.saddle[1], label).toBeGreaterThan(a.seatTubeTop[1]);
       expect(a.chainLength, label).toBeGreaterThan(0.5);
-      // Drivetrain on the drive side (−Z), rotors on the other.
+      // Drivetrain and right pedal on the drive side (the rider's right),
+      // rotors and left pedal on the rider's left.
       expect(
-        a.chainrings.every((ring) => ring.center[2] < 0),
+        a.chainrings.every((ring) => Math.sign(ring.center[2]) === DRIVE_SIDE_Z),
         label,
       ).toBe(true);
       expect(
-        a.cogs.every((cog) => cog.center[2] < 0),
+        a.cogs.every((cog) => Math.sign(cog.center[2]) === DRIVE_SIDE_Z),
         label,
       ).toBe(true);
-      if (build.spec.brakes.isDisc) expect(a.rotorFront?.center[2], label).toBeGreaterThan(0);
-      else expect(a.rotorFront, label).toBeNull();
+      expect(Math.sign(a.pedalRight[2]), label).toBe(DRIVE_SIDE_Z);
+      expect(Math.sign(a.pedalLeft[2]), label).toBe(LEFT_Z);
+      if (build.spec.brakes.isDisc) {
+        expect(Math.sign(a.rotorFront!.center[2]), label).toBe(LEFT_Z);
+        expect(Math.sign(a.rotorRear!.center[2]), label).toBe(LEFT_Z);
+      } else expect(a.rotorFront, label).toBeNull();
     }
   });
 
@@ -95,8 +100,8 @@ describe("solver invariants over the enumerated spec space", () => {
     const a = solve(solverInputFor(presetBuild("mtb-hardtail-1x12")));
     expect(a.cogs).toHaveLength(12);
     expect(a.cogs[0]!.teeth).toBe(51);
-    expect(a.cogs[0]!.center[2]).toBeCloseTo(-0.0335, 9);
-    expect(a.cogs[1]!.center[2]).toBeCloseTo(-(0.0335 + cogPitch(12)), 9);
+    expect(a.cogs[0]!.center[2]).toBeCloseTo(DRIVE_SIDE_Z * 0.0335, 9);
+    expect(a.cogs[1]!.center[2]).toBeCloseTo(DRIVE_SIDE_Z * (0.0335 + cogPitch(12)), 9);
     expect(a.displayedCog).toBe(6);
   });
 

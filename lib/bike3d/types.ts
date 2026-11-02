@@ -3,13 +3,24 @@
  *
  * Coordinate system (every file under `lib/bike3d/` and `components/bike3d/`):
  * units are metres, origin = the bottom-bracket centre, +X forward, +Y up,
- * +Z the rider's left; the drive side is −Z (§3.2).
+ * and — the scene being right-handed — +Z is the rider's RIGHT, the drive
+ * side ({@link DRIVE_SIDE_Z}); the rider's left is −Z ({@link LEFT_Z}).
+ *
+ * The plan's §3.2 said "+Z the rider's left", which in a right-handed scene
+ * drew every bike as its own mirror image (the front wheel on the left of the
+ * drive-side view). Code names a side through these two constants, never
+ * through a bare sign, so that cannot come back unnoticed.
  *
  * Zod-free and three-free: this module is imported by the eager viewer shell
  * (`BikeViewer`, `BikeSilhouetteSvg`) as well as by the lazy scene chunk.
  */
 import type { BikeSpec, PartSystem } from "@/lib/domain";
 import type { PartId } from "@/lib/domain/data/parts";
+
+/** Sign of Z on the drive side — the rider's right: chainrings, cogs, derailleurs. */
+export const DRIVE_SIDE_Z = 1;
+/** Sign of Z on the rider's left: rotors, the kickstand. */
+export const LEFT_Z = -1;
 
 /** A point or a direction, `[x, y, z]` in metres. */
 export type Vec3 = readonly [number, number, number];
@@ -172,7 +183,7 @@ export interface SpokeDescriptor {
   hubRadius: number;
   rimRadius: number;
   count: number;
-  /** Half the hub flange spacing: spokes alternate between +z and −z. */
+  /** Half the hub flange spacing: spokes alternate between the two flanges (±z). */
   flangeOffset: number;
 }
 
