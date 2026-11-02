@@ -16,7 +16,7 @@ import { renderMeasureDrawings } from "./measure-drawings";
 
 describe("renderMeasureDrawings", () => {
   it("draws only the attributes an existing drawing fits", () => {
-    const nodes = renderMeasureDrawings(["axle", "range", "speeds", "axle"]);
+    const nodes = renderMeasureDrawings(["axle", "e-rated", "speeds", "axle"]);
     expect(Object.keys(nodes).sort()).toEqual(["axle", "speeds"]);
   });
 

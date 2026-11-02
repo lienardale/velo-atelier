@@ -24,7 +24,9 @@ describe("MEASURE_DRAWINGS", () => {
 
   it("answers nothing for an attribute without a drawing, or a prototype key", () => {
     expect(measureDrawingFor("speeds")).toBe("ill-speeds");
-    expect(measureDrawingFor("range")).toBeUndefined();
+    // `e-rated` is asked (the chain) and has nothing to measure: no drawing.
+    expect(ASKED.has("e-rated")).toBe(true);
+    expect(measureDrawingFor("e-rated")).toBeUndefined();
     expect(measureDrawingFor("constructor")).toBeUndefined();
   });
 });
