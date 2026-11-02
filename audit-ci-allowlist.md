@@ -49,17 +49,29 @@ dependency path only, and one low id below the threshold, not taken (that
 section says why). The `braces` id has left the array: the advisory was
 withdrawn. On `main`'s tree it found 18 packages under fifteen ids.
 
+Re-recorded on 2026-11-02, same Node and npm, after the advisories under
+“Five advisories of 2026-10-27 to 30, issue #41” were answered: `npm audit`
+finds **35** vulnerable packages — 0 critical, 12 high, 22 moderate, 1 low —
+under **six** ids: the four the array names by id (`minimatch` new among them),
+GHSA-mrhx-c7xc-m3w5, which it names by dependency path only, and one low id
+below the threshold with no patched release (`deepmerge`, GHSA-gcqx-w48m-w2h4,
+under `shadcn`). The two `qs` ids have left the array: they are fixed. The
+count of packages stays high because `minimatch` marks the whole lint chain
+above it. On `main`'s tree it found 39 packages under fourteen ids.
+
 ## Pinned through `overrides` instead of allow-listed
 
-These nine are **fixed**, not tolerated. For the first five the parent's
+These thirteen are **fixed**, not tolerated. For the first five the parent's
 declared range excludes the patched version, so npm needs the override to reach
-it. The last four are different shapes, each with its own note below:
-`argparse` removes a package that has no patched version at all, and
-`@modelcontextprotocol/sdk`, `vite` and `undici` under `jsdom` each pin a
-version their parents' ranges already admit, because the newest release those
-ranges admit was inside the 7-day hold — the last of them **scoped**, because
-the tree's two `undici` majors have different parents. Each was proved by a green `bash scripts/ci.sh` and a green
-`npm run build` on the resolved tree.
+it. The other eight are different shapes, each with its own note below:
+`argparse` removes a package that has no patched version at all;
+`@modelcontextprotocol/sdk`, `vite`, `undici` under `jsdom`, `qs`,
+`systeminformation` and `@hono/node-server` each pin a version their parents'
+ranges already admit, because the newest release those ranges admit was inside
+the 7-day hold — `undici` **scoped**, because the tree's two `undici` majors
+have different parents; and `express@^4` moves, to a release its parents admit,
+a node that `npm update` would not move. Each was proved by a green
+`bash scripts/ci.sh` and a green `npm run build` on the resolved tree.
 
 | Override                            | Resolves to | Replaces                                   | Fixes                                                                                                                              | Reached through                                                                                                                                   |
 | ----------------------------------- | ----------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -72,6 +84,10 @@ the tree's two `undici` majors have different parents. Each was proved by a gree
 | `@modelcontextprotocol/sdk: 1.32.0` | 1.32.0      | 1.31.0 (1.30.0 before 2026-10-06)          | GHSA-6qxp-vccf-f47h; since 2026-10-22 also GHSA-22jm-h49p-29qw, GHSA-46jr-4wx8-v453, GHSA-6prh-2h8m-c8cw, GHSA-rvq5-wwqv-78pq      | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
 | `vite: 8.2.4`                       | 8.2.4       | 8.2.2                                      | GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg, GHSA-9jrq-w75r-8gcw (low) | `vitest`, `vitest > @vitest/mocker`, `@vitejs/plugin-react` (peer)                                                                                |
 | `jsdom > undici: 8.12.2`            | 8.12.2      | 8.10.2                                     | GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c                                                                      | `jsdom` (the Vitest `ui` tier's environment)                                                                                                      |
+| `express@^4: 4.22.3`                | 4.22.3      | 4.22.2                                     | none of its own: it lets `qs` reach 6.16.1 inside `express`'s range                                                                | `@lhci/cli > express@4`; the peer `>= 4.11` of `shadcn > @modelcontextprotocol/sdk > express-rate-limit`                                          |
+| `qs: 6.16.1`                        | 6.16.1      | 6.15.3 / 6.16.0                            | GHSA-6pq8-jhm2-2vcw; also GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g, removed from the array                                         | `@lhci/cli > express@4` and its `body-parser@1`; `shadcn > @modelcontextprotocol/sdk > express@5` and its `body-parser@2`                         |
+| `systeminformation: 5.33.16`        | 5.33.16     | 5.33.10                                    | GHSA-3f7j-7jwc-fxfj, GHSA-7648-jmwf-vw7j, GHSA-4vjg-vx72-qq4g (low)                                                                | `shadcn > @dotenvx/dotenvx`                                                                                                                       |
+| `@hono/node-server: 2.1.3`          | 2.1.3       | 2.1.1                                      | GHSA-rmxm-3fg6-px4f                                                                                                                | `shadcn > @modelcontextprotocol/sdk`                                                                                                              |
 
 Compatibility notes, because an override is a version its parent never tested:
 
@@ -242,6 +258,48 @@ Compatibility notes, because an override is a version its parent never tested:
   9: `jsdom` declares `^8`, and a v9 proposal would put a major under it that
   it never declared. The pin can go once 8.12.3 has aged through the hold:
   `npm update undici` then takes a release past it.
+- `express` 4.22.2 → **4.22.3**, through the ranged key `express@^4`, exact.
+  The release changes two ranges in `dependencies` and nothing else:
+  `qs ~6.15.1 → ~6.16.0` and `path-to-regexp ~0.1.12 → ~0.1.13` (the tree
+  already held 0.1.13). Published 2026-09-14, 49 d old. `@lhci/cli` declares
+  `^4.17.1` and `express-rate-limit` a peer `>= 4.11`, so the version sits
+  inside both. It is an override because **`npm update express` does not take
+  it**: on this tree that command left the shared `express@4` node at 4.22.2
+  and moved the SDK's nested `express@5.2.1` to 5.3.0 instead (measured on the
+  lockfile). A key scoped to `@lhci/cli` nested a second `express@4.22.3`
+  under it and left 4.22.2 at the top for the peer edge, with `qs` 6.15.3 still
+  under it (measured). The ranged key rewrites every `express` range that
+  intersects `^4` — `@lhci/cli`'s and the peer — and not the SDK's `^5.2.1`,
+  which stays at 5.2.1. Neither Express ever listens here (“Lighthouse CI
+  chain”, below). Renovate caps it below 5.
+- `qs` → **6.16.1**, every copy — three, nested under `express@4.22.3`,
+  `body-parser@1.20.9` and the SDK's `express@5.2.1`, where 6.16.1 already was.
+  It is the first release that clears GHSA-6pq8-jhm2-2vcw (`>=6.7.0 <=6.16.0`),
+  published 2026-10-14, 19 d old, and once `express` is 4.22.3 every parent's
+  range admits it — `~6.16.0` (express 4.22.3, body-parser 1.20.9), `^6.14.0`
+  (express 5.2.1), `^6.16.1` (body-parser 2.4.0) — so it is a pin inside the
+  range, not the untested minor “Lighthouse CI chain” declined. Exact because
+  the newest release those ranges admit, 6.16.2, was published
+  2026-10-27T19:27Z and is inside the hold until 2026-11-03T19:27Z: with
+  `express` moved alone, the lockfile resolved 6.16.2 (measured). The
+  backports of 2026-10-27 (6.12.6, 6.13.4, 6.14.3, 6.15.4) are not an answer:
+  the advisory's range still names every 6.15.x. The pin can go once 6.16.2 has
+  aged through the hold. Renovate caps it below 6.17, because express 4.22.3
+  and body-parser 1.20.9 declare `~6.16.0`.
+- `systeminformation` 5.33.10 → **5.33.16**, the lowest release that clears
+  GHSA-3f7j-7jwc-fxfj (high, `<5.33.16`), and with it GHSA-7648-jmwf-vw7j
+  (`<5.33.13`) and the low GHSA-4vjg-vx72-qq4g (`<5.33.14`). Published
+  2026-10-19, 14 d old. `@dotenvx/dotenvx@1.75.1`, under `shadcn`, declares
+  `^5.22.11`; `npm update` would take 5.33.19, inside the hold until
+  2026-11-06T05:08Z. Six patch releases on one line, under a CLI nothing in
+  this repository runs (“`zod@3.25.76`, two dev-only copies”). Renovate caps it
+  below 6, whose line is still beta.
+- `@hono/node-server` 2.1.1 → **2.1.3**, the first release that clears
+  GHSA-rmxm-3fg6-px4f (`>=1.19.10 <2.1.3`: `serveStatic` decodes the path a
+  second time). Published 2026-09-29, 34 d old. The SDK declares
+  `^1.19.9 || ^2.0.5`; `npm update` would take 2.1.6, published on the morning
+  of 2026-11-02. It belongs to the SDK's HTTP transports, which `shadcn` never
+  imports (“Lighthouse CI chain”). Renovate caps it below 3.
 - **Not proved by a local run:** `npm run lhci` was not executed for these, and
   it is the one gate that exercises `uuid` and `tmp`. The three call sites above
   were read against the resolved tree and the APIs they use still exist, so the
@@ -296,7 +354,11 @@ puppeteer-core > @puppeteer/browsers > extract-zip@2.0.1`. **There is no
   at all. What would change the answer: an `extract-zip` release above 2.0.1,
   or a Puppeteer that no longer needs it.
 - **GHSA-x5fp-wj9c-mxmx** and **GHSA-4mjr-xmp4-gh2g** — `qs` array-limit bypass
-  and `isBuffer` DoS. Paths: `@lhci/cli > express@4.22.2 > qs@6.15.3` and
+  and `isBuffer` DoS. **Fixed, and removed from the array on 2026-11-02**: the
+  first condition this entry ends on came true — `express@4.22.3`
+  (2026-09-14) declares `qs ~6.16.0` — and a third `qs` id,
+  GHSA-6pq8-jhm2-2vcw, made it the answer; see the `express@^4` and `qs`
+  overrides above. What follows is the entry as it stood. Paths: `@lhci/cli > express@4.22.2 > qs@6.15.3` and
   `shadcn > @modelcontextprotocol/sdk > express@5.2.1 > qs@6.15.3`. Neither
   Express ever listens here (corrected 2026-10-06 — this sentence used to say
   the first was a report server bound to localhost during the CI job, and the
@@ -452,6 +514,61 @@ What would change the answer: a `shadcn` bump to 4.22 or later — then the
 `shadcn>zod` entry goes **in the same change**, because a dead entry is silent
 here (`show-not-found: false`); a `chromium-bidi` on zod 4, or a
 `puppeteer-core` without it — then the other two go.
+
+## `minimatch`, through the lint, type-analysis and LHCI chains — no patched release this tree can take
+
+**GHSA-g3hv-75wg-m249** (moderate, published 2026-10-30T23:09Z): denial of
+service through globparts amplification, `minimatch <11.0.1`. Every line but
+11.x is in range, and nothing on 3.x, 9.x or 10.x has been published since
+(`npm view minimatch time`). Three copies, all `dev` — `npm ls minimatch
+--omit=dev` is empty:
+
+| Copy                         | Declared by                                                                                                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minimatch@3.1.5`, top level | `eslint@9.39.5`, `@eslint/config-array@0.21.2`, `@eslint/eslintrc@3.3.7` (`^3.1.5`); `eslint-plugin-import`, `eslint-plugin-jsx-a11y`, `eslint-plugin-react` (`^3.1.2`); `glob@7.2.3` under `@lhci/cli > chrome-launcher > rimraf@3` (`^3.1.1`) |
+| `minimatch@10.2.6`           | `@typescript-eslint/typescript-estree@8.70.0` (`^10.2.2`)                                                                                                                                                                                       |
+| `minimatch@10.2.6`           | `@ts-morph/common@0.27.0` under `shadcn > ts-morph` (`^10.0.1`)                                                                                                                                                                                 |
+
+**Why not an override.** 11.0.1 is a major none of them declares, and it is
+inside the hold until 2026-11-03T22:26Z. It would also break the largest of
+them: 3.x's CommonJS entry IS the function (`typeof require("minimatch")` is
+`"function"`), 10.x's is an object carrying a named `minimatch` (both measured
+on the installed copies; 11.x has 10.x's `exports` map), and ESLint calls the
+default as a function (`lib/eslint/eslint-helpers.js`:
+`const minimatch = require("minimatch")`, read). An override to 11 under the
+`^3` consumers is `npm run lint` failing at its first call.
+
+**Why by id, not by path — the other way round from `zod`.** audit-ci's path
+for `minimatch` is **not stable from one run to the next on the same tree**.
+It walks a vulnerable package's `effects` up towards the root and stops when
+it meets a package twice (“`zod@3.25.76`, two dev-only copies” describes the
+walk), and ESLint's chains are cycles — `eslint` ↔
+`@eslint-community/eslint-utils`, the `typescript-eslint` packages — so where
+a walk stops depends on the order it meets them. With the sixteen path strings
+one run printed written as entries, three runs on an unchanged tree left 3, 1
+and 3 paths unmatched, not the same ones, a trailing `>` on some and not on
+others (measured 2026-11-02). A path entry here would be a gate that fails on
+the run, not on the tree. An id can be named because no shipped package
+carries it: `zod`'s entries are paths because the shipped `zod` has the same
+id as its dev copies, and `minimatch` has no production copy at all. What an
+id entry gives up — a production copy arriving later would pass `audit` in
+silence — is held by `tests/unit/ci/audit-allowlist.test.ts`: every id entry
+is named there with its package and scope, and every lockfile copy of that
+package must carry the scope (`dev` here). A `dependencies` entry that pulls
+`minimatch` in fails `npm test` (checked by clearing `dev` on the top-level
+copy: the case fails naming `node_modules/minimatch`).
+
+Every pattern these tools expand comes from this repository's own
+configuration — `eslint.config.mjs`, a `tsconfig` include, `components.json` —
+or from LHCI's own temporary directories (`rimraf` cleaning up a Chrome
+profile), never from a request, a guide or anything a visitor writes. None of
+them is in the deployed application. The reasoning is `braces`' (below), which
+had the same shape.
+
+What would change the answer: a 3.x or 10.x release outside the advisory's
+range (then `npm update minimatch`), ESLint, typescript-eslint and ts-morph
+moving to 11.x (then the entry goes in the same change — a dead entry is
+silent here), or the advisory narrowing its range.
 
 ## What is **not** allow-listed
 
@@ -1506,6 +1623,112 @@ scripts/ci/build.sh`, `bundle-guard` 63 files), then
 projects. `lhci autorun` loads `body-parser` 1.20.9 through LHCI's Express when
 it starts; the `lighthouse` job on the pull request is its first run.
 
+## Five advisories of 2026-10-27 to 30, issue #41
+
+Five ids that fail the gate entered the feed between 2026-10-27 and
+2026-10-30, against four packages, and none of the four ships: every copy sits
+under `shadcn`, `@lhci/cli` or the ESLint and typescript-eslint stack. The
+scheduled check found `main` red on its first run after them and opened
+issue #41 on 2026-11-01, then commented on every run since (as the issue
+reports it; the runs themselves were not read here). Measured on 2026-11-02 on
+a fresh `npm ci` of `main`'s `d68c3d0`: `bash scripts/ci/audit.sh` exits 1 on
+the five, `npm audit` names 39 packages under fourteen ids, and `trivy` is
+clean — every one of the five is a dev dependency, which `trivy.sh` does not
+scan.
+
+| In the feed (UTC)   | Advisory            | CVE             | Severity | Package and range                                                                                                  | Answer                                              |
+| ------------------- | ------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| 2026-10-27 16:10:55 | GHSA-6pq8-jhm2-2vcw | CVE-2026-110816 | moderate | `qs >=6.7.0 <=6.16.0`: `stringify` with `arrayFormat: 'comma'` throws on an element with a non-callable `toString` | `express@^4` → 4.22.3, then `qs` 6.16.1, both exact |
+| 2026-10-28 21:05:00 | GHSA-rmxm-3fg6-px4f | CVE-2026-118663 | moderate | `@hono/node-server >=1.19.10 <2.1.3`: `serveStatic` decodes the request path a second time                         | 2.1.3, exact                                        |
+| 2026-10-28 21:13:32 | GHSA-7648-jmwf-vw7j | CVE-2026-116674 | moderate | `systeminformation <5.33.13`: prototype pollution in `networkStats()` through the interface name                   | 5.33.16, exact                                      |
+| 2026-10-28 21:13:50 | GHSA-4vjg-vx72-qq4g | CVE-2026-116673 | low      | `systeminformation <5.33.14`: path traversal in Linux `networkStats()`                                             | the same                                            |
+| 2026-10-28 22:42:49 | GHSA-3f7j-7jwc-fxfj | CVE-2026-116576 | high     | `systeminformation <5.33.16`: Windows command injection in `services()` through Unicode quotation marks            | the same                                            |
+| 2026-10-30 23:09:55 | GHSA-g3hv-75wg-m249 | CVE-2026-118764 | moderate | `minimatch <11.0.1`: denial of service through globparts amplification                                             | **allow-listed by id** (its section, above)         |
+
+“In the feed” is `github_reviewed_at`, equal to `published_at` for all six.
+The low id fails no gate (`audit-ci.json` fails at `moderate`); the pin that
+clears the high one clears it too. `trivy` gates on HIGH and CRITICAL and
+scans the production tree only, so it reported none of them.
+
+The moves, each by the rule that fits its shape — and none of them on a
+shipped package:
+
+- **`qs`**, through **`express`**. Two copies were in range: `qs@6.15.3`
+  under `@lhci/cli`'s `express@4.22.2` (`~6.15.1`), and `qs@6.16.0` under its
+  `body-parser@1.20.9` (`~6.16.0`). The first is what “Lighthouse CI chain”
+  had declined to override, “until an `express@4` release whose range reaches
+  `qs@6.16`” — and `express@4.22.3`, published 2026-09-14, is that release.
+  `express` moves to 4.22.3 by the ranged override `express@^4`, because
+  `npm update express` would not move it; `qs` is then pinned at 6.16.1, the
+  first patched release, because what `npm update` takes, 6.16.2, is inside
+  the hold. The two older `qs` ids leave the array with it. The compatibility
+  notes are under the overrides table.
+- **`systeminformation`** 5.33.10 → 5.33.16, exact: the lowest release that
+  clears the high id, 14 d old; `npm update` takes 5.33.19, inside the hold.
+- **`@hono/node-server`** 2.1.1 → 2.1.3, exact: the first patched release,
+  34 d old; `npm update` takes 2.1.6, published that morning.
+- **`minimatch`**: no patched release short of 11.x, which no parent declares
+  and which would break ESLint — allow-listed **by id**, with the test that
+  holds an id entry to dev-only copies (its section, above).
+- **`serialize-javascript`**, GHSA-m5mm-p8h7-m29v (low, “Ten advisories of
+  2026-10-23”): **taken now**, as that section planned, by
+  `npm update serialize-javascript` → 7.1.4, the newest release
+  `@content-collections/core`'s `^7.0.5` admits, 10 d old — past the hold. It
+  is the one package of this change that runs in the production build.
+- Each new override has its cap in `renovate.json` (`matchDepTypes:
+["overrides"]`): `express` below 5, `qs` below 6.17, `systeminformation`
+  below 6, `@hono/node-server` below 3, with the date each pin can go.
+
+### How the lockfile was resolved: one change at a time
+
+Each edit was applied alone with `npm install --package-lock-only` (or
+`npm update <pkg> --package-lock-only`) and its lockfile diff read before the
+next:
+
+| Step                                               | Lockfile nodes moved                                                                                                                                    |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm update express` (discarded)                   | 3, all under the SDK: `express` 5.2.1 → 5.3.0, `content-disposition` 1.1.0 → 2.0.1, `content-type` 2.1.0 added; `express@4` untouched                   |
+| `"@lhci/cli": { "express": "4.22.3" }` (discarded) | 4: a second `express@4.22.3` nested under `@lhci/cli`, with its own `qs@6.16.2` (inside the hold), `debug` and `ms`; the top-level 4.22.2 left in place |
+| `"express@^4": "4.22.3"`                           | 3: `express` 4.22.2 → 4.22.3; `qs` 6.15.3 → 6.16.2 (inside the hold); `body-parser`'s nested `qs` 6.16.0 removed                                        |
+| `"qs": "6.16.1"`                                   | every `qs` at 6.16.1: nested under `express`, `body-parser` and (already) the SDK; the top-level copy removed                                           |
+| `"systeminformation": "5.33.16"`                   | 1: 5.33.10 → 5.33.16                                                                                                                                    |
+| `"@hono/node-server": "2.1.3"`                     | 1: 2.1.1 → 2.1.3                                                                                                                                        |
+| `npm update serialize-javascript`                  | 1: 7.1.2 → 7.1.4                                                                                                                                        |
+
+Seven nodes in all against `main`, nothing floated.
+
+### Gates
+
+On the result, 2026-11-02:
+
+- `bash scripts/ci/audit.sh` exits 0 three runs of three, the four ids the
+  array names by id found and the three `zod` path entries matched; run with
+  `--show-not-found`, audit-ci reports no entry unused.
+- `bash scripts/ci/trivy.sh` is clean.
+- `bash scripts/ci.sh` passed all twelve steps, in two runs. The first stopped
+  at `test-unit` on one timeout — `tests/unit/content/check.test.ts`'s
+  `bad-partId` fixture took 9.3 s against its 5 s limit, its siblings 1.5 to
+  3 s, with the machine's load average near 16 from other work — after
+  `nvmrc`, `lint`, `typecheck` and `content` had passed. That file then passed
+  alone (33 of 33), and `STEPS="test-unit test-integration coverage secrets
+audit sast trivy build"` passed: 4 228 unit, ui, bike3d and security tests
+  and 531 integration tests; coverage at 95.79 % of statements and 92.65 % of
+  branches; the build, `bundle-guard` (62 files) and the budget; the boot tier
+  4/4. The route table prints `●` for `/fr`, `/en` and every guide, `ƒ` for
+  `/[locale]/velo/[id]` and its sub-routes. No limit was changed.
+- First-load JS, gzip, against its ceiling: every budgeted route 5 to 10 %
+  under (`/[locale]/velo/[id]/controle` 226.4 of 239.0 KiB is the tightest,
+  as before).
+- `tests/unit/ci/audit-allowlist.test.ts` (new): 5 of 5, and the case for
+  `minimatch` fails with the top-level copy's `dev` flag cleared (mutation,
+  not committed).
+- `bash scripts/ci/renovate-config.sh`: valid, the four new rules included.
+
+**Not run:** perf, Lighthouse, the e2e specs and the other Playwright
+projects. `lhci autorun` loads `express` 4.22.3 and `qs` 6.16.1 through
+LHCI's Express when it starts; the `lighthouse` job on the pull request is
+their first run.
+
 ## Removed from the array (2026-09-30)
 
 Seven ids left the allowlist because the vulnerable version is no longer in the
@@ -1519,6 +1742,12 @@ GHSA-52f5-9888-hmc6 (`tmp`), GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3
 reason: GitHub withdrew the advisory on 2026-10-23 at 12:53:02Z, and audit-ci
 then reported the entry unused (“Ten advisories of 2026-10-23”). Its section
 below is kept, dated.
+
+**2026-11-02**: GHSA-x5fp-wj9c-mxmx and GHSA-4mjr-xmp4-gh2g (`qs`) left it,
+fixed: with `express@4.22.3` and `qs@6.16.1` no copy is in their ranges, and
+audit-ci run with `--show-not-found` reported both unused (“Five advisories of
+2026-10-27 to 30, issue #41”). Their bullet under “Lighthouse CI chain” is
+kept, dated.
 
 ## `braces`, through three dev-tool glob chains — no patched release
 

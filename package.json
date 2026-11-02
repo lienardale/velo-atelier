@@ -132,6 +132,10 @@
     },
     "js-yaml@^3": {
       "argparse": "^2.0.1"
-    }
+    },
+    "express@^4": "4.22.3",
+    "qs": "6.16.1",
+    "systeminformation": "5.33.16",
+    "@hono/node-server": "2.1.3"
   }
 }

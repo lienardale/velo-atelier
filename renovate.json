@@ -143,6 +143,34 @@
       "minimumReleaseAge": "7 days"
     },
     {
+      "description": "express is an override, not a dependency: \"express@^4\": \"4.22.3\" moves the one express@4 node (@lhci/cli's ^4.17.1 and express-rate-limit's peer >=4.11) to the first 4.x whose range reaches qs 6.16 (~6.16.0), which npm update does not do for a node two parents share. The ranged key leaves the MCP SDK's express@5 alone, and a v5 override would hand LHCI a major it never declared. See audit-ci-allowlist.md.",
+      "matchPackageNames": ["express"],
+      "matchDepTypes": ["overrides"],
+      "allowedVersions": "<5",
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "qs is an override, not a dependency: \"qs\": \"6.16.1\" pins every copy at the lowest release that clears GHSA-6pq8-jhm2-2vcw (and the two older qs ids), because the newest release the parents' ranges admit (6.16.2) was inside the hold on 2026-11-02. express@4.22.3 and body-parser@1.20.9 declare ~6.16.0, so a 6.17 override would put an untested minor under both. The pin can go once 6.16.2 has aged through the hold. See audit-ci-allowlist.md.",
+      "matchPackageNames": ["qs"],
+      "matchDepTypes": ["overrides"],
+      "allowedVersions": "<6.17",
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "systeminformation is an override, not a dependency: \"systeminformation\": \"5.33.16\" pins @dotenvx/dotenvx's copy (under shadcn) at the lowest release that clears GHSA-3f7j-7jwc-fxfj and GHSA-7648-jmwf-vw7j, because the newest release dotenvx's ^5.22.11 admits (5.33.19) was inside the hold on 2026-11-02. A v6 override would put an untested major (still beta) under dotenvx. The pin can go once 5.33.19 has aged through the hold. See audit-ci-allowlist.md.",
+      "matchPackageNames": ["systeminformation"],
+      "matchDepTypes": ["overrides"],
+      "allowedVersions": "<6",
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "@hono/node-server is an override, not a dependency: \"@hono/node-server\": \"2.1.3\" pins the MCP SDK's copy (under shadcn) at the lowest release that clears GHSA-rmxm-3fg6-px4f, because the newest release the SDK's ^1.19.9 || ^2.0.5 admits (2.1.6) was published on 2026-11-02. A v3 override would put an untested major under the SDK. The pin can go once 2.1.6 has aged through the hold. See audit-ci-allowlist.md.",
+      "matchPackageNames": ["@hono/node-server"],
+      "matchDepTypes": ["overrides"],
+      "allowedVersions": "<3",
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Type definitions are low risk — automerge them on a branch.",
       "matchPackageNames": ["@types/**"],
       "groupName": "type definitions",
