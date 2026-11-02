@@ -6,10 +6,11 @@
  * **full** one in both locales (§5.7 — `tests/unit/content/geometry-measures.test.ts`,
  * W1-T4), because a fit page that links to a stub teaches nothing.
  *
- * `cleat-position` points at `measure-saddle-setback` rather than
- * `adjust-cleats`: §5.7 ships `adjust-cleats` as a stub, and a measure may only
- * reference a full guide. The setback guide covers the ball-of-foot-over-axle
- * check the cleat position is set from (illustration `cleat-ball-of-foot`).
+ * `cleat-position` points at `adjust-cleats`, the guide that sets it (its
+ * fore-aft step carries the measure). Until the stub guides' promotion it
+ * pointed at `measure-saddle-setback`, whose own cleat step covers the
+ * ball-of-foot-over-axle check, because a measure may only reference a full
+ * guide and `adjust-cleats` was a stub.
  *
  * Labels: `parts.measures.<id>.{label,help}`.
  *
@@ -65,7 +66,7 @@ export const GEOMETRY_MEASURES: readonly GeometryMeasure[] = [
   measure("saddle-setback", "measure-saddle-setback", "mm", ["saddle"]),
   measure("reach", "measure-reach-and-drop", "mm", ["stem", "handlebar"]),
   measure("bar-drop", "measure-reach-and-drop", "mm", ["stem", "handlebar", "saddle"]),
-  measure("cleat-position", "measure-saddle-setback", "mm", ["pedal-left", "pedal-right"]),
+  measure("cleat-position", "adjust-cleats", "mm", ["pedal-left", "pedal-right"]),
   measure("tire-pressure", "measure-tire-pressure", null, ["tire-front", "tire-rear"]),
   measure("sag", "adjust-suspension-sag", null, ["fork", "rear-shock"]),
   measure("chain-wear", "measure-chain-wear", null, ["chain"]),

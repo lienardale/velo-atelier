@@ -2,8 +2,8 @@
 slug: replace-brake-cable
 kind: replace
 title: Replace a brake cable and housing
-summary: Remove the old cable, cut new housing, thread the new cable, tension and clamp it at the brake, then crimp an end cap. This guide is still being written.
-status: stub
+summary: Remove the old cable, cut new housing, thread the new cable, tension and clamp it at the brake, then crimp an end cap. For rim brakes and mechanical disc brakes.
+status: full
 order: 70
 difficulty: 2
 minutes: 40
@@ -21,11 +21,16 @@ tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: grease
+    alternatives: []
 related:
   - check-cables-hoses
   - check-brakes-rim
   - adjust-brake-lever-reach
+  - adjust-disc-caliper-alignment
 safety:
   - Use brake cable and brake housing, never gear housing. Gear housing can burst under the load of hard braking.
   - Before riding, squeeze the lever very hard about ten times to settle the cable, then check that the clamp bolt has not let the cable slip.
@@ -45,12 +50,51 @@ steps:
   - id: crimp-test
     title: Crimp the end cap and test the brake
     partIds: [brake-line-front, brake-line-rear]
+    illustration: cable-pinch-bolt-end-cap
 ---
+
+<Step id="remove-old">
+
+On drop bars the housing runs under the bar tape: unwrap it first. Undo the cable clamp bolt at the brake with the <Tool id="allen-keys" alt="multi-tool" />, then cut off the end cap with the <Tool id="cable-cutter" />. On a V-brake, squeeze the arms and lift the noodle out of its holder; on a cantilever, unhook the straddle wire; on a road caliper, open its quick-release lever.
+
+On a flat-bar lever, line up the slots in the adjuster, its locknut and the lever to free the cable. On a road lever, pull it: the head shows inside the lever body. Push the cable through and pull it out by its head. Note the housing routing and keep the old pieces: they give the new lengths.
+
+</Step>
+
+<Step id="cut-housing">
+
+A brake needs brake housing: a steel coil about 5 mm across, built to take the load of braking. Gear housing, made of straight steel strands, must never be used here. A brake cable is thicker too, with a bigger head: pear-shaped for a road lever, a barrel for a flat-bar lever.
+
+Cut each piece of housing to the length of the old one with the cable cutter, in one clean, square cut. If the plastic liner inside has been squashed shut, open it again with a fine point, such as a spoke. Fit a ferrule on each end, except where the stop is made to take bare housing. With the handlebar turned fully, the curves should stay smooth.
+
+</Step>
+
+<Step id="thread-cable">
+
+Unless the packet says to fit it dry, as for most coated cables, run a very thin film of <Tool id="grease" /> along the cable between your fingers: it will slide better and rust less.
+
+Hook the head into its seat in the lever, pushed fully home. Thread the cable through each piece of housing and each stop, in the order you noted, twisting it between your fingers so it does not fray. On a V-brake it runs through the noodle, which goes back into its holder, then the rubber boot. On a cantilever, hook the straddle wire back on; the cable is clamped on the part that carries it, or on one arm, depending on the model. Do not cut anything yet.
+
+</Step>
 
 <Step id="clamp-cable">
 
-Screw the barrel adjuster on the lever or the brake almost fully in, then back it out one turn: that leaves you adjustment in both directions. Hold the brake arms squeezed against the rim, or the mechanical caliper's arm closed, and pull the cable tight with the pliers to take up the slack.
+Screw the barrel adjuster almost fully in, then back it out one turn. Close a road caliper's quick-release lever and lay the cable in its groove. On a rim brake, hold the blocks against the rim and pull the cable tight with the <Tool id="pliers" />; on a mechanical disc caliper, leave its arm at rest and just take up the slack.
 
-Tighten the cable clamp bolt with the <Tool id="allen-keys" alt="multi-tool" />, firmly but without crushing the strands. Release the brake, then set the gap of the blocks or pads with the barrel adjuster: the lever should turn firm well before it reaches the handlebar.
+Tighten the bolt to the maker's torque, often 5 to 8 N·m, with the <Tool id="torque-wrench" />. Release: screw the barrel adjuster in to leave 1 to 3 mm between each block and the rim; if needed, undo the bolt, let a little cable back and tighten it again. On a mechanical caliper, set its dial so the pads just clear the rotor.
+
+</Step>
+
+<Step id="crimp-test">
+
+Squeeze the lever very hard about ten times to settle the housing and cable. Check the cable has not slipped, take up any extra gap with the barrel adjuster and tighten its locknut if it has one.
+
+Cut the cable 2 to 3 cm past the bolt, then crimp on a new end cap with the cable cutter's notch or the pliers. Spin the wheel: nothing should rub. Squeeze the lever while pushing the bike: the wheel should lock at once. Finally, try the brake at low speed.
+
+<Warning level="danger">
+
+If the lever almost reaches the handlebar, the cable slips or the wheel does not lock, do not ride: redo the clamping or take the brake to a shop.
+
+</Warning>
 
 </Step>

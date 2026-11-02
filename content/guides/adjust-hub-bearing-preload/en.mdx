@@ -2,8 +2,8 @@
 slug: adjust-hub-bearing-preload
 kind: adjust
 title: "Adjust cup-and-cone hub bearings"
-summary: "Remove side-to-side play from a cup-and-cone hub by setting the cone and locknut. Cartridge bearings are replaced in a workshop instead."
-status: stub
+summary: "Remove side-to-side play from a cup-and-cone hub by setting the cone and its locknut, without slowing the wheel down. Cartridge-bearing hubs, on the other hand, can rarely be adjusted at home."
+status: full
 order: 90
 difficulty: 3
 minutes: 40
@@ -11,12 +11,16 @@ partIds:
   - wheel-front
   - wheel-rear
 tools:
+  - toolId: cone-wrenches
+    alternatives: []
   - toolId: adjustable-wrench
-    alternatives: [pliers]
+    alternatives: []
   - toolId: allen-keys
     alternatives: [multi-tool]
 related:
   - check-wheels-tires
+safety:
+  - "Before riding, check that the wheel sits fully in the dropouts, that the quick release is firmly closed, the thru-axle tightened to torque or the axle nuts tight, and that the brake is closed again and works: a badly fitted wheel can come out while you ride."
 steps:
   - id: detect-play
     title: "Detect the play"
@@ -29,10 +33,34 @@ steps:
     title: "Lock the locknut and test"
 ---
 
+<Step id="detect-play">
+
+First check that the quick release, thru-axle or axle nuts are tight. Hold the frame, or the fork for the front wheel, take the rim at the top and push it firmly from side to side: a small knock under your fingers is play in the hub. Then spin the wheel: it should turn for a long time, without any grinding.
+
+Look at the axle on each side. A cup-and-cone hub shows a locknut and then a cone with thin flats between the frame and the hub: this guide is for it. Most cartridge-bearing hubs have no adjustment at all, or a preload collar specific to each brand: in that case, follow the maker's instructions or go to a workshop.
+
+</Step>
+
+<Step id="remove-wheel">
+
+On a rim brake, open the brake first; at the rear, shift onto the smallest sprocket. Open the quick-release lever, or unscrew the thru-axle, with the <Tool id="allen-keys" alt="multi-tool" /> if it has no lever, or loosen the axle nuts with the <Tool id="adjustable-wrench" />, then take the wheel out. With a disc brake, slip a spacer between the pads and do not squeeze the lever while the wheel is out.
+
+Pull the quick-release skewer out, keeping its two springs, narrow end towards the hub. Adjust one side only: either side at the front; at the rear, the left side, away from the sprockets. The other side stays locked and sets the position of the axle.
+
+</Step>
+
 <Step id="adjust-cone">
 
-With the wheel out, hold the cone on one side with a thin flat spanner, often 15 or 17 mm, and loosen the locknut with the <Tool id="adjustable-wrench" alt="pliers" />. Screw the cone in by hand until it touches the balls, then back it off by an eighth of a turn.
+On the chosen side, hold the cone with one of the <Tool id="cone-wrenches" />, which are very thin, often 13 to 17 mm, and loosen the locknut a turn or two with the <Tool id="adjustable-wrench" />, anticlockwise as seen from that side.
 
-Lock the locknut again while holding the cone still. The axle should turn smoothly and without play once the wheel is clamped in the frame. If the hub feels gritty or has no adjustable cones, it is a workshop job.
+Now hold the opposite locknut with the adjustable wrench so that the axle does not turn, and screw the cone in by an eighth of a turn to take up play, or out. Between adjustments, turn the axle between your fingers. Look for the point where the play has only just gone and the axle turns smoothly. On a quick release, leave the slightest play: clamping the skewer takes it up. An axle that grinds at every setting means pitted cones or cups: see a workshop.
+
+</Step>
+
+<Step id="lock-test">
+
+Hold the cone with the cone wrench and tighten the locknut firmly against it with the <Tool id="adjustable-wrench" />. Locking often tightens the adjustment a little: turn the axle straight away and go back to the previous step if needed.
+
+Take the spacer out, refit the quick-release skewer, set the wheel fully into the dropouts and close the lever firmly: it should mark your palm. Screw a thru-axle in to the torque printed on it, or tighten the axle nuts firmly. The rim should no longer knock when you push it, and it should spin freely. If play or a tight spot remains, adjust again. Finally, close the rim brake, or pump a disc brake lever, and check that the wheel brakes before riding.
 
 </Step>

@@ -2,8 +2,8 @@
 slug: replace-bar-tape
 kind: replace
 title: Remplacer la guidoline
-summary: Retirer l’ancienne guidoline, nettoyer le cintre, enrouler la neuve avec une tension régulière autour des cocottes et finir proprement. Ce guide est en cours de rédaction.
-status: stub
+summary: Retirer l’ancienne guidoline, nettoyer le cintre, enrouler la neuve avec une tension régulière autour des cocottes et finir proprement. Comptez une demi-heure.
+status: full
 order: 90
 difficulty: 1
 minutes: 30
@@ -14,32 +14,68 @@ appliesTo:
   path: cockpit.bar
   in: [drop]
 tools:
+  - toolId: flat-screwdriver
+    alternatives: [multi-tool]
   - toolId: isopropyl-alcohol
     alternatives: []
   - toolId: rags
     alternatives: []
+  - toolId: electrical-tape
+    alternatives: []
+  - toolId: scissors
+    alternatives: []
 related:
   - check-frame-bolts
   - replace-brake-cable
+safety:
+  - "Ne roulez jamais sans les bouchons de cintre : en cas de chute, un bout de cintre ouvert peut blesser gravement."
+  - Une fois les cocottes rabattues, vérifiez que les leviers de frein n’ont pas tourné sur le cintre et que les deux freins serrent fort avant de rouler.
 steps:
   - id: remove-old
     title: Retirer l’ancienne guidoline
     partIds: [grips-or-tape]
   - id: prepare-bar
-    title: Nettoyer le cintre et fixer les gaines
+    title: Nettoyer le cintre et fixer gaines et durites
     partIds: [handlebar]
   - id: wrap-tape
     title: Enrouler la guidoline neuve
     partIds: [grips-or-tape]
+    illustration: bar-tape-wrap
   - id: finish-ends
     title: Finir le haut et boucher les extrémités
     partIds: [grips-or-tape, handlebar]
 ---
 
+<Step id="remove-old">
+
+Relevez le caoutchouc de chaque cocotte en le retournant vers l’avant du levier : le haut de l’ancienne guidoline et son passage autour du collier du levier apparaissent. Retirez les bouchons en bout de cintre en faisant levier sous leur bord avec un <Tool id="flat-screwdriver" alt="multi-tool" />, ou desserrez d’abord leur vis centrale s’ils sont à expansion.
+
+Décollez le ruban de finition près de la potence, puis déroulez la guidoline depuis le haut jusqu’au bout du cintre. Gardez la petite bande qui couvrait le collier de chaque levier si la guidoline neuve n’en fournit pas. L’ancienne ne se réutilise pas : son adhésif est usé et elle se déchire souvent en sortant.
+
+</Step>
+
+<Step id="prepare-bar">
+
+Le cintre garde souvent des restes de colle. Frottez-les avec des <Tool id="rags" /> imbibés d’<Tool id="isopropyl-alcohol" /> jusqu’à ce que le tube soit propre et sec : la guidoline neuve accrochera mieux. Examinez-le au passage : une fissure, une entaille profonde ou, sur un cintre en carbone, un éclat près des leviers imposent de le remplacer avant de rouler.
+
+Plaquez ensuite les gaines, ou les durites d’un frein hydraulique, contre le cintre, à leur place habituelle, et fixez-les à deux ou trois endroits avec quelques tours de <Tool id="electrical-tape" />. Elles ne doivent plus bouger : sous la guidoline, une gaine qui roule fait une bosse. Posez enfin la petite bande sur le collier de chaque levier.
+
+</Step>
+
 <Step id="wrap-tape">
 
-Commencez au bout du cintre : laissez dépasser la moitié de la largeur de la bande, qui sera rentrée plus tard par le bouchon. Enroulez vers le haut en tirant régulièrement sur la guidoline, chaque tour recouvrant le précédent d’environ un tiers.
+Commencez au bout du cintre, la guidoline dépassant de la moitié de sa largeur : le bouchon la rentrera. Enroulez vers le haut en tirant régulièrement, chaque tour recouvrant le précédent d’environ un tiers, et décollez la protection de l’adhésif au fur et à mesure.
 
-Sur le côté droit, enroulez dans le sens des aiguilles d’une montre vu de l’arrière du vélo, et dans l’autre sens à gauche : vos mains, qui tournent vers l’extérieur en tirant, resserrent la bande au lieu de la dérouler. Autour de chaque cocotte, relevez son caoutchouc et passez en huit, sans laisser de trou.
+Vu de la selle, enroulez dans le sens des aiguilles d’une montre à droite et dans le sens inverse à gauche : en bas du cintre, la bande passe par-dessus le tube, de l’intérieur vers l’extérieur, et se resserre sous vos mains.
+
+Au levier, cocotte relevée, passez en huit : une diagonale vers le haut derrière le levier, un tour au-dessus, une diagonale vers le bas qui croise la première, un tour en dessous, puis une dernière vers le haut.
+
+</Step>
+
+<Step id="finish-ends">
+
+Sur la partie rectiligne du cintre, arrêtez-vous à quelques centimètres de la potence, là où le cintre s’épaissit. Avec les <Tool id="scissors" />, coupez la bande en biais sur 6 à 8 cm, pour que le dernier tour finisse droit, puis fixez-le avec le ruban de finition, légèrement étiré, sur un tour et demi.
+
+Rentrez la partie qui dépasse au bout du cintre et enfoncez le bouchon, ou serrez sa vis. Finissez l’autre côté de la même façon et rabattez les cocottes. Serrez fort chaque levier de frein, en poussant le vélo : le levier ne doit pas tourner sur le cintre et la roue doit se bloquer.
 
 </Step>

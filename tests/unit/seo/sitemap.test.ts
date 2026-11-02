@@ -15,6 +15,13 @@
  *   - stub guides are left out (§5.7: they are `noindex`), and a legal page's
  *     `lastModified` is the date its own document records.
  *
+ * The stub rule is proved on a SYNTHETIC stub (`STUB_SLUG`, both locales)
+ * added beside the guides on disk: since every guide of the corpus went full
+ * there is no real stub left, and a test that only looped over the stubs on
+ * disk would pass with the filter in `app/sitemap.ts` deleted. With the
+ * fixture, deleting that filter fails both the "every indexable page" and the
+ * "stubs left out" cases.
+ *
  * The localized paths come from `tests/_fakes/routes.ts`, built straight from
  * `routing.pathnames`, not from the code under test.
  */
@@ -22,24 +29,34 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { LegalDocument } from "@/lib/content/legal";
 
-vi.mock("content-collections", async () => ({
-  allGuides: (await import("@/tests/_helpers/guides")).diskGuides(),
-  allLegalPages: (
-    [
-      { id: "mentions", locale: "fr", updatedAt: "2026-09-17" },
-      { id: "mentions", locale: "en", updatedAt: "2026-09-18" },
-      { id: "confidentialite", locale: "fr", updatedAt: "2026-09-19" },
-      { id: "confidentialite", locale: "en", updatedAt: "2026-09-20" },
-    ] as const
-  ).map((page): LegalDocument => ({ ...page, title: "t", summary: "s", mdx: "" })),
-}));
+const { STUB_SLUG } = vi.hoisted(() => ({ STUB_SLUG: "replace-sitemap-stub-fixture" }));
+
+vi.mock("content-collections", async () => {
+  const { diskGuides, makeGuide } = await import("@/tests/_helpers/guides");
+  return {
+    allGuides: [
+      ...diskGuides(),
+      ...(["fr", "en"] as const).map((locale) =>
+        makeGuide({ slug: STUB_SLUG, kind: "replace", status: "stub", locale, title: "Stub" }),
+      ),
+    ],
+    allLegalPages: (
+      [
+        { id: "mentions", locale: "fr", updatedAt: "2026-09-17" },
+        { id: "mentions", locale: "en", updatedAt: "2026-09-18" },
+        { id: "confidentialite", locale: "fr", updatedAt: "2026-09-19" },
+        { id: "confidentialite", locale: "en", updatedAt: "2026-09-20" },
+      ] as const
+    ).map((page): LegalDocument => ({ ...page, title: "t", summary: "s", mdx: "" })),
+  };
+});
 
 vi.mock("@/lib/i18n/navigation", async () => ({
   getPathname: (await import("@/tests/_fakes/routes")).localizingGetPathname,
 }));
 
 const { default: sitemap } = await import("@/app/sitemap");
-const { diskGuides } = await import("@/tests/_helpers/guides");
+const { GUIDES } = await import("@/lib/content/collection");
 const { localizedUrl } = await import("@/tests/_fakes/routes");
 const { routing } = await import("@/lib/i18n/routing");
 
@@ -57,20 +74,12 @@ function localeOf(entry: (typeof entries)[number]): Locale {
   return match;
 }
 
-const fullSlugs = [
-  ...new Set(
-    diskGuides()
-      .filter((guide) => guide.status === "full")
-      .map((guide) => guide.slug),
-  ),
+// Read from the collection the sitemap itself reads, fixture included.
+const slugsWithStatus = (status: "full" | "stub") => [
+  ...new Set(GUIDES.filter((guide) => guide.status === status).map((guide) => guide.slug)),
 ];
-const stubSlugs = [
-  ...new Set(
-    diskGuides()
-      .filter((guide) => guide.status === "stub")
-      .map((guide) => guide.slug),
-  ),
-];
+const fullSlugs = slugsWithStatus("full");
+const stubSlugs = slugsWithStatus("stub");
 
 describe("sitemap.xml", () => {
   it("lists every indexable page once per locale, and nothing else", () => {
@@ -92,6 +101,7 @@ describe("sitemap.xml", () => {
 
   it("leaves the stub guides out — they are noindex (§5.7)", () => {
     expect(stubSlugs.length).toBeGreaterThan(0);
+    expect(stubSlugs).toContain(STUB_SLUG);
     for (const slug of stubSlugs) {
       for (const locale of routing.locales) {
         const url = `${ORIGIN}${localizedUrl(locale, "/guides/[slug]", { slug })}`;

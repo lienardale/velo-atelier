@@ -2,8 +2,8 @@
 slug: replace-cassette
 kind: replace
 title: Remplacer la cassette
-summary: Sortir la roue arrière, débloquer l’écrou de cassette avec un fouet à chaîne, changer la cassette et la resserrer au couple. Ce guide est en cours de rédaction.
-status: stub
+summary: Sortir la roue arrière, débloquer l’écrou de cassette avec un fouet à chaîne, monter une cassette adaptée au corps de roue libre et la serrer au couple. Une demi-heure avec les bons outils.
+status: full
 order: 60
 difficulty: 2
 minutes: 30
@@ -19,8 +19,10 @@ tools:
   - toolId: cassette-lockring-tool
     alternatives: []
   - toolId: adjustable-wrench
-    alternatives: [pliers]
+    alternatives: []
   - toolId: torque-wrench
+    alternatives: []
+  - toolId: grease
     alternatives: []
   - toolId: rags
     alternatives: []
@@ -28,25 +30,57 @@ related:
   - check-drivetrain
   - replace-chain
   - clean-drivetrain
+  - measure-chain-wear
+safety:
+  - "Avant de rouler, vérifiez que l’axe de la roue arrière est bien au fond des pattes, et que le blocage rapide est fermé fermement, l’axe traversant serré au couple ou les écrous d’axe bien serrés : une roue mal fixée peut sortir des pattes en roulant."
 steps:
   - id: remove-wheel
     title: Sortir la roue arrière
     partIds: [wheel-rear]
+    illustration: axle-qr-vs-thru
   - id: remove-lockring
     title: Débloquer l’écrou de cassette
     partIds: [cassette]
+    illustration: cassette-lockring-chain-whip
   - id: fit-cassette
     title: Monter la cassette neuve
     partIds: [cassette]
+    illustration: freehub-body-profiles
   - id: tighten-lockring
-    title: Serrer l’écrou au couple
+    title: Serrer l’écrou au couple et remonter la roue
     partIds: [cassette]
 ---
 
+<Step id="remove-wheel">
+
+Ce guide concerne la cassette. Tournez les pédales en arrière : si la bague cannelée centrale reste immobile, c’est une roue libre vissée, qui se démonte avec un extracteur de roue libre. Mesurez aussi l’usure de la chaîne : une chaîne usée saute sur des pignons neufs, changez alors les deux.
+
+Passez la chaîne sur le plus petit pignon. Sur un frein sur jante, ouvrez le levier de déblocage de l’étrier ou sortez la nouille du V-brake. Ouvrez le blocage rapide, dévissez l’axe traversant ou desserrez les écrous d’axe, puis tirez le dérailleur vers l’arrière pour dégager la roue. Sur un frein à disque, ne touchez plus au levier tant que la roue est sortie. Posez le vélo côté gauche, jamais sur le dérailleur.
+
+</Step>
+
 <Step id="remove-lockring">
 
-Posez la roue à plat, cassette vers le haut, et retirez le blocage rapide. Engagez le <Tool id="cassette-lockring-tool" /> dans les cannelures de l’écrou et placez la <Tool id="adjustable-wrench" alt="pliers" /> dessus. Enroulez la chaîne du <Tool id="chain-whip" /> sur un grand pignon, dans le sens qui empêche la cassette de tourner en sens inverse des aiguilles d’une montre.
+Posez la roue à plat, cassette vers le haut, et retirez la tige du blocage rapide s’il y en a une. Engagez le <Tool id="cassette-lockring-tool" /> dans les cannelures de l’écrou et placez la <Tool id="adjustable-wrench" /> dessus. Enroulez la chaîne du <Tool id="chain-whip" /> sur un grand pignon, de façon qu’il empêche la cassette de tourner dans le sens inverse des aiguilles d’une montre, vu côté transmission.
 
-Tenez fermement le fouet et poussez la clé dans le sens inverse des aiguilles d’une montre : l’écrou se débloque avec un craquement, c’est normal. Retirez-le, puis faites glisser les pignons hors du corps de roue libre, en gardant leurs entretoises dans l’ordre.
+Tenez le fouet fermement et poussez la clé dans ce sens-là : l’écrou se débloque avec un craquement, c’est normal. Gardez les doigts loin des dents, au cas où le fouet glisserait. Sur une cassette SRAM XD ou XDR, l’écrou fait partie de la cassette, qui se dévisse d’un bloc. Retirez pignons et entretoises sans les mélanger.
+
+</Step>
+
+<Step id="fit-cassette">
+
+Essuyez le corps de roue libre avec des <Tool id="rags" /> et identifiez son type : Shimano HG, Shimano Micro Spline ou SRAM XD/XDR. La cassette neuve doit être prévue pour ce corps, avoir le même nombre de vitesses et un plus grand pignon accepté par le dérailleur arrière ; s’il est plus grand que l’ancien, vérifiez aussi la longueur de la chaîne.
+
+<Illustration id="cassette-cog-count" />
+
+Une cassette prévue pour un corps plus court, comme une 10 vitesses sur un corps HG route 11 ou 12 vitesses, demande une entretoise derrière elle, souvent de 1,85 mm. Suivez sa notice. Sur un corps HG, alignez la cannelure plus large de chaque pignon sur la rainure large du corps, puis enfilez pignons et entretoises dans l’ordre, inscriptions vers l’extérieur.
+
+</Step>
+
+<Step id="tighten-lockring">
+
+Enduisez le filetage d’une fine couche de <Tool id="grease" />, sans en mettre sur le disque, puis vissez l’écrou à la main, dans le sens des aiguilles d’une montre. S’il résiste, il est de travers : dévissez et recommencez. Serrez avec le démonte-cassette et la <Tool id="torque-wrench" /> au couple indiqué par le fabricant, souvent autour de 40 N·m (30 à 50 N·m chez Shimano), en tenant la roue : le fouet est inutile dans ce sens.
+
+Remontez la roue, axe au fond des pattes et serré, frein sur jante refermé. Faites tourner la roue et serrez chaque frein avant de rouler. Passez les vitesses, puis roulez en danseuse en appuyant fort sur les pédales : si la chaîne saute, elle est usée ou le dérailleur est à régler.
 
 </Step>

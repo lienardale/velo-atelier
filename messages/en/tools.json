@@ -112,5 +112,14 @@
   },
   "scissors": {
     "label": "Scissors"
+  },
+  "threadlocker": {
+    "label": "Threadlocker"
+  },
+  "electrical-tape": {
+    "label": "Electrical tape"
+  },
+  "utility-knife": {
+    "label": "Utility knife"
   }
 }

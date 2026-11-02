@@ -38,7 +38,8 @@ of the MVP are fixed in `tests/fixtures/content-manifest.ts`.
 geometry measure points at (`lib/domain/data/geometry-measures.ts`). Other
 guides may ship as a **stub**: complete frontmatter, exactly one `<Step>` body
 of at least 40 words per locale. Stubs show a banner, are not indexed and are
-never suggested as related guides.
+never suggested as related guides. Every guide of the MVP set is full since
+2026-11-02; the stub format remains for a new guide that is not finished yet.
 
 ## Template
 
@@ -118,7 +119,9 @@ Strict mode requires ≥ 40 words in each checked step.
 The reason keys available are listed under `reasons` in
 `messages/fr/guides.json` (and `lib/content/generated/reason-keys.ts` after
 `npm run content:build`). If you need a new one, add it to **both**
-`messages/fr/guides.json` and `messages/en/guides.json`.
+`messages/fr/guides.json` and `messages/en/guides.json`. Every key there must be
+offered by at least one finding (`tests/unit/content/reasons-offered.test.ts`):
+a symptom no question offers is one a visitor can never report.
 
 ## `appliesTo`
 

@@ -2,8 +2,8 @@
 slug: replace-grips
 kind: replace
 title: Remplacer les poignées
-summary: Retirer les poignées usées, nettoyer le cintre, enfiler ou visser les neuves et vérifier qu’elles ne tournent plus. Ce guide est en cours de rédaction.
-status: stub
+summary: Retirer les poignées usées, nettoyer le cintre, enfiler ou visser les neuves et vérifier qu’elles ne tournent plus. Un quart d’heure, plus une heure de séchage pour des poignées à enfiler.
+status: full
 order: 100
 difficulty: 1
 minutes: 15
@@ -20,8 +20,17 @@ tools:
     alternatives: [multi-tool]
   - toolId: isopropyl-alcohol
     alternatives: []
+  - toolId: rags
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: utility-knife
+    alternatives: []
 related:
   - check-frame-bolts
+safety:
+  - "Une poignée qui tourne ou s’arrache fait perdre le contrôle du vélo : ne roulez pas tant qu’elle n’est pas parfaitement fixe."
+  - "Fermez toujours le bout du cintre, par la poignée ou par un bouchon : en cas de chute, un tube ouvert peut blesser gravement."
 steps:
   - id: remove-grips
     title: Retirer les poignées usées
@@ -32,6 +41,7 @@ steps:
   - id: fit-grips
     title: Monter les poignées neuves
     partIds: [grips-or-tape]
+    illustration: grip-lock-on-clamp
   - id: secure-check
     title: Vérifier le maintien
     partIds: [grips-or-tape]
@@ -39,8 +49,32 @@ steps:
 
 <Step id="remove-grips">
 
-Les poignées à collier se retirent facilement : desserrez la petite vis de chaque collier avec les <Tool id="allen-keys" alt="multi-tool" />, puis tirez la poignée en la tournant. Pour des poignées simplement enfilées, glissez la lame d’un <Tool id="flat-screwdriver" alt="multi-tool" /> sous le bord intérieur, sans rayer le cintre.
+Retirez d’abord les bouchons de cintre s’ils sont séparés des poignées. Une poignée à collier se retire facilement : desserrez la vis de chaque collier de quelques tours avec les <Tool id="allen-keys" alt="multi-tool" />, puis tirez la poignée en la tournant.
 
-Versez un peu d’alcool isopropylique dans l’espace ainsi ouvert et tournez la poignée : elle glisse et sort. L’alcool s’évapore en quelques minutes sans laisser de film gras, et peut aussi servir à enfiler les poignées neuves. Retirez d’abord les manettes si elles gênent.
+Une poignée simplement enfilée tient par friction. Glissez la lame d’un <Tool id="flat-screwdriver" alt="multi-tool" /> sous son bord, sans rayer le cintre, versez un peu d’<Tool id="isopropyl-alcohol" /> dans l’espace ouvert et tournez : elle glisse et sort. Une poignée bonne à jeter peut aussi être fendue au <Tool id="utility-knife" />, lame à plat et dirigée loin de vous, jamais sur un cintre en carbone, qu’une entaille fragilise.
+
+</Step>
+
+<Step id="clean-bar">
+
+Essuyez le bout du cintre avec des <Tool id="rags" /> imbibés d’alcool isopropylique, pour enlever la colle, la gomme et la saleté laissées par les anciennes poignées. Évitez l’huile, le savon et tout produit gras : ce qui reste glissant fera tourner les poignées neuves.
+
+Regardez ensuite le cintre là où les poignées le cachaient. Une fissure, une entaille, de la corrosion ou, sur un cintre en carbone, un éclat ou une marque d’écrasement laissée par un collier imposent de le remplacer avant de rouler. Vérifiez aussi que l’extrémité du tube est lisse, sans bavure : une arête vive déchire la poignée neuve en entrant.
+
+</Step>
+
+<Step id="fit-grips">
+
+Une poignée ergonomique s’oriente avant d’être fixée : son appui doit soutenir la paume dans l’axe du poignet, mains en position de conduite. Glissez la poignée à collier jusqu’au bout du cintre, en laissant quelques millimètres entre son collier et le levier ou la manette, puis serrez la vis au couple gravé sur le collier ou indiqué par le fabricant, souvent 2 à 4 N·m, avec la <Tool id="torque-wrench" /> : ces petites vis cassent ou marquent le cintre si l’on force.
+
+Une poignée à enfiler se monte mouillée d’alcool isopropylique à l’intérieur : enfilez-la d’un geste en tournant, alignez-la aussitôt, puis laissez sécher au moins une heure.
+
+</Step>
+
+<Step id="secure-check">
+
+Prenez chaque poignée à pleine main et essayez fort de la tourner, puis de la tirer vers l’extérieur : elle ne doit ni tourner ni glisser. Une poignée à collier qui bouge encore demande un cintre plus propre, jamais un serrage au-delà du couple indiqué ; une poignée à enfiler qui bouge après séchage doit être reposée.
+
+Vérifiez que chaque bout de cintre est fermé, par la poignée ou par un bouchon. Contrôlez enfin que les leviers de frein et les manettes n’ont pas bougé et tombent toujours sous les doigts, puis faites un tour au pas avant de rouler normalement.
 
 </Step>

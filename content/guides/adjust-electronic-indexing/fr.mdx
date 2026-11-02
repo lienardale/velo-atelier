@@ -3,7 +3,7 @@ slug: adjust-electronic-indexing
 kind: adjust
 title: "Régler l’indexation d’une transmission électronique"
 summary: "Charger le système, passer en mode réglage et décaler le dérailleur pas à pas depuis les manettes ou l’application du fabricant. Aucun câble à tendre."
-status: stub
+status: full
 order: 50
 difficulty: 1
 minutes: 15
@@ -17,11 +17,17 @@ appliesTo:
 tools:
   - toolId: phillips-screwdriver
     alternatives: [multi-tool]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
   - toolId: work-stand
     alternatives: []
 related:
   - adjust-rear-derailleur
   - check-drivetrain
+safety:
+  - "Rechargez la batterie uniquement avec le chargeur du fabricant. N’ouvrez jamais une batterie, et ne rechargez ni n’utilisez plus une batterie gonflée, fissurée ou qui chauffe : faites-la contrôler."
+  - "Le dérailleur bouge dès qu’un bouton est pressé, même roue arrêtée : gardez les doigts loin de la chaîne, des galets et des pignons pendant tout le réglage."
+  - "Une butée L trop ouverte laisse le dérailleur partir dans les rayons, ce qui peut bloquer la roue : après chaque réglage d’une butée, vérifiez l’écart avec les rayons sur le plus grand pignon."
 steps:
   - id: charge
     title: "Charger le système"
@@ -34,12 +40,37 @@ steps:
   - id: limit-check
     title: "Vérifier les butées"
     partIds: [rear-derailleur, front-derailleur]
+    illustration: derailleur-limit-screws-h-l-b
 ---
+
+<Step id="charge">
+
+Rechargez complètement la batterie avec le chargeur du fabricant, ou mettez en place une batterie chargée si votre système en a d’amovibles. Une batterie faible peut limiter les passages ou couper le système en plein réglage. Vérifiez aussi les piles bouton des manettes sans fil, quand il y en a.
+
+Contrôlez ensuite le reste de la transmission : les connecteurs bien enfoncés sur un système à fils, la patte de dérailleur bien droite, la chaîne et la cassette propres et pas trop usées. Un réglage électronique ne rattrape ni une patte tordue ni une chaîne usée : il les masque un temps, puis les passages se dégradent de nouveau.
+
+</Step>
+
+<Step id="adjust-mode">
+
+Installez le vélo sur le <Tool id="work-stand" />, roue arrière libre, et placez la chaîne sur un pignon du milieu de la cassette, ou sur celui que la notice indique.
+
+Passez ensuite en mode réglage exactement comme le décrit la notice ou l’application de votre système. Shimano Di2, SRAM AXS et Campagnolo EPS le font chacun à leur façon, et parfois autrement d’une génération à l’autre : un bouton sur le dérailleur ou sur le boîtier de jonction, une combinaison de boutons sur la manette, ou un menu de l’application du fabricant. Le système le signale, souvent par un voyant qui change de couleur ou qui clignote. Ne devinez pas la séquence.
+
+</Step>
 
 <Step id="micro-adjust">
 
-Installez le vélo sur un <Tool id="work-stand" />, batterie chargée, et passez le système en mode réglage : un bouton sur le dérailleur, la manette ou le boîtier de jonction, selon la marque. Placez la chaîne sur un pignon du milieu.
+En mode réglage, chaque appui décale le dérailleur d’un petit pas, sans changer de vitesse. Tournez les pédales et écoutez. Décalez vers les grands pignons, pas à pas, jusqu’à entendre la chaîne frotter contre le pignon voisin plus grand, puis revenez vers les petits jusqu’à ce que le bruit disparaisse. Certaines notices donnent un nombre de pas précis pour ce retour : suivez-le.
 
-Chaque appui décale alors le dérailleur d’un petit pas sans changer de vitesse. Décalez vers les grands pignons si la chaîne hésite à monter, vers les petits si elle frotte, puis quittez le mode réglage et testez toutes les vitesses.
+Quittez le mode réglage, puis passez toutes les vitesses. Si la chaîne hésite à monter, décalez d’un pas vers les grands pignons ; si elle frotte ou descend mal, d’un pas vers les petits. Un dérailleur avant électronique se règle selon sa notice : par ce même mode sur certains systèmes, par ses seules vis de butée sur d’autres.
+
+</Step>
+
+<Step id="limit-check">
+
+Sur la plupart des systèmes, les vis H et L restent des butées mécaniques : elles retiennent la chaîne si le moteur va trop loin ou après un choc. Passez sur le plus petit puis sur le plus grand pignon : la chaîne doit s’y poser franchement, et le dérailleur rester à l’écart des rayons.
+
+Si le moteur peine, bourdonne ou n’atteint pas un pignon extrême, la butée de ce côté est trop vissée : dévissez-la d’un quart de tour avec le <Tool id="phillips-screwdriver" alt="multi-tool" /> ou les <Tool id="allen-keys" alt="multi-tool" />, selon la tête de vis. Si la chaîne dépasse ce pignon, vissez-la. Vérifiez de même les plateaux à l’avant, puis faites un essai sur route.
 
 </Step>

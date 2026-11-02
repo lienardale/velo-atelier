@@ -2,8 +2,8 @@
 slug: replace-cassette
 kind: replace
 title: Replace the cassette
-summary: Take out the rear wheel, undo the cassette lockring with a chain whip, swap the cassette and tighten it to torque. This guide is still being written.
-status: stub
+summary: Take out the rear wheel, undo the cassette lockring with a chain whip, fit a cassette that suits the freehub body and tighten it to torque. Half an hour with the right tools.
+status: full
 order: 60
 difficulty: 2
 minutes: 30
@@ -19,8 +19,10 @@ tools:
   - toolId: cassette-lockring-tool
     alternatives: []
   - toolId: adjustable-wrench
-    alternatives: [pliers]
+    alternatives: []
   - toolId: torque-wrench
+    alternatives: []
+  - toolId: grease
     alternatives: []
   - toolId: rags
     alternatives: []
@@ -28,25 +30,57 @@ related:
   - check-drivetrain
   - replace-chain
   - clean-drivetrain
+  - measure-chain-wear
+safety:
+  - "Before riding, check that the rear axle sits fully in the dropouts and that the quick release is closed firmly, the thru-axle tightened to torque or the axle nuts done up tight: a wheel that is not secured can come out of the dropouts while you ride."
 steps:
   - id: remove-wheel
     title: Take out the rear wheel
     partIds: [wheel-rear]
+    illustration: axle-qr-vs-thru
   - id: remove-lockring
     title: Undo the cassette lockring
     partIds: [cassette]
+    illustration: cassette-lockring-chain-whip
   - id: fit-cassette
     title: Fit the new cassette
     partIds: [cassette]
+    illustration: freehub-body-profiles
   - id: tighten-lockring
-    title: Tighten the lockring to torque
+    title: Tighten the lockring to torque and refit the wheel
     partIds: [cassette]
 ---
 
+<Step id="remove-wheel">
+
+This guide is about the cassette. Turn the pedals backwards: if the splined ring in the middle stays still, it is a threaded freewheel, which comes off with a freewheel remover. Also measure chain wear: a worn chain skips on new sprockets, so then replace both.
+
+Shift the chain onto the smallest sprocket. With rim brakes, open the caliper's quick-release lever or unhook the V-brake noodle. Open the quick release, unscrew the thru-axle or loosen the axle nuts, then pull the derailleur rearwards to free the wheel. With disc brakes, leave the brake lever alone while the wheel is out. Lay the bike on its left side, never on the derailleur.
+
+</Step>
+
 <Step id="remove-lockring">
 
-Lay the wheel flat, cassette side up, and remove the quick-release skewer. Fit the <Tool id="cassette-lockring-tool" /> into the splines of the lockring and put the <Tool id="adjustable-wrench" alt="pliers" /> on it. Wrap the chain of the <Tool id="chain-whip" /> around a large cog, in the direction that stops the cassette turning anticlockwise.
+Lay the wheel flat, cassette side up, and remove the quick-release skewer if there is one. Fit the <Tool id="cassette-lockring-tool" /> into the splines of the lockring and put the <Tool id="adjustable-wrench" /> on it. Wrap the chain of the <Tool id="chain-whip" /> around a large sprocket so that it stops the cassette turning anticlockwise, seen from the drive side.
 
-Hold the whip firmly and push the wrench anticlockwise: the lockring lets go with a loud crack, which is normal. Remove it, then slide the cogs off the freehub body, keeping their spacers in order.
+Hold the whip firmly and push the wrench that way: the lockring lets go with a loud crack, which is normal. Keep your fingers clear of the teeth in case the whip slips. On a SRAM XD or XDR cassette, the lockring is part of the cassette, which unscrews in one piece. Remove the sprockets and spacers without mixing them up.
+
+</Step>
+
+<Step id="fit-cassette">
+
+Wipe the freehub body with <Tool id="rags" /> and identify its type: Shimano HG, Shimano Micro Spline or SRAM XD/XDR. The new cassette must be made for that body, have the same number of speeds and a largest sprocket the rear derailleur accepts; if it is larger than the old one, check the chain length too.
+
+<Illustration id="cassette-cog-count" />
+
+A cassette made for a shorter body, such as a 10-speed on an 11- or 12-speed HG road body, needs a spacer behind it, often 1.85 mm. Follow its instructions. On an HG body, line up the wider spline of each sprocket with the wide groove on the body, then slide the sprockets and spacers on in order, markings facing out.
+
+</Step>
+
+<Step id="tighten-lockring">
+
+Coat the thread with a thin film of <Tool id="grease" />, keeping it off the rotor, then screw the lockring on by hand, clockwise. If it binds, it is cross-threaded: unscrew it and start again. Tighten it with the lockring tool and the <Tool id="torque-wrench" /> to the manufacturer's torque, often around 40 N·m (30 to 50 N·m for Shimano), holding the wheel: no whip is needed this way.
+
+Refit the wheel with the axle fully in the dropouts and secured, and any rim brake closed again. Spin the wheel and squeeze each brake before you ride. Run through the gears, then ride out of the saddle, pushing hard on the pedals: if the chain skips, it is worn or the derailleur needs adjusting.
 
 </Step>

@@ -2,8 +2,8 @@
 slug: replace-tire-tubeless
 kind: replace
 title: Fit a tubeless tyre and refresh the sealant
-summary: Remove the tubeless tyre, clean the rim, refit the tyre, add sealant through the valve and seat the beads. This guide is still being written.
-status: stub
+summary: "Remove the tubeless tyre, clean the rim, refit the tyre, add sealant through the valve and seat the beads, without exceeding the tyre's or the rim's maximum pressure. To refresh the sealant only, go straight to the Add the sealant step."
+status: full
 order: 40
 difficulty: 2
 minutes: 40
@@ -18,39 +18,82 @@ tools:
   - toolId: tire-levers
     alternatives: []
   - toolId: floor-pump
-    alternatives: [mini-pump]
+    alternatives: []
   - toolId: valve-core-tool
     alternatives: [pliers]
   - toolId: sealant-injector
     alternatives: []
   - toolId: rags
     alternatives: []
+  - toolId: isopropyl-alcohol
+    alternatives: []
 related:
   - check-wheels-tires
   - replace-tube-tire
 safety:
   - "Never exceed the tyre's or the rim's maximum pressure to seat the beads: no more than 5 bar on a hookless rim."
+  - "With the wheel out, do not squeeze a disc brake lever. Refit it fully into the dropouts, with the quick release closed or the thru-axle tightened, and clean any sealant off the rotor, pads or rim braking surface with isopropyl alcohol: check that the wheel brakes before riding."
 steps:
   - id: remove-tire
     title: Remove the tyre
     partIds: [tire-front, tire-rear]
   - id: clean-rim
     title: Clean the rim and check the rim tape
+    illustration: valve-length-rim-depth
   - id: fit-tire
     title: Refit the tyre
     partIds: [tire-front, tire-rear]
   - id: add-sealant
     title: Add the sealant
     partIds: [sealant]
+    illustration: presta-valve-core
   - id: seat-bead
     title: Seat the beads and spread the sealant
     partIds: [tire-front, tire-rear, sealant]
 ---
 
+<Step id="remove-tire">
+
+Take the wheel out, valve at the top, let the air out by pressing the tip of the opened valve, then remove the core with the <Tool id="valve-core-tool" alt="pliers" />. Squeeze the sidewalls and push both beads into the rim's central channel, all the way round: a tubeless tyre sticks to its rim and only comes away when you press hard with your thumbs.
+
+Then lift one bead over the rim edge with the plastic <Tool id="tire-levers" />, work it off by hand, and the second one after it. Pour the old sealant into a container or onto <Tool id="rags" />: it stains, and sealant that has thickened cannot be reused. Keep the tyre if it is neither cut nor worn.
+
+</Step>
+
+<Step id="clean-rim">
+
+Wipe the rim and the inside of the tyre with <Tool id="rags" /> dampened with <Tool id="isopropyl-alcohol" />. Dried sealant peels off in skins: remove all of it, especially from the beads and the rim's bead seats.
+
+Inspect the rim tape: it should cover every spoke hole, stuck down well, with no cuts or bubbles. Tape that is lifting will leak: replace it before going any further. Check the valve: its rubber base should sit snugly in the rim channel, its nut should be tightened by hand, without a tool, and its core should be clean. It must also stick out far enough from the rim for the pump head: a deep rim needs a long valve.
+
+</Step>
+
+<Step id="fit-tire">
+
+The tyre and the rim must both be marked tubeless ready, TLR or UST. On a hookless rim, the tyre must also be on the rim maker's compatibility list. Follow the rotation arrow printed on the sidewall.
+
+Fit the first bead completely by hand. Fit the second while pushing the part already on into the rim's central channel: this gives you the slack to finish by hand. For the last few centimetres, use the <Tool id="tire-levers" />, without damaging the rim tape. You can also pour the dose from the next step straight into the tyre just before fitting the last section of bead: then screw the core back in and skip the injection.
+
+</Step>
+
 <Step id="add-sealant">
 
-The cleanest way to add sealant is through the valve. Deflate the tyre fully, turn the wheel so the valve is at the top, then remove the core with the <Tool id="valve-core-tool" alt="pliers" />. Wait a few seconds for any sealant already inside to run down.
+Unless you poured it in while fitting the tyre, add the sealant through the valve: it is the cleanest way. To refresh it only, let the air out first. Shake the bottle well, put the valve at the top, wait for the liquid inside to drain down and remove the core with the <Tool id="valve-core-tool" alt="pliers" /> if it is in place.
 
-Inject the amount given on the bottle with the <Tool id="sealant-injector" />, according to the tyre width: a mountain bike tyre needs far more than a road tyre. Screw the core back in, pump up, then spin and shake the wheel in every direction to spread the liquid over the whole inside surface.
+Inject the amount given by the sealant maker for your tyre size with the <Tool id="sealant-injector" />: often around 30 to 60 ml for a road or gravel tyre, and 60 to 120 ml for a mountain bike tyre. Screw the core back in straight away, valve still at the top so the liquid does not clog it.
+
+</Step>
+
+<Step id="seat-bead">
+
+Pump hard and fast with the <Tool id="floor-pump" />: each bead should climb onto its seat with a pop. If not, brush the beads with soapy water, or use a tubeless booster tank, charged no higher than the maximum pressure allowed.
+
+<Warning level="caution">
+
+Never exceed the lower of the two maximum pressures, the tyre's and the rim's: no more than 5 bar (72 psi) on a hookless rim. Keep your face away from the tyre while pumping.
+
+</Warning>
+
+Check that the moulded line above the rim runs evenly on both sidewalls; if not, let the air out, soap the bead and pump again. Spin and tilt the wheel, then set your riding pressure. Check it again the next day: a small drop is normal while the sealant seals.
 
 </Step>

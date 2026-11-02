@@ -3,7 +3,7 @@ slug: adjust-rim-brake-centering
 kind: adjust
 title: "Centre a rim brake"
 summary: "Line the blocks up on the rim, toe them in slightly, centre the arms with the spring screws and re-tension the cable. For a brake that rubs or touches on one side first."
-status: stub
+status: full
 order: 60
 difficulty: 2
 minutes: 20
@@ -20,12 +20,15 @@ tools:
     alternatives: [multi-tool]
   - toolId: phillips-screwdriver
     alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - check-brakes-rim
   - replace-brake-pads-rim
   - clean-rim-braking-surface
 safety:
   - "A brake block that touches the tyre can cut it and make it burst. Check that every block sits fully on the rim, never on the tyre sidewall."
+  - "Tighten each block's fixing nut, the cable clamp bolt and a road caliper's mounting nut to the manufacturer's torque, often 5 to 9 N·m for the block nut, 6 to 8 N·m for the cable bolt and 8 to 10 N·m for the caliper mounting: a block that swivels or a cable that slips, and the brake lets go at the first hard stop."
 steps:
   - id: pad-alignment
     title: "Line the blocks up on the rim"
@@ -42,10 +45,40 @@ steps:
     partIds: [brake-caliper-front, brake-caliper-rear]
 ---
 
+<Step id="pad-alignment">
+
+On a road caliper, first check that the brake quick release is closed. Squeeze the lever gently: each block's whole face must sit on the braking track, parallel to its edge, about 1 mm below its top edge, whatever the brake.
+
+If not, loosen the block's fixing nut one turn with the <Tool id="allen-keys" alt="multi-tool" />, slide it along its slot, press it against the rim by squeezing the lever, then tighten to the specified torque. A V-brake or a cantilever pivots below the block and further out: as it wears, the block drops down the track, and, set lower, it would end up under the rim. On a road caliper the block barely changes height, or rises slightly.
+
+</Step>
+
+<Step id="toe-in">
+
+A block that sits perfectly flat against the rim often squeals. It is toed in slightly: the front of the block, towards the front of the bike, touches the rim just before the rear, which stays about 1 mm away.
+
+Loosen the block's nut and slip a thin card, about 1 mm thick, between the rear of the block and the rim. Squeeze the lever and hold it on with a strap or a rubber band, then tighten the nut to the specified torque, holding the block still. Remove the card: the block keeps its angle. V-brakes and cantilevers allow this thanks to the block's curved washers. On many road calipers the block cannot be toed in: just line it up.
+
+</Step>
+
 <Step id="centering">
 
-Pull the lever and watch which block touches the rim first. On a V-brake or a cantilever, each arm has a small spring tension screw: with the <Tool id="phillips-screwdriver" alt="multi-tool" />, screw it in a quarter turn on the side of the block that sits too close, or out on the other side, until both blocks touch at the same time.
+Squeeze the lever and watch which block touches the rim first. On a V-brake or a cantilever, each arm has a small spring tension screw near its base. With the <Tool id="phillips-screwdriver" alt="multi-tool" />, screw in by a quarter turn the screw on the side of the block that sits too close, which pulls that block away, or screw out the one on the other side, until both blocks touch together.
 
-On a road caliper, slightly loosen the mounting nut with the <Tool id="allen-keys" alt="multi-tool" />, centre the caliper by hand and tighten again. Leave 1 to 2 mm between each block and the rim.
+On a road caliper, look for a small centring screw on the side or top of the caliper and turn it a quarter turn at a time. If it has none, slightly loosen the mounting nut with the <Tool id="allen-keys" alt="multi-tool" />, centre the caliper by hand, then tighten to the specified torque with the <Tool id="torque-wrench" />.
+
+</Step>
+
+<Step id="cable-tension">
+
+At rest, each block should sit 1 to 3 mm from the rim. Turn the barrel adjuster, on the lever or the brake: screwing it out brings the blocks closer, screwing it in moves them away. If that is not enough, screw it almost fully in, loosen the cable clamp bolt with the <Tool id="allen-keys" alt="multi-tool" />, pull or release a few millimetres of cable, then tighten to the specified torque and check the centring again.
+
+Squeeze the lever hard while pushing the bike: it must turn firm well before the bar, and the wheel must lock. A rub at only one point of the turn means a buckled wheel, a job for a workshop.
+
+<Warning level="caution">
+
+On a road caliper, the quick release must stay closed.
+
+</Warning>
 
 </Step>

@@ -3,7 +3,7 @@ slug: adjust-cleats
 kind: adjust
 title: "Adjust clipless pedal cleats"
 summary: "Put the cleat under the ball of your foot, set its angle to your foot’s natural position and adjust the pedal’s release tension."
-status: stub
+status: full
 order: 100
 difficulty: 2
 minutes: 30
@@ -18,10 +18,14 @@ tools:
     alternatives: [multi-tool]
   - toolId: steel-ruler
     alternatives: [tape-measure]
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - measure-saddle-setback
   - check-pedals
   - replace-pedals
+safety:
+  - "Practise clipping out while standing still before riding in traffic: too much tension or a loose cleat can stop you putting a foot down in time."
 steps:
   - id: mark-foot
     title: "Mark the ball of your foot"
@@ -35,10 +39,36 @@ steps:
     partIds: [pedal-left, pedal-right]
 ---
 
+<Step id="mark-foot">
+
+The cleat is set from your foot, not from the shoe. Put your shoes on and, standing up, feel through the shoe for the bump at the base of your big toe: it is where your foot presses on the pedal. Mark it on the inner side of the shoe with a piece of tape. This mark alone sets the cleat, even though the base of the little toe is sometimes marked too.
+
+Turn the shoe over and carry that mark under the sole to the cleat area, as a line square to the length of the shoe, drawn with the <Tool id="steel-ruler" alt="tape-measure" />. Repeat on the other shoe: two feet are not always identical, and the marks may differ by a few millimetres.
+
+</Step>
+
 <Step id="fore-aft">
 
-Find the bump at the base of your big toe and mark its position on the side of the shoe. Loosen the cleat bolts with the <Tool id="allen-keys" alt="multi-tool" /> and slide the cleat so its centre sits under that mark, or a few millimetres behind it, measured with a <Tool id="steel-ruler" alt="tape-measure" />.
+Loosen the cleat bolts with the <Tool id="allen-keys" alt="multi-tool" />, just enough to slide it. Place the centre of the cleat, which matches the pedal axle, under your line or a few millimetres behind it: with the shoe clipped in, the base of your big toe then sits above the axle, or slightly in front of it.
 
-Set both shoes the same way, tighten firmly, then check the angle: your heel must touch neither the crank nor the chainstay.
+Tighten enough that the cleat will not move by hand, then note how many millimetres the line sits in front of the centre of the cleat, so you can repeat the setting on another pair. Set the other shoe the same way. It is a starting point, which you will fine-tune as you ride.
+
+<Measure id="cleat-position" unit="mm" />
+
+</Step>
+
+<Step id="angle">
+
+Sit on the edge of a table, legs hanging, and look where your feet point: often slightly outwards, sometimes straight, and not necessarily the same on both sides. Loosen the bolts a little and turn the cleat so that, clipped in, your foot keeps that natural angle, heel forced neither inwards nor outwards.
+
+Then tighten the bolts in turn with the <Tool id="torque-wrench" />, to the maker's torque, often 4 to 6 N·m. Next check, on a turbo trainer or with someone holding the bike while you pedal backwards, that your heel touches neither the crank arm nor the chainstay; if it does, correct the angle. Cleats with float leave a few degrees of freedom and forgive an imperfect angle.
+
+</Step>
+
+<Step id="release-tension">
+
+On most SPD pedals and many road pedals, a small hex screw at the back of each mechanism sets the spring force, with + and − signs or a position indicator. Start at the softest setting, then stiffen it one click at a time until your foot no longer comes out on its own. An SPD pedal has one mechanism per side: set them all the same.
+
+Practise clipping out while standing still, leaning against a wall, with a firm twist of the heel outwards. Then ride, changing only one setting per ride, and check the cleat bolts are still tight after a few rides.
 
 </Step>

@@ -2,8 +2,8 @@
 slug: adjust-brake-lever-reach
 kind: adjust
 title: "Régler l’angle et la garde des leviers de frein"
-summary: "Orienter les leviers dans le prolongement des bras et rapprocher la lame des doigts. Pour freiner avec un ou deux doigts sans lâcher le guidon, petites mains comprises."
-status: stub
+summary: "Orienter les leviers dans le prolongement des bras et rapprocher le levier des doigts. Pour freiner avec un ou deux doigts sans lâcher le guidon, petites mains comprises."
+status: full
 order: 70
 difficulty: 1
 minutes: 15
@@ -13,25 +13,65 @@ partIds:
 tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
 related:
   - check-brakes-disc
   - check-brakes-rim
   - measure-reach-and-drop
+safety:
+  - "Un levier réglé trop près du cintre peut venir buter contre lui avant que le frein ne serre à fond. Après chaque réglage, serrez fort le levier : il doit s’arrêter nettement avant le cintre."
+  - Sur un cintre en carbone, respectez le couple de serrage du collier indiqué par le fabricant. Trop serré, le collier peut fissurer le cintre.
 steps:
   - id: lever-angle
     title: "Orienter les leviers"
   - id: reach-screw
     title: "Régler la garde"
+    illustration: brake-lever-reach-screw
   - id: check-travel
     title: "Vérifier la course du levier"
   - id: test
     title: "Tester en roulant"
 ---
 
+<Step id="lever-angle">
+
+Installez-vous sur le vélo, mains sur les poignées, index sur les leviers. Faites-vous regarder de côté, ou utilisez un miroir : l’avant-bras, le poignet et le levier doivent former une ligne droite. Un poignet plié signale un angle à corriger.
+
+Desserrez la vis du collier du levier avec les <Tool id="allen-keys" alt="multi-tool" />, juste assez pour le tourner. Sur un cintre plat, faites-le glisser pour que l’index tombe au bout du levier ; sur un cintre route, la vis est sous le caoutchouc de la cocotte, et la déplacer oblige à retirer la guidoline. Resserrez au couple du fabricant, souvent gravé près de la vis : le levier ne doit pas tourner quand vous appuyez fort dessus. Réglez l’autre côté à l’identique.
+
+</Step>
+
 <Step id="reach-screw">
 
-Asseyez-vous sur le vélo, mains sur les poignées : poignets et leviers doivent former une ligne droite. Pour corriger l’angle, desserrez le collier du levier avec les <Tool id="allen-keys" alt="multi-tool" />, tournez-le autour du cintre puis resserrez.
+La garde est la distance entre la poignée et le levier, au bout des doigts. Bien réglée, elle vous laisse poser la première phalange de l’index sur le levier sans tendre la main. Repérez la petite vis ou la molette près de l’articulation du levier : selon le modèle, elle se tourne à la main, avec les <Tool id="allen-keys" alt="multi-tool" /> ou avec le <Tool id="phillips-screwdriver" alt="multi-tool" />.
 
-Cherchez ensuite la petite vis ou molette de garde près de l’articulation de la lame : vissez-la pour rapprocher la lame des doigts. Après réglage, le levier doit encore freiner franchement bien avant de toucher le cintre ou vos autres doigts.
+Tournez-la d’un tour à la fois et essayez le levier entre deux tours : dans un sens il se rapproche de la poignée, dans l’autre il s’en éloigne. Donnez la même garde aux deux leviers.
+
+Sur un cintre route, la vis se cache souvent sous le caoutchouc de la cocotte, à retrousser vers l’avant ; d’autres leviers se règlent par des cales.
+
+</Step>
+
+<Step id="check-travel">
+
+Rapprocher le levier du cintre raccourcit la course qui lui reste. Serrez fort chaque levier : il doit devenir ferme bien avant le cintre, en laissant au moins l’épaisseur d’un doigt entre les deux.
+
+Sur un frein à câble, faites tourner la roue, levier relâché : les patins ou les plaquettes ne doivent pas frotter. S’ils frottent, revissez d’un demi-tour le tendeur de câble ; si le levier va trop loin, dévissez-le.
+
+Sur un frein hydraulique, le point où les plaquettes mordent se rapproche lui aussi du cintre. Certains leviers ont une seconde vis pour le régler.
+
+<Warning level="caution">
+
+Un levier hydraulique mou, ou qui touche le cintre, signale souvent de l’air dans le circuit : faites purger le frein en atelier avant de rouler.
+
+</Warning>
+
+</Step>
+
+<Step id="test">
+
+Avant de rouler, poussez le vélo à côté de vous et serrez chaque levier l’un après l’autre : la roue doit se bloquer net. Faites ensuite un essai sur un parking ou une rue calme, à allure modérée, en freinant d’abord doucement, puis franchement.
+
+Vos doigts doivent trouver les leviers sans changer de prise, et vos poignets rester droits, assis comme debout sur les pédales. Si vous lâchez la poignée pour atteindre un levier, ou si un doigt se coince entre le levier et la poignée, reprenez le réglage. Sur un frein à câble, la course s’allonge à mesure que les patins ou les plaquettes s’usent : vérifiez-la de temps en temps.
 
 </Step>

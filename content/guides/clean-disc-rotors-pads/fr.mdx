@@ -2,8 +2,8 @@
 slug: clean-disc-rotors-pads
 kind: clean
 title: "Nettoyer les disques et les plaquettes"
-summary: "Dégraisser les disques à l’alcool isopropylique, sortir et poncer légèrement les plaquettes encrassées, puis les roder. Pour des freins qui sifflent ou freinent mal."
-status: stub
+summary: "Dégraisser les disques à l’alcool isopropylique, sortir et poncer légèrement les plaquettes vitrifiées, puis les roder. Pour des freins qui sifflent ou freinent mal."
+status: full
 order: 30
 difficulty: 2
 minutes: 30
@@ -19,10 +19,12 @@ tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
   - toolId: isopropyl-alcohol
     alternatives: []
   - toolId: rags
+    alternatives: []
+  - toolId: sandpaper
     alternatives: []
 related:
   - check-brakes-disc
@@ -30,6 +32,8 @@ related:
   - adjust-disc-caliper-alignment
 safety:
   - "Des plaquettes imbibées d’huile ou de liquide de frein ne se récupèrent pas : remplacez-les. Après tout nettoyage, rodez de nouveau les plaquettes avant de rouler vite."
+  - "N’approchez des disques et des plaquettes que de l’alcool isopropylique, des mains propres et des chiffons propres : un dégraissant, un lubrifiant chaîne ou du liquide de frein suffit à faire perdre le freinage."
+  - "Avant de rouler, vérifiez la roue : levier de blocage rapide fermé d’un geste ferme, qui vous marque la paume, ou axe traversant serré au couple indiqué par le fabricant. Une roue mal fixée peut sortir de la fourche ou du cadre au freinage."
 steps:
   - id: clean-rotors
     title: "Dégraisser les disques"
@@ -40,14 +44,47 @@ steps:
   - id: sand-pads
     title: "Poncer légèrement les plaquettes"
     partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-disc
   - id: refit-bed-in
     title: "Remonter et roder"
 ---
 
 <Step id="clean-rotors">
 
-Imbibez des <Tool id="rags" /> d’<Tool id="isopropyl-alcohol" /> et frottez chaque face du disque, en tournant la roue, jusqu’à ce que le chiffon ressorte propre. Ne touchez plus la surface de freinage avec les doigts, et n’utilisez jamais de dégraissant chaîne ni de produit lustrant.
+Lavez-vous les mains au savon avant de commencer : la graisse des doigts suffit à faire siffler un frein. Prenez des <Tool id="rags" />, réservés aux freins, et imbibez-en un d’<Tool id="isopropyl-alcohol" />.
 
-Si le frein siffle encore, sortez les plaquettes avec les <Tool id="allen-keys" alt="multi-tool" />, poncez leur surface sur du papier de verre fin posé à plat, nettoyez-les à l’alcool, remontez-les puis rodez-les.
+Frottez chaque face du disque en tournant lentement la roue, jusqu’à ce que le chiffon ressorte propre, puis laissez sécher une minute. Ne touchez plus la piste de freinage avec les doigts.
+
+N’approchez jamais du disque un dégraissant, un lubrifiant chaîne, un nettoyant en bombe ni un produit lustrant : même un peu de brouillard suffit à le contaminer, et les plaquettes avec lui. Si vous lavez aussi le vélo, faites-le d’abord, disques protégés.
+
+</Step>
+
+<Step id="remove-pads">
+
+Sortez la roue : ouvrez le blocage rapide et dévissez-le de quelques tours, ou dévissez l’axe traversant, puis guidez le disque hors de l’étrier. Dès lors, ne serrez plus le levier.
+
+Les plaquettes sont tenues par une goupille ou une vis, souvent bloquée par un petit clip. Retirez le clip avec la <Tool id="pliers" />, tirez la goupille ou dévissez la vis avec les <Tool id="allen-keys" alt="multi-tool" />, puis sortez les plaquettes et leur ressort, en notant son sens. Glissez aussitôt entre les pistons la cale du frein, ou un carton plié. Tenez les plaquettes par leur support métallique, jamais par la garniture, et essuyez l’intérieur de l’étrier avec un chiffon imbibé d’alcool.
+
+</Step>
+
+<Step id="sand-pads">
+
+Regardez d’abord la garniture. Si elle porte des taches sombres d’aspect gras, ou si l’étrier ou la durite ont fui, l’huile a pénétré toute son épaisseur et le ponçage n’y fera rien : remplacez les deux plaquettes, et faites réparer la fuite avant. Remplacez-les aussi s’il reste moins de 1 mm de garniture.
+
+Une garniture simplement vitrifiée, uniformément lisse et brillante, ou à peine salie, se ravive. Posez le <Tool id="sandpaper" /> à plat sur une surface dure et frottez chaque plaquette en dessinant des huit, sans appuyer, jusqu’à ce qu’elle soit mate et grise partout. Faites-le dehors, sans respirer la poussière, puis essuyez les plaquettes à l’alcool.
+
+</Step>
+
+<Step id="refit-bed-in">
+
+Retirez la cale, puis remontez les plaquettes et leur ressort comme avant. Remettez la goupille ou la vis, sans forcer, et son clip : vérifiez qu’il la tient. Remettez la roue, disque entre les plaquettes, refermez le blocage rapide ou serrez l’axe traversant, et actionnez le levier jusqu’à ce qu’il redevienne ferme. Faites tourner la roue : un frottement franc demande de recentrer l’étrier. Poussez le vélo en serrant : la roue doit se bloquer.
+
+Rodez ensuite sur une route calme : prenez de la vitesse et freinez franchement, sans bloquer la roue, jusqu’à rouler au pas, une vingtaine de fois.
+
+<Warning level="caution">
+
+Tant que le rodage n’est pas fait, le freinage reste faible. Si le frein siffle ou glisse encore ensuite, remplacez les plaquettes.
+
+</Warning>
 
 </Step>

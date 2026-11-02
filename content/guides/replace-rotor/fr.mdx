@@ -2,8 +2,8 @@
 slug: replace-rotor
 kind: replace
 title: Remplacer un disque de frein
-summary: Sortir la roue, déposer le disque usé ou voilé, monter le neuf dans le bon sens et au bon couple, puis roder le freinage. Ce guide est en cours de rédaction.
-status: stub
+summary: Sortir la roue, déposer le disque usé ou voilé, monter le neuf dans le bon sens et au bon couple, puis roder le freinage.
+status: full
 order: 130
 difficulty: 2
 minutes: 30
@@ -20,7 +20,13 @@ tools:
     alternatives: [multi-tool]
   - toolId: cassette-lockring-tool
     alternatives: []
+  - toolId: bottom-bracket-tool
+    alternatives: []
+  - toolId: adjustable-wrench
+    alternatives: []
   - toolId: torque-wrench
+    alternatives: []
+  - toolId: threadlocker
     alternatives: []
   - toolId: isopropyl-alcohol
     alternatives: []
@@ -31,8 +37,10 @@ related:
   - replace-brake-pads-disc
   - clean-disc-rotors-pads
 safety:
-  - Un disque neuf doit avoir le même diamètre et le même montage que l’ancien. Un disque plus grand sans adaptateur ne freine que sur une partie des plaquettes.
+  - Un disque neuf doit avoir le même montage, le même diamètre et une épaisseur compatible avec l’étrier. Un disque d’un autre diamètre sans l’adaptateur correspondant frotte contre l’étrier ou ne freine que sur une partie des plaquettes.
   - Ne touchez pas la piste de freinage avec les doigts, et nettoyez-la à l’alcool isopropylique avant de remonter la roue. Un disque gras ne freine presque plus.
+  - "Serrez les vis ou la bague au couple indiqué par le fabricant, à la clé dynamométrique : trop peu, le disque se desserre ; trop, une vis casse ou abîme le moyeu."
+  - "Avant de rouler, vérifiez la roue : levier de blocage rapide fermé d’un geste ferme, qui vous marque la paume, ou axe traversant serré au couple indiqué par le fabricant. Une roue mal fixée peut sortir de la fourche ou du cadre au freinage."
 steps:
   - id: remove-wheel
     title: Sortir la roue
@@ -40,18 +48,50 @@ steps:
   - id: remove-rotor
     title: Déposer l’ancien disque
     partIds: [rotor-front, rotor-rear]
+    illustration: rotor-mount-6bolt-centerlock
   - id: fit-rotor
     title: Monter le disque neuf
     partIds: [rotor-front, rotor-rear]
+    illustration: rotor-diameter
   - id: bed-in
     title: Roder le freinage
     partIds: [rotor-front, rotor-rear]
 ---
 
+<Step id="remove-wheel">
+
+Mettez le vélo sur un pied d’atelier, ou à défaut retournez-le, posé sur la selle et le cintre. Ouvrez le blocage rapide et dévissez-le de quelques tours, ou dévissez l’axe traversant, puis sortez la roue en guidant le disque hors de l’étrier, bien droit.
+
+Glissez aussitôt une cale entre les plaquettes, celle livrée avec le frein ou un carton plié, et ne serrez plus le levier : sans disque, les pistons sortent et se remettent mal en place. Posez la roue à plat, disque vers le haut, sur un chiffon propre, loin de l’huile et du lubrifiant chaîne.
+
+</Step>
+
+<Step id="remove-rotor">
+
+Le disque tient au moyeu par six vis Torx, ou par une bague de serrage sur des cannelures : le montage Centerlock. Notez son diamètre, gravé dessus, ou mesurez-le d’un bord à l’autre.
+
+Six vis : desserrez-les d’un demi-tour chacune en étoile avec les <Tool id="torx-keys" alt="multi-tool" />, le plus souvent en T25, puis dévissez-les. Centerlock : retirez la tige du blocage rapide et engagez le <Tool id="cassette-lockring-tool" /> dans la bague ; si ses cannelures sont à l’extérieur, comme sur beaucoup de moyeux à axe traversant, prenez la <Tool id="bottom-bracket-tool" /> pour cuvettes extérieures. Tenez la roue par le pneu et tournez l’outil dans le sens inverse des aiguilles d’une montre avec la <Tool id="adjustable-wrench" />. Sortez le disque en le tenant par le centre.
+
+</Step>
+
 <Step id="fit-rotor">
 
-Regardez la flèche gravée sur le disque neuf : elle indique le sens de rotation de la roue en marche avant, et doit être visible côté extérieur. Sur un disque à six vis, posez-le sur le moyeu, puis engagez les six vis à la main avec les <Tool id="torx-keys" alt="multi-tool" />.
+Le disque neuf doit avoir le même montage et le même diamètre que l’ancien, celui pour lequel l’étrier est réglé. Il arrive souvent huilé : nettoyez-le avec des <Tool id="rags" /> et de l’<Tool id="isopropyl-alcohol" />, puis ne touchez plus la piste. Changez en même temps des plaquettes usées ou vitrifiées.
 
-Serrez-les en étoile, par petites étapes, jusqu’au couple indiqué par le fabricant du disque ou du moyeu, avec la <Tool id="torque-wrench" />. Un disque Center Lock se fixe par un écrou unique, serré avec l’outil cannelé adapté. Nettoyez enfin toute la piste à l’alcool isopropylique.
+Posez-le flèche dans le sens de rotation de la roue, inscriptions vers l’extérieur. Six vis : vissez-les à la main, avec du <Tool id="threadlocker" /> si vous réutilisez les vis ou si le fabricant le demande, puis serrez-les en étoile, par petits pas, au couple indiqué, souvent entre 2 et 6 N·m. Centerlock : vissez la bague, puis serrez-la au couple indiqué, souvent 40 N·m. Dans les deux cas, utilisez la <Tool id="torque-wrench" />.
+
+</Step>
+
+<Step id="bed-in">
+
+Retirez la cale, puis remettez la roue en guidant le disque entre les plaquettes, refermez le blocage rapide ou serrez l’axe traversant, et actionnez le levier une dizaine de fois. S’il reste mou, ne roulez pas : faites purger le frein. Faites tourner la roue : un frottement franc demande de recentrer l’étrier. Poussez le vélo en serrant : la roue doit se bloquer.
+
+Un disque neuf ne freine à pleine puissance qu’après rodage. Sur une route calme, prenez de la vitesse et freinez franchement, sans bloquer la roue, jusqu’à rouler au pas, une vingtaine de fois.
+
+<Warning level="caution">
+
+Avant le rodage, le freinage est nettement plus faible. Ne vous engagez pas dans une longue descente avec un disque neuf non rodé.
+
+</Warning>
 
 </Step>

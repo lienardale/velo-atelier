@@ -3,7 +3,7 @@ slug: clean-ebike-dos-donts
 kind: clean
 title: "Cleaning an e-bike: dos and don’ts"
 summary: "Remove the battery, wash without a strong jet, clean the contacts dry and dry everything before refitting the battery. What keeps the motor and electronics safe."
-status: stub
+status: full
 order: 60
 difficulty: 1
 minutes: 20
@@ -21,8 +21,9 @@ tools:
 related:
   - check-e-system
   - clean-frame
+  - clean-drivetrain
 safety:
-  - "Switch the system off and remove the battery before washing the bike. Never submerge the battery or the motor, and never use a pressure washer."
+  - "Switch the system off and, if it comes out without tools, remove the battery before washing the bike. Never submerge the battery or the motor, and never use a pressure washer."
   - "A battery that has been dropped, is cracked or swollen, or gets hot must not be charged or used again. Store it away from anything flammable and have it checked."
 steps:
   - id: remove-battery
@@ -32,7 +33,7 @@ steps:
     title: "Wash without a strong jet"
     partIds: [e-motor]
   - id: clean-contacts
-    title: "Clean the contacts"
+    title: "Clean the contacts dry"
     partIds: [e-battery]
     illustration: ebike-battery-connector
   - id: dry-refit
@@ -40,10 +41,34 @@ steps:
     partIds: [e-battery]
 ---
 
+<Step id="remove-battery">
+
+Switch the system off with the button on the display or the battery. If the display comes off, remove it too and keep it somewhere dry. Unlock the battery with its key and lift it out of its housing with both hands: it weighs several kilos and must not be dropped.
+
+Put it somewhere dry, at room temperature, away from the bucket and the hose. Close the cover of the charging port. The empty housing now has its contacts exposed: no water may get in there. If the battery cannot come out without tools, leave it in place, with the system off, and wash around it even more gently.
+
+</Step>
+
 <Step id="wash-gently">
 
-With the battery out and the system off, wash the bike with a sponge and warm soapy water, or a gentle hose. Never aim water at the motor, the display, the connectors or the battery housing, and never use a pressure washer, which forces water past the seals.
+Wash the bike from top to bottom with a sponge and warm soapy water, or with a gentle hose. Never aim water at the motor, the display, the controls, the connectors or the battery housing, and never submerge any part. A pressure washer is out of the question: it forces water past the seals and into the connectors.
 
-Clean the battery contacts dry, with a small paintbrush or a <Tool id="brush" alt="rags" />, then dry the whole bike with <Tool id="rags" /> before refitting the battery.
+On the motor casing, the display and the controls, use only a damp, well wrung-out sponge, then a dry rag. Clean the chain and the drivetrain as on any other bike, keeping the degreaser away from the motor and its cables.
+
+</Step>
+
+<Step id="clean-contacts">
+
+Look at the contacts on the battery and in its housing, on the frame or the rear rack. Brush away dust and grit dry, with a small paintbrush or the <Tool id="brush" alt="rags" />, then a dry rag. Never a wet rag and never a metal tool: a scratched or damp contact conducts poorly, and a metal object across two terminals causes a short circuit.
+
+Look for green or white deposits, blackened marks or a bent pin. At any of these signs, do not refit the battery, and have the bike checked by the dealer. Also check that the key turns and the lock opens without force.
+
+</Step>
+
+<Step id="dry-refit">
+
+Dry the whole bike with clean <Tool id="rags" />, especially around the battery housing, the connectors and the display, then let it air-dry until no trace of moisture is left. A single drop of water between two contacts is enough to cause a fault.
+
+With the housing fully dry, slide the battery in until it clicks, lock it and remove the key. Pull on it: it must not move. Refit the display, switch the system on and check that the charge level shows with no error message. Squeeze each brake, then ride a few metres: the assistance should cut in from the first pedal strokes.
 
 </Step>

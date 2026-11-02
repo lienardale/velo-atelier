@@ -2,8 +2,8 @@
 slug: replace-brake-cable
 kind: replace
 title: Remplacer un câble et une gaine de frein
-summary: Retirer l’ancien câble, recouper les gaines, passer le câble neuf, le tendre et le pincer sur le frein, puis sertir un embout. Ce guide est en cours de rédaction.
-status: stub
+summary: Retirer l’ancien câble, recouper les gaines, passer le câble neuf, le tendre et le pincer sur le frein, puis sertir un embout. Pour les freins sur jante et les freins à disque mécaniques.
+status: full
 order: 70
 difficulty: 2
 minutes: 40
@@ -21,11 +21,16 @@ tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
+  - toolId: grease
+    alternatives: []
 related:
   - check-cables-hoses
   - check-brakes-rim
   - adjust-brake-lever-reach
+  - adjust-disc-caliper-alignment
 safety:
   - Utilisez un câble et une gaine de frein, jamais de vitesses. Une gaine de vitesses peut éclater sous l’effort d’un freinage appuyé.
   - Avant de rouler, serrez très fort le levier une dizaine de fois pour mettre le câble en place, puis vérifiez que la vis de pincement n’a pas laissé glisser le câble.
@@ -45,12 +50,51 @@ steps:
   - id: crimp-test
     title: Sertir l’embout et essayer le frein
     partIds: [brake-line-front, brake-line-rear]
+    illustration: cable-pinch-bolt-end-cap
 ---
+
+<Step id="remove-old">
+
+Sur un cintre route, la gaine passe sous la guidoline : déroulez-la d’abord. Desserrez la vis du câble sur le frein avec les <Tool id="allen-keys" alt="multi-tool" />, puis coupez l’embout avec le <Tool id="cable-cutter" />. Sur un V-brake, pincez les bras et sortez la « nouille » de son logement ; sur un cantilever, décrochez le câble transversal ; sur un étrier route, ouvrez son levier de déblocage.
+
+Sur un levier de cintre plat, alignez les fentes du tendeur, du contre-écrou et du levier pour sortir le câble. Sur un levier route, serrez-le : la tête apparaît dans le corps du levier. Poussez le câble et tirez-le par sa tête. Notez le trajet des gaines et gardez-les : elles donnent la longueur des neuves.
+
+</Step>
+
+<Step id="cut-housing">
+
+Un frein demande une gaine de frein : une spirale d’acier d’environ 5 mm de diamètre, qui encaisse l’effort du freinage. Une gaine de vitesses, aux brins d’acier droits, ne doit jamais servir ici. Le câble de frein est plus épais, avec une tête plus grosse : en poire pour un levier route, en cylindre pour un levier plat.
+
+Coupez chaque gaine à la longueur de l’ancienne avec le coupe-câble, d’un coup franc et d’équerre. Si le tube en plastique intérieur est écrasé, rouvrez-le avec une pointe fine, un rayon par exemple. Coiffez chaque bout d’un embout de gaine, sauf là où la butée reçoit la gaine nue. Guidon tourné à fond, les courbes doivent rester douces.
+
+</Step>
+
+<Step id="thread-cable">
+
+Sauf si l’emballage dit de le monter sec, comme la plupart des câbles à revêtement, passez entre vos doigts un film très léger de <Tool id="grease" /> sur le câble : il glissera mieux et rouillera moins.
+
+Accrochez la tête dans son logement du levier, bien à fond. Enfilez le câble dans chaque gaine et chaque butée, dans l’ordre noté, en le tournant entre vos doigts pour qu’il ne s’effiloche pas. Sur un V-brake, il traverse la nouille, que vous remettez dans son logement, puis le soufflet en caoutchouc. Sur un cantilever, raccrochez le câble transversal ; le câble se fixe sur la pièce qui le porte, ou sur un des bras selon le modèle. Ne coupez rien encore.
+
+</Step>
 
 <Step id="clamp-cable">
 
-Vissez presque entièrement le tendeur de câble du levier ou du frein, puis dévissez-le d’un tour : il vous restera du réglage dans les deux sens. Tenez les deux bras du frein serrés contre la jante, ou le levier de l’étrier mécanique fermé, et tirez le câble avec la pince pour supprimer le mou.
+Vissez le tendeur presque à fond, puis dévissez-le d’un tour. Refermez le levier de déblocage d’un étrier route et posez le câble dans sa rainure. Sur un frein sur jante, tenez les patins contre la jante et tirez le câble avec la <Tool id="pliers" /> ; sur un étrier à disque mécanique, laissez son bras au repos et tendez juste le câble.
 
-Serrez la vis de pincement du câble avec les <Tool id="allen-keys" alt="multi-tool" />, fermement, sans écraser les brins. Relâchez le frein, puis ajustez l’écart des patins ou des plaquettes avec le tendeur : le levier doit devenir ferme bien avant de toucher le cintre.
+Serrez la vis au couple indiqué par le fabricant, souvent 5 à 8 N·m, avec la <Tool id="torque-wrench" />. Relâchez : revissez le tendeur pour laisser 1 à 3 mm entre chaque patin et la jante ; au besoin, desserrez la vis, relâchez un peu de câble et resserrez-la. Sur un étrier mécanique, réglez sa molette : plaquettes au ras du disque, sans frotter.
+
+</Step>
+
+<Step id="crimp-test">
+
+Serrez très fort le levier une dizaine de fois pour caler gaines et câble. Vérifiez que le câble n’a pas glissé, rattrapez au tendeur l’écart qui a grandi et bloquez son contre-écrou s’il en a un.
+
+Coupez le câble 2 à 3 cm après la vis, puis sertissez un embout neuf avec l’encoche du coupe-câble ou la pince. Faites tourner la roue : rien ne doit frotter. Serrez le levier en poussant le vélo : la roue doit se bloquer net. Essayez enfin le frein à faible allure.
+
+<Warning level="danger">
+
+Si le levier touche presque le cintre, si le câble glisse ou si la roue ne se bloque pas, ne roulez pas : reprenez le serrage ou confiez le frein à un atelier.
+
+</Warning>
 
 </Step>

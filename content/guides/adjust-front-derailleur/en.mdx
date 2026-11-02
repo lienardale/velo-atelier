@@ -3,7 +3,7 @@ slug: adjust-front-derailleur
 kind: adjust
 title: "Adjust the front derailleur"
 summary: "Set the cage height and angle, adjust the limit screws, re-tension the cable and check the shifts. For a chain that no longer drops off between the chainrings."
-status: stub
+status: full
 order: 30
 difficulty: 2
 minutes: 30
@@ -17,16 +17,24 @@ appliesTo:
     - path: drivetrain.shifter
       notIn: [electronic]
 tools:
+  - toolId: work-stand
+    alternatives: []
   - toolId: phillips-screwdriver
     alternatives: [multi-tool]
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - adjust-rear-derailleur
   - check-drivetrain
   - replace-shift-cable
+safety:
+  - Keep your fingers away from the chainrings and the chain when you turn the pedals. The teeth cut, and the chain pulls fingers in without warning.
+  - A chain that drops inside the small chainring can jam against the frame and throw you off balance while pedalling. Always check the limit screws before you ride.
+  - On a carbon frame, tighten the derailleur's clamp or mounting bolt with a torque wrench, to the maker's torque. Overtightened, it can crush or crack the tube.
 steps:
   - id: height-angle
     title: "Set the height and angle"
@@ -34,7 +42,7 @@ steps:
   - id: limit-screws
     title: "Set the limit screws"
     partIds: [front-derailleur]
-    illustration: derailleur-limit-screws-h-l-b
+    illustration: front-derailleur-height-limits
   - id: cable-tension
     title: "Re-tension the cable"
     partIds: [shifter-left]
@@ -42,10 +50,34 @@ steps:
     title: "Test the shifts"
 ---
 
+<Step id="height-angle">
+
+Put the bike in the <Tool id="work-stand" /> and shift onto the big chainring, or push the cage over it by hand. From the side, the bottom of the outer cage plate should clear the teeth of the big chainring by 1 to 3 mm. From above, that plate should run parallel to the chainring, or follow the maker's mark when there is one.
+
+To correct it, loosen the clamp bolt around the seat tube, or the bolt holding the derailleur on the frame's brazed-on tab, with the <Tool id="allen-keys" alt="multi-tool" />. Move it, then tighten with the <Tool id="torque-wrench" /> to the maker's torque, often 5 to 7 N·m. On a direct mount, the height is fixed.
+
+</Step>
+
 <Step id="limit-screws">
 
-Put the chain on the small chainring and the largest sprocket. With the <Tool id="phillips-screwdriver" alt="multi-tool" />, set the L screw to leave one millimetre between the chain and the inner cage plate. Then shift onto the big chainring and the smallest sprocket, and set the H screw to leave the same gap on the outside.
+Find the L and H marked by the screws, whose positions vary: L stops the cage on the small-chainring side, H on the big-chainring side, and screwing one in limits travel. Undo the cable bolt with the <Tool id="allen-keys" alt="multi-tool" />; with the chain on the small chainring and largest sprocket, set the L screw with the <Tool id="phillips-screwdriver" alt="multi-tool" /> so the inner plate just clears the chain, about 0.5 mm.
 
-Before anything else, check that the cage clears the teeth of the big chainring by one to two millimetres and runs parallel to it. Then re-tension the cable.
+On the smallest sprocket, turn the crank slowly with one hand and push the derailleur body, not the cage, outwards with the other until the chain climbs onto the big chainring; if it will not, back H out. Hold it at its stop and set H: 0.5 to 1 mm to the outer plate.
+
+</Step>
+
+<Step id="cable-tension">
+
+Go back to the small chainring. Screw the barrel adjuster on the shifter, or the inline one on the housing for drop bars, all the way in, then back it out one turn (some recent road derailleurs have their own tension bolt instead: follow their manual). Pull the cable with the <Tool id="pliers" /> and clamp it in its groove with the <Tool id="torque-wrench" />, to the maker's torque, often 5 to 7 N·m.
+
+Shift onto the big chainring. If the chain hesitates to climb, unscrew the barrel adjuster a quarter turn to add tension; if it drops back reluctantly, screw it in. On a triple, set the tension so the inner cage plate just clears the chain on the middle chainring and the largest sprocket.
+
+</Step>
+
+<Step id="test">
+
+Turn the pedals and go through every combination: each chainring with each sprocket, in both directions. Shifts should be crisp, and the chain must never drop inside the small chainring or over the big one. A slight rub can remain in the cross-over combinations; if your shifter has a half-click trim position, it is there to remove it.
+
+If the chain drops towards the frame, screw the L screw in a quarter turn; if it goes over the big chainring, screw the H screw in. Then take a short ride somewhere quiet, easing off the pedals for each chainring shift: a shift that stays slow needs a little more cable tension.
 
 </Step>

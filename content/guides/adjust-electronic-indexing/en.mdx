@@ -3,7 +3,7 @@ slug: adjust-electronic-indexing
 kind: adjust
 title: "Adjust electronic shifting"
 summary: "Charge the system, enter adjustment mode and trim the derailleur step by step from the shifters or the maker’s app. No cable to tension."
-status: stub
+status: full
 order: 50
 difficulty: 1
 minutes: 15
@@ -17,11 +17,17 @@ appliesTo:
 tools:
   - toolId: phillips-screwdriver
     alternatives: [multi-tool]
+  - toolId: allen-keys
+    alternatives: [multi-tool]
   - toolId: work-stand
     alternatives: []
 related:
   - adjust-rear-derailleur
   - check-drivetrain
+safety:
+  - Charge the battery only with the maker's charger. Never open a battery, and never charge or use one that is swollen, cracked or getting hot. Have it checked.
+  - The derailleur moves as soon as a button is pressed, even with the wheel still. Keep your fingers away from the chain, jockey wheels and sprockets throughout the adjustment.
+  - An L screw backed out too far lets the derailleur swing into the spokes, which can lock the wheel. After touching a limit screw, check the gap to the spokes on the largest sprocket.
 steps:
   - id: charge
     title: "Charge the system"
@@ -34,12 +40,37 @@ steps:
   - id: limit-check
     title: "Check the limit screws"
     partIds: [rear-derailleur, front-derailleur]
+    illustration: derailleur-limit-screws-h-l-b
 ---
+
+<Step id="charge">
+
+Fully charge the battery with the maker's charger, or fit a charged battery if your system uses removable ones. A low battery can limit shifting or shut the system down in the middle of the adjustment. Also check the coin-cell batteries in wireless shifters, where there are any.
+
+Then check the rest of the drivetrain: connectors pushed fully home on a wired system, a straight derailleur hanger, a chain and cassette that are clean and not too worn. Electronic adjustment makes up for neither a bent hanger nor a worn chain: it hides them for a while, then shifting gets worse again.
+
+</Step>
+
+<Step id="adjust-mode">
+
+Put the bike in the <Tool id="work-stand" />, with the rear wheel free to turn, and put the chain on a sprocket in the middle of the cassette, or on the one the manual gives.
+
+Then enter adjustment mode exactly as your system's manual or app describes. Shimano Di2, SRAM AXS and Campagnolo EPS each do it their own way, sometimes differently from one generation to the next: a button on the derailleur or the junction box, a combination of buttons on the shifter, or a menu in the maker's app. The system shows it, often with a light that changes colour or blinks. Do not guess the sequence.
+
+</Step>
 
 <Step id="micro-adjust">
 
-Put the bike in a <Tool id="work-stand" />, with the battery charged, and switch the system to adjustment mode: a button on the derailleur, the shifter or the junction box, depending on the brand. Put the chain on a middle sprocket.
+In adjustment mode, each press moves the derailleur by a small step without changing gear. Turn the pedals and listen. Trim towards the larger sprockets, step by step, until you hear the chain rub against the next larger sprocket, then come back towards the smaller ones until the noise goes. Some manuals give an exact number of steps for that return: follow it.
 
-Each press now moves the derailleur by a small step without changing gear. Trim towards the larger sprockets if the chain hesitates to climb, towards the smaller ones if it rubs, then leave adjustment mode and test every gear.
+Leave adjustment mode, then run through every gear. If the chain hesitates to climb, trim one step towards the larger sprockets; if it rubs or drops reluctantly, one step towards the smaller ones. An electronic front derailleur is adjusted as its manual says: through the same mode on some systems, with its limit screws alone on others.
+
+</Step>
+
+<Step id="limit-check">
+
+On most systems the H and L screws are still mechanical end stops: they hold the chain back if the motor goes too far or after a knock. Shift onto the smallest, then the largest sprocket: the chain should settle cleanly on each, and the derailleur stay well clear of the spokes.
+
+If the motor strains, buzzes or does not reach an end sprocket, the limit screw on that side is screwed in too far: back it out a quarter turn with the <Tool id="phillips-screwdriver" alt="multi-tool" /> or the <Tool id="allen-keys" alt="multi-tool" />, depending on the screw head. If the chain goes past that sprocket, screw it in. Check the chainrings at the front the same way, then take a test ride.
 
 </Step>

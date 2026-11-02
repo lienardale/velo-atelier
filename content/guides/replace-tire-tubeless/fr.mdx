@@ -2,8 +2,8 @@
 slug: replace-tire-tubeless
 kind: replace
 title: Monter un pneu tubeless et renouveler le préventif
-summary: Démonter le pneu tubeless, nettoyer la jante, remonter le pneu, verser le préventif par la valve et le faire talonner. Ce guide est en cours de rédaction.
-status: stub
+summary: "Démonter le pneu tubeless, nettoyer la jante, remonter le pneu, verser le préventif par la valve et le faire talonner, sans dépasser la pression maximale du pneu ni celle de la jante. Pour seulement renouveler le préventif, passez à l’étape « Verser le préventif »."
+status: full
 order: 40
 difficulty: 2
 minutes: 40
@@ -18,39 +18,82 @@ tools:
   - toolId: tire-levers
     alternatives: []
   - toolId: floor-pump
-    alternatives: [mini-pump]
+    alternatives: []
   - toolId: valve-core-tool
     alternatives: [pliers]
   - toolId: sealant-injector
     alternatives: []
   - toolId: rags
     alternatives: []
+  - toolId: isopropyl-alcohol
+    alternatives: []
 related:
   - check-wheels-tires
   - replace-tube-tire
 safety:
   - "Ne dépassez jamais la pression maximale du pneu ni celle de la jante pour faire talonner : 5 bars au plus sur une jante « hookless »."
+  - "Roue déposée, ne serrez pas le levier d’un frein à disque. Remontez-la au fond des pattes, blocage rapide fermé ou axe traversant serré, et nettoyez à l’alcool isopropylique tout préventif tombé sur le disque, les plaquettes ou la piste de freinage de la jante : vérifiez que la roue freine avant de rouler."
 steps:
   - id: remove-tire
     title: Démonter le pneu
     partIds: [tire-front, tire-rear]
   - id: clean-rim
     title: Nettoyer la jante et vérifier le fond de jante
+    illustration: valve-length-rim-depth
   - id: fit-tire
     title: Remonter le pneu
     partIds: [tire-front, tire-rear]
   - id: add-sealant
     title: Verser le préventif
     partIds: [sealant]
+    illustration: presta-valve-core
   - id: seat-bead
     title: Faire talonner et répartir le préventif
     partIds: [tire-front, tire-rear, sealant]
 ---
 
+<Step id="remove-tire">
+
+Déposez la roue, valve en haut, laissez sortir l’air en appuyant sur la pointe de la valve ouverte, puis retirez l’obus avec le <Tool id="valve-core-tool" alt="pliers" />. Pincez les flancs et poussez les deux talons vers le creux central de la jante, tout autour de la roue : un pneu tubeless colle à sa jante et ne s’en détache qu’en appuyant fort avec les pouces.
+
+Soulevez ensuite un talon par-dessus le bord de la jante avec les <Tool id="tire-levers" />, en plastique, puis faites-le sortir à la main, et le second après lui. Videz l’ancien préventif dans un récipient ou sur des <Tool id="rags" /> : il tache, et celui qui a épaissi ne se réutilise pas. Gardez le pneu s’il n’est ni coupé ni usé.
+
+</Step>
+
+<Step id="clean-rim">
+
+Essuyez la jante et l’intérieur du pneu avec des <Tool id="rags" /> imbibés d’<Tool id="isopropyl-alcohol" />. Le préventif sec se décolle en peaux : retirez-le entièrement, surtout sur les talons et sur les portées de la jante.
+
+Examinez le fond de jante : il doit couvrir tous les trous de rayons, bien collé, sans coupure ni bulle. Un fond décollé fuira : remplacez-le avant d’aller plus loin. Vérifiez la valve : sa base en caoutchouc doit épouser le creux de la jante, son écrou être serré à la main, sans outil, et son obus être propre. Elle doit aussi dépasser assez de la jante pour la tête de pompe : une jante haute demande une valve longue.
+
+</Step>
+
+<Step id="fit-tire">
+
+Le pneu et la jante doivent être marqués « tubeless ready », TLR ou UST. Sur une jante « hookless » (sans crochet), le pneu doit aussi figurer sur la liste de compatibilité du fabricant de la jante. Respectez la flèche de sens de rotation imprimée sur le flanc.
+
+Montez le premier talon entièrement à la main. Montez le second en repoussant la partie déjà en place dans le creux central de la jante : vous gagnez le mou qui permet de finir à la main. Pour les derniers centimètres, aidez-vous des <Tool id="tire-levers" />, sans abîmer le fond de jante. Vous pouvez aussi verser directement dans le pneu la dose de l’étape suivante, juste avant de monter la dernière portion du talon : revissez ensuite l’obus, sans rien injecter.
+
+</Step>
+
 <Step id="add-sealant">
 
-Le préventif se verse le plus proprement par la valve. Dégonflez entièrement le pneu, tournez la roue pour mettre la valve en haut, puis retirez l’obus avec le <Tool id="valve-core-tool" alt="pliers" />. Attendez quelques secondes que le préventif présent redescende.
+Si vous ne l’avez pas versé au montage, versez le préventif par la valve : c’est le plus propre. Pour un simple renouvellement, dégonflez d’abord le pneu. Agitez bien le flacon, mettez la valve en haut, attendez que le liquide présent redescende et retirez l’obus avec le <Tool id="valve-core-tool" alt="pliers" /> s’il est en place.
 
-Injectez la quantité indiquée sur le flacon avec la <Tool id="sealant-injector" />, en fonction de la largeur du pneu : un pneu de VTT en demande bien plus qu’un pneu de route. Revissez l’obus, gonflez, puis faites tourner et secouez la roue dans tous les sens pour répartir le liquide sur toute la surface intérieure.
+Injectez avec la <Tool id="sealant-injector" /> la dose indiquée par le fabricant du préventif pour la taille de votre pneu : souvent de l’ordre de 30 à 60 ml pour un pneu de route ou de gravel, et de 60 à 120 ml pour un pneu de VTT. Revissez l’obus aussitôt, valve toujours en haut pour que le liquide ne la bouche pas.
+
+</Step>
+
+<Step id="seat-bead">
+
+Gonflez vite et fort avec la <Tool id="floor-pump" /> : chaque talon doit monter sur sa portée en claquant. Sinon, enduisez les talons d’eau savonneuse, ou utilisez un réservoir tubeless (booster), chargé au plus à la pression maximale permise.
+
+<Warning level="caution">
+
+Ne dépassez jamais la plus basse des deux pressions maximales, celle du pneu et celle de la jante : 5 bars (72 psi) au plus sur une jante « hookless ». Gardez le visage loin du pneu pendant le gonflage.
+
+</Warning>
+
+Vérifiez que la ligne moulée au-dessus de la jante est régulière sur les deux flancs ; sinon, dégonflez, savonnez le talon et regonflez. Faites tourner et basculer la roue, puis réglez la pression de route. Revérifiez-la le lendemain : une petite baisse est normale le temps que le préventif colmate.
 
 </Step>
