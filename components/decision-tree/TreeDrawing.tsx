@@ -66,7 +66,7 @@ function element(node: DrawingNode, key: number): ReactNode {
  * built into DOM.
  *
  * **It is still not a client illustration.** Nothing here imports
- * `components/illustrations/index.ts`: the 72-component barrel is rendered by
+ * `components/illustrations/index.ts`: the illustration barrel is rendered by
  * server code (`tree-geometry.tsx`) and this component only replays what it
  * produced — as ordinary React elements over the closed vocabulary in
  * `tree-drawing-node.ts`, never by injecting HTML into the DOM.

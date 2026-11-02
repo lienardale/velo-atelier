@@ -483,7 +483,7 @@ docs/                contributor and operator docs — every one is linked from 
   ternary, no `&&` / `||` / `??`, no loops. Decide in `lib/bike3d/**`, pass a
   prop. ESLint enforces it via `no-restricted-syntax` scoped to that folder.
 - **Illustrations are RSC-rendered** — `components/illustrations/index.ts` is the
-  generated barrel of all 68 drawings (72 exports: the 68, the placeholder, the
+  generated barrel of all 91 drawings (95 exports: the 91, the placeholder, the
   props type, and the name → component map with its lookup;
   `docs/illustrations.md`). Only server files may import
   it: guides go through `components/mdx/Illustration.tsx`, the decision tree
@@ -491,7 +491,7 @@ docs/                contributor and operator docs — every one is linked from 
   client tree already-rendered nodes, and the build list's "Comment mesurer"
   through `components/build-list/measure-drawings.tsx` (ids registered in
   `lib/shop/measure-drawings.ts`). A `"use client"` file that imports the
-  barrel puts all 68 drawings in the route's first-load JS. A drawing with numbered
+  barrel puts all 91 drawings in the route's first-load JS. A drawing with numbered
   `data-callout`s always ships with its legend (`illustrations.<id>.callouts.<n>`),
   in the guide renderer and in the tree's `HelpFigure` alike.
 - **The decision tree's drawings are split: frame here, shapes over the wire**

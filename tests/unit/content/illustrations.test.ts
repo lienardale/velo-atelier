@@ -1,6 +1,6 @@
 /**
  * The content illustration registry (§5.3): domain ids are a subset, guide ids
- * are the 14 of §5.3 plus the 22 drawn when the stub guides went full, and
+ * are the 14 of §5.3 plus the 23 drawn when the stub guides went full, and
  * every entry follows the registry conventions.
  */
 /* eslint-disable security/detect-object-injection -- lookups keyed by registry ids */
@@ -23,8 +23,8 @@ describe("content illustration registry", () => {
     }
   });
 
-  it("adds the 36 guide illustrations with derived component names", () => {
-    expect(GUIDE_ILLUSTRATION_IDS).toHaveLength(36);
+  it("adds the 37 guide illustrations with derived component names", () => {
+    expect(GUIDE_ILLUSTRATION_IDS).toHaveLength(37);
     expect(componentNameFor("derailleur-limit-screws-h-l-b")).toBe("IllDerailleurLimitScrewsHLB");
     for (const id of GUIDE_ILLUSTRATION_IDS) {
       expect(illustrationDefinition(id)).toEqual({

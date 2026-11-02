@@ -21,7 +21,7 @@
  * carries no words, so one file serves both locales.
  *
  * The drawings are still rendered from `components/illustrations`, by server
- * code: the 72-component barrel reaches no client bundle, which is the contract
+ * code: the illustration barrel reaches no client bundle, which is the contract
  * in `CLAUDE.md`. It has to be a script rather than a route handler because
  * Turbopack refuses `react-dom/server` anywhere under `app/**`.
  *

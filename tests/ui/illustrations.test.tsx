@@ -62,6 +62,9 @@ for (const locale of ["fr", "en"] as const) {
         expect(svg.querySelector("title")?.textContent).toBe(CATALOGUES[locale][id].alt);
 
         if (guideIds.has(id)) {
+          // The frame's `placeholder` prop defaults to true: a drawing that
+          // forgets `placeholder={false}` would ship a dashed box with its id.
+          expect(svg).toHaveAttribute("data-status", "final");
           expect(svg).toHaveAttribute("viewBox", "0 0 320 240");
           expect(svg).toHaveAttribute("aria-labelledby", svg.querySelector("title")!.id);
           // eslint-disable-next-line security/detect-object-injection -- id from the registry

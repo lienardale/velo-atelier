@@ -1,24 +1,58 @@
 import { calloutText, GuideIllustrationFrame } from "./guide-frame";
+import { fine, leader, tint } from "./guide-shapes";
 import type { IllustrationProps } from "./placeholder";
 
 /**
- * `freehub-body-profiles` — NOT DRAWN YET: a placeholder with its numbered callouts in
- * place, so guides and the build list can reference the id. The drawing
- * replaces this body and passes `placeholder={false}`.
+ * `freehub-body-profiles` — three freehub bodies seen end-on from the drive
+ * side. Left, Shimano HG: nine broad splines, one of them narrow, which leaves
+ * one groove wider than the others. Middle, Shimano Micro Spline: a ring of
+ * many fine splines. Right, SRAM XD / XDR: a smaller body, its threaded end
+ * in front of a step with a few lugs.
  */
 export function IllFreehubBodyProfiles(props: IllustrationProps) {
   return (
-    <GuideIllustrationFrame id="freehub-body-profiles" {...props}>
-      <circle data-callout="1" cx={40} cy={40} r={11} />
-      <text x={40} y={40} {...calloutText}>
+    <GuideIllustrationFrame id="freehub-body-profiles" placeholder={false} {...props}>
+      {/* Shimano HG */}
+      <path
+        d="M41.6 134.9 L37.3 142.8 A44 44 0 0 1 33.4 140.5 L38.4 133 A35 35 0 0 1 32.8 128.3 L26.3 134.6 A44 44 0 0 1 15.7 116.1 L24.4 113.6 A35 35 0 0 1 23.1 106.4 L14.1 107.1 A44 44 0 0 1 17.8 86.1 L26 89.8 A35 35 0 0 1 29.7 83.4 L22.4 78.1 A44 44 0 0 1 38.7 64.5 L42.7 72.5 A35 35 0 0 1 49.5 70 L47.4 61.3 A44 44 0 0 1 68.6 61.3 L66.5 70 A35 35 0 0 1 73.3 72.5 L77.3 64.5 A44 44 0 0 1 93.6 78.1 L86.3 83.4 A35 35 0 0 1 90 89.8 L98.2 86.1 A44 44 0 0 1 101.9 107.1 L92.9 106.4 A35 35 0 0 1 91.6 113.6 L100.3 116.1 A44 44 0 0 1 89.7 134.6 L83.2 128.3 A35 35 0 0 1 77.6 133 L82.6 140.5 A44 44 0 0 1 62.6 147.8 L61.7 138.8 A35 35 0 0 1 41.6 134.9 Z"
+        {...tint}
+      />
+      <circle cx={58} cy={104} r={14} />
+      <circle cx={58} cy={104} r={6} {...fine} />
+
+      {/* Shimano Micro Spline */}
+      <path
+        d="M163 143.4 L163.3 147.9 A44 44 0 0 1 156.7 147.9 L157 143.4 A39.5 39.5 0 0 1 152.2 142.7 L151.3 147.1 A44 44 0 0 1 145 145.4 L146.5 141.1 A39.5 39.5 0 0 1 142.1 139.2 L140 143.2 A44 44 0 0 1 134.4 139.8 L137 136.1 A39.5 39.5 0 0 1 133.2 133 L130.2 136.4 A44 44 0 0 1 125.7 131.5 L129.2 128.7 A39.5 39.5 0 0 1 126.4 124.8 L122.6 127.1 A44 44 0 0 1 119.5 121.3 L123.7 119.5 A39.5 39.5 0 0 1 122 114.9 L117.7 116.2 A44 44 0 0 1 116.4 109.7 L120.8 109.1 A39.5 39.5 0 0 1 120.5 104.3 L116 104.3 A44 44 0 0 1 116.5 97.7 L120.9 98.4 A39.5 39.5 0 0 1 121.9 93.6 L117.6 92.4 A44 44 0 0 1 119.8 86.2 L123.9 88 A39.5 39.5 0 0 1 126.1 83.7 L122.3 81.4 A44 44 0 0 1 126.1 76 L129.5 78.9 A39.5 39.5 0 0 1 132.8 75.3 L129.8 72 A44 44 0 0 1 134.9 67.9 L137.4 71.6 A39.5 39.5 0 0 1 141.6 69.1 L139.5 65.1 A44 44 0 0 1 145.5 62.4 L147 66.7 A39.5 39.5 0 0 1 151.7 65.4 L150.8 61 A44 44 0 0 1 157.3 60.1 L157.6 64.6 A39.5 39.5 0 0 1 162.4 64.6 L162.7 60.1 A44 44 0 0 1 169.2 61 L168.3 65.4 A39.5 39.5 0 0 1 173 66.7 L174.5 62.4 A44 44 0 0 1 180.5 65.1 L178.4 69.1 A39.5 39.5 0 0 1 182.6 71.6 L185.1 67.9 A44 44 0 0 1 190.2 72 L187.2 75.3 A39.5 39.5 0 0 1 190.5 78.9 L193.9 76 A44 44 0 0 1 197.7 81.4 L193.9 83.7 A39.5 39.5 0 0 1 196.1 88 L200.2 86.2 A44 44 0 0 1 202.4 92.4 L198.1 93.6 A39.5 39.5 0 0 1 199.1 98.4 L203.5 97.7 A44 44 0 0 1 204 104.3 L199.5 104.3 A39.5 39.5 0 0 1 199.2 109.1 L203.6 109.7 A44 44 0 0 1 202.3 116.2 L198 114.9 A39.5 39.5 0 0 1 196.3 119.5 L200.5 121.3 A44 44 0 0 1 197.4 127.1 L193.6 124.8 A39.5 39.5 0 0 1 190.8 128.7 L194.3 131.5 A44 44 0 0 1 189.8 136.4 L186.8 133 A39.5 39.5 0 0 1 183 136.1 L185.6 139.8 A44 44 0 0 1 180 143.2 L177.9 139.2 A39.5 39.5 0 0 1 173.5 141.1 L175 145.4 A44 44 0 0 1 168.7 147.1 L167.8 142.7 A39.5 39.5 0 0 1 163 143.4 Z"
+        {...tint}
+        {...fine}
+      />
+      <circle cx={160} cy={104} r={14} />
+      <circle cx={160} cy={104} r={6} {...fine} />
+
+      {/* SRAM XD / XDR: lugged step behind, threaded end in front */}
+      <path
+        d="M267.5 73 L268.3 68.5 A36 36 0 0 1 288.8 79.9 L285.4 82.9 A31.5 31.5 0 0 1 292.8 97.5 L297.2 96.5 A36 36 0 0 1 295.8 116.3 L291.6 114.8 A31.5 31.5 0 0 1 284.7 125.9 L287.9 129 A36 36 0 0 1 276.6 136.9 L274.8 132.8 A31.5 31.5 0 0 1 258.7 135.3 L258.2 139.8 A36 36 0 0 1 241.9 133.8 L244.4 130.1 A31.5 31.5 0 0 1 234.7 119.8 L230.8 122 A36 36 0 0 1 226.1 106.5 L230.6 106.2 A31.5 31.5 0 0 1 233.7 90.2 L229.6 88.2 A36 36 0 0 1 241.9 74.2 L244.4 77.9 A31.5 31.5 0 0 1 267.5 73 Z"
+        {...tint}
+      />
+      <circle cx={262} cy={104} r={24} />
+      <circle cx={262} cy={104} r={20.5} {...fine} />
+      <circle cx={262} cy={104} r={17} {...fine} />
+      <circle cx={262} cy={104} r={11} />
+      <circle cx={262} cy={104} r={5} {...fine} />
+
+      <path d="M58 193 L55 141" {...leader} />
+      <circle data-callout="1" cx={58} cy={204} r={11} />
+      <text x={58} y={204} {...calloutText}>
         1
       </text>
-      <circle data-callout="2" cx={100} cy={40} r={11} />
-      <text x={100} y={40} {...calloutText}>
+      <path d="M160 193 V150" {...leader} />
+      <circle data-callout="2" cx={160} cy={204} r={11} />
+      <text x={160} y={204} {...calloutText}>
         2
       </text>
-      <circle data-callout="3" cx={160} cy={40} r={11} />
-      <text x={160} y={40} {...calloutText}>
+      <path d="M262 193 L266 128" {...leader} />
+      <circle data-callout="3" cx={262} cy={204} r={11} />
+      <text x={262} y={204} {...calloutText}>
         3
       </text>
     </GuideIllustrationFrame>

@@ -423,7 +423,7 @@
   "freehub-body-profiles": {
     "alt": "Three freehub bodies seen end-on: Shimano HG, Shimano Micro Spline and SRAM XD/XDR.",
     "callouts": {
-      "1": "Shimano HG: broad splines, one wider than the rest",
+      "1": "Shimano HG: broad splines, one groove wider than the rest",
       "2": "Shimano Micro Spline: many fine splines",
       "3": "SRAM XD / XDR: smaller, threaded body"
     }
@@ -438,7 +438,7 @@
   "rotor-diameter": {
     "alt": "Brake rotor seen face-on: its diameter measured edge to edge, and the adapter that sets the caliper for that diameter.",
     "callouts": {
-      "1": "Diameter, edge to edge (140 to 203 mm)",
+      "1": "Diameter, edge to edge (140 to 220 mm)",
       "2": "Adapter: it sets the caliper for that diameter"
     }
   },
@@ -521,6 +521,14 @@
       "1": "ETRTO size, e.g. 28-622: the width, then the diameter",
       "2": "Pressure range",
       "3": "Direction of rotation"
+    }
+  },
+  "front-derailleur-height-limits": {
+    "alt": "Front derailleur seen from the drive side: its L and H limit screws, and the 1 to 3 mm gap between the outer cage and the big chainring's teeth.",
+    "callouts": {
+      "1": "L screw: inner stop, small-chainring side",
+      "2": "H screw: outer stop, big-chainring side",
+      "3": "1 to 3 mm between the cage and the big chainring's teeth"
     }
   }
 }

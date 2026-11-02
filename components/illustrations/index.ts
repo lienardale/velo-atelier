@@ -57,6 +57,7 @@ import { IllEMotor } from "./IllEMotor";
 import { IllEbikeBatteryConnector } from "./IllEbikeBatteryConnector";
 import { IllFrameInspectionPoints } from "./IllFrameInspectionPoints";
 import { IllFreehubBodyProfiles } from "./IllFreehubBodyProfiles";
+import { IllFrontDerailleurHeightLimits } from "./IllFrontDerailleurHeightLimits";
 import { IllGripLockOnClamp } from "./IllGripLockOnClamp";
 import { IllHeadsetThreadedVsThreadless } from "./IllHeadsetThreadedVsThreadless";
 import { IllInseamBookWall } from "./IllInseamBookWall";
@@ -151,6 +152,7 @@ export { IllEMotor };
 export { IllEbikeBatteryConnector };
 export { IllFrameInspectionPoints };
 export { IllFreehubBodyProfiles };
+export { IllFrontDerailleurHeightLimits };
 export { IllGripLockOnClamp };
 export { IllHeadsetThreadedVsThreadless };
 export { IllInseamBookWall };
@@ -243,6 +245,7 @@ export const ILLUSTRATION_COMPONENTS: Record<string, ComponentType<IllustrationP
   IllEbikeBatteryConnector,
   IllFrameInspectionPoints,
   IllFreehubBodyProfiles,
+  IllFrontDerailleurHeightLimits,
   IllGripLockOnClamp,
   IllHeadsetThreadedVsThreadless,
   IllInseamBookWall,
