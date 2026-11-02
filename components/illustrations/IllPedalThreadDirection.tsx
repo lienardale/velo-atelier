@@ -14,11 +14,12 @@ import type { IllustrationProps } from "./placeholder";
 export function IllPedalThreadDirection(props: IllustrationProps) {
   return (
     <GuideIllustrationFrame id="pedal-thread-direction" placeholder={false} {...props}>
-      {/* right side of the bike: chainring, crank, wrench, pedal */}
+      {/* right side of the bike: chainring, crank, pedal spindle, wrench, pedal */}
       <circle cx={56} cy={132} r={36} strokeWidth={4} strokeDasharray="2.5 2.5" />
       <circle cx={56} cy={132} r={26} {...fine} />
       <path d="M56 122 L116 127 A5 5 0 0 1 116 137 L56 142 A10 10 0 0 1 56 122 Z" {...solid} />
       <circle cx={56} cy={132} r={5} {...fine} />
+      <circle cx={116} cy={132} r={2.5} {...fine} />
       <path d="M102 126 Q102 114 110 110 V66 Q110 60 116 60 Q122 60 122 66 V110 Q130 114 130 126" />
       <rect x={96} y={126} width={40} height={12} rx={3} {...tint} />
       <path d="M116 52 A80 80 0 0 0 78.4 61.4" />
@@ -34,9 +35,10 @@ export function IllPedalThreadDirection(props: IllustrationProps) {
 
       <path d="M160 48 V228" {...fine} strokeDasharray="6 6" strokeOpacity={0.5} />
 
-      {/* left side of the bike: crank, wrench, pedal */}
+      {/* left side of the bike: crank, pedal spindle, wrench, pedal */}
       <path d="M264 122 L204 127 A5 5 0 0 0 204 137 L264 142 A10 10 0 0 0 264 122 Z" {...solid} />
       <circle cx={264} cy={132} r={5} {...fine} />
+      <circle cx={204} cy={132} r={2.5} {...fine} />
       <path d="M218 126 Q218 114 210 110 V66 Q210 60 204 60 Q198 60 198 66 V110 Q190 114 190 126" />
       <rect x={184} y={126} width={40} height={12} rx={3} {...tint} />
       <path d="M204 52 A80 80 0 0 1 241.6 61.4" />
@@ -49,12 +51,12 @@ export function IllPedalThreadDirection(props: IllustrationProps) {
       <circle cx={290} cy={210} r={12} {...fine} />
       <circle cx={236} cy={210} r={12} {...fine} />
 
-      <path d="M135 162 L127 139" {...leader} />
+      <path d="M134.4 162.6 L118.6 136.3" {...leader} />
       <circle data-callout="1" cx={140} cy={172} r={11} />
       <text x={140} y={172} {...calloutText}>
         1
       </text>
-      <path d="M185 162 L193 139" {...leader} />
+      <path d="M185.6 162.6 L201.4 136.3" {...leader} />
       <circle data-callout="2" cx={180} cy={172} r={11} />
       <text x={180} y={172} {...calloutText}>
         2

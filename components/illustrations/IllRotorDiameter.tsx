@@ -5,19 +5,20 @@ import type { IllustrationProps } from "./placeholder";
 /**
  * `rotor-diameter` — a disc brake rotor seen face-on, with a dimension line
  * across its full diameter through the centre, edge to edge. At the top, the
- * caliper straddles the braking track, held out from the frame mount by an
- * adapter bracket that sets it for that diameter.
+ * adapter bracket: its inner row of bolts goes into the frame (or fork)
+ * mount, nearer the axle; its outer row holds the caliper, further out, so
+ * that the caliper straddles the braking track at the edge of a larger rotor.
  */
 export function IllRotorDiameter(props: IllustrationProps) {
   return (
     <GuideIllustrationFrame id="rotor-diameter" placeholder={false} {...props}>
       {/* braking track, hidden under the caliper at the top, and its holes */}
       <path
-        d="M181.9 92 A68 68 0 1 1 118.1 92 L124.2 103.4 A55 55 0 1 0 175.8 103.4 Z"
+        d="M173.3 88.1 A68 68 0 1 1 126.7 88.1 L131.2 100.3 A55 55 0 1 0 168.8 100.3 Z"
         stroke="none"
         {...tint}
       />
-      <path d="M181.9 92 A68 68 0 1 1 118.1 92 M175.8 103.4 A55 55 0 1 1 124.2 103.4" />
+      <path d="M173.3 88.1 A68 68 0 1 1 126.7 88.1 M168.8 100.3 A55 55 0 1 1 131.2 100.3" />
       <path
         d="M206.9 167.9 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M191 195.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M163.4 211.4 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M131.6 211.4 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M104 195.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M88.1 167.9 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M88.1 136.1 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M104 108.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M191 108.5 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M206.9 136.1 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0"
         {...fine}
@@ -39,18 +40,22 @@ export function IllRotorDiameter(props: IllustrationProps) {
       <path d="M86 152 H214" />
       <path d="M83 152 L93 147 V157 Z M217 152 L207 147 V157 Z" {...solid} />
 
-      {/* frame mount, adapter bracket, and the caliper it holds over the track */}
-      <rect x={116} y={14} width={68} height={22} rx={4} {...tint} />
-      <path d="M104 36 H196 L188 64 H112 Z" {...solid} />
-      <circle cx={128} cy={36} r={5} />
-      <circle cx={172} cy={36} r={5} />
-      <path d="M128 64 V78 M172 64 V78" strokeWidth={4} />
+      {/* adapter bracket around the caliper: inner bolts into the frame mount */}
       <path
-        d="M127.5 109.6 A48 48 0 0 1 172.5 109.6 L187.6 81.4 A80 80 0 0 0 112.4 81.4 Z"
+        d="M102.4 95.3 A74 74 0 0 1 124.7 82.5 L116.1 59 A99 99 0 0 1 134.5 54.2 L136.5 67.1 A86 86 0 0 1 163.5 67.1 L165.5 54.2 A99 99 0 0 1 183.9 59 L175.3 82.5 A74 74 0 0 1 197.6 95.3 L216.2 73.1 A103 103 0 0 0 83.8 73.1 Z"
+        {...solid}
+      />
+      <circle cx={107.9} cy={80.5} r={5.5} {...tint} />
+      <circle cx={192.1} cy={80.5} r={5.5} {...tint} />
+      {/* caliper over the track, hanging from the adapter's outer bolts */}
+      <path
+        d="M133.6 106.9 A48 48 0 0 1 166.4 106.9 L183.9 59 A99 99 0 0 0 165.5 54.2 L163.5 67.1 A86 86 0 0 0 136.5 67.1 L134.5 54.2 A99 99 0 0 0 116.1 59 Z"
         {...tint}
       />
+      <circle cx={126.7} cy={62} r={5} {...tint} />
+      <circle cx={173.3} cy={62} r={5} {...tint} />
       <path
-        d="M118.1 92 A68 68 0 0 1 181.9 92 M124.2 103.4 A55 55 0 0 1 175.8 103.4"
+        d="M126.7 88.1 A68 68 0 0 1 173.3 88.1 M131.2 100.3 A55 55 0 0 1 168.8 100.3"
         {...fine}
         strokeDasharray="3 3"
         strokeOpacity={0.5}
@@ -61,9 +66,9 @@ export function IllRotorDiameter(props: IllustrationProps) {
       <text x={38} y={124} {...calloutText}>
         1
       </text>
-      <path d="M243 44 L193 50" {...leader} />
-      <circle data-callout="2" cx={254} cy={42} r={11} />
-      <text x={254} y={42} {...calloutText}>
+      <path d="M244 54 L209 74" {...leader} />
+      <circle data-callout="2" cx={254} cy={48} r={11} />
+      <text x={254} y={48} {...calloutText}>
         2
       </text>
     </GuideIllustrationFrame>

@@ -4,11 +4,12 @@ import type { IllustrationProps } from "./placeholder";
 
 /**
  * `b-screw-gap` — a rear derailleur seen from the drive side, shifted onto the
- * largest sprocket: the hanger with the axle and the mounting bolt, the B-screw
- * at the back of the derailleur bearing on the hanger, the body and the cage,
- * and the small gap between the upper jockey wheel's teeth and the teeth of the
+ * largest sprocket: the hanger with the axle and the mounting bolt, the upper
+ * knuckle pivoting on that bolt with the B-screw in a boss at its back, the
+ * screw's tip bearing on a tab of the hanger, then the body and the cage, and
+ * the small gap between the upper jockey wheel's teeth and the teeth of the
  * largest sprocket above it. The chain is left out so the gap stays visible;
- * the gap is drawn about twice its real size.
+ * the gap is drawn at about 7 mm, a little over its real 5 to 6 mm.
  */
 export function IllBScrewGap(props: IllustrationProps) {
   return (
@@ -23,45 +24,55 @@ export function IllBScrewGap(props: IllustrationProps) {
         {...fine}
         strokeOpacity={0.5}
       />
-      {/* hanger, with the axle and the derailleur's mounting bolt */}
-      <path d="M136 12 H166 V42 Q162 60 146 62 H136 Q130 61 131 54 Z" {...tint} />
+      {/* hanger, with the axle, the derailleur's mounting bolt and a tab at the back */}
+      <path
+        d="M138 12 H166 V42 Q162 60 148 62 H140 V56 H124 Q120 56 120 53 Q120 50 124 50 H138 Z"
+        {...tint}
+      />
       <circle cx={150} cy={24} r={6} />
-      <circle cx={149} cy={48} r={8} />
-      {/* B-screw at the back, its tip on the hanger */}
-      <rect x={104} y={53} width={24} height={10} rx={3} {...solid} />
-      <path d="M128 58 H132" strokeWidth={3} />
+      {/* upper knuckle on the bolt, its boss at the back holding the B-screw */}
+      <path
+        d="M149 35 A13 13 0 0 1 161 53 L150 76 H120 Q114 76 114 71 V69 Q114 64 120 64 H134 Q137 60 136.2 50.5 A13 13 0 0 1 149 35 Z"
+        {...tint}
+      />
+      <circle cx={149} cy={48} r={7} />
+      {/* B-screw: head under the boss, tip bearing on the hanger tab */}
+      <rect x={123} y={56} width={6} height={8} {...solid} />
+      <path d="M123 59 H129 M123 62 H129" {...fine} />
+      <path d="M126 76 V78" strokeWidth={4} />
+      <rect x={118} y={78} width={16} height={6} rx={2} {...solid} />
       {/* parallelogram body and cage pivot */}
-      <path d="M156 56 L202 64 L212 104 L176 112 Z" />
-      <circle cx={176} cy={118} r={4} {...solid} />
+      <path d="M156 60 L202 66 L210 100 L174 106 Z" />
+      <circle cx={174} cy={112} r={4} {...solid} />
       {/* cage with the upper and lower jockey wheels */}
       <path
-        d="M169.5 137.2L149.5 203.2A12 12 0 0 1 126.5 196.2L146.5 130.2A12 12 0 0 1 169.5 137.2Z"
+        d="M169.2 133.2L149.2 199.2A12 12 0 0 1 126.2 192.2L146.2 126.2A12 12 0 0 1 169.2 133.2Z"
         {...tint}
       />
       <path
-        d="M153.5 113.2L159.4 112.8L161.5 117.6L163.7 118.2L165.3 114L170.5 116.9L169.6 122L171.2 123.8L174.8 121.1L177.6 126.3L174.1 130.2L174.4 132.5L178.9 132.2L178.5 138.2L173.4 139.5L172.5 141.6L176.4 143.8L172.8 148.5L167.9 146.9L165.9 148.2L168.1 152.1L162.5 154.2L159.2 150.2L156.8 150.2L156.5 154.7L150.7 153.4L150.1 148.2L148.1 146.9L145.4 150.5L141.2 146.3L143.5 141.6L142.5 139.5L138.3 141.1L137 135.2L141.5 132.6L141.8 130.2L137.4 129.3L139.5 123.7L144.8 123.8L146.3 122.1L143.1 118.9L147.9 115.3L152.2 118.3L154.4 117.6Z"
+        d="M153.2 109.2L159.2 108.8L161.2 113.6L163.4 114.3L165 110L170.3 112.9L169.3 118L170.9 119.8L174.5 117.1L177.4 122.4L173.8 126.2L174.1 128.5L178.6 128.2L178.2 134.2L173.2 135.5L172.2 137.6L176.1 139.8L172.6 144.6L167.6 142.9L165.6 144.2L167.8 148.1L162.2 150.2L158.9 146.2L156.5 146.2L156.2 150.7L150.4 149.4L149.8 144.2L147.8 142.9L145.1 146.5L140.9 142.3L143.2 137.6L142.2 135.5L138 137.1L136.7 131.2L141.2 128.6L141.6 126.2L137.2 125.3L139.2 119.7L144.5 119.8L146 118.1L142.8 114.9L147.6 111.3L151.9 114.3L154.2 113.6Z"
         strokeWidth={1.5}
       />
       <path
-        d="M158.7 203L156.9 208.7L151.7 208.8L150.3 210.7L153.6 213.7L149.1 217.5L144.6 214.8L142.4 215.6L143.6 219.9L137.7 220.7L135.4 216L133.1 215.5L131.8 219.8L126.4 217.2L127 212L125.4 210.3L121.9 213.2L118.7 208.2L122.1 204.1L121.6 201.8L117.1 202.4L117.2 196.4L122.2 194.8L123.1 192.6L119 190.7L122.3 185.7L127.4 187.1L129.3 185.7L126.9 181.9L132.3 179.5L135.9 183.3L138.2 183.2L138.3 178.7L144.2 179.6L145 184.8L147.1 186L149.6 182.2L154 186.2L152 191L153.1 193.1L157.2 191.3L158.8 197L154.5 199.9L154.3 202.3Z"
+        d="M158.4 199L156.7 204.7L151.4 204.8L150 206.7L153.4 209.7L148.8 213.5L144.3 210.8L142.1 211.6L143.3 216L137.4 216.7L135.1 212L132.8 211.5L131.5 215.8L126.1 213.2L126.7 208L125.1 206.3L121.6 209.2L118.5 204.2L121.8 200.1L121.3 197.8L116.9 198.4L116.9 192.4L121.9 190.8L122.8 188.7L118.7 186.7L122 181.7L127.1 183.1L129 181.7L126.6 177.9L132.1 175.5L135.6 179.4L137.9 179.2L138 174.7L143.9 175.7L144.8 180.8L146.8 182L149.3 178.2L153.8 182.2L151.7 187L152.8 189.1L156.9 187.3L158.5 193L154.2 196L154 198.3Z"
         strokeWidth={1.5}
       />
-      <circle cx={158} cy={133.7} r={4} />
-      <circle cx={138} cy={199.7} r={4} />
+      <circle cx={157.7} cy={129.7} r={4} />
+      <circle cx={137.7} cy={195.7} r={4} />
       {/* the gap, jockey teeth to sprocket teeth */}
       <path
-        d="M155.6 100.8L156.5 112.8M153.3 104.5L155.6 100.8L158.3 104.1M153.7 109.5L156.5 112.8L158.7 109.1"
+        d="M155.6 100.8L156.2 108.8M153.6 103.9L155.6 100.8L158 103.6M153.8 105.9L156.2 108.8L158.1 105.6"
         {...fine}
       />
 
-      <path d="M57 58 H104" {...leader} />
-      <circle data-callout="1" cx={46} cy={58} r={11} />
-      <text x={46} y={58} {...calloutText}>
+      <path d="M71 81 H118" {...leader} />
+      <circle data-callout="1" cx={60} cy={81} r={11} />
+      <text x={60} y={81} {...calloutText}>
         1
       </text>
-      <path d="M103 125 L152 108" {...leader} />
-      <circle data-callout="2" cx={92} cy={129} r={11} />
-      <text x={92} y={129} {...calloutText}>
+      <path d="M102 122 L152 105" {...leader} />
+      <circle data-callout="2" cx={92} cy={125} r={11} />
+      <text x={92} y={125} {...calloutText}>
         2
       </text>
     </GuideIllustrationFrame>

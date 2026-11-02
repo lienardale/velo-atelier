@@ -4,17 +4,17 @@ import type { IllustrationProps } from "./placeholder";
 
 /**
  * `freehub-body-profiles` — three freehub bodies seen end-on from the drive
- * side. Left, Shimano HG: nine broad splines, one of them narrow, which leaves
- * one groove wider than the others. Middle, Shimano Micro Spline: a ring of
- * many fine splines. Right, SRAM XD / XDR: a smaller body, its threaded end
- * in front of a step with a few lugs.
+ * side. Left, Shimano HG: nine broad splines and one groove much wider than
+ * the others (the spline beside it is a little narrower). Middle, Shimano
+ * Micro Spline: a ring of many fine splines. Right, SRAM XD / XDR: a smaller
+ * body, its threaded end in front of a step with a few lugs.
  */
 export function IllFreehubBodyProfiles(props: IllustrationProps) {
   return (
     <GuideIllustrationFrame id="freehub-body-profiles" placeholder={false} {...props}>
       {/* Shimano HG */}
       <path
-        d="M41.6 134.9 L37.3 142.8 A44 44 0 0 1 33.4 140.5 L38.4 133 A35 35 0 0 1 32.8 128.3 L26.3 134.6 A44 44 0 0 1 15.7 116.1 L24.4 113.6 A35 35 0 0 1 23.1 106.4 L14.1 107.1 A44 44 0 0 1 17.8 86.1 L26 89.8 A35 35 0 0 1 29.7 83.4 L22.4 78.1 A44 44 0 0 1 38.7 64.5 L42.7 72.5 A35 35 0 0 1 49.5 70 L47.4 61.3 A44 44 0 0 1 68.6 61.3 L66.5 70 A35 35 0 0 1 73.3 72.5 L77.3 64.5 A44 44 0 0 1 93.6 78.1 L86.3 83.4 A35 35 0 0 1 90 89.8 L98.2 86.1 A44 44 0 0 1 101.9 107.1 L92.9 106.4 A35 35 0 0 1 91.6 113.6 L100.3 116.1 A44 44 0 0 1 89.7 134.6 L83.2 128.3 A35 35 0 0 1 77.6 133 L82.6 140.5 A44 44 0 0 1 62.6 147.8 L61.7 138.8 A35 35 0 0 1 41.6 134.9 Z"
+        d="M41.6 134.9 L37.3 142.8 A44 44 0 0 1 25.3 133.4 L32 127.4 A35 35 0 0 1 27.9 121.9 L20.2 126.5 A44 44 0 0 1 14.1 106.9 L23.1 106.3 A35 35 0 0 1 23.3 99.4 L14.4 98.3 A44 44 0 0 1 21.7 79.1 L29.2 84.2 A35 35 0 0 1 33.6 78.9 L27.3 72.5 A44 44 0 0 1 45 62 L47.6 70.6 A35 35 0 0 1 54.3 69.2 L53.4 60.2 A44 44 0 0 1 73.8 62.9 L70.5 71.3 A35 35 0 0 1 76.7 74.4 L81.5 66.8 A44 44 0 0 1 95.8 81.5 L88.1 86.1 A35 35 0 0 1 91 92.3 L99.5 89.3 A44 44 0 0 1 101.6 109.7 L92.7 108.6 A35 35 0 0 1 91.1 115.3 L99.7 118.1 A44 44 0 0 1 88.7 135.5 L82.4 129.1 A35 35 0 0 1 77.1 133.4 L82 140.9 A44 44 0 0 1 62.6 147.8 L61.7 138.8 A35 35 0 0 1 41.6 134.9 Z"
         {...tint}
       />
       <circle cx={58} cy={104} r={14} />

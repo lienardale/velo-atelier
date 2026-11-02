@@ -438,7 +438,7 @@
   "rotor-diameter": {
     "alt": "Brake rotor seen face-on: its diameter measured edge to edge, and the adapter that sets the caliper for that diameter.",
     "callouts": {
-      "1": "Diameter, edge to edge (140 to 220 mm)",
+      "1": "Diameter, measured edge to edge",
       "2": "Adapter: it sets the caliper for that diameter"
     }
   },
@@ -473,10 +473,10 @@
     }
   },
   "chain-ruler-12-links": {
-    "alt": "Chain laid along a steel rule: zero on the centre of a pin, and the centre of the 24th pin at 304.8 mm on a new chain.",
+    "alt": "Chain laid along a steel rule: zero on the centre of a pin, and the centre of the 24th pin after it at 304.8 mm on a new chain.",
     "callouts": {
       "1": "Zero on the centre of a pin",
-      "2": "Centre of the 24th pin: 304.8 mm on a new chain"
+      "2": "Centre of the 24th pin after the zero one: 304.8 mm on a new chain"
     }
   },
   "saddle-setback-plumb-line": {
@@ -526,9 +526,8 @@
   "front-derailleur-height-limits": {
     "alt": "Front derailleur seen from the drive side: its L and H limit screws, and the 1 to 3 mm gap between the outer cage and the big chainring's teeth.",
     "callouts": {
-      "1": "L screw: inner stop, small-chainring side",
-      "2": "H screw: outer stop, big-chainring side",
-      "3": "1 to 3 mm between the cage and the big chainring's teeth"
+      "1": "L and H limit screws: their position varies, read the letter engraved beside each",
+      "2": "1 to 3 mm between the cage and the big chainring's teeth"
     }
   }
 }

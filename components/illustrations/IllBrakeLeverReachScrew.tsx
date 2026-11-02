@@ -31,8 +31,8 @@ export function IllBrakeLeverReachScrew(props: IllustrationProps) {
       <circle cx={170} cy={110} r={8} {...solid} />
       <path d="M174 110 L172 113.5 H168 L166 110 L168 106.5 H172 Z" {...fine} />
       {/* blade coming closer to the grip */}
-      <path d="M290 104 Q298 116 294 132" {...fine} />
-      <path d="M288 127 L294 133 L299 126" {...fine} />
+      <path d="M284 96 Q292 106 289 118" {...fine} />
+      <path d="M285.9 110 L289 118 L295.6 112.4" {...fine} />
       {/* reach at fingertip height */}
       <path d="M240 137 V163 M234 137 H246 M234 163 H246" {...fine} />
 

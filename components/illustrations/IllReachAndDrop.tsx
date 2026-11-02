@@ -7,7 +7,8 @@ import type { IllustrationProps } from "./placeholder";
  * to the right: saddle, seatpost, top tube, head tube, stem and drop bar with
  * its lever hood. The reach is a straight dimension from the saddle nose to
  * the middle of the hood, where the hands rest; the drop is the vertical
- * dimension from a level line at the top of the saddle down to the bar there.
+ * dimension from a level line at the top of the saddle down to the top of the
+ * bar (its tube, not the hood above it), about 7 cm here, mid road range.
  */
 export function IllReachAndDrop(props: IllustrationProps) {
   return (
@@ -15,36 +16,33 @@ export function IllReachAndDrop(props: IllustrationProps) {
       {/* frame: seat tube, top tube, head tube, fork and down tube */}
       <path d="M68 98 L104 214 M68 100 L206 104 M206 98 L217 136 L228 190 M214 126 L120 214" />
       {/* saddle on its seatpost */}
-      <path d="M58 57 L68 98" strokeWidth={4} />
+      <path d="M60 63 L68 98" strokeWidth={4} />
       <path
-        d="M18 50 Q22 44 36 45 L86 47 Q97 48 98 51 L86 55 Q60 57 36 57 Q22 57 18 53 Z"
+        d="M18 56 Q22 50 36 51 L86 53 Q97 54 98 57 L86 61 Q60 63 36 63 Q22 63 18 59 Z"
         {...tint}
       />
       {/* spacer, stem, bar clamp, drop bar and lever hood */}
-      <path d="M203 90 L206 98" strokeWidth={3} />
-      <path d="M206 93 L239 89" strokeWidth={5} />
-      <circle cx={243} cy={90} r={5} />
-      <path d="M248 90 H262 Q284 90 284 114 Q284 136 262 138 H252" strokeWidth={4} />
+      <path d="M203 86 L206 98" strokeWidth={3} />
+      <path d="M204 88 L238 77" strokeWidth={5} />
+      <circle cx={243} cy={76} r={6} />
+      <path d="M249 76 H262 Q284 76 284 100 Q284 122 262 124 H252" strokeWidth={5} />
+      <path d="M264 76 Q266 68 273 67 L286 66 Q292 66 291 72 L288 86 Q284 90 281 85 Z" {...solid} />
+      <path d="M288 86 Q295 104 289 120" strokeWidth={3} />
+      {/* reach: saddle nose to the middle of the hands, on the hood */}
       <path
-        d="M262 90 Q264 82 272 81 L286 80 Q292 80 291 86 L288 100 Q284 104 280 99 Z"
-        {...solid}
-      />
-      <path d="M288 100 Q295 118 289 134" strokeWidth={3} />
-      {/* reach: saddle nose to the middle of the hands */}
-      <path
-        d="M99 51 L274 80 M106.2 56.3 L99 51 L107.5 48.4 M265.5 82.6 L274 80 L266.8 74.7"
+        d="M99 57 L278 66 M106.8 61.4 L99 57 L107.2 53.4 M269.8 69.6 L278 66 L270.2 61.6"
         {...fine}
       />
-      {/* drop: level with the top of the saddle, down to the bar */}
-      <path d="M60 45 H306 M294 80 H306" {...fine} strokeDasharray="3 3" />
-      <path d="M300 45 V80 M296 50 L300 45 L304 50 M296 75 L300 80 L304 75" {...fine} />
+      {/* drop: level with the top of the saddle, down to the top of the bar */}
+      <path d="M60 51 H306 M250 73.5 H306" {...fine} strokeDasharray="3 3" />
+      <path d="M300 51 V73.5 M296 56 L300 51 L304 56 M296 68.5 L300 73.5 L304 68.5" {...fine} />
 
-      <path d="M171 41 L183 63" {...leader} />
+      <path d="M171 41 L185 59" {...leader} />
       <circle data-callout="1" cx={166} cy={30} r={11} />
       <text x={166} y={30} {...calloutText}>
         1
       </text>
-      <path d="M283 30 L297 62" {...leader} />
+      <path d="M283 30 L297 61" {...leader} />
       <circle data-callout="2" cx={276} cy={22} r={11} />
       <text x={276} y={22} {...calloutText}>
         2

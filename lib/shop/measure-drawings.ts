@@ -8,11 +8,12 @@
  * size, a brake's mount, a pedal's type, a tubeless-ready wheel; the stub
  * guides' promotion drew the buying path's measurable ones — a cassette's
  * range and largest sprocket, a freehub body, a rotor's fitting and diameter,
- * saddle rails and width, a tyre's width, a valve's length — and mapped three
+ * a saddle's width, a tyre's width, a valve's length — and mapped three
  * more existing drawings (chainrings, a frame's rear axle, a stem's steerer
  * clamp). Everything else keeps its help text alone: a fork steerer's
- * straight-or-tapered, a stem's length, a pad's thickness (one part for rim
- * and disc pads) have no drawing that answers them, and a drawing of
+ * straight-or-tapered, a stem's length, a saddle's rails (round or oval: the
+ * rail-clamp drawing shows neither section), a pad's thickness (one part for
+ * rim and disc pads) have no drawing that answers them, and a drawing of
  * something else would be worse than none.
  *
  * Attribute key → illustration id (`lib/content/illustrations.ts`), both
@@ -39,7 +40,6 @@ export const MEASURE_DRAWINGS: Readonly<Record<string, string>> = Object.freeze(
   "rotor-interface": "rotor-mount-6bolt-centerlock",
   diameter: "rotor-diameter",
   "rotor-size": "rotor-diameter",
-  rail: "saddle-rail-clamp",
   "saddle-width": "saddle-width-sit-bones",
   "etrto-width": "tire-sidewall-markings",
   "valve-length": "valve-length-rim-depth",
