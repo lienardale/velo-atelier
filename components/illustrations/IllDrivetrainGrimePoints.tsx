@@ -58,7 +58,7 @@ export function IllDrivetrainGrimePoints(props: IllustrationProps) {
         {...solid}
       />
 
-      <path d="M137 96 L115 92" {...leader} />
+      <path d="M137 96 L105 91" {...leader} />
       <circle data-callout="1" cx={148} cy={98} r={11} />
       <text x={148} y={98} {...calloutText}>
         1

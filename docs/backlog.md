@@ -433,16 +433,17 @@ _Why deferred_: new drawings are content work (the W2-T4 kind, `docs/illustratio
 and W4 allowed none. _To pick up_: draw them, register them in
 `lib/shop/measure-drawings.ts`.
 
-_Done in part_ (2026-11-02, with the stub guides' promotion): nine new
-drawings answer eleven attributes on the buying path — cassette range and
+_Done in part_ (2026-11-02, with the stub guides' promotion): seven new
+drawings answer ten attributes on the buying path — cassette range and
 largest sprocket, freehub body, rotor fitting (two keys) and diameter (two
-keys), saddle rails and width, tyre width, valve length — and three existing
-drawings now answer chainrings, a frame's rear axle and a stem's steerer
-clamp: 22 of the 82 asked attributes carry a drawing, against 8. What is left
-is either nothing to measure (`e-rated`, `sealant-kind`, `tread`, `cover`,
-`routing`, `pad-model`, `kind`), a part shared by two shapes that one drawing
-would get wrong for one of them (`pad-thickness`: rim and disc pads), a fork
-steerer's straight-or-tapered that no drawing shows, or the attributes off
+keys), saddle width, tyre width, valve length — and three existing drawings
+now answer chainrings, a frame's rear axle and a stem's steerer clamp: 21 of
+the 82 asked attributes carry a drawing, against 8. What is left is either
+nothing to measure (`e-rated`, `sealant-kind`, `tread`, `cover`, `routing`,
+`pad-model`, `kind`), a part shared by two shapes that one drawing would get
+wrong for one of them (`pad-thickness`: rim and disc pads), a choice no
+drawing shows (a fork steerer's straight-or-tapered; a saddle's round or oval
+rails — the rail-clamp drawing is a side view), or the attributes off
 the buying path (stem length, bar width and clamp, crank length, rim width,
 shock eye-to-eye and stroke, and the rest) — still text only.
 

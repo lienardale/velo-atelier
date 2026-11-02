@@ -12,7 +12,7 @@ import type { IllustrationProps } from "./placeholder";
 export function IllTireSidewallMarkings(props: IllustrationProps) {
   return (
     <GuideIllustrationFrame id="tire-sidewall-markings" placeholder={false} {...props}>
-      {/* tread band with its pattern */}
+      {/* tread band with its chevron pattern */}
       <path
         d="M10 75.5A270 270 0 0 1 310 75.5 L310 95 A254 254 0 0 0 10 95 Z"
         {...tint}
@@ -20,7 +20,7 @@ export function IllTireSidewallMarkings(props: IllustrationProps) {
       />
       <path d="M10 75.5A270 270 0 0 1 310 75.5 M10 95A254 254 0 0 1 310 95" />
       <path
-        d="M23.8 82.1L18.5 73.6M39.3 73.1L34.7 64.3M55.5 65.2L51.4 56.1M72.1 58.5L68.7 49.1M89.2 53L86.4 43.3M106.6 48.6L104.5 38.8M124.2 45.5L122.8 35.6M142.1 43.6L141.4 33.7M160 43L160 33M177.9 43.6L178.6 33.7M195.8 45.5L197.2 35.6M213.4 48.6L215.5 38.8M230.8 53L233.6 43.3M247.9 58.5L251.3 49.1M264.5 65.2L268.6 56.1M280.7 73.1L285.3 64.3M296.2 82.1L301.5 73.6"
+        d="M20 84.5L22.7 76.8L14.6 76.1M33.4 76.3L36.6 68.9L28.5 67.6M47.3 69L50.9 61.8L43 60M61.7 62.6L65.7 55.6L57.8 53.3M76.3 57L80.8 50.3L73.1 47.5M91.3 52.3L96.2 45.9L88.6 42.7M106.6 48.6L111.8 42.5L104.5 38.8M122 45.8L127.6 40L120.5 35.9M137.6 44L143.5 38.5L136.7 34M153.3 43.1L159.5 38L153 33.1M169 43.2L175.5 38.5L169.3 33.2M184.6 44.2L191.5 39.9L185.6 34.2M200.2 46.2L207.3 42.3L201.8 36.3M215.6 49.1L222.9 45.7L217.8 39.3M230.8 53L238.3 50L233.6 43.3M245.8 57.7L253.5 55.2L249.1 48.3M260.4 63.4L268.2 61.4L264.3 54.2M274.7 70L282.6 68.5L279.1 61.1M288.5 77.4L296.5 76.4L293.5 68.8"
         {...fine}
       />
       {/* bead line, rim edge and rim */}

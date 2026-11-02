@@ -438,7 +438,7 @@
   "rotor-diameter": {
     "alt": "Disque de frein vu de face : son diamètre mesuré d’un bord à l’autre, et l’adaptateur qui place l’étrier au bon diamètre.",
     "callouts": {
-      "1": "Diamètre, d’un bord à l’autre (140 à 220 mm)",
+      "1": "Diamètre, mesuré d’un bord à l’autre",
       "2": "Adaptateur : il place l’étrier pour ce diamètre"
     }
   },
@@ -473,10 +473,10 @@
     }
   },
   "chain-ruler-12-links": {
-    "alt": "Chaîne posée le long d’un réglet : le zéro au centre d’un axe, et le centre du 24e axe à 304,8 mm sur une chaîne neuve.",
+    "alt": "Chaîne posée le long d’un réglet : le zéro au centre d’un axe, et le centre du 24e axe après lui à 304,8 mm sur une chaîne neuve.",
     "callouts": {
       "1": "Zéro au centre d’un axe",
-      "2": "Centre du 24e axe : 304,8 mm sur une chaîne neuve"
+      "2": "Centre du 24e axe après celui du zéro : 304,8 mm sur une chaîne neuve"
     }
   },
   "saddle-setback-plumb-line": {
@@ -526,9 +526,8 @@
   "front-derailleur-height-limits": {
     "alt": "Dérailleur avant vu côté transmission : ses vis de butée L et H, et l’écart de 1 à 3 mm entre la chape extérieure et les dents du grand plateau.",
     "callouts": {
-      "1": "Vis L : butée intérieure, côté petit plateau",
-      "2": "Vis H : butée extérieure, côté grand plateau",
-      "3": "1 à 3 mm entre la chape et les dents du grand plateau"
+      "1": "Vis de butée L et H : leur place varie, lisez la lettre gravée à côté de chacune",
+      "2": "1 à 3 mm entre la chape et les dents du grand plateau"
     }
   }
 }

@@ -28,9 +28,9 @@ export function IllGripLockOnClamp(props: IllustrationProps) {
       {/* bar-end plug */}
       <rect x={268} y={109} width={10} height={38} rx={3} {...solid} />
 
-      <path d="M108 75 V119" {...leader} />
-      <circle data-callout="1" cx={108} cy={64} r={11} />
-      <text x={108} y={64} {...calloutText}>
+      <path d="M97.5 75 L104 120" {...leader} />
+      <circle data-callout="1" cx={96} cy={64} r={11} />
+      <text x={96} y={64} {...calloutText}>
         1
       </text>
       <path d="M196 75 V104" {...leader} />
