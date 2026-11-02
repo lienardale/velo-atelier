@@ -90,23 +90,20 @@ export const EXPECTED_SLUGS = [
 
 export type GuideSlug = (typeof EXPECTED_SLUGS)[number];
 
-/** ★ in §5.7: full FR + EN before launch. Check and measure guides are never stubs. */
-export const FULL_SLUGS = [
-  ...CHECK_SLUGS,
-  "replace-brake-pads-disc",
-  "replace-brake-pads-rim",
-  "replace-tube-tire",
-  "replace-chain",
-  "clean-chain",
-  "adjust-rear-derailleur",
-  "adjust-disc-caliper-alignment",
-  "adjust-suspension-sag",
-  ...MEASURE_SLUGS,
-] as const satisfies readonly GuideSlug[];
+/**
+ * ★ in §5.7: full FR + EN before launch. Check and measure guides are never
+ * stubs. Since the stub guides' promotion every guide of the MVP set is full,
+ * so this is the whole set: the stub rules (banner, `noindex`, out of the
+ * sitemap, never suggested as related) are proved on synthetic stubs instead
+ * (`tests/unit/seo/{sitemap,guide-metadata}.test.ts`,
+ * `components/guides/GuideLayout.test.tsx`), and the e2e cases that open a
+ * stub skip themselves.
+ */
+export const FULL_SLUGS = [...EXPECTED_SLUGS] as const satisfies readonly GuideSlug[];
 
 // The sizes §5.7 fixes. A wrong count is a type error on one of these lines.
 EXPECTED_SLUGS.length satisfies 47;
-FULL_SLUGS.length satisfies 26;
+FULL_SLUGS.length satisfies 47;
 
 /** The kind a slug belongs to — its first segment. */
 export function kindOfSlug(slug: GuideSlug): GuideKind {

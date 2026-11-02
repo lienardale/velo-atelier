@@ -3,7 +3,7 @@ slug: clean-frame
 kind: clean
 title: "Laver le cadre"
 summary: "Rincer, laver à l’eau savonneuse, sécher et en profiter pour repérer fissures, rayures profondes et vis desserrées. Un vélo propre montre mieux ses défauts."
-status: stub
+status: full
 order: 50
 difficulty: 1
 minutes: 30
@@ -14,9 +14,15 @@ tools:
     alternatives: [rags]
   - toolId: rags
     alternatives: []
+  - toolId: chain-lube
+    alternatives: []
 related:
   - check-frame-bolts
   - clean-drivetrain
+  - clean-ebike-dos-donts
+safety:
+  - "Gardez le produit lustrant, la cire et tout spray loin des disques, des plaquettes et des flancs de jante : un produit gras sur une surface de freinage fait perdre le freinage."
+  - "Un cadre fissuré ou cabossé, ou un cadre en carbone dont les fibres sont à nu, peut céder sans prévenir : ne roulez plus avec et faites-le examiner en atelier."
 steps:
   - id: rinse
     title: "Rincer la boue"
@@ -24,14 +30,45 @@ steps:
     title: "Laver à l’eau savonneuse"
   - id: dry-inspect
     title: "Sécher et inspecter"
+    illustration: frame-inspection-points
   - id: protect
     title: "Protéger et relubrifier"
 ---
 
+<Step id="rinse">
+
+Sur un vélo électrique, suivez d’abord le guide de nettoyage du vélo électrique : batterie retirée si elle s’enlève sans outil, aucun jet sur le moteur, l’écran ni les prises. Retirez ce qui craint l’eau ou gêne le lavage : sacoches, éclairages amovibles, compteur. Rincez ensuite le vélo de haut en bas, à l’éponge, à l’arrosoir ou au tuyau en jet doux, pour ramollir la boue avant de frotter : frottée sèche, elle raye la peinture comme du papier de verre.
+
+N’utilisez jamais de nettoyeur haute pression, et ne dirigez pas l’eau sur le jeu de direction, le boîtier de pédalier, les moyeux ni les pédales : même un jet modéré force l’eau dans leurs roulements et en chasse la graisse.
+
+</Step>
+
 <Step id="wash">
 
-Rincez d’abord la boue à l’eau douce, sans nettoyeur haute pression qui chasse la graisse des roulements. Lavez ensuite le cadre de haut en bas avec de l’eau tiède et un peu de liquide vaisselle, à l’éponge ou à la <Tool id="brush" alt="rags" />, en gardant une éponge à part pour la transmission.
+Préparez un seau d’eau tiède avec un peu de liquide vaisselle ou de shampoing pour vélo. Lavez le cadre de haut en bas, à l’éponge ou à la <Tool id="brush" alt="rags" />, tube par tube : tube supérieur, tube diagonal, tube de selle, puis les bases et les haubans. Insistez sous le tube diagonal et derrière le boîtier de pédalier, là où la roue avant projette la boue.
 
-Séchez avec des <Tool id="rags" /> et regardez de près les soudures, le dessous du tube diagonal et les pattes arrière : une fissure fine ou une peinture craquelée demandent un avis en atelier.
+Gardez une éponge à part pour la transmission : le cambouis qu’elle ramasse laisserait des traînées noires sur la peinture. Rincez à l’eau claire, en jet doux, avant que le savon ne sèche et ne laisse des traces.
+
+</Step>
+
+<Step id="dry-inspect">
+
+Séchez le cadre avec des <Tool id="rags" /> propres, puis regardez-le de près, sous une bonne lumière. Insistez sur les quatre zones du dessin : les raccords du tube de direction, le boîtier de pédalier et les bases, le raccord de selle et les pattes arrière.
+
+Cherchez une fissure fine, une peinture craquelée en ligne, une bosse, ou, sur un cadre en carbone, un éclat qui laisse voir les fibres. Une rayure superficielle, qui n’accroche pas l’ongle, n’est qu’esthétique. Repérez aussi une vis qui a bougé : voyez le guide des vis du cadre.
+
+<Warning level="danger">
+
+Un cadre fissuré ou cabossé, ou un cadre en carbone dont les fibres sont à nu, peut céder sans prévenir. Ne roulez plus avec et montrez-le à un atelier.
+
+</Warning>
+
+</Step>
+
+<Step id="protect">
+
+Une fois le cadre sec, vous pouvez le protéger avec un produit lustrant ou une cire pour vélo. Appliquez-les sur un chiffon, jamais directement sur le vélo, puis passez le chiffon sur les parties peintes, loin des disques, des plaquettes et des flancs de jante. Sur une peinture mate, prenez un produit prévu pour le mat. Sur un cadre en acier, retouchez vite un éclat qui laisse voir le métal, avant que la rouille ne s’installe.
+
+Le lavage a aussi rincé la chaîne : séchez-la en la faisant défiler dans un chiffon, puis posez une goutte de <Tool id="chain-lube" /> sur chaque rouleau en tournant les pédales en arrière, attendez cinq minutes et essuyez l’excédent. Serrez enfin chaque frein avant de rouler.
 
 </Step>

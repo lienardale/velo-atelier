@@ -4,8 +4,8 @@
 bilingue (français d'abord, anglais) pour entretenir soi-même son vélo : on
 l'identifie en quelques questions, on le retrouve en 3D pièce par pièce, on le
 contrôle, puis on repart avec la liste de ce qu'il faut réparer et des liens
-simples vers trois boutiques. 47 guides dans les deux langues, dont 26
-complets ; tout fonctionne sans compte. En ligne sur
+simples vers trois boutiques. 47 guides complets dans les deux
+langues ; tout fonctionne sans compte. En ligne sur
 [velo-atelier.vercel.app][site] depuis le 29 septembre 2026. La suite est en
 anglais, comme le reste de la documentation du dépôt.
 
@@ -25,9 +25,8 @@ runs at [velo-atelier.vercel.app][site], in production since 2026-09-29.
   cables…) reached through the part that carries them. Without WebGL it is a
   clickable SVG outline. The [demo bike][demo] needs no account.
 - **Guides.** 47, each in French and English: 13 check, 13 replace, 6 clean,
-  10 adjust, 5 measure. 26 are complete, every check and measure guide among
-  them; the other 21 give the main steps only, and say so. 14 more drawings,
-  and a catalogue of 34 tools, 20 of them with a stand-in.
+  10 adjust, 5 measure, every one of them complete. 37 more drawings, and a
+  catalogue of 41 tools, 20 of them with a stand-in.
 - **Checkup and to-fix list.** A checkup, on the whole bike or on selected
   parts, walks through the check guides step by step and can be resumed. Its
   result is one to-fix list per bike (replace, fix, clean, adjust, take to a
@@ -108,7 +107,7 @@ each. Eight of them are open issues, linked here.
 - No affiliate programme: the retailer links earn nothing ([#23][i23]).
 - One shared database for preview deployments ([#24][i24]), and no Docker
   `seed` profile ([#25][i25]).
-- 21 of the 47 guides are outlines, and jobs that need a workshop (hydraulic
+- Jobs that need a workshop (hydraulic
   bleeding, wheel truing, bearing replacement, motor and battery service)
   appear only as "take it to a shop".
 - The 3D model has no dedicated variant for hub or coaster brakes, folding

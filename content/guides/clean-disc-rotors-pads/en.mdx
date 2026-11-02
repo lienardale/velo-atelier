@@ -2,8 +2,8 @@
 slug: clean-disc-rotors-pads
 kind: clean
 title: "Clean disc rotors and pads"
-summary: "Degrease the rotors with isopropyl alcohol, remove and lightly sand contaminated pads, then bed them in. For brakes that squeal or lose bite."
-status: stub
+summary: "Degrease the rotors with isopropyl alcohol, remove and lightly sand glazed pads, then bed them in. For brakes that squeal or lose bite."
+status: full
 order: 30
 difficulty: 2
 minutes: 30
@@ -19,10 +19,12 @@ tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
   - toolId: isopropyl-alcohol
     alternatives: []
   - toolId: rags
+    alternatives: []
+  - toolId: sandpaper
     alternatives: []
 related:
   - check-brakes-disc
@@ -30,6 +32,8 @@ related:
   - adjust-disc-caliper-alignment
 safety:
   - "Pads soaked with oil or brake fluid cannot be saved: replace them. After any cleaning, bed the pads in again before riding fast."
+  - "Let nothing near the rotors and pads but isopropyl alcohol, clean hands and clean rags: a degreaser, chain lube or brake fluid is enough to make the brake lose its bite."
+  - "Before riding, check the wheel: the quick-release lever closed firmly enough to leave a mark on your palm, or the thru-axle tightened to the manufacturer's torque. A loose wheel can come out of the fork or frame under braking."
 steps:
   - id: clean-rotors
     title: "Degrease the rotors"
@@ -40,14 +44,47 @@ steps:
   - id: sand-pads
     title: "Lightly sand the pads"
     partIds: [brake-pads-front, brake-pads-rear]
+    illustration: pad-wear-disc
   - id: refit-bed-in
     title: "Refit and bed in"
 ---
 
 <Step id="clean-rotors">
 
-Dampen <Tool id="rags" /> with <Tool id="isopropyl-alcohol" /> and wipe both faces of the rotor while turning the wheel, until the rag comes away clean. Do not touch the braking surface with your fingers again, and never use chain degreaser or polish.
+Wash your hands with soap before you start: the grease on your fingers is enough to make a brake squeal. Take <Tool id="rags" />, kept for the brakes only, and dampen one with <Tool id="isopropyl-alcohol" />.
 
-If the brake still squeals, remove the pads with the <Tool id="allen-keys" alt="multi-tool" />, sand their surface on fine sandpaper laid flat, clean them with alcohol, refit them and bed them in.
+Wipe both faces of the rotor while turning the wheel slowly, until the rag comes away clean, then let it dry for a minute. Do not touch the braking surface with your fingers again.
+
+Never bring a degreaser, chain lube, spray cleaner or polish near the rotor: even a little overspray is enough to contaminate it, and the pads with it. If you are washing the bike as well, do it first, with the rotors covered.
+
+</Step>
+
+<Step id="remove-pads">
+
+Take the wheel out: open the quick release and unscrew it a few turns, or unscrew the thru-axle, then guide the rotor out of the caliper. From now on, do not squeeze the lever.
+
+The pads are held by a pin or a bolt, often secured by a small clip. Pull the clip out with the <Tool id="pliers" />, pull the pin or unscrew the bolt with the <Tool id="allen-keys" alt="multi-tool" />, then take out the pads and their spring, noting which way round it sat. Slip the brake's spacer, or a folded card, between the pistons straight away. Hold the pads by their metal backing plate, never by the lining, and wipe the inside of the caliper with a rag dampened with alcohol.
+
+</Step>
+
+<Step id="sand-pads">
+
+Look at the lining first. If it has dark, greasy-looking stains, or if the caliper or the hose has leaked, the oil has soaked right through it and sanding will not help: replace both pads, and have the leak repaired first. Replace them too if less than 1 mm of lining is left.
+
+A lining that is only glazed, evenly smooth and shiny, or barely dirty, can be revived. Lay the <Tool id="sandpaper" /> flat on a hard surface and rub each pad in figures of eight, without pressing, until it is matt and grey all over. Do it outdoors, without breathing the dust, then wipe the pads with alcohol.
+
+</Step>
+
+<Step id="refit-bed-in">
+
+Take the spacer out, then refit the pads and their spring as before. Refit the pin or bolt, without forcing it, and its clip: check that the clip holds it. Refit the wheel, rotor between the pads, close the quick release or tighten the thru-axle, and pump the lever until it turns firm again. Spin the wheel: a clear rub means the caliper needs recentring. Push the bike while squeezing: the wheel must lock.
+
+Then bed them in on a quiet road: build up speed and brake firmly, without locking the wheel, down to walking pace, about twenty times.
+
+<Warning level="caution">
+
+Until the pads are bedded in, braking stays weak. If the brake still squeals or slips afterwards, replace the pads.
+
+</Warning>
 
 </Step>

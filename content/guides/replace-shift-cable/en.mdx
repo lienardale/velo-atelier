@@ -2,8 +2,8 @@
 slug: replace-shift-cable
 kind: replace
 title: Replace a gear cable
-summary: Pull the old cable out of the shifter, replace damaged housing, thread the new cable, clamp it at the derailleur and adjust the shifting. This guide is still being written.
-status: stub
+summary: Pull the old cable out of the shifter, replace damaged housing, thread the new cable, clamp it at the derailleur and adjust the shifting. For derailleurs and cable-operated internal gear hubs.
+status: full
 order: 80
 difficulty: 2
 minutes: 40
@@ -23,11 +23,18 @@ tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
+  - toolId: work-stand
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - check-cables-hoses
   - adjust-rear-derailleur
   - adjust-front-derailleur
+  - check-hub-gear
+safety:
+  - Keep your fingers away from the chain, sprockets and jockey wheels when you turn the pedals to test the gears. The chain pulls them in without warning.
 steps:
   - id: remove-old
     title: Pull out the old cable
@@ -41,15 +48,49 @@ steps:
   - id: clamp-cable
     title: Clamp the cable at the derailleur
     partIds: [shift-cables]
+    illustration: cable-pinch-bolt-end-cap
   - id: index-gears
     title: Adjust the shifting
     partIds: [shift-cables]
+    illustration: barrel-adjuster
 ---
 
 <Step id="remove-old">
 
-Without pedalling, click the shifter all the way to the smallest cog at the back, or to the small chainring at the front: the cable is now slack and its head sits opposite the exit. Undo the bolt that clamps the cable at the derailleur and cut off the end cap with the <Tool id="cable-cutter" />.
+Without pedalling, shift to the smallest sprocket at the back, or the small chainring at the front: the cable is now slack. On an internal gear hub, select the gear its manual gives for this. Undo the cable clamp bolt at the derailleur with the <Tool id="allen-keys" alt="multi-tool" />, or unhook it from the hub, and cut off the end cap with the <Tool id="cable-cutter" />.
 
-Find where the cable leaves the shifter: under a screwed cover, under the hood of a road lever or at the end of a trigger shifter. Push the cable from the derailleur towards the shifter, and pull it out by its head. Note how the housing is routed before removing it.
+Note the housing routing; on drop bars, unwrap the bar tape covering it. The cable leaves the shifter under a screwed cover, under a road lever's hood or at the end of a trigger shifter. Push it through and pull it out by its head; with internal routing, free it from the shifter only and leave the rest in the frame.
+
+</Step>
+
+<Step id="cut-housing">
+
+Gear housing, called compressionless, is made of straight steel strands, often 4 mm across: it does not squash under load, so shifting stays precise. Replace damaged pieces, ideally all of them along with the cable.
+
+Cut each piece to the length of the old one with the cable cutter, in one clean, square cut; file the end flat if it is not, then open the plastic liner inside with a fine point. Fit a ferrule on each end. The loop into the rear derailleur should stay smooth, neither tight nor too long. With internal routing, slide the old housing out along the old cable, then slide the new housing onto that same cable, which guides it, before removing the cable.
+
+</Step>
+
+<Step id="thread-cable">
+
+Check that the shifter is still in the position that slackens the cable. A gear cable is thin, about 1.1 to 1.2 mm, with a small barrel-shaped head: a brake cable will not fit in a shifter.
+
+Feed it into the shifter's port and push it in while twisting it between your fingers: it should run through without catching and come out the other side of the mechanism. If it stops, pull back a little and change the angle, without forcing, so the strands do not fray. Then thread each piece of housing and each frame stop in the order you noted, up to the derailleur or the hub's unit. Do not cut anything yet.
+
+</Step>
+
+<Step id="clamp-cable">
+
+On an internal gear hub, the cable is not clamped on a derailleur: it hooks into the small unit on the side of the hub, at the length and in the way its manual gives.
+
+On a derailleur, screw the barrel adjusters on the rear derailleur or the housing, and on the shifter, all the way in, then back them out one turn. Pull the cable with the <Tool id="pliers" />, gently, and lay it in the groove under the bolt, on the side the derailleur's mark shows. Tighten to the maker's torque, often 5 to 7 N·m, with the <Tool id="torque-wrench" />. Cut the cable 2 to 3 cm past the bolt and crimp on an end cap.
+
+</Step>
+
+<Step id="index-gears">
+
+Put the bike in the <Tool id="work-stand" /> and run through every gear several times while turning the pedals: the housing settles into its stops and the cable slackens a little. Go back to the starting position and take up that slack with the barrel adjuster.
+
+Then fine-tune it a quarter turn at a time: unscrewing the adjuster adds tension, screwing it back in releases it. At the back, the chain should move one sprocket per click, silently; the rear and front derailleur guides explain the method. On a hub, line up the marks on its unit in the reference gear. A new cable still stretches in the first few days: unscrew the barrel adjuster another quarter turn then.
 
 </Step>

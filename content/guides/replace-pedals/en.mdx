@@ -2,8 +2,8 @@
 slug: replace-pedals
 kind: replace
 title: Replace the pedals
-summary: Tell the left pedal from the right, unscrew them the right way, grease the threads and tighten the new ones. This guide is still being written.
-status: stub
+summary: Tell the left pedal from the right, unscrew them the right way, grease the threads and tighten the new ones. Allow a quarter of an hour.
+status: full
 order: 120
 difficulty: 1
 minutes: 15
@@ -16,9 +16,17 @@ tools:
     alternatives: [allen-keys, adjustable-wrench]
   - toolId: rags
     alternatives: []
+  - toolId: grease
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - check-pedals
   - adjust-cleats
+safety:
+  - "On the chain side, shift onto the big chainring before you push: if the pedal suddenly gives way, your hand lands on the chain, not on the teeth."
+  - "The left pedal has a reverse thread: forced the wrong way, or screwed in crooked, it strips the thread of the crank arm."
+  - "Check the pedals are still tight after your first ride: a pedal that works loose eats into the crank arm within a few kilometres."
 steps:
   - id: identify-sides
     title: Tell left from right
@@ -26,6 +34,7 @@ steps:
   - id: remove-pedals
     title: Unscrew the old pedals
     partIds: [pedal-left, pedal-right, crankset]
+    illustration: pedal-thread-direction
   - id: grease-threads
     title: Clean and grease the threads
     partIds: [crankset]
@@ -34,10 +43,34 @@ steps:
     partIds: [pedal-left, pedal-right]
 ---
 
+<Step id="identify-sides">
+
+Each pedal has its own side. The right one screws into the crank arm on the chain side, with a standard thread; the left one into the other crank arm, with a reverse thread. So they are not interchangeable, even when they look alike.
+
+Look for the letter stamped on the axle or on its flats, R for the right and L for the left, on the old pedals as on the new ones; with no mark, the instructions will say. A pedal offered to the wrong side does not catch the thread. Check the size of the new ones too: 9/16″ on almost every adult bike, 1/2″ on one-piece cranks and many children's bikes.
+
+</Step>
+
 <Step id="remove-pedals">
 
-The right pedal, on the chain side, unscrews anticlockwise, like an ordinary bolt. The left one has a reverse thread and unscrews clockwise. Remember one simple rule: to undo either pedal, always turn the top of the wrench towards the back of the bike.
+The rule holds on both sides, despite the opposite threads: to loosen, the top of the wrench moves towards the back of the bike; to tighten, towards the front. Seen from outside the bike, the right pedal therefore unscrews anticlockwise and the left one clockwise.
 
-Set the crank arm forward, fit the <Tool id="pedal-wrench" alt="allen-keys" /> on the flats of the axle, or an Allen key from behind the crank arm, and push sharply. A seized pedal comes free more easily with a long wrench, while holding the other crank arm.
+Set the crank arm forward. Fit the <Tool id="pedal-wrench" alt="allen-keys" /> on the 15 mm flats of the axle, or the 6 or 8 mm Allen key into the axle from the inside face of the crank arm. Hold the other crank arm and give a sharp push. To use your weight, point the handle towards the back and push down: it is the same direction of rotation.
+
+</Step>
+
+<Step id="grease-threads">
+
+Wipe the thread of each crank arm with <Tool id="rags" /> and look at it: it must be clean, with no stripped thread and no aluminium shavings. A damaged thread will not hold a pedal any more; a shop can sometimes recut it with a tap or fit an insert. Wipe the axles of the new pedals too.
+
+Coat the threads of each pedal with a thin layer of <Tool id="grease" />, or anti-seize paste. It stops the steel axle seizing in the aluminium crank arm, and makes the next removal easier. If a washer comes with the pedals or the crankset, fit it as the instructions say.
+
+</Step>
+
+<Step id="fit-pedals">
+
+Start each pedal straight in its crank arm and screw it in by hand for several turns, the top of the axle moving towards the front of the bike: it must go in without effort. If it resists from the very first turn, take it out again: it is crooked, or on the wrong side.
+
+Then tighten to the maker's torque, often around 35 to 40 N·m, with the <Tool id="torque-wrench" /> and a 6 or 8 mm bit if the axle takes one. Without a torque wrench, 35 N·m is a push of about 12 kg on the end of a 30 cm wrench. Spin the pedals: they must turn freely, without rubbing on the crank arm.
 
 </Step>

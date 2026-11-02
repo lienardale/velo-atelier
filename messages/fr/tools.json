@@ -112,5 +112,14 @@
   },
   "scissors": {
     "label": "Ciseaux"
+  },
+  "threadlocker": {
+    "label": "Frein-filet"
+  },
+  "electrical-tape": {
+    "label": "Ruban isolant"
+  },
+  "utility-knife": {
+    "label": "Cutter"
   }
 }

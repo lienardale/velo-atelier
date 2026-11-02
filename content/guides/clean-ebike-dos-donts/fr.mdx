@@ -3,7 +3,7 @@ slug: clean-ebike-dos-donts
 kind: clean
 title: "Nettoyer un vélo électrique : à faire et à éviter"
 summary: "Retirer la batterie, laver sans jet puissant, nettoyer les contacts à sec et tout sécher avant de remettre la batterie. Ce qui protège le moteur et l’électronique."
-status: stub
+status: full
 order: 60
 difficulty: 1
 minutes: 20
@@ -21,8 +21,9 @@ tools:
 related:
   - check-e-system
   - clean-frame
+  - clean-drivetrain
 safety:
-  - "Éteignez le système et retirez la batterie avant de laver le vélo. N’immergez jamais la batterie ni le moteur, et n’utilisez jamais de nettoyeur haute pression."
+  - "Éteignez le système et, si elle s’enlève sans outil, retirez la batterie avant de laver le vélo. N’immergez jamais la batterie ni le moteur, et n’utilisez jamais de nettoyeur haute pression."
   - "Une batterie tombée, fissurée, gonflée ou qui chauffe ne doit plus être chargée ni utilisée : rangez-la à l’écart de tout ce qui brûle et faites-la contrôler."
 steps:
   - id: remove-battery
@@ -32,7 +33,7 @@ steps:
     title: "Laver sans jet puissant"
     partIds: [e-motor]
   - id: clean-contacts
-    title: "Nettoyer les contacts"
+    title: "Nettoyer les contacts à sec"
     partIds: [e-battery]
     illustration: ebike-battery-connector
   - id: dry-refit
@@ -40,10 +41,34 @@ steps:
     partIds: [e-battery]
 ---
 
+<Step id="remove-battery">
+
+Éteignez le système avec le bouton de l’écran ou de la batterie. Si l’écran se retire, enlevez-le aussi et rangez-le au sec. Déverrouillez la batterie avec sa clé et sortez-la de son logement en la tenant à deux mains : elle pèse plusieurs kilos et ne doit pas tomber.
+
+Posez-la au sec, à température ambiante, loin du seau et du tuyau. Refermez le cache de la prise de charge. Le logement vide a maintenant ses contacts à nu : aucune eau ne doit y entrer. Si la batterie ne se retire pas sans outil, laissez-la en place, système éteint, et lavez autour encore plus doucement.
+
+</Step>
+
 <Step id="wash-gently">
 
-Batterie retirée et système éteint, lavez le vélo à l’éponge avec de l’eau tiède savonneuse, ou avec un arrosage doux. Ne dirigez jamais d’eau sur le moteur, l’écran, les prises ou le logement de la batterie, et bannissez le nettoyeur haute pression, qui force l’eau dans les joints.
+Lavez le vélo de haut en bas à l’éponge, avec de l’eau tiède savonneuse, ou avec un arrosage doux. Ne dirigez jamais d’eau sur le moteur, l’écran, les commandes, les prises ou le logement de la batterie, et n’immergez aucune pièce. Le nettoyeur haute pression est banni : il force l’eau dans les joints et les connecteurs.
 
-Nettoyez les contacts de la batterie à sec, avec un pinceau ou la <Tool id="brush" alt="rags" />, puis séchez tout le vélo avec des <Tool id="rags" /> avant de remettre la batterie.
+Sur le carter du moteur, l’écran et les commandes, passez seulement une éponge humide bien essorée, puis un chiffon sec. Nettoyez la chaîne et la transmission comme sur un vélo classique, en gardant le dégraissant loin du moteur et de ses câbles.
+
+</Step>
+
+<Step id="clean-contacts">
+
+Regardez les contacts de la batterie et ceux du logement, sur le cadre ou le porte-bagages. Chassez la poussière et le sable à sec, avec un pinceau ou la <Tool id="brush" alt="rags" />, puis un chiffon sec. Jamais de chiffon mouillé ni d’outil métallique : un contact rayé ou humide conduit mal, et un objet en métal posé entre deux bornes provoque un court-circuit.
+
+Cherchez des dépôts verts ou blancs, des traces noircies ou une broche tordue. Au moindre de ces signes, ne remettez pas la batterie et faites contrôler le vélo chez le vendeur. Vérifiez aussi que la clé tourne et que le verrou s’ouvre sans forcer.
+
+</Step>
+
+<Step id="dry-refit">
+
+Séchez tout le vélo avec des <Tool id="rags" /> propres, en insistant autour du logement de la batterie, des prises et de l’écran, puis laissez-le sécher à l’air jusqu’à ce qu’il ne reste plus trace d’humidité. Une goutte d’eau entre deux contacts suffit à provoquer une panne.
+
+Logement bien sec, remettez la batterie jusqu’au déclic, verrouillez-la et retirez la clé. Tirez dessus : elle ne doit pas bouger. Remettez l’écran, allumez le système et vérifiez que la charge s’affiche sans message d’erreur. Serrez chaque frein, puis faites quelques mètres : l’assistance doit se déclencher dès les premiers coups de pédale.
 
 </Step>

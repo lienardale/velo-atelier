@@ -2,8 +2,8 @@
 slug: adjust-front-derailleur
 kind: adjust
 title: "Régler le dérailleur avant"
-summary: "Placer la fourchette à la bonne hauteur et dans l’axe, régler les butées, retendre le câble et vérifier les passages. Pour une chaîne qui ne déraille plus entre les plateaux."
-status: stub
+summary: "Placer la chape à la bonne hauteur et dans l’axe, régler les butées, retendre le câble et vérifier les passages. Pour une chaîne qui ne déraille plus entre les plateaux."
+status: full
 order: 30
 difficulty: 2
 minutes: 30
@@ -17,16 +17,24 @@ appliesTo:
     - path: drivetrain.shifter
       notIn: [electronic]
 tools:
+  - toolId: work-stand
+    alternatives: []
   - toolId: phillips-screwdriver
     alternatives: [multi-tool]
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - adjust-rear-derailleur
   - check-drivetrain
   - replace-shift-cable
+safety:
+  - "Gardez les doigts loin des plateaux et de la chaîne quand vous tournez les pédales : les dents coupent et la chaîne entraîne les doigts sans prévenir."
+  - "Une chaîne qui tombe à l’intérieur du petit plateau peut se coincer contre le cadre et vous déséquilibrer en pédalant : vérifiez toujours les butées avant de rouler."
+  - "Sur un cadre en carbone, serrez le collier ou la vis du dérailleur à la clé dynamométrique, au couple indiqué par le fabricant : trop serré, il peut écraser ou fissurer le tube."
 steps:
   - id: height-angle
     title: "Régler la hauteur et l’angle"
@@ -34,7 +42,7 @@ steps:
   - id: limit-screws
     title: "Régler les butées"
     partIds: [front-derailleur]
-    illustration: derailleur-limit-screws-h-l-b
+    illustration: front-derailleur-height-limits
   - id: cable-tension
     title: "Retendre le câble"
     partIds: [shifter-left]
@@ -42,10 +50,34 @@ steps:
     title: "Tester les passages"
 ---
 
+<Step id="height-angle">
+
+Installez le vélo sur le <Tool id="work-stand" /> et passez sur le grand plateau, ou poussez la chape au-dessus de lui à la main. De côté, le bas de la plaque extérieure doit passer 1 à 3 mm au-dessus des dents du grand plateau. D’en haut, cette plaque doit être parallèle au plateau, ou suivre le repère du fabricant quand il y en a un.
+
+Pour corriger, desserrez avec les <Tool id="allen-keys" alt="multi-tool" /> la vis du collier autour du tube de selle, ou celle qui fixe le dérailleur sur la patte soudée au cadre. Déplacez-le, puis resserrez avec la <Tool id="torque-wrench" />, au couple indiqué par le fabricant, souvent 5 à 7 N·m. Sur un montage direct, la hauteur est imposée.
+
+</Step>
+
 <Step id="limit-screws">
 
-Mettez la chaîne sur le petit plateau et le plus grand pignon. Avec le <Tool id="phillips-screwdriver" alt="multi-tool" />, réglez la vis L pour laisser un millimètre entre la chaîne et la plaque intérieure de la fourchette. Passez ensuite sur le grand plateau et le plus petit pignon, et réglez la vis H pour laisser le même écart côté extérieur.
+Repérez les lettres L et H gravées près des vis, car leur position varie : L arrête la chape côté petit plateau, H côté grand plateau, et visser une butée limite la course. Desserrez la vis du câble avec les <Tool id="allen-keys" alt="multi-tool" />, puis, chaîne sur le petit plateau et le plus grand pignon, réglez la vis L avec le <Tool id="phillips-screwdriver" alt="multi-tool" /> : la plaque intérieure doit frôler la chaîne, à 0,5 mm environ.
 
-Vérifiez avant tout que la fourchette passe à un ou deux millimètres au-dessus des dents du grand plateau et reste parallèle à lui. Retendez ensuite le câble.
+Sur le plus petit pignon, tournez lentement la manivelle d’une main et poussez de l’autre le corps du dérailleur, pas la chape, jusqu’à ce que la chaîne monte sur le grand plateau ; sinon, dévissez H. Tenez-le en butée et réglez H : 0,5 à 1 mm entre la chaîne et la plaque extérieure.
+
+</Step>
+
+<Step id="cable-tension">
+
+Revenez sur le petit plateau. Vissez à fond le tendeur de la manette, ou celui de la gaine sur un cintre route, puis dévissez-le d’un tour (certains dérailleurs route récents ont leur propre vis de tension : suivez leur notice). Tirez le câble avec la <Tool id="pliers" /> et serrez-le dans sa rainure avec la <Tool id="torque-wrench" />, au couple indiqué par le fabricant, souvent 5 à 7 N·m.
+
+Passez sur le grand plateau. Si la chaîne hésite à monter, dévissez le tendeur d’un quart de tour pour tendre le câble ; si elle redescend mal, revissez-le. Sur un triple plateau, réglez la tension pour que la plaque intérieure frôle la chaîne sans la toucher sur le plateau du milieu et le plus grand pignon.
+
+</Step>
+
+<Step id="test">
+
+Tournez les pédales et passez toutes les combinaisons : chaque plateau avec chaque pignon, dans les deux sens. Les passages doivent être nets, et la chaîne ne doit tomber ni à l’intérieur du petit plateau ni par-dessus le grand. Un léger frottement peut rester sur les combinaisons croisées ; si votre manette a un demi-clic de réglage fin, il sert à l’effacer.
+
+Si la chaîne tombe vers le cadre, vissez la vis L d’un quart de tour ; si elle passe par-dessus le grand plateau, vissez la vis H. Faites ensuite un court essai au calme, en relâchant l’effort sur les pédales à chaque changement de plateau : un passage qui reste lent demande un peu plus de tension.
 
 </Step>

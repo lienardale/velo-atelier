@@ -2,8 +2,8 @@
 slug: replace-shift-cable
 kind: replace
 title: Remplacer un câble de vitesses
-summary: Sortir l’ancien câble de la manette, remplacer les gaines abîmées, passer le câble neuf, le pincer sur le dérailleur et régler les passages. Ce guide est en cours de rédaction.
-status: stub
+summary: Sortir l’ancien câble de la manette, remplacer les gaines abîmées, passer le câble neuf, le pincer sur le dérailleur et régler les passages. Pour les dérailleurs et les moyeux à vitesses intégrées à câble.
+status: full
 order: 80
 difficulty: 2
 minutes: 40
@@ -23,11 +23,18 @@ tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
   - toolId: pliers
-    alternatives: [adjustable-wrench]
+    alternatives: []
+  - toolId: work-stand
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - check-cables-hoses
   - adjust-rear-derailleur
   - adjust-front-derailleur
+  - check-hub-gear
+safety:
+  - "Gardez les doigts loin de la chaîne, des pignons et des galets quand vous tournez les pédales pour essayer les vitesses : la chaîne les entraîne sans prévenir."
 steps:
   - id: remove-old
     title: Sortir l’ancien câble
@@ -41,15 +48,49 @@ steps:
   - id: clamp-cable
     title: Pincer le câble sur le dérailleur
     partIds: [shift-cables]
+    illustration: cable-pinch-bolt-end-cap
   - id: index-gears
     title: Régler les passages
     partIds: [shift-cables]
+    illustration: barrel-adjuster
 ---
 
 <Step id="remove-old">
 
-Sans pédaler, cliquez la manette jusqu’au plus petit pignon à l’arrière, ou jusqu’au petit plateau à l’avant : le câble est alors détendu et sa tête est en face de la sortie. Desserrez la vis qui pince le câble sur le dérailleur et coupez l’embout avec le <Tool id="cable-cutter" />.
+Sans pédaler, actionnez la manette jusqu’au plus petit pignon à l’arrière, ou au petit plateau à l’avant : le câble est alors détendu. Sur un moyeu à vitesses, passez le rapport que sa notice donne pour cela. Desserrez la vis du câble sur le dérailleur avec les <Tool id="allen-keys" alt="multi-tool" />, ou décrochez-le du moyeu, et coupez l’embout avec le <Tool id="cable-cutter" />.
 
-Repérez la sortie du câble sur la manette : sous un cache vissé, sous la cocotte d’un levier route ou au bout d’une manette à gâchette. Poussez le câble depuis le dérailleur vers la manette, et tirez-le par sa tête. Notez le trajet des gaines avant de les retirer.
+Notez le trajet des gaines ; sur un cintre route, déroulez la guidoline qui les couvre. Le câble sort de la manette sous un cache vissé, sous la cocotte d’un levier route ou au bout d’une manette à gâchette. Poussez-le et tirez-le par sa tête ; avec un passage interne, ne le sortez que de la manette et laissez le reste dans le cadre.
+
+</Step>
+
+<Step id="cut-housing">
+
+Une gaine de vitesses, dite incompressible, est faite de brins d’acier droits, souvent de 4 mm de diamètre : elle ne se tasse pas, et les passages restent précis. Changez les gaines abîmées, idéalement toutes avec le câble.
+
+Coupez chaque gaine à la longueur de l’ancienne avec le coupe-câble, d’un coup franc et d’équerre ; limez le bout s’il n’est pas plat, puis rouvrez le tube plastique intérieur avec une pointe fine. Coiffez chaque bout d’un embout de gaine. La boucle du dérailleur arrière doit rester douce, ni tendue ni trop longue. Avec un passage interne, sortez l’ancienne gaine en la glissant le long de l’ancien câble, puis enfilez la neuve sur ce câble, qui la guide, avant de le retirer.
+
+</Step>
+
+<Step id="thread-cable">
+
+Vérifiez que la manette est toujours sur la position qui détend le câble. Un câble de vitesses est fin, 1,1 à 1,2 mm environ, avec une petite tête cylindrique : un câble de frein n’entre pas dans une manette.
+
+Glissez-le dans la sortie de la manette et poussez-le en le faisant tourner entre vos doigts : il doit avancer sans accrocher et ressortir par l’autre côté du mécanisme. S’il bute, reculez un peu et changez d’angle, sans forcer, pour ne pas effilocher les brins. Enfilez ensuite chaque gaine et chaque butée du cadre dans l’ordre noté, jusqu’au dérailleur ou au boîtier du moyeu. Ne coupez rien encore.
+
+</Step>
+
+<Step id="clamp-cable">
+
+Sur un moyeu à vitesses, le câble ne se pince pas sur un dérailleur : il s’accroche au petit boîtier fixé sur le côté du moyeu, à la longueur et de la manière que donne sa notice.
+
+Sur un dérailleur, vissez à fond le tendeur du dérailleur arrière ou de la gaine, et celui de la manette, puis dévissez-les d’un tour. Tirez le câble avec la <Tool id="pliers" />, sans forcer, et posez-le dans la rainure sous la vis, du côté que montre le repère du dérailleur. Serrez au couple indiqué par le fabricant, souvent 5 à 7 N·m, avec la <Tool id="torque-wrench" />. Coupez le câble 2 à 3 cm après la vis et sertissez un embout.
+
+</Step>
+
+<Step id="index-gears">
+
+Installez le vélo sur le <Tool id="work-stand" /> et passez toutes les vitesses plusieurs fois en tournant les pédales : les gaines se calent dans leurs butées et le câble se détend un peu. Revenez à la position de départ et rattrapez ce mou au tendeur.
+
+Affinez ensuite, un quart de tour à la fois : dévisser le tendeur tend le câble, le revisser le détend. À l’arrière, la chaîne doit changer d’un pignon à chaque clic, sans bruit ; les guides de réglage des dérailleurs arrière et avant détaillent la méthode. Sur un moyeu, alignez les repères du boîtier dans le rapport de référence. Un câble neuf se détend encore les premiers jours : dévissez alors le tendeur d’un quart de tour.
 
 </Step>

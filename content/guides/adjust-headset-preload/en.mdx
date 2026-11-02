@@ -2,8 +2,8 @@
 slug: adjust-headset-preload
 kind: adjust
 title: "Adjust headset preload"
-summary: "Remove play from a threadless headset by setting the preload with the top cap, without making it stiff. For a fork that knocks when you brake."
-status: stub
+summary: "Adjust a threadless headset with the top cap, to remove the play without making the steering stiff, then tighten the stem to torque. For a fork that knocks when you brake."
+status: full
 order: 80
 difficulty: 2
 minutes: 20
@@ -19,7 +19,8 @@ related:
   - check-headset
   - measure-reach-and-drop
 safety:
-  - "After adjusting, tighten the stem bolts to the specified torque and check that the bar does not turn when you hold the front wheel between your knees."
+  - "After adjusting, tighten the stem bolts to the specified torque and check that the bar does not turn when you hold the front wheel between your knees: the top cap bolt does not hold the stem."
+  - "On a carbon fork steerer, never exceed the torque given by the fork or stem maker: a crushed steerer can break while you ride."
 steps:
   - id: detect-play
     title: "Detect the play"
@@ -36,10 +37,42 @@ steps:
     partIds: [stem]
 ---
 
+<Step id="detect-play">
+
+Squeeze the front brake hard and rock the bike back and forth. Rest your other hand across the upper headset cup and the top of the head tube: a small, sharp knock under your fingers is play. Do not confuse it with the give of a suspension fork or the movement of the pads or brake blocks.
+
+Lift the front end and turn the handlebar from one stop to the other: it should turn freely, with no tight spot. Steering that turns in notches has worn bearings: adjusting will not cure it, see a workshop. Finally, look at the stem. Two side bolts and a cap on top mean a threadless headset; a large nut under a quill stem means a threaded one.
+
+</Step>
+
+<Step id="loosen-stem">
+
+On a threadless headset, the stem clamps the fork steerer and the top cap sets the play. Loosen the two bolts that clamp the stem to the steerer, not the handlebar bolts, by about one turn with the <Tool id="allen-keys" alt="multi-tool" />, alternating between them, until the stem turns by hand around the steerer. Do not touch the top cap bolt yet.
+
+On a threaded headset, leave the stem tight: it is the locknut, above the head tube, that you loosen, anticlockwise seen from above, while holding the adjustable cup below it. You need two large headset spanners, often 32 or 36 mm. Without them, leave this adjustment to a workshop.
+
+</Step>
+
 <Step id="set-preload">
 
-Loosen the stem clamp bolts on the steerer with the <Tool id="allen-keys" alt="multi-tool" />. Then tighten the top cap bolt a quarter turn at a time, holding the front brake on and rocking the bike back and forth, until the knocking disappears.
+Turn the top cap bolt clockwise with the <Tool id="allen-keys" alt="multi-tool" />, an eighth of a turn at a time, checking for play between turns. Stop once the knock goes: this is a preload, not a clamp.
 
-Lift the front end: the bar should turn freely, with no tight spot. Line the stem up with the wheel, then tighten its bolts in turn to the printed torque with the <Tool id="torque-wrench" />.
+Lift the front end: the bar should still turn freely, otherwise back it off an eighth of a turn. If the play persists, remove the cap, wheel on the ground, and look at the steerer top: if it is flush with or above the top of the stem, the cap is bottoming out and a thin spacer is missing above the stem; otherwise, see a workshop.
+
+On a threaded headset, screw the adjustable cup down by hand until the play goes, then lock the locknut against it, holding the cup still.
+
+</Step>
+
+<Step id="align-tighten">
+
+On a threadless headset, stand over the front wheel, hold it between your knees and line the stem up with the tyre. Then tighten its bolts in turn with the <Tool id="torque-wrench" />, to the torque printed on the stem or given by the maker, often 4 to 6 N·m. Do not touch the top cap again.
+
+Finally, check: no knock with the front brake on, free steering, and a bar that will not turn with the wheel held. On a threaded headset, if locking the locknut has stiffened the steering or left play, go back to the previous step.
+
+<Warning level="danger">
+
+Never ride with the stem bolts loose: the top cap does not hold the stem, and the bar would turn as soon as you lean on it.
+
+</Warning>
 
 </Step>

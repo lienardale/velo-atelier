@@ -51,6 +51,9 @@ export const TOOL_IDS = [
   "sandpaper",
   "cone-wrenches",
   "scissors",
+  "threadlocker",
+  "electrical-tape",
+  "utility-knife",
 ] as const;
 
 export type ToolId = (typeof TOOL_IDS)[number];
@@ -95,6 +98,9 @@ const ALTERNATIVES: Record<ToolId, readonly ToolId[]> = {
   sandpaper: [],
   "cone-wrenches": [],
   scissors: [],
+  threadlocker: [],
+  "electrical-tape": [],
+  "utility-knife": [],
 };
 
 export const TOOLS: readonly (ToolDef & { id: ToolId })[] = TOOL_IDS.map((id) => ({

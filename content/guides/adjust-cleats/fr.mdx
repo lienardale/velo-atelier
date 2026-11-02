@@ -3,7 +3,7 @@ slug: adjust-cleats
 kind: adjust
 title: "Régler les cales de pédales automatiques"
 summary: "Placer la cale sous la base du gros orteil, régler son angle sur la position naturelle du pied et ajuster la tension de déclenchement de la pédale."
-status: stub
+status: full
 order: 100
 difficulty: 2
 minutes: 30
@@ -18,10 +18,14 @@ tools:
     alternatives: [multi-tool]
   - toolId: steel-ruler
     alternatives: [tape-measure]
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - measure-saddle-setback
   - check-pedals
   - replace-pedals
+safety:
+  - "Entraînez-vous à déchausser à l’arrêt avant de rouler dans la circulation : une tension trop forte ou une cale mal serrée peut vous empêcher de poser le pied à temps."
 steps:
   - id: mark-foot
     title: "Repérer la base du gros orteil"
@@ -35,10 +39,36 @@ steps:
     partIds: [pedal-left, pedal-right]
 ---
 
+<Step id="mark-foot">
+
+La cale se règle d’après votre pied, pas d’après la chaussure. Chaussez-vous et, debout, cherchez du doigt à travers la chaussure la bosse à la base du gros orteil : c’est l’appui principal du pied sur la pédale. Marquez-la sur le côté intérieur de la chaussure avec un morceau de ruban adhésif. Ce seul repère place la cale, même si l’on marque parfois aussi la base du petit orteil.
+
+Retournez la chaussure et prolongez ce repère sous la semelle jusqu’à la zone de la cale, par un trait perpendiculaire à la longueur de la chaussure, tracé au <Tool id="steel-ruler" alt="tape-measure" />. Répétez l’opération sur l’autre chaussure : deux pieds ne sont pas toujours identiques, et les repères peuvent différer de quelques millimètres.
+
+</Step>
+
 <Step id="fore-aft">
 
-Repérez la bosse à la base du gros orteil et reportez sa position sur le côté de la chaussure. Desserrez les vis de cale avec les <Tool id="allen-keys" alt="multi-tool" /> et faites glisser la cale pour que son centre se trouve sous ce repère, ou quelques millimètres derrière, mesuré au <Tool id="steel-ruler" alt="tape-measure" />.
+Desserrez les vis de la cale avec les <Tool id="allen-keys" alt="multi-tool" />, juste assez pour la faire glisser. Placez le centre de la cale, qui correspond à l’axe de la pédale, sous votre trait ou quelques millimètres en arrière : pied chaussé sur la pédale, la base du gros orteil se trouve alors au-dessus de l’axe, ou un peu devant.
 
-Réglez les deux chaussures à l’identique, serrez fermement puis vérifiez l’angle : le talon ne doit toucher ni la manivelle ni la base arrière.
+Serrez assez pour que la cale ne bouge pas à la main, puis notez de combien de millimètres le trait se trouve devant le centre de la cale, pour retrouver ce réglage sur une autre paire. Réglez l’autre chaussure de la même façon. C’est un point de départ, que vous affinerez en roulant.
+
+<Measure id="cleat-position" unit="mm" />
+
+</Step>
+
+<Step id="angle">
+
+Asseyez-vous au bord d’une table, jambes pendantes, et regardez où pointent vos pieds : souvent un peu vers l’extérieur, parfois droit, et pas forcément pareil des deux côtés. Desserrez un peu les vis et tournez la cale pour que, chaussure enclenchée, le pied garde cet angle naturel, talon ni forcé vers l’intérieur ni vers l’extérieur.
+
+Serrez alors les vis à tour de rôle avec la <Tool id="torque-wrench" />, au couple indiqué par le fabricant, souvent 4 à 6 N·m. Vérifiez ensuite, sur un home-trainer ou le vélo tenu par quelqu’un pendant que vous pédalez en arrière, que le talon ne touche ni la manivelle ni la base arrière ; sinon, corrigez l’angle. Des cales à flottement laissent quelques degrés de liberté et pardonnent un angle imparfait.
+
+</Step>
+
+<Step id="release-tension">
+
+Sur la plupart des pédales SPD et sur bien des pédales route, une petite vis à six pans, à l’arrière de chaque mécanisme, règle la force du ressort, avec des signes + et − ou un témoin de position. Commencez au plus souple, puis durcissez d’un cran à la fois jusqu’à ce que le pied ne sorte plus tout seul. Une pédale SPD a un mécanisme par face : réglez-les tous à l’identique.
+
+Entraînez-vous à déchausser à l’arrêt, appuyé contre un mur, d’un geste franc du talon vers l’extérieur. Roulez ensuite en ne changeant qu’un réglage par sortie, et revérifiez le serrage des cales après quelques sorties.
 
 </Step>

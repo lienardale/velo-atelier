@@ -2,8 +2,8 @@
 slug: replace-saddle
 kind: replace
 title: Remplacer la selle
-summary: Noter la position de l’ancienne selle, la déposer, fixer la neuve sur ses rails et retrouver hauteur, recul et inclinaison. Ce guide est en cours de rédaction.
-status: stub
+summary: Noter la position de l’ancienne selle, la déposer, fixer la neuve sur ses rails et retrouver hauteur, recul et inclinaison. Comptez vingt minutes, puis quelques sorties pour affiner.
+status: full
 order: 110
 difficulty: 1
 minutes: 20
@@ -22,6 +22,9 @@ related:
   - measure-saddle-height
   - measure-saddle-setback
   - check-frame-bolts
+safety:
+  - "Serrez les rails entre leurs repères et au couple indiqué : des rails serrés hors de cette zone, ou trop serrés, peuvent casser en roulant."
+  - Ne remontez jamais la tige de selle au point de faire apparaître son repère d’insertion minimale au-dessus du cadre.
 steps:
   - id: mark-position
     title: Relever la position de l’ancienne selle
@@ -32,6 +35,7 @@ steps:
   - id: fit-saddle
     title: Fixer la selle neuve
     partIds: [saddle, seat-clamp]
+    illustration: saddle-rail-clamp
   - id: set-position
     title: Régler hauteur, recul et inclinaison
     partIds: [saddle, seatpost]
@@ -39,8 +43,34 @@ steps:
 
 <Step id="mark-position">
 
-Avant de toucher à quoi que ce soit, notez la position actuelle : vous voudrez la retrouver. Mesurez la hauteur de selle, du centre de l’axe du pédalier jusqu’au dessus de la selle, dans l’axe du tube de selle, avec le <Tool id="tape-measure" alt="steel-ruler" />.
+Avant de toucher à quoi que ce soit, relevez la position actuelle : vous voudrez la retrouver. Avec le <Tool id="tape-measure" alt="steel-ruler" />, mesurez la hauteur de selle, du centre de l’axe du pédalier jusqu’au dessus de la selle, dans l’axe du tube de selle. Collez un ruban adhésif sur la tige, au ras du collier : vous verrez si elle a bougé.
 
-Mesurez aussi le recul : la distance horizontale entre l’axe du pédalier et un fil à plomb tombant de la pointe de la selle. Notez enfin la distance entre la pointe de la selle et le centre du cintre. Une selle neuve n’a pas la même forme ; ces mesures donnent un point de départ, que vous affinerez en roulant.
+Notez aussi le recul, la distance horizontale entre l’axe du pédalier et un fil à plomb tombant de la pointe de la selle, puis la distance entre cette pointe et le centre du cintre. Pour l’inclinaison, vélo sur un sol plat, posez un niveau, ou un téléphone avec une application de niveau, sur la selle, de la pointe à l’arrière.
+
+</Step>
+
+<Step id="remove-saddle">
+
+Sous la selle, le chariot de la tige serre les rails. Sur une tête à deux vis, desserrez-les à tour de rôle de quelques tours avec les <Tool id="allen-keys" alt="multi-tool" /> ; sur une tête à une vis, desserrez-la jusqu’à ouvrir le chariot. Sortez la selle en la faisant glisser, et notez le sens des pièces du chariot.
+
+Mesurez ensuite l’ancienne selle au plus large de l’arrière et comparez-la à la neuve. Pour connaître l’écart de vos ischions, asseyez-vous sur un carton ondulé posé sur une chaise dure, pieds levés et buste un peu penché, et mesurez entre les centres des deux creux : la selle qui vous convient est en général 2 à 3 cm plus large que cet écart.
+
+<Illustration id="saddle-width-sit-bones" />
+
+</Step>
+
+<Step id="fit-saddle">
+
+Vérifiez d’abord que le chariot convient aux rails : des rails ronds de 7 mm se serrent dans un chariot classique, des rails ovales de 7 × 9 mm, souvent en carbone, demandent des coquilles prévues pour eux. Engagez les rails et placez le chariot entre les repères marqués sur les rails, au recul que vous avez relevé.
+
+Alignez le bec de selle dans l’axe du cadre, puis serrez avec la <Tool id="torque-wrench" /> au couple gravé sur la tête de la tige ou indiqué par le fabricant : souvent 4 à 8 N·m sur une tête à deux vis, en général davantage sur une tête à une vis. Sur une tête à deux vis, serrez-les à tour de rôle, par petits pas : leur équilibre règle l’inclinaison.
+
+</Step>
+
+<Step id="set-position">
+
+La selle neuve n’a ni la même épaisseur ni la même forme : mesurez à nouveau la hauteur et corrigez-la en desserrant le collier de selle, puis resserrez au couple gravé sur le collier, bec bien dans l’axe. Desserrez un peu le chariot, faites glisser la selle sans sortir des repères pour retrouver le recul, retrouvez l’inclinaison relevée, en général à plat ou la pointe à peine plus basse, puis resserrez-le au couple.
+
+Ces mesures sont un point de départ, à affiner en roulant, un réglage à la fois. Avant de rouler, prenez la selle par le bec et par l’arrière et tentez de la tourner et de la basculer : elle ne doit pas bouger.
 
 </Step>

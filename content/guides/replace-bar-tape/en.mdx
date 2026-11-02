@@ -2,8 +2,8 @@
 slug: replace-bar-tape
 kind: replace
 title: Replace the bar tape
-summary: Remove the old tape, clean the bar, wrap the new tape with even tension around the hoods and finish neatly. This guide is still being written.
-status: stub
+summary: Remove the old tape, clean the bar, wrap the new tape with even tension around the hoods and finish neatly. Allow half an hour.
+status: full
 order: 90
 difficulty: 1
 minutes: 30
@@ -14,32 +14,68 @@ appliesTo:
   path: cockpit.bar
   in: [drop]
 tools:
+  - toolId: flat-screwdriver
+    alternatives: [multi-tool]
   - toolId: isopropyl-alcohol
     alternatives: []
   - toolId: rags
     alternatives: []
+  - toolId: electrical-tape
+    alternatives: []
+  - toolId: scissors
+    alternatives: []
 related:
   - check-frame-bolts
   - replace-brake-cable
+safety:
+  - "Never ride without the bar plugs: in a crash, an open bar end can cause a serious injury."
+  - Once the hoods are back in place, check that the brake levers have not turned on the bar and that both brakes grip hard before you ride.
 steps:
   - id: remove-old
     title: Remove the old tape
     partIds: [grips-or-tape]
   - id: prepare-bar
-    title: Clean the bar and secure the housing
+    title: Clean the bar and secure the housing and hoses
     partIds: [handlebar]
   - id: wrap-tape
     title: Wrap the new tape
     partIds: [grips-or-tape]
+    illustration: bar-tape-wrap
   - id: finish-ends
     title: Finish the top and plug the ends
     partIds: [grips-or-tape, handlebar]
 ---
 
+<Step id="remove-old">
+
+Roll the rubber cover of each hood forwards over the lever body: the top of the old tape and the way it wraps around the lever clamp come into view. Take the plugs out of the bar ends by prising under their edge with a <Tool id="flat-screwdriver" alt="multi-tool" />, or undo their centre bolt first if they are expanding plugs.
+
+Peel off the finishing tape near the stem, then unwind the bar tape from the top down to the bar end. Keep the short strip that covered each lever clamp if the new tape does not come with one. The old tape cannot be reused: its adhesive is spent, and it often tears on the way off.
+
+</Step>
+
+<Step id="prepare-bar">
+
+The bar is often left with traces of glue. Rub them off with <Tool id="rags" /> dampened with <Tool id="isopropyl-alcohol" /> until the bar is clean and dry: the new tape will grip better. Inspect it while you are at it: a crack, a deep gouge or, on a carbon bar, a chip near the levers means it must be replaced before you ride.
+
+Then lay the cable housing, or the hoses of a hydraulic brake, against the bar in their usual place, and secure them in two or three spots with a few turns of <Tool id="electrical-tape" />. They must not move any more: under the tape, a housing that rolls makes a bump. Finally, lay the short strip over each lever clamp.
+
+</Step>
+
 <Step id="wrap-tape">
 
-Start at the end of the bar: leave half the width of the tape hanging over, to be tucked in later by the bar plug. Wrap upwards while pulling the tape evenly, each turn overlapping the one before by about a third.
+Start at the bar end, the tape overhanging by half its width: the plug will tuck it in. Wrap upwards while pulling evenly, each turn overlapping the one before by about a third, and peel the adhesive backing as you go.
 
-On the right side, wrap clockwise as seen from behind the bike, and the other way on the left: your hands, which roll outwards as they pull, then tighten the tape instead of unwinding it. Around each hood, fold its rubber cover back and wrap in a figure of eight, leaving no gaps.
+Seen from the saddle, wrap clockwise on the right and anticlockwise on the left: on the drops, the tape goes over the top of the bar from the inside towards the outside, and tightens under your hands.
+
+At the lever, with the hood still rolled forward, wrap a figure of eight: a diagonal up behind the lever, one turn above it, a diagonal down crossing the first, one turn below it, then a last diagonal up.
+
+</Step>
+
+<Step id="finish-ends">
+
+On the straight part of the bar, stop a few centimetres from the stem, where the bar gets thicker. With the <Tool id="scissors" />, cut the tape at an angle over 6 to 8 cm so the last turn ends square, then hold it with the finishing tape, slightly stretched, over one and a half turns.
+
+Tuck the overhang into the bar end and push the plug home, or tighten its bolt. Finish the other side the same way and roll the hoods back into place. Squeeze each brake lever hard while pushing the bike: the lever must not turn on the bar, and the wheel must lock.
 
 </Step>

@@ -3,7 +3,7 @@ slug: clean-rim-braking-surface
 kind: clean
 title: "Nettoyer la surface de freinage des jantes"
 summary: "Retirer le cambouis noir des flancs de jante et des patins, dégager les éclats de métal incrustés, puis vérifier le freinage. Pour des freins sur jante qui crissent ou glissent."
-status: stub
+status: full
 order: 40
 difficulty: 1
 minutes: 15
@@ -22,12 +22,14 @@ tools:
     alternatives: []
   - toolId: brush
     alternatives: [rags]
+  - toolId: sandpaper
+    alternatives: []
 related:
   - check-brakes-rim
   - replace-brake-pads-rim
   - adjust-rim-brake-centering
 safety:
-  - "Une jante dont le témoin d’usure a disparu ou dont le flanc est creusé peut éclater sous la pression du pneu : ne la nettoyez pas pour la garder, faites-la remplacer."
+  - "Une jante dont le témoin d’usure signale la limite, ou dont le flanc est creusé, peut éclater sous la pression du pneu : ne la nettoyez pas pour la garder, faites-la remplacer."
 steps:
   - id: inspect-rim
     title: "Inspecter la jante"
@@ -43,10 +45,40 @@ steps:
     title: "Tester le freinage"
 ---
 
+<Step id="inspect-rim">
+
+Faites tourner chaque roue lentement et regardez la piste de freinage, la bande lisse où frottent les patins, des deux côtés. Beaucoup de jantes portent un témoin d’usure, le plus souvent une fine rainure tout autour de la piste : tant que vous la voyez, il reste de la matière. D’autres ont un petit trou qui, selon le fabricant, disparaît ou au contraire apparaît quand la jante est usée : voyez sa notice.
+
+Passez ensuite le doigt sur la piste : elle doit être plate et lisse.
+
+<Warning level="danger">
+
+Un flanc creusé, fissuré ou bombé, ou un témoin qui signale l’usure, indique une jante trop fine qui peut éclater sous la pression du pneu. Arrêtez-vous là : faites remplacer la jante ou la roue en atelier.
+
+</Warning>
+
+</Step>
+
 <Step id="clean-rim">
 
-Imbibez des <Tool id="rags" /> d’<Tool id="isopropyl-alcohol" /> et frottez la bande de freinage de chaque côté de la jante, en tournant la roue, jusqu’à ce que le chiffon ne noircisse plus. Évitez tout produit gras, lustrant ou lubrifiant.
+Sur une jante très sale, lavez d’abord la roue à l’eau savonneuse, rincez et séchez. Imbibez ensuite des <Tool id="rags" /> d’<Tool id="isopropyl-alcohol" /> et frottez la piste de freinage de chaque côté, en tournant la roue, jusqu’à ce que le chiffon ne noircisse plus. Changez souvent de face de chiffon : un chiffon déjà noir ne fait que déplacer le cambouis.
 
-Grattez ensuite la surface des patins avec la <Tool id="brush" alt="rags" /> et retirez à la pointe d’un cure-dent les petits éclats de métal incrustés, qui rayent la jante. Testez le freinage à faible vitesse avant de repartir.
+N’utilisez ni lustrant, ni cire, ni lubrifiant, ni nettoyant qui laisse un film gras : la piste doit rester nue. Tenez aussi la burette de lubrifiant chaîne loin des roues. Les traces dures qui résistent partent avec la <Tool id="brush" /> trempée dans l’alcool. Sur une jante carbone ou à revêtement céramique, rien d’abrasif sur la piste.
+
+</Step>
+
+<Step id="clean-blocks">
+
+Ouvrez le frein pour atteindre les patins : relevez le levier de déblocage d’un étrier route, sortez la « nouille » de son logement en pinçant les bras d’un V-brake, ou décrochez le câble transversal d’un cantilever. Frottez chaque patin avec la <Tool id="brush" alt="rags" /> et un peu d’alcool.
+
+Regardez ensuite la gomme de près, avec une lampe. Retirez à la pointe d’un cure-dent ou d’un couteau les petits éclats de métal incrustés : ils rayent la jante à chaque freinage. Une surface durcie et brillante se ravive d’un léger coup de <Tool id="sandpaper" />, tenu à plat. Si les rainures d’usure ont presque disparu, ou si la gomme est craquelée, remplacez les patins.
+
+</Step>
+
+<Step id="test-brakes">
+
+Refermez le frein, c’est l’oubli le plus fréquent et le plus dangereux : remettez la nouille ou le câble transversal en place, ou rabattez le levier de déblocage. Serrez fort chaque levier : il doit devenir ferme bien avant le cintre. Faites tourner chaque roue : aucun patin ne doit frotter ni toucher le pneu.
+
+Poussez le vélo en serrant un levier puis l’autre : la roue doit se bloquer. Faites ensuite quelques freinages dans une rue calme, d’abord à faible vitesse. Les premiers peuvent encore crisser, le temps que les patins finissent de se nettoyer sur la jante. Un crissement qui persiste demande de régler le pincement des patins ; un frein qui glisse encore, de les changer.
 
 </Step>

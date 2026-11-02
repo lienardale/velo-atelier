@@ -2,8 +2,8 @@
 slug: replace-pedals
 kind: replace
 title: Remplacer les pédales
-summary: Repérer la pédale gauche et la droite, les dévisser dans le bon sens, graisser les filetages et serrer les neuves. Ce guide est en cours de rédaction.
-status: stub
+summary: Repérer la pédale gauche et la droite, les dévisser dans le bon sens, graisser les filetages et serrer les neuves. Comptez un quart d’heure.
+status: full
 order: 120
 difficulty: 1
 minutes: 15
@@ -16,9 +16,17 @@ tools:
     alternatives: [allen-keys, adjustable-wrench]
   - toolId: rags
     alternatives: []
+  - toolId: grease
+    alternatives: []
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - check-pedals
   - adjust-cleats
+safety:
+  - "Côté chaîne, passez la chaîne sur le grand plateau avant de forcer : si la pédale cède d’un coup, votre main tombe sur la chaîne et non sur les dents."
+  - "La pédale gauche a un filetage inversé : forcée dans le mauvais sens, ou vissée de travers, elle arrache le filetage de la manivelle."
+  - "Revérifiez le serrage des pédales après la première sortie : une pédale qui se desserre ronge la manivelle en quelques kilomètres."
 steps:
   - id: identify-sides
     title: Repérer gauche et droite
@@ -26,6 +34,7 @@ steps:
   - id: remove-pedals
     title: Dévisser les anciennes pédales
     partIds: [pedal-left, pedal-right, crankset]
+    illustration: pedal-thread-direction
   - id: grease-threads
     title: Nettoyer et graisser les filetages
     partIds: [crankset]
@@ -34,10 +43,34 @@ steps:
     partIds: [pedal-left, pedal-right]
 ---
 
+<Step id="identify-sides">
+
+Chaque pédale a son côté. La droite se visse dans la manivelle côté chaîne, avec un filetage normal ; la gauche dans l’autre manivelle, avec un filetage inversé. Elles ne sont donc pas interchangeables, même quand elles se ressemblent.
+
+Cherchez la lettre frappée sur l’axe ou sur ses méplats, R pour la droite et L pour la gauche, sur les anciennes pédales comme sur les neuves ; sans marque, la notice l’indique. Une pédale présentée du mauvais côté ne s’engage pas dans le filetage. Vérifiez aussi le diamètre des neuves : 9/16″ sur presque tous les vélos adultes, 1/2″ sur les pédaliers monoblocs et bien des vélos d’enfant.
+
+</Step>
+
 <Step id="remove-pedals">
 
-La pédale droite, côté chaîne, se dévisse dans le sens inverse des aiguilles d’une montre, comme une vis ordinaire. La gauche a un pas inversé et se dévisse dans le sens des aiguilles d’une montre. Retenez la règle simple : pour dévisser, tournez toujours la clé, par le haut, vers l’arrière du vélo.
+La règle vaut des deux côtés, malgré les filetages opposés : pour dévisser, le haut de la clé part vers l’arrière du vélo ; pour visser, vers l’avant. Vue de l’extérieur du vélo, la pédale droite se dévisse donc dans le sens inverse des aiguilles d’une montre, la gauche dans le sens des aiguilles d’une montre.
 
-Placez la manivelle vers l’avant, engagez la <Tool id="pedal-wrench" alt="allen-keys" /> sur les méplats de l’axe, ou une clé Allen par l’arrière de la manivelle, et poussez d’un coup sec. Une pédale grippée se débloque mieux avec une clé longue, en tenant l’autre manivelle.
+Placez la manivelle vers l’avant. Engagez la <Tool id="pedal-wrench" alt="allen-keys" /> sur les méplats de 15 mm de l’axe, ou la clé Allen de 6 ou 8 mm dans l’axe par la face intérieure de la manivelle. Tenez l’autre manivelle et donnez un coup sec. Pour profiter de votre poids, orientez le manche vers l’arrière et appuyez vers le bas : c’est le même sens de rotation.
+
+</Step>
+
+<Step id="grease-threads">
+
+Essuyez le filetage de chaque manivelle avec des <Tool id="rags" /> et regardez-le : il doit être net, sans filet arraché ni copeau d’aluminium. Un filetage abîmé ne tiendra plus une pédale ; un atelier peut parfois le reprendre avec un taraud ou un insert. Essuyez aussi l’axe des pédales neuves.
+
+Enduisez les filets de chaque pédale d’une fine couche de <Tool id="grease" />, ou de pâte anti-grippage. Elle évite que l’axe en acier ne se grippe dans la manivelle en aluminium, et elle facilitera le prochain démontage. Si une rondelle est fournie avec les pédales ou la manivelle, placez-la comme l’indique la notice.
+
+</Step>
+
+<Step id="fit-pedals">
+
+Engagez chaque pédale bien droite dans sa manivelle et vissez-la à la main sur plusieurs tours, le haut de l’axe allant vers l’avant du vélo : elle doit entrer sans effort. Si elle résiste dès le premier tour, ressortez-la : elle est de travers ou ce n’est pas son côté.
+
+Serrez ensuite au couple indiqué par le fabricant, souvent autour de 35 à 40 N·m, avec la <Tool id="torque-wrench" /> et un embout de 6 ou 8 mm si l’axe a une empreinte six pans. Sans clé dynamométrique, 35 N·m représentent un appui d’environ 12 kg au bout d’une clé de 30 cm. Faites tourner les pédales : elles doivent tourner librement, sans frotter contre la manivelle.
 
 </Step>

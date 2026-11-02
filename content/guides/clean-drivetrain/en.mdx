@@ -2,8 +2,8 @@
 slug: clean-drivetrain
 kind: clean
 title: "Clean the whole drivetrain"
-summary: "Degrease the cassette, chainrings, derailleur jockey wheels and chain, rinse, dry and lube again. The deep clean to do a few times a year."
-status: stub
+summary: "Degrease the cassette or freewheel, chainrings, derailleur jockey wheels and chain, rinse, dry and lube again. The deep clean to do a few times a year."
+status: full
 order: 20
 difficulty: 2
 minutes: 45
@@ -37,7 +37,7 @@ steps:
   - id: protect-brakes
     title: "Protect the brakes and prepare the bike"
   - id: degrease-cassette
-    title: "Degrease the cassette"
+    title: "Degrease the cassette or freewheel"
     partIds: [cassette, freewheel]
   - id: clean-chainrings
     title: "Clean the chainrings"
@@ -45,15 +45,54 @@ steps:
   - id: clean-jockey-wheels
     title: "Clean the jockey wheels"
     partIds: [rear-derailleur]
+    illustration: drivetrain-grime-points
   - id: rinse-lube
-    title: "Rinse, dry and lube the chain"
+    title: "Degrease, rinse, dry and lube the chain"
     partIds: [chain]
 ---
 
 <Step id="protect-brakes">
 
-Put the bike in a <Tool id="work-stand" /> and tuck a folded rag around each rotor or brake block. Apply <Tool id="degreaser" alt="isopropyl-alcohol" /> to the cassette, chainrings and jockey wheels, leave it for a few minutes, then scrub every part with a <Tool id="brush" alt="rags" /> while turning the pedals backwards.
+Put the bike in a <Tool id="work-stand" />, or lean it against a wall with the drivetrain facing you, so that you can turn the pedals backwards. Shift onto a middle sprocket, and onto the middle chainring if there are three: the chain then runs straight and is easier to clean.
 
-Rinse with clean water, never a pressure washer, dry with <Tool id="rags" />, then lube the chain link by link as described in the chain guide.
+Fold a rag around the rear rotor, or around the brake blocks and the rim on a rim-brake bike, and do the same at the front if the product could run there. Put on gloves.
+
+<Warning level="caution">
+
+If degreaser reaches a rotor or the pads, clean the rotor with isopropyl alcohol and have the pads checked: they often need replacing. On a rim, clean the sidewall and the brake blocks with isopropyl alcohol.
+
+</Warning>
+
+</Step>
+
+<Step id="degrease-cassette">
+
+Apply the <Tool id="degreaser" alt="isopropyl-alcohol" /> to the sprocket teeth, with a paintbrush or as a thin stream, while turning the pedals backwards, and leave it for a few minutes. Scrub with the <Tool id="brush" alt="rags" />, working the bristles between every sprocket, then pull a strip of rag back and forth through each gap, like dental floss.
+
+On 5- to 7-speed bikes the sprockets are often a freewheel threaded onto the hub: the cleaning is the same. Do not flood the centre of the sprockets: the mechanism sits inside the freewheel or the freehub body, and degreaser would wash out its lubricant.
+
+</Step>
+
+<Step id="clean-chainrings">
+
+Apply degreaser to the chainrings, on both sides, while turning the cranks backwards, and let it work. Then brush the teeth and faces one by one, including the inner face of the big chainring, next to the frame, where grime builds up out of sight.
+
+Wipe each chainring with <Tool id="rags" />, gripping the rag around the teeth while the cranks turn. Keep the product away from the bottom bracket, or the motor on an e-bike. Pointed teeth, or teeth bent over like a hook, mean a worn chainring, as the drivetrain check guide explains. On a narrow-wide chainring the teeth deliberately alternate thick and thin, and some teeth are lower next to the shift ramps: that is normal.
+
+</Step>
+
+<Step id="clean-jockey-wheels">
+
+The jockey wheels, the two small toothed wheels of the rear derailleur, collect a black crust of grime and dust that goes back onto the chain with every turn. Pinch a folded rag against the edge of each jockey wheel, keeping your fingers clear of where the chain runs in, and turn the pedals backwards: the crust comes away. Finish with the brush and a little degreaser between the cage plates.
+
+Then take each jockey wheel between two fingers: it should turn freely, and a very slight sideways play is normal on some models. A jockey wheel that catches, squeaks or has teeth worn to points needs replacing; a workshop does it quickly.
+
+</Step>
+
+<Step id="rinse-lube">
+
+Degrease the chain too: apply degreaser to its lower run while turning the pedals backwards, leave it for two minutes and brush it. Then rinse the whole drivetrain with clean water, using a sponge or a gentle hose, never a pressure washer. Dry the chain by running it through a dry rag, wipe the sprockets and chainrings, and leave it to dry for fifteen minutes.
+
+Put one drop of <Tool id="chain-lube" /> on every roller, on the inner side, while slowly turning the pedals backwards. Remove the protective rags, then run through a few gears. After five minutes, wipe off the excess: the chain should feel almost dry. Check that the rotors and rims are clean, and squeeze each brake before you ride.
 
 </Step>

@@ -2,8 +2,8 @@
 slug: adjust-headset-preload
 kind: adjust
 title: "Régler le jeu de direction"
-summary: "Supprimer le jeu d’une direction Aheadset en réglant la précontrainte par le capot supérieur, sans la rendre dure. Pour une fourche qui cogne au freinage."
-status: stub
+summary: "Régler un jeu de direction Aheadset par le capot supérieur, pour supprimer le jeu sans durcir la direction, puis resserrer la potence au couple. Pour une fourche qui cogne au freinage."
+status: full
 order: 80
 difficulty: 2
 minutes: 20
@@ -19,7 +19,8 @@ related:
   - check-headset
   - measure-reach-and-drop
 safety:
-  - "Après le réglage, serrez les vis de potence au couple indiqué et vérifiez que le cintre ne tourne pas quand vous bloquez la roue avant entre vos genoux."
+  - "Après le réglage, serrez les vis de potence au couple indiqué et vérifiez que le cintre ne tourne pas quand vous bloquez la roue avant entre vos genoux : la vis du capot supérieur ne tient pas la potence."
+  - "Sur un pivot de fourche en carbone, ne dépassez jamais le couple de serrage prévu par le fabricant de la fourche ou de la potence : un pivot écrasé peut casser en roulant."
 steps:
   - id: detect-play
     title: "Détecter le jeu"
@@ -36,10 +37,42 @@ steps:
     partIds: [stem]
 ---
 
+<Step id="detect-play">
+
+Serrez fort le frein avant et poussez le vélo d’avant en arrière. Posez l’autre main à cheval sur la cuvette supérieure du jeu de direction et le haut du tube de direction : un petit choc net sous les doigts est du jeu. Ne le confondez pas avec la souplesse d’une fourche suspendue ou le mouvement des plaquettes ou des patins.
+
+Soulevez l’avant et tournez le cintre d’une butée à l’autre : il doit tourner librement, sans point dur. Une direction qui tourne par crans a des roulements usés : le réglage n’y fera rien, voyez l’atelier. Regardez enfin la potence. Deux vis latérales et un capot sur le dessus signalent un jeu Aheadset ; un gros écrou sous une potence plongeante, un jeu fileté.
+
+</Step>
+
+<Step id="loosen-stem">
+
+Sur un jeu Aheadset, la potence serre le pivot de fourche et c’est le capot supérieur qui règle le jeu. Desserrez d’un tour environ les deux vis qui serrent la potence sur le pivot, pas celles du cintre, avec les <Tool id="allen-keys" alt="multi-tool" />, en alternant, jusqu’à ce qu’elle tourne à la main autour du pivot. Ne touchez pas encore à la vis du capot.
+
+Sur un jeu fileté, laissez la potence serrée : c’est le contre-écrou, au-dessus du tube de direction, que l’on desserre, dans le sens inverse des aiguilles d’une montre vu de dessus, en tenant la cuvette réglable située dessous. Il faut deux grandes clés plates de jeu de direction, souvent de 32 ou 36 mm. Sans elles, confiez ce réglage à un atelier.
+
+</Step>
+
 <Step id="set-preload">
 
-Desserrez les vis de serrage de la potence sur le pivot avec les <Tool id="allen-keys" alt="multi-tool" />. Vissez ensuite la vis du capot supérieur d’un quart de tour à la fois, en serrant le frein avant et en poussant le vélo d’avant en arrière, jusqu’à ce que le cognement disparaisse.
+Tournez la vis du capot supérieur dans le sens des aiguilles d’une montre avec les <Tool id="allen-keys" alt="multi-tool" />, d’un huitième de tour à la fois, en cherchant le jeu entre deux réglages. Arrêtez dès que le choc disparaît : c’est une précontrainte, pas un serrage.
 
-Soulevez l’avant : le guidon doit tourner librement, sans point dur. Alignez la potence sur la roue, puis serrez ses vis en alternance au couple gravé avec la <Tool id="torque-wrench" />.
+Soulevez l’avant : le cintre doit encore tourner librement, sinon dévissez d’un huitième de tour. Si le jeu résiste, retirez le capot, roue au sol, et regardez le haut du pivot : s’il affleure ou dépasse le haut de la potence, le capot bute et il manque une entretoise fine au-dessus d’elle ; sinon, voyez l’atelier.
+
+Sur un jeu fileté, vissez la cuvette réglable à la main jusqu’à la disparition du jeu, puis bloquez le contre-écrou contre elle en la tenant immobile.
+
+</Step>
+
+<Step id="align-tighten">
+
+Sur un jeu Aheadset, placez-vous au-dessus de la roue avant, bloquez-la entre vos genoux et alignez la potence sur le pneu. Serrez ensuite ses vis à tour de rôle avec la <Tool id="torque-wrench" />, au couple gravé sur la potence ou indiqué par le fabricant, souvent 4 à 6 N·m. Ne touchez plus au capot.
+
+Contrôlez enfin : aucun choc frein avant serré, une direction libre, et un cintre qui ne bouge pas quand vous tentez de le tourner, roue bloquée. Sur un jeu fileté, si le blocage du contre-écrou a durci la direction ou laissé du jeu, reprenez l’étape précédente.
+
+<Warning level="danger">
+
+Ne roulez jamais avec les vis de potence desserrées : le capot ne tient pas la potence, et le cintre tournerait au premier appui.
+
+</Warning>
 
 </Step>

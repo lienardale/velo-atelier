@@ -3,7 +3,7 @@ slug: clean-frame
 kind: clean
 title: "Wash the frame"
 summary: "Rinse, wash with soapy water, dry, and use the moment to spot cracks, deep scratches and loose bolts. A clean bike shows its faults better."
-status: stub
+status: full
 order: 50
 difficulty: 1
 minutes: 30
@@ -14,9 +14,15 @@ tools:
     alternatives: [rags]
   - toolId: rags
     alternatives: []
+  - toolId: chain-lube
+    alternatives: []
 related:
   - check-frame-bolts
   - clean-drivetrain
+  - clean-ebike-dos-donts
+safety:
+  - "Keep frame polish, wax and any spray away from the rotors, pads and rim sidewalls. Anything greasy on a braking surface takes your brakes away."
+  - "A cracked or dented frame, or a carbon frame with exposed fibres, can give way without warning: stop riding it and have it examined by a workshop."
 steps:
   - id: rinse
     title: "Rinse off the mud"
@@ -24,14 +30,45 @@ steps:
     title: "Wash with soapy water"
   - id: dry-inspect
     title: "Dry and inspect"
+    illustration: frame-inspection-points
   - id: protect
     title: "Protect and re-lube"
 ---
 
+<Step id="rinse">
+
+On an e-bike, follow the e-bike guide first: battery out if it comes out without tools, no water aimed at the motor, the display or the connectors. Take off anything that dislikes water or gets in the way: bags, removable lights, the bike computer. Then rinse the bike from top to bottom with a sponge, a watering can or a hose on a gentle setting, to soften the mud before you scrub: scrubbed dry, it scratches the paint like sandpaper.
+
+Never use a pressure washer, and do not aim water at the headset, the bottom bracket, the hubs or the pedals: even a moderate jet forces water into their bearings and drives the grease out.
+
+</Step>
+
 <Step id="wash">
 
-First rinse off the mud with gentle water, never a pressure washer, which drives grease out of the bearings. Then wash the frame from top to bottom with warm water and a little washing-up liquid, using a sponge or a <Tool id="brush" alt="rags" />, and keep a separate sponge for the drivetrain.
+Fill a bucket with warm water and a little washing-up liquid or bike shampoo. Wash the frame from top to bottom with a sponge or the <Tool id="brush" alt="rags" />, one tube at a time: top tube, down tube, seat tube, then the chainstays and seatstays. Give extra attention to the underside of the down tube and the area behind the bottom bracket, where the front wheel throws the mud.
 
-Dry with <Tool id="rags" /> and look closely at the welds, the underside of the down tube and the rear dropouts: a hairline crack or cracked paint needs a workshop's opinion.
+Keep a separate sponge for the drivetrain: the grime it picks up would leave black streaks on the paint. Rinse with clean water on a gentle setting before the soap dries and leaves marks.
+
+</Step>
+
+<Step id="dry-inspect">
+
+Dry the frame with clean <Tool id="rags" />, then look at it closely in good light. Concentrate on the four areas in the drawing: the head-tube joints, the bottom bracket and chainstays, the seat cluster and the rear dropouts.
+
+Look for a hairline crack, paint cracked along a line, a dent, or, on a carbon frame, a chip that shows the fibres. A shallow scratch that does not catch your fingernail is only cosmetic. Also look for a bolt that has moved: see the frame bolts guide.
+
+<Warning level="danger">
+
+A cracked or dented frame, or a carbon frame with exposed fibres, can give way without warning. Stop riding it and show it to a workshop.
+
+</Warning>
+
+</Step>
+
+<Step id="protect">
+
+Once the frame is dry, you can protect it with frame polish or a bike wax. Apply it to a rag, never straight onto the bike, then wipe the rag over the painted parts, well away from the rotors, pads and rim sidewalls. On matt paint, use a product made for matt finishes. On a steel frame, touch up any chip that shows bare metal quickly, before rust sets in.
+
+Washing has also rinsed the chain: dry it by running it through a rag, then put one drop of <Tool id="chain-lube" /> on every roller while turning the pedals backwards, wait five minutes and wipe off the excess. Finally, squeeze each brake before you ride.
 
 </Step>

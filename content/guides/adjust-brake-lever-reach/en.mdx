@@ -2,8 +2,8 @@
 slug: adjust-brake-lever-reach
 kind: adjust
 title: "Adjust brake lever angle and reach"
-summary: "Angle the levers in line with your arms and bring the blade closer to your fingers. To brake with one or two fingers without letting go of the bar, small hands included."
-status: stub
+summary: "Angle the levers in line with your arms and bring the lever closer to your fingers. To brake with one or two fingers without letting go of the bar, small hands included."
+status: full
 order: 70
 difficulty: 1
 minutes: 15
@@ -13,25 +13,65 @@ partIds:
 tools:
   - toolId: allen-keys
     alternatives: [multi-tool]
+  - toolId: phillips-screwdriver
+    alternatives: [multi-tool]
 related:
   - check-brakes-disc
   - check-brakes-rim
   - measure-reach-and-drop
+safety:
+  - "A lever set too close to the bar can hit it before the brake is fully on. After every adjustment, squeeze hard: the lever must stop well short of the bar."
+  - On a carbon handlebar, keep to the clamp torque given by the manufacturer. Overtightened, the clamp can crack the bar.
 steps:
   - id: lever-angle
     title: "Set the lever angle"
   - id: reach-screw
     title: "Set the reach"
+    illustration: brake-lever-reach-screw
   - id: check-travel
     title: "Check the lever travel"
   - id: test
     title: "Test while riding"
 ---
 
+<Step id="lever-angle">
+
+Sit on the bike, hands on the grips, index fingers on the levers. Have someone look from the side, or use a mirror: your forearm, wrist and lever should form a straight line. A bent wrist means the angle is wrong.
+
+Loosen the lever clamp bolt with the <Tool id="allen-keys" alt="multi-tool" />, just enough to turn the lever. On a flat bar, slide it along so that your index finger lands on the end of the lever; on a drop bar, the bolt is under the rubber hood, and moving it means unwrapping the bar tape. Tighten to the manufacturer's torque, often printed next to the bolt: the lever must not turn when you press hard on it. Set the other side the same way.
+
+</Step>
+
 <Step id="reach-screw">
 
-Sit on the bike with your hands on the grips: your wrists and the levers should form a straight line. To change the angle, loosen the lever clamp with the <Tool id="allen-keys" alt="multi-tool" />, rotate it around the bar and tighten again.
+Reach is the distance from the grip to the lever, at your fingertips. Set right, it lets you rest the first joint of your index finger on the lever without stretching your hand. Find the small screw or dial near the lever pivot: depending on the model, you turn it by hand, with the <Tool id="allen-keys" alt="multi-tool" /> or with the <Tool id="phillips-screwdriver" alt="multi-tool" />.
 
-Then find the small reach screw or dial near the pivot of the blade: screw it in to bring the blade closer to your fingers. After adjusting, the lever must still brake firmly well before it reaches the bar or your other fingers.
+Turn it one full turn at a time and try the lever between turns: one way brings it closer to the grip, the other moves it away. Give both levers the same reach.
+
+On a drop bar, the screw is often hidden under the rubber hood, which you roll forward; other levers are adjusted with shims.
+
+</Step>
+
+<Step id="check-travel">
+
+Moving the lever closer to the bar shortens the travel it has left. Squeeze each lever hard: it must turn firm well before the bar, leaving at least a finger's width between the two.
+
+On a cable brake, spin the wheel with the lever released: the brake blocks or pads must not rub. If they rub, screw the barrel adjuster in half a turn; if the lever comes too far, screw it out.
+
+On a hydraulic brake, the point where the pads bite moves closer to the bar too. Some levers have a second screw to set it.
+
+<Warning level="caution">
+
+A soft hydraulic lever, or one that touches the bar, often means air in the system: have the brake bled at a workshop before riding.
+
+</Warning>
+
+</Step>
+
+<Step id="test">
+
+Before riding, push the bike alongside you and squeeze each lever in turn: the wheel must lock straight away. Then try it in a car park or a quiet street, at moderate speed, braking gently at first, then firmly.
+
+Your fingers should find the levers without changing grip, and your wrists should stay straight, seated as well as standing on the pedals. If you have to let go of the grip to reach a lever, or a finger gets trapped between the lever and the grip, go back over the adjustment. On a cable brake, the travel grows as the brake blocks or pads wear: check it from time to time.
 
 </Step>

@@ -2,8 +2,8 @@
 slug: clean-drivetrain
 kind: clean
 title: "Nettoyer toute la transmission"
-summary: "Dégraisser la cassette, les plateaux, les galets du dérailleur et la chaîne, rincer, sécher puis relubrifier. Le grand nettoyage à faire quelques fois par an."
-status: stub
+summary: "Dégraisser la cassette ou la roue libre, les plateaux, les galets du dérailleur et la chaîne, rincer, sécher puis relubrifier. Le grand nettoyage à faire quelques fois par an."
+status: full
 order: 20
 difficulty: 2
 minutes: 45
@@ -37,7 +37,7 @@ steps:
   - id: protect-brakes
     title: "Protéger les freins et préparer le vélo"
   - id: degrease-cassette
-    title: "Dégraisser la cassette"
+    title: "Dégraisser la cassette ou la roue libre"
     partIds: [cassette, freewheel]
   - id: clean-chainrings
     title: "Nettoyer les plateaux"
@@ -45,15 +45,54 @@ steps:
   - id: clean-jockey-wheels
     title: "Nettoyer les galets du dérailleur"
     partIds: [rear-derailleur]
+    illustration: drivetrain-grime-points
   - id: rinse-lube
-    title: "Rincer, sécher et lubrifier la chaîne"
+    title: "Dégraisser, rincer, sécher et lubrifier la chaîne"
     partIds: [chain]
 ---
 
 <Step id="protect-brakes">
 
-Installez le vélo sur un <Tool id="work-stand" /> et glissez un chiffon plié autour de chaque disque ou de chaque patin de frein. Appliquez le <Tool id="degreaser" alt="isopropyl-alcohol" /> sur la cassette, les plateaux et les galets du dérailleur, laissez agir quelques minutes, puis frottez chaque pièce avec la <Tool id="brush" alt="rags" /> en tournant les pédales en arrière.
+Installez le vélo sur un <Tool id="work-stand" />, ou appuyez-le contre un mur, transmission vers vous, de façon à pouvoir tourner les pédales en arrière. Passez la chaîne sur un pignon du milieu, et sur le plateau du milieu s’il y en a trois : elle court droit et se nettoie mieux.
 
-Rincez à l’eau claire, sans nettoyeur haute pression, séchez avec des <Tool id="rags" /> puis lubrifiez la chaîne maillon par maillon comme dans le guide dédié.
+Pliez un chiffon autour du disque arrière, ou autour des patins et du flanc de jante sur un frein sur jante, et faites de même à l’avant si le produit peut y couler. Mettez des gants.
+
+<Warning level="caution">
+
+Si du dégraissant touche un disque ou des plaquettes, nettoyez le disque à l’alcool isopropylique et faites contrôler les plaquettes : elles sont souvent à changer. Sur une jante, nettoyez le flanc et les patins à l’alcool isopropylique.
+
+</Warning>
+
+</Step>
+
+<Step id="degrease-cassette">
+
+Appliquez le <Tool id="degreaser" alt="isopropyl-alcohol" /> sur les dents des pignons, au pinceau ou en filet, en tournant les pédales en arrière, et laissez agir quelques minutes. Frottez avec la <Tool id="brush" alt="rags" /> en passant les poils entre chaque pignon, puis tirez une bande de chiffon en va-et-vient dans chaque intervalle, comme un fil dentaire.
+
+Sur les vélos de 5 à 7 vitesses, les pignons forment souvent une roue libre vissée sur le moyeu : le nettoyage est le même. Ne noyez pas le centre des pignons : le mécanisme se trouve au cœur de la roue libre ou du corps de roue libre, et le dégraissant en chasserait le lubrifiant.
+
+</Step>
+
+<Step id="clean-chainrings">
+
+Appliquez le dégraissant sur les plateaux, des deux côtés, en tournant le pédalier en arrière, et laissez agir. Brossez ensuite les dents et les faces une à une, sans oublier la face intérieure du grand plateau, côté cadre, où le cambouis s’accumule à l’abri des regards.
+
+Essuyez chaque plateau avec des <Tool id="rags" />, en serrant le chiffon autour des dents pendant que le pédalier tourne. Gardez le produit loin du boîtier de pédalier, ou du moteur sur un vélo électrique. Des dents pointues ou recourbées en crochet indiquent un plateau usé, comme l’explique le guide de contrôle de la transmission. Sur un plateau « étroit-large », les dents alternent volontairement épaisses et fines, et certaines sont plus basses près des rampes de passage : c’est normal.
+
+</Step>
+
+<Step id="clean-jockey-wheels">
+
+Les galets, les deux petites roues dentées du dérailleur arrière, ramassent une croûte noire de cambouis et de poussière qui retourne sur la chaîne à chaque tour. Pincez un chiffon plié contre le bord de chaque galet, les doigts hors du passage de la chaîne, et tournez les pédales en arrière : la croûte se décolle. Finissez à la brosse, avec un peu de dégraissant, entre les flasques de la chape.
+
+Saisissez ensuite chaque galet entre deux doigts : il doit tourner librement, et un très léger jeu latéral est normal sur certains modèles. Un galet qui accroche, qui grince ou dont les dents sont usées en pointe est à changer ; un atelier le fait vite.
+
+</Step>
+
+<Step id="rinse-lube">
+
+Dégraissez aussi la chaîne : appliquez le dégraissant sur son brin inférieur en tournant les pédales en arrière, laissez agir deux minutes et brossez-la. Rincez ensuite toute la transmission à l’eau claire, à l’éponge ou en arrosage doux, jamais au nettoyeur haute pression. Séchez la chaîne en la faisant défiler dans un chiffon sec, essuyez pignons et plateaux, et laissez sécher un quart d’heure.
+
+Posez une goutte de <Tool id="chain-lube" /> sur chaque rouleau, côté intérieur, en tournant lentement les pédales en arrière. Retirez les chiffons de protection, puis passez quelques vitesses. Après cinq minutes, essuyez l’excédent : la chaîne doit paraître presque sèche. Vérifiez que disques et jantes sont propres, et serrez chaque frein avant de rouler.
 
 </Step>

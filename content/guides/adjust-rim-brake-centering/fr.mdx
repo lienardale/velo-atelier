@@ -2,8 +2,8 @@
 slug: adjust-rim-brake-centering
 kind: adjust
 title: "Centrer un frein sur jante"
-summary: "Aligner les patins sur la jante, les pincer légèrement vers l’avant, centrer les bras avec les vis de rappel et retendre le câble. Pour un frein qui frotte ou touche d’un seul côté."
-status: stub
+summary: "Aligner les patins sur la jante, les pincer légèrement vers l’avant, centrer les bras avec les vis de rappel et retendre le câble. Pour un frein qui frotte ou touche d’un côté avant l’autre."
+status: full
 order: 60
 difficulty: 2
 minutes: 20
@@ -20,12 +20,15 @@ tools:
     alternatives: [multi-tool]
   - toolId: phillips-screwdriver
     alternatives: [multi-tool]
+  - toolId: torque-wrench
+    alternatives: []
 related:
   - check-brakes-rim
   - replace-brake-pads-rim
   - clean-rim-braking-surface
 safety:
   - "Un patin qui touche le pneu peut l’entailler et le faire éclater. Vérifiez que chaque patin porte entièrement sur la jante, jamais sur le flanc du pneu."
+  - "Serrez l’écrou de chaque patin, la vis de serrage du câble et l’écrou de fixation d’un étrier route au couple indiqué par le fabricant, souvent 5 à 9 N·m pour l’écrou du patin, 6 à 8 N·m pour la vis du câble et 8 à 10 N·m pour la fixation de l’étrier : un patin qui pivote ou un câble qui glisse, et le frein lâche au premier freinage appuyé."
 steps:
   - id: pad-alignment
     title: "Aligner les patins sur la jante"
@@ -42,10 +45,40 @@ steps:
     partIds: [brake-caliper-front, brake-caliper-rear]
 ---
 
+<Step id="pad-alignment">
+
+Sur un étrier route, vérifiez d’abord que le déblocage rapide du frein est fermé. Serrez doucement le levier : chaque patin doit porter tout entier sur la piste de freinage, parallèle à son bord, environ 1 mm sous son bord supérieur, quel que soit le frein.
+
+Sinon, desserrez d’un tour l’écrou du patin avec les <Tool id="allen-keys" alt="multi-tool" />, faites-le glisser dans sa fente, plaquez-le contre la jante en serrant le levier, puis resserrez au couple indiqué. Un V-brake ou un cantilever pivote sous le patin et plus à l’extérieur : en s’usant, le patin descend sur la piste, et placé plus bas, il finirait sous la jante. Sur un étrier route, le patin change peu de hauteur, voire monte un peu.
+
+</Step>
+
+<Step id="toe-in">
+
+Un patin parfaitement à plat contre la jante crisse souvent. On le pince légèrement : l’avant du patin, côté avant du vélo, touche la jante un peu avant l’arrière, qui reste à environ 1 mm.
+
+Desserrez l’écrou du patin et glissez un carton fin d’environ 1 mm entre l’arrière du patin et la jante. Serrez le levier et gardez-le serré avec une sangle ou un élastique, puis resserrez l’écrou au couple indiqué en tenant le patin immobile. Retirez le carton : le patin garde son angle. Les V-brakes et les cantilevers s’y prêtent grâce aux rondelles bombées du patin. Sur beaucoup d’étriers route, le patin ne se pince pas : contentez-vous de l’aligner.
+
+</Step>
+
 <Step id="centering">
 
-Serrez le levier et regardez quel patin touche la jante en premier. Sur un V-brake ou un cantilever, chaque bras porte une petite vis de rappel : avec le <Tool id="phillips-screwdriver" alt="multi-tool" />, vissez-la d’un quart de tour du côté du patin trop proche, ou dévissez celle de l’autre côté, jusqu’à ce que les deux patins touchent en même temps.
+Serrez le levier et regardez quel patin touche la jante en premier. Sur un V-brake ou un cantilever, chaque bras porte une petite vis de rappel près de sa base. Avec le <Tool id="phillips-screwdriver" alt="multi-tool" />, vissez d’un quart de tour celle du côté du patin trop proche, qui s’écarte alors, ou dévissez celle de l’autre côté, jusqu’à ce que les deux patins touchent ensemble.
 
-Sur un étrier route, desserrez légèrement l’écrou de fixation avec les <Tool id="allen-keys" alt="multi-tool" />, centrez l’étrier à la main puis resserrez. Laissez 1 à 2 mm entre chaque patin et la jante.
+Sur un étrier route, cherchez une petite vis de centrage sur le côté ou sur le dessus de l’étrier et tournez-la par quart de tour. S’il n’en a pas, desserrez légèrement l’écrou de fixation avec les <Tool id="allen-keys" alt="multi-tool" />, centrez l’étrier à la main, puis resserrez au couple indiqué avec la <Tool id="torque-wrench" />.
+
+</Step>
+
+<Step id="cable-tension">
+
+Au repos, chaque patin doit rester entre 1 et 3 mm de la jante. Tournez le tendeur de câble, sur le levier ou le frein : le dévisser rapproche les patins, le revisser les éloigne. S’il ne suffit pas, revissez-le presque à fond, desserrez la vis de serrage du câble avec les <Tool id="allen-keys" alt="multi-tool" />, tirez ou relâchez le câble de quelques millimètres, puis resserrez au couple indiqué et vérifiez de nouveau le centrage.
+
+Serrez fort le levier en poussant le vélo : il doit devenir ferme bien avant le cintre, et la roue se bloquer. Un frottement à un seul endroit du tour signale une roue voilée, à confier à un atelier.
+
+<Warning level="caution">
+
+Sur un étrier route, le déblocage rapide doit rester fermé.
+
+</Warning>
 
 </Step>

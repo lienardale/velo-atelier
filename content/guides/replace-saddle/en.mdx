@@ -2,8 +2,8 @@
 slug: replace-saddle
 kind: replace
 title: Replace the saddle
-summary: Record the old saddle's position, remove it, clamp the new one on its rails and restore height, setback and tilt. This guide is still being written.
-status: stub
+summary: Record the old saddle's position, remove it, clamp the new one on its rails and restore height, setback and tilt. Allow twenty minutes, then a few rides to fine-tune.
+status: full
 order: 110
 difficulty: 1
 minutes: 20
@@ -22,6 +22,9 @@ related:
   - measure-saddle-height
   - measure-saddle-setback
   - check-frame-bolts
+safety:
+  - "Clamp the rails between their marks and to the specified torque: rails clamped outside that zone, or over-tightened, can snap while you ride."
+  - Never raise the seatpost so far that its minimum insertion mark shows above the frame.
 steps:
   - id: mark-position
     title: Record the old saddle's position
@@ -32,6 +35,7 @@ steps:
   - id: fit-saddle
     title: Clamp the new saddle
     partIds: [saddle, seat-clamp]
+    illustration: saddle-rail-clamp
   - id: set-position
     title: Set height, setback and tilt
     partIds: [saddle, seatpost]
@@ -39,8 +43,34 @@ steps:
 
 <Step id="mark-position">
 
-Before touching anything, write down the current position: you will want to get back to it. Measure saddle height, from the centre of the bottom bracket axle to the top of the saddle, along the seat tube, with the <Tool id="tape-measure" alt="steel-ruler" />.
+Before touching anything, record the current position: you will want to get back to it. With the <Tool id="tape-measure" alt="steel-ruler" />, measure saddle height, from the centre of the bottom bracket axle to the top of the saddle, along the seat tube. Stick a piece of tape on the seatpost, right against the clamp: you will see if it has moved.
 
-Measure the setback too: the horizontal distance between the bottom bracket axle and a plumb line dropped from the nose of the saddle. Finally, note the distance from the saddle nose to the centre of the handlebar. A new saddle has a different shape; these numbers give you a starting point to fine-tune as you ride.
+Note the setback too, the horizontal distance between the bottom bracket axle and a plumb line dropped from the nose of the saddle, then the distance from that nose to the centre of the handlebar. For the tilt, with the bike on a flat floor, lay a spirit level, or a phone with a level app, on the saddle from nose to back.
+
+</Step>
+
+<Step id="remove-saddle">
+
+Under the saddle, the seatpost clamp grips the rails. On a two-bolt head, undo the bolts in turn by a few turns with the <Tool id="allen-keys" alt="multi-tool" />; on a single-bolt head, undo it until the clamp opens. Slide the saddle out, and note which way round the clamp parts sat.
+
+Then measure the old saddle across the widest part at the back and compare it with the new one. To find your sit-bone width, sit on a piece of corrugated cardboard on a hard chair, feet lifted and leaning forward a little, and measure between the centres of the two dents: a saddle that suits you is usually 2 to 3 cm wider than that.
+
+<Illustration id="saddle-width-sit-bones" />
+
+</Step>
+
+<Step id="fit-saddle">
+
+First check that the clamp suits the rails: round 7 mm rails fit a standard clamp, while oval 7 × 9 mm rails, often carbon, need cradles made for them. Fit the rails and set the clamp between the marks on the rails, at the setback you recorded.
+
+Line the saddle nose up with the frame, then tighten with the <Tool id="torque-wrench" /> to the torque printed on the seatpost head or given by the maker: often 4 to 8 N·m on a two-bolt head, usually more on a single-bolt head. On a two-bolt head, tighten the bolts in turn, in small steps: the balance between them sets the tilt.
+
+</Step>
+
+<Step id="set-position">
+
+The new saddle differs in thickness and shape: measure the height again and correct it by loosening the seat clamp, then tighten it to the torque printed on the clamp, with the nose straight. Loosen the clamp under the saddle slightly, slide the saddle along its rails, staying within the marks, to restore the setback, restore the tilt you recorded, usually level or with the nose barely lower, then tighten it to torque again.
+
+These numbers are a starting point, to fine-tune as you ride, one setting at a time. Before you ride, take the saddle by its nose and its back and try to twist and tilt it: it must not move.
 
 </Step>

@@ -2,8 +2,8 @@
 slug: replace-rotor
 kind: replace
 title: Replace a brake rotor
-summary: Take the wheel out, remove the worn or bent rotor, fit the new one the right way round and to the right torque, then bed in the brakes. This guide is still being written.
-status: stub
+summary: Take the wheel out, remove the worn or bent rotor, fit the new one the right way round and to the right torque, then bed in the brakes.
+status: full
 order: 130
 difficulty: 2
 minutes: 30
@@ -20,7 +20,13 @@ tools:
     alternatives: [multi-tool]
   - toolId: cassette-lockring-tool
     alternatives: []
+  - toolId: bottom-bracket-tool
+    alternatives: []
+  - toolId: adjustable-wrench
+    alternatives: []
   - toolId: torque-wrench
+    alternatives: []
+  - toolId: threadlocker
     alternatives: []
   - toolId: isopropyl-alcohol
     alternatives: []
@@ -31,8 +37,10 @@ related:
   - replace-brake-pads-disc
   - clean-disc-rotors-pads
 safety:
-  - A new rotor must have the same diameter and the same mounting as the old one. A larger rotor without an adapter brakes on only part of the pads.
+  - A new rotor must have the same mounting, the same diameter and a thickness that suits the caliper. A rotor of another size without the matching adapter rubs on the caliper or brakes on only part of the pads.
   - Do not touch the braking track with your fingers, and clean it with isopropyl alcohol before refitting the wheel. A greasy rotor barely brakes.
+  - "Tighten the bolts or the lockring to the manufacturer's torque, with a torque wrench: too little and the rotor works loose; too much and a bolt snaps or damages the hub."
+  - "Before riding, check the wheel: the quick-release lever closed firmly enough to leave a mark on your palm, or the thru-axle tightened to the manufacturer's torque. A loose wheel can come out of the fork or frame under braking."
 steps:
   - id: remove-wheel
     title: Take the wheel out
@@ -40,18 +48,50 @@ steps:
   - id: remove-rotor
     title: Remove the old rotor
     partIds: [rotor-front, rotor-rear]
+    illustration: rotor-mount-6bolt-centerlock
   - id: fit-rotor
     title: Fit the new rotor
     partIds: [rotor-front, rotor-rear]
+    illustration: rotor-diameter
   - id: bed-in
     title: Bed in the brakes
     partIds: [rotor-front, rotor-rear]
 ---
 
+<Step id="remove-wheel">
+
+Put the bike in a work stand or, failing that, turn it upside down onto the saddle and handlebar. Open the quick release and unscrew it a few turns, or unscrew the thru-axle, then lift the wheel out, guiding the rotor straight out of the caliper.
+
+Slip a spacer between the pads straight away, the one supplied with the brake or a folded piece of card, and do not squeeze the lever again: without a rotor, the pistons pop out and are hard to reseat. Lay the wheel flat with the rotor facing up, on a clean rag, well away from oil and chain lube.
+
+</Step>
+
+<Step id="remove-rotor">
+
+The rotor is held on the hub by six Torx bolts, or by a lockring on splines: the Centerlock mounting. Note its diameter, engraved on it, or measure it edge to edge.
+
+Six bolts: loosen each one half a turn in a star pattern with the <Tool id="torx-keys" alt="multi-tool" />, usually a T25, then unscrew them. Centerlock: take the quick-release skewer out and fit the <Tool id="cassette-lockring-tool" /> into the lockring; if its splines are on the outside, as on many thru-axle hubs, use the external-cup <Tool id="bottom-bracket-tool" /> instead. Hold the wheel by the tyre and turn the tool anticlockwise with the <Tool id="adjustable-wrench" />. Lift the rotor off, holding it by the centre.
+
+</Step>
+
 <Step id="fit-rotor">
 
-Look at the arrow engraved on the new rotor: it shows the direction the wheel turns when riding forwards, and must face outwards. On a six-bolt rotor, set it on the hub, then start all six bolts by hand with the <Tool id="torx-keys" alt="multi-tool" />.
+The new rotor must have the same mounting and the same diameter as the old one, the one the caliper is set up for. It often arrives oily: clean it with <Tool id="rags" /> and <Tool id="isopropyl-alcohol" />, then do not touch the track again. Change worn or glazed pads at the same time.
 
-Tighten them in a star pattern, in small steps, to the torque given by the rotor or hub maker, using the <Tool id="torque-wrench" />. A Center Lock rotor is held by a single lockring, tightened with the matching splined tool. Finally, clean the whole braking track with isopropyl alcohol.
+Fit it with the arrow pointing the way the wheel turns, lettering facing out. Six bolts: start them by hand, with <Tool id="threadlocker" /> if you re-use the bolts or the manufacturer asks for it, then tighten them in a star pattern, in small steps, to the specified torque, often between 2 and 6 N·m. Centerlock: screw the lockring on, then tighten it to the specified torque, often 40 N·m. Either way, use the <Tool id="torque-wrench" />.
+
+</Step>
+
+<Step id="bed-in">
+
+Take the spacer out, then refit the wheel, guiding the rotor between the pads, close the quick release or tighten the thru-axle, and pump the lever ten times or so. If it stays soft, do not ride: have the brake bled. Spin the wheel: a clear rub means the caliper needs recentring. Push the bike while squeezing the lever: the wheel must lock.
+
+A new rotor only brakes at full power once bedded in. On a quiet road, build up speed and brake firmly, without locking the wheel, down to walking pace, about twenty times.
+
+<Warning level="caution">
+
+Until the rotor is bedded in, braking is noticeably weaker. Do not ride down a long descent on a new rotor that has not been bedded in.
+
+</Warning>
 
 </Step>

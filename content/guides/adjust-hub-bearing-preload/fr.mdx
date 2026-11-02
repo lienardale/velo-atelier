@@ -2,8 +2,8 @@
 slug: adjust-hub-bearing-preload
 kind: adjust
 title: "Régler le jeu d’un moyeu à cônes"
-summary: "Supprimer le jeu latéral d’une roue à moyeu à cônes et billes en réglant le cône et le contre-écrou. Les roulements cartouche, eux, se remplacent en atelier."
-status: stub
+summary: "Supprimer le jeu latéral d’une roue à moyeu à cônes et billes en réglant le cône et son contre-écrou, sans freiner la rotation. Les moyeux à roulements cartouche, eux, se règlent rarement chez soi."
+status: full
 order: 90
 difficulty: 3
 minutes: 40
@@ -11,12 +11,16 @@ partIds:
   - wheel-front
   - wheel-rear
 tools:
+  - toolId: cone-wrenches
+    alternatives: []
   - toolId: adjustable-wrench
-    alternatives: [pliers]
+    alternatives: []
   - toolId: allen-keys
     alternatives: [multi-tool]
 related:
   - check-wheels-tires
+safety:
+  - "Avant de rouler, vérifiez que la roue est au fond des pattes, que le blocage rapide est fermé fermement, l’axe traversant serré au couple ou les écrous d’axe bien serrés, et que le frein est refermé et freine : une roue mal fixée peut se dégager en roulant."
 steps:
   - id: detect-play
     title: "Détecter le jeu"
@@ -29,10 +33,34 @@ steps:
     title: "Bloquer le contre-écrou et tester"
 ---
 
+<Step id="detect-play">
+
+Vérifiez d’abord que le blocage rapide, l’axe traversant ou les écrous d’axe sont bien serrés. Tenez le cadre, ou la fourche pour la roue avant, prenez la jante par le haut et poussez-la franchement de gauche à droite : un petit claquement sous les doigts est du jeu dans le moyeu. Faites ensuite tourner la roue : elle doit tourner longtemps, sans grattement.
+
+Regardez l’axe de chaque côté. Un moyeu à cônes montre un contre-écrou puis un cône aux méplats fins entre le cadre et le moyeu : ce guide est pour lui. La plupart des moyeux à roulements cartouche n’ont aucun réglage, ou une bague de précontrainte propre à chaque marque : suivez alors la notice du fabricant, ou passez par l’atelier.
+
+</Step>
+
+<Step id="remove-wheel">
+
+Sur un frein sur jante, ouvrez d’abord le frein ; à l’arrière, passez sur le plus petit pignon. Ouvrez le levier du blocage rapide, ou dévissez l’axe traversant, aux <Tool id="allen-keys" alt="multi-tool" /> s’il n’a pas de levier, ou desserrez les écrous d’axe à la <Tool id="adjustable-wrench" />, puis sortez la roue. Avec un frein à disque, glissez une cale entre les plaquettes et ne serrez plus le levier tant que la roue est déposée.
+
+Retirez la tige du blocage rapide en gardant ses deux ressorts, petit bout tourné vers le moyeu. Ne réglez qu’un côté : à l’avant, au choix ; à l’arrière, le gauche, opposé aux pignons. L’autre côté reste bloqué et fixe la position de l’axe.
+
+</Step>
+
 <Step id="adjust-cone">
 
-Roue déposée, maintenez le cône d’un côté avec une clé plate fine, souvent 15 ou 17 mm, et desserrez le contre-écrou avec la <Tool id="adjustable-wrench" alt="pliers" />. Vissez le cône à la main jusqu’au contact des billes, puis dévissez-le d’un huitième de tour.
+Du côté choisi, tenez le cône avec l’une des <Tool id="cone-wrenches" />, très fines, souvent de 13 à 17 mm, et desserrez le contre-écrou d’un ou deux tours à la <Tool id="adjustable-wrench" />, dans le sens inverse des aiguilles d’une montre vu de ce côté.
 
-Rebloquez le contre-écrou en tenant le cône immobile. L’axe doit tourner sans point dur et sans jeu une fois la roue serrée dans le cadre. Si le moyeu gratte ou n’a pas de cônes réglables, c’est un travail d’atelier.
+Tenez maintenant, à la clé à molette, le contre-écrou de l’autre côté pour bloquer l’axe, et vissez le cône d’un huitième de tour pour rattraper du jeu, ou dévissez-le. Entre deux réglages, tournez l’axe entre vos doigts. Cherchez le point où le jeu vient de disparaître et où l’axe tourne souplement. Sur un blocage rapide, laissez un soupçon de jeu : son serrage le rattrape. Un axe qui gratte à tout réglage signale des cônes ou cuvettes marqués : voyez l’atelier.
+
+</Step>
+
+<Step id="lock-test">
+
+Tenez le cône avec la clé à cônes et serrez fermement le contre-écrou contre lui avec la <Tool id="adjustable-wrench" />. Ce blocage resserre souvent un peu le réglage : tournez l’axe aussitôt et reprenez l’étape précédente si besoin.
+
+Retirez la cale, remettez la tige du blocage rapide, posez la roue au fond des pattes et fermez le levier fermement : il doit marquer la paume. Vissez un axe traversant au couple gravé dessus, ou serrez fermement les écrous d’axe. La jante poussée ne doit plus claquer, et elle doit tourner librement. S’il reste du jeu, ou un point dur, reprenez le réglage. Refermez enfin le frein sur jante, ou actionnez plusieurs fois le levier d’un frein à disque, et vérifiez que la roue freine avant de rouler.
 
 </Step>

@@ -3,7 +3,7 @@ slug: clean-rim-braking-surface
 kind: clean
 title: "Clean the rim braking surface"
 summary: "Remove the black grime from the rim sidewalls and brake blocks, pick out embedded metal chips, then test the brakes. For rim brakes that squeal or slip."
-status: stub
+status: full
 order: 40
 difficulty: 1
 minutes: 15
@@ -22,12 +22,14 @@ tools:
     alternatives: []
   - toolId: brush
     alternatives: [rags]
+  - toolId: sandpaper
+    alternatives: []
 related:
   - check-brakes-rim
   - replace-brake-pads-rim
   - adjust-rim-brake-centering
 safety:
-  - "A rim whose wear indicator has gone, or whose braking track is dished, can burst under tyre pressure. Do not clean it to keep it: have it replaced."
+  - "A rim whose wear indicator shows it is worn out, or whose braking track is dished, can burst under tyre pressure. Do not clean it to keep it: have it replaced."
 steps:
   - id: inspect-rim
     title: "Inspect the rim"
@@ -43,10 +45,40 @@ steps:
     title: "Test the brakes"
 ---
 
+<Step id="inspect-rim">
+
+Spin each wheel slowly and look at the braking track, the smooth band the blocks rub on, on both sides. Many rims carry a wear indicator, most often a fine groove all the way round the track: as long as you can see it, there is metal left. Others have a small hole that, depending on the maker, either disappears or appears once the rim is worn: check the maker's instructions.
+
+Then run a finger over the track: it should be flat and smooth.
+
+<Warning level="danger">
+
+A sidewall that is dished, cracked or bulging, or a wear indicator that shows wear, means a rim worn too thin that can burst under tyre pressure. Stop here: have the rim or the wheel replaced at a workshop.
+
+</Warning>
+
+</Step>
+
 <Step id="clean-rim">
 
-Dampen <Tool id="rags" /> with <Tool id="isopropyl-alcohol" /> and wipe the braking track on both sides of the rim while turning the wheel, until the rag no longer turns black. Avoid anything greasy, polish or lube.
+On a very dirty rim, first wash the wheel with soapy water, rinse and dry it. Then dampen <Tool id="rags" /> with <Tool id="isopropyl-alcohol" /> and wipe the braking track on both sides while turning the wheel, until the rag no longer turns black. Move to a clean part of the rag often: a rag that is already black only spreads the grime around.
 
-Then scrub the surface of the brake blocks with a <Tool id="brush" alt="rags" /> and pick out small embedded metal chips with a toothpick: they score the rim. Test the brakes at low speed before riding off.
+Use no polish, no wax, no lube and no cleaner that leaves a greasy film: the track must stay bare. Keep the chain lube bottle away from the wheels too. Hard marks that will not shift come off with the <Tool id="brush" /> dipped in alcohol. On a carbon or ceramic-coated rim, nothing abrasive on the track.
+
+</Step>
+
+<Step id="clean-blocks">
+
+Open the brake to reach the blocks: lift the quick-release lever of a road caliper, squeeze the arms of a V-brake and pull the "noodle" out of its holder, or unhook the straddle cable of a cantilever. Scrub each block with the <Tool id="brush" alt="rags" /> and a little alcohol.
+
+Then look closely at the rubber, with a torch. Pick out the small embedded metal chips with the tip of a toothpick or a knife: they score the rim at every stop. A hardened, shiny surface comes back to life with a light rub of <Tool id="sandpaper" />, held flat. If the wear grooves have almost gone, or the rubber is cracked, replace the blocks.
+
+</Step>
+
+<Step id="test-brakes">
+
+Close the brake again, the most common and most dangerous thing to forget: put the noodle or the straddle cable back, or flip the quick-release lever shut. Squeeze each lever hard: it must turn firm well before the bar. Spin each wheel: no block should rub or touch the tyre.
+
+Push the bike while squeezing one lever, then the other: the wheel must lock. Then brake a few times in a quiet street, at low speed first. The first stops may still squeal while the blocks finish cleaning themselves on the rim. A squeal that persists means the blocks need toeing in; a brake that still slips means they need replacing.
 
 </Step>
