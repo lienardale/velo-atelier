@@ -14,7 +14,10 @@ import type { ComponentType } from "react";
 import type { IllustrationProps } from "./placeholder";
 
 import { IllAxleQrVsThru } from "./IllAxleQrVsThru";
+import { IllBScrewGap } from "./IllBScrewGap";
+import { IllBarTapeWrap } from "./IllBarTapeWrap";
 import { IllBarrelAdjuster } from "./IllBarrelAdjuster";
+import { IllBrakeLeverReachScrew } from "./IllBrakeLeverReachScrew";
 import { IllBrakeMount } from "./IllBrakeMount";
 import { IllBrakeType } from "./IllBrakeType";
 import { IllBrakeTypeCantilever } from "./IllBrakeTypeCantilever";
@@ -22,6 +25,11 @@ import { IllBrakeTypeDiscHydraulic } from "./IllBrakeTypeDiscHydraulic";
 import { IllBrakeTypeDiscMechanical } from "./IllBrakeTypeDiscMechanical";
 import { IllBrakeTypeRimCaliper } from "./IllBrakeTypeRimCaliper";
 import { IllBrakeTypeVBrake } from "./IllBrakeTypeVBrake";
+import { IllCablePinchBoltEndCap } from "./IllCablePinchBoltEndCap";
+import { IllCassetteCogCount } from "./IllCassetteCogCount";
+import { IllCassetteLockringChainWhip } from "./IllCassetteLockringChainWhip";
+import { IllChainLengthBigBig } from "./IllChainLengthBigBig";
+import { IllChainRuler12Links } from "./IllChainRuler12Links";
 import { IllChainWearChecker } from "./IllChainWearChecker";
 import { IllCleatBallOfFoot } from "./IllCleatBallOfFoot";
 import { IllCockpit } from "./IllCockpit";
@@ -41,14 +49,20 @@ import { IllDrivetrain } from "./IllDrivetrain";
 import { IllDrivetrainDerailleur1x } from "./IllDrivetrainDerailleur1x";
 import { IllDrivetrainDerailleur2x } from "./IllDrivetrainDerailleur2x";
 import { IllDrivetrainDerailleur3x } from "./IllDrivetrainDerailleur3x";
+import { IllDrivetrainGrimePoints } from "./IllDrivetrainGrimePoints";
 import { IllDrivetrainIgh } from "./IllDrivetrainIgh";
 import { IllDrivetrainSinglespeed } from "./IllDrivetrainSinglespeed";
 import { IllEBattery } from "./IllEBattery";
 import { IllEMotor } from "./IllEMotor";
 import { IllEbikeBatteryConnector } from "./IllEbikeBatteryConnector";
+import { IllFrameInspectionPoints } from "./IllFrameInspectionPoints";
+import { IllFreehubBodyProfiles } from "./IllFreehubBodyProfiles";
+import { IllGripLockOnClamp } from "./IllGripLockOnClamp";
 import { IllHeadsetThreadedVsThreadless } from "./IllHeadsetThreadedVsThreadless";
+import { IllInseamBookWall } from "./IllInseamBookWall";
 import { IllPadWearDisc } from "./IllPadWearDisc";
 import { IllPadWearRim } from "./IllPadWearRim";
+import { IllPedalThreadDirection } from "./IllPedalThreadDirection";
 import { IllPedals } from "./IllPedals";
 import { IllPedalsCombo } from "./IllPedalsCombo";
 import { IllPedalsFlat } from "./IllPedalsFlat";
@@ -56,8 +70,14 @@ import { IllPedalsRoadClipless } from "./IllPedalsRoadClipless";
 import { IllPedalsSpd } from "./IllPedalsSpd";
 import { IllPedalsToeClips } from "./IllPedalsToeClips";
 import { IllPrestaValveCore } from "./IllPrestaValveCore";
+import { IllReachAndDrop } from "./IllReachAndDrop";
+import { IllRotorDiameter } from "./IllRotorDiameter";
+import { IllRotorMount6boltCenterlock } from "./IllRotorMount6boltCenterlock";
 import { IllRotorTrueCheck } from "./IllRotorTrueCheck";
 import { IllSaddleHeightHeelMethod } from "./IllSaddleHeightHeelMethod";
+import { IllSaddleRailClamp } from "./IllSaddleRailClamp";
+import { IllSaddleSetbackPlumbLine } from "./IllSaddleSetbackPlumbLine";
+import { IllSaddleWidthSitBones } from "./IllSaddleWidthSitBones";
 import { IllSagMeasureOring } from "./IllSagMeasureOring";
 import { IllSeatpost } from "./IllSeatpost";
 import { IllShifter } from "./IllShifter";
@@ -70,8 +90,10 @@ import { IllShifterTrigger } from "./IllShifterTrigger";
 import { IllSpeeds } from "./IllSpeeds";
 import { IllSuspension } from "./IllSuspension";
 import { IllTireLeverTechnique } from "./IllTireLeverTechnique";
+import { IllTireSidewallMarkings } from "./IllTireSidewallMarkings";
 import { IllTireSystem } from "./IllTireSystem";
 import { IllTransmission } from "./IllTransmission";
+import { IllValveLengthRimDepth } from "./IllValveLengthRimDepth";
 import { IllWheelSize } from "./IllWheelSize";
 import { IllWheelSize16 } from "./IllWheelSize16";
 import { IllWheelSize20 } from "./IllWheelSize20";
@@ -86,7 +108,10 @@ export type { IllustrationProps };
 export { IllustrationPlaceholder } from "./placeholder";
 
 export { IllAxleQrVsThru };
+export { IllBScrewGap };
+export { IllBarTapeWrap };
 export { IllBarrelAdjuster };
+export { IllBrakeLeverReachScrew };
 export { IllBrakeMount };
 export { IllBrakeType };
 export { IllBrakeTypeCantilever };
@@ -94,6 +119,11 @@ export { IllBrakeTypeDiscHydraulic };
 export { IllBrakeTypeDiscMechanical };
 export { IllBrakeTypeRimCaliper };
 export { IllBrakeTypeVBrake };
+export { IllCablePinchBoltEndCap };
+export { IllCassetteCogCount };
+export { IllCassetteLockringChainWhip };
+export { IllChainLengthBigBig };
+export { IllChainRuler12Links };
 export { IllChainWearChecker };
 export { IllCleatBallOfFoot };
 export { IllCockpit };
@@ -113,14 +143,20 @@ export { IllDrivetrain };
 export { IllDrivetrainDerailleur1x };
 export { IllDrivetrainDerailleur2x };
 export { IllDrivetrainDerailleur3x };
+export { IllDrivetrainGrimePoints };
 export { IllDrivetrainIgh };
 export { IllDrivetrainSinglespeed };
 export { IllEBattery };
 export { IllEMotor };
 export { IllEbikeBatteryConnector };
+export { IllFrameInspectionPoints };
+export { IllFreehubBodyProfiles };
+export { IllGripLockOnClamp };
 export { IllHeadsetThreadedVsThreadless };
+export { IllInseamBookWall };
 export { IllPadWearDisc };
 export { IllPadWearRim };
+export { IllPedalThreadDirection };
 export { IllPedals };
 export { IllPedalsCombo };
 export { IllPedalsFlat };
@@ -128,8 +164,14 @@ export { IllPedalsRoadClipless };
 export { IllPedalsSpd };
 export { IllPedalsToeClips };
 export { IllPrestaValveCore };
+export { IllReachAndDrop };
+export { IllRotorDiameter };
+export { IllRotorMount6boltCenterlock };
 export { IllRotorTrueCheck };
 export { IllSaddleHeightHeelMethod };
+export { IllSaddleRailClamp };
+export { IllSaddleSetbackPlumbLine };
+export { IllSaddleWidthSitBones };
 export { IllSagMeasureOring };
 export { IllSeatpost };
 export { IllShifter };
@@ -142,8 +184,10 @@ export { IllShifterTrigger };
 export { IllSpeeds };
 export { IllSuspension };
 export { IllTireLeverTechnique };
+export { IllTireSidewallMarkings };
 export { IllTireSystem };
 export { IllTransmission };
+export { IllValveLengthRimDepth };
 export { IllWheelSize };
 export { IllWheelSize16 };
 export { IllWheelSize20 };
@@ -156,7 +200,10 @@ export { IllWheelSize700c };
 
 export const ILLUSTRATION_COMPONENTS: Record<string, ComponentType<IllustrationProps>> = {
   IllAxleQrVsThru,
+  IllBScrewGap,
+  IllBarTapeWrap,
   IllBarrelAdjuster,
+  IllBrakeLeverReachScrew,
   IllBrakeMount,
   IllBrakeType,
   IllBrakeTypeCantilever,
@@ -164,6 +211,11 @@ export const ILLUSTRATION_COMPONENTS: Record<string, ComponentType<IllustrationP
   IllBrakeTypeDiscMechanical,
   IllBrakeTypeRimCaliper,
   IllBrakeTypeVBrake,
+  IllCablePinchBoltEndCap,
+  IllCassetteCogCount,
+  IllCassetteLockringChainWhip,
+  IllChainLengthBigBig,
+  IllChainRuler12Links,
   IllChainWearChecker,
   IllCleatBallOfFoot,
   IllCockpit,
@@ -183,14 +235,20 @@ export const ILLUSTRATION_COMPONENTS: Record<string, ComponentType<IllustrationP
   IllDrivetrainDerailleur1x,
   IllDrivetrainDerailleur2x,
   IllDrivetrainDerailleur3x,
+  IllDrivetrainGrimePoints,
   IllDrivetrainIgh,
   IllDrivetrainSinglespeed,
   IllEBattery,
   IllEMotor,
   IllEbikeBatteryConnector,
+  IllFrameInspectionPoints,
+  IllFreehubBodyProfiles,
+  IllGripLockOnClamp,
   IllHeadsetThreadedVsThreadless,
+  IllInseamBookWall,
   IllPadWearDisc,
   IllPadWearRim,
+  IllPedalThreadDirection,
   IllPedals,
   IllPedalsCombo,
   IllPedalsFlat,
@@ -198,8 +256,14 @@ export const ILLUSTRATION_COMPONENTS: Record<string, ComponentType<IllustrationP
   IllPedalsSpd,
   IllPedalsToeClips,
   IllPrestaValveCore,
+  IllReachAndDrop,
+  IllRotorDiameter,
+  IllRotorMount6boltCenterlock,
   IllRotorTrueCheck,
   IllSaddleHeightHeelMethod,
+  IllSaddleRailClamp,
+  IllSaddleSetbackPlumbLine,
+  IllSaddleWidthSitBones,
   IllSagMeasureOring,
   IllSeatpost,
   IllShifter,
@@ -212,8 +276,10 @@ export const ILLUSTRATION_COMPONENTS: Record<string, ComponentType<IllustrationP
   IllSpeeds,
   IllSuspension,
   IllTireLeverTechnique,
+  IllTireSidewallMarkings,
   IllTireSystem,
   IllTransmission,
+  IllValveLengthRimDepth,
   IllWheelSize,
   IllWheelSize16,
   IllWheelSize20,

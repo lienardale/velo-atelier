@@ -100,5 +100,17 @@
   },
   "rags": {
     "label": "Chiffons propres"
+  },
+  "grease": {
+    "label": "Graisse de montage"
+  },
+  "sandpaper": {
+    "label": "Papier de verre fin"
+  },
+  "cone-wrenches": {
+    "label": "Clés à cônes"
+  },
+  "scissors": {
+    "label": "Ciseaux"
   }
 }

@@ -100,5 +100,17 @@
   },
   "rags": {
     "label": "Clean rags"
+  },
+  "grease": {
+    "label": "Assembly grease"
+  },
+  "sandpaper": {
+    "label": "Fine sandpaper"
+  },
+  "cone-wrenches": {
+    "label": "Cone wrenches"
+  },
+  "scissors": {
+    "label": "Scissors"
   }
 }
