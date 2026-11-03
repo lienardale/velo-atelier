@@ -18,12 +18,24 @@ describe("silhouetteFor", () => {
     expect(silhouette.height).toBeGreaterThan(800);
   });
 
-  it("paints far parts (+Z) before near ones", () => {
+  it("paints far parts (the rider's left) before near ones", () => {
     const silhouette = silhouetteFor(planScene(presetBuild("road-disc-2x12")));
     const order = silhouette.parts.map((p) => p.partId);
-    // Rotors sit on +Z (far from the drive-side camera), the chain on −Z.
+    // Rotors sit on the rider's left (far from the drive-side camera), the chain on the drive side.
     expect(order.indexOf("rotor-front")).toBeLessThan(order.indexOf("chain"));
     expect(order.indexOf("pedal-left")).toBeLessThan(order.indexOf("pedal-right"));
+  });
+
+  it("draws the front wheel on the right, as a drive-side photo does", () => {
+    const silhouette = silhouetteFor(planScene(presetBuild("road-disc-2x12")));
+    const centreX = (id: string) => {
+      const shape = silhouette.parts.find((p) => p.partId === id)!.shapes[0]!;
+      return shape.type === "circle" ? shape.cx : Number.NaN;
+    };
+    expect(centreX("tire-front")).toBeGreaterThan(centreX("tire-rear"));
+    const [minX, , width] = silhouette.viewBox.split(" ").map(Number);
+    expect(centreX("tire-front")).toBeLessThan(minX! + width!);
+    expect(centreX("tire-rear")).toBeGreaterThan(minX!);
   });
 });
 
@@ -37,7 +49,7 @@ describe("parts seen end-on", () => {
     });
     expect(axle).toEqual({
       type: "circle",
-      cx: -0,
+      cx: 0,
       cy: -0,
       r: 6, // the axle is 12 mm across, wider than the minimum stroke
       width: 0,
@@ -62,14 +74,14 @@ describe("parts seen end-on", () => {
 });
 
 describe("projectRecipe", () => {
-  it("mirrors x (drive-side view) and flips y (SVG down), in millimetres", () => {
+  it("keeps x (drive-side view, front to the right) and flips y (SVG down), in millimetres", () => {
     expect(
       projectRecipe({ kind: "tube", from: [0.1, 0.2, 0], to: [-0.3, 0, 0], radius: 0.01 }),
     ).toEqual({
       type: "line",
-      x1: -100,
+      x1: 100,
       y1: -200,
-      x2: 300,
+      x2: -300,
       y2: -0,
       width: 20,
     });
@@ -96,12 +108,12 @@ describe("projectRecipe", () => {
         radius: 0.004,
         closed: true,
       }),
-    ).toEqual({ type: "polyline", points: "0,0 -100,-100", width: 8, closed: true });
+    ).toEqual({ type: "polyline", points: "0,0 100,-100", width: 8, closed: true });
     expect(
       projectRecipe({ kind: "torus", center: [0.5, 0, 0], radius: 0.311, tube: 0.02 }),
     ).toEqual({
       type: "circle",
-      cx: -500,
+      cx: 500,
       cy: -0,
       r: 311,
       width: 40,

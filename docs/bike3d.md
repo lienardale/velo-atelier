@@ -168,9 +168,17 @@ the CI production build) must therefore set `NEXT_PUBLIC_TEST_HOOKS=0`.**
 appears only in `.next/server/app/[locale]/dev/*/page/react-loadable-manifest.json`,
 never in a bike-route manifest.)
 
-## Known limitations
+## Sides
 
-- The plan's axes (+Z = rider's left, drive side −Z) in a right-handed scene put
-  the front wheel on the LEFT of the default drive-side view — the render is a
-  mirror image of a real bike. Kept as specified; flipping it means negating Z in
-  the solver and the silhouette together (follow-up).
+The scene is right-handed with +X forward and +Y up, so **+Z is the rider's
+right — the drive side** (`DRIVE_SIDE_Z` in `lib/bike3d/types.ts`) and −Z the
+rider's left (`LEFT_Z`). The default view looks at the drive side with the front
+wheel on the right of the picture, as a maker's catalogue photo does, and the
+silhouette projects the same view.
+
+Until 2026-11-02 the code followed the plan's §3.2 literally ("+Z the rider's
+left"), which in a right-handed scene drew every bike as its own mirror image:
+the front wheel on the left of the drive-side view. A side is now always named
+through the two constants, never through a bare sign; the unit tests check that
+every side pose's camera is on the side its name says and that the front wheel
+lands on the right of the default view and of the silhouette (`.debug/020`).

@@ -2,13 +2,14 @@
  * Camera maths (pure): focus spheres, the default pose, and the named poses
  * the e2e hooks sweep to prove every part is clickable (§3.5 select-every-part).
  *
- * The default view looks at the drive side (camera on −Z), slightly from the
- * front and above, framing the whole bike.
+ * The default view looks at the drive side (camera on +Z, `DRIVE_SIDE_Z`),
+ * slightly from the front and above, framing the whole bike — the front wheel
+ * on the right of the picture, as in a maker's catalogue photo.
  */
 import { clickTargetOf, isPartId } from "@/lib/domain/data/parts";
 
 import { sceneSphere } from "./scene";
-import type { ScenePlan, Vec3 } from "./types";
+import { DRIVE_SIDE_Z as D, LEFT_Z as L, type ScenePlan, type Vec3 } from "./types";
 import { add, normalize, scale } from "./vec";
 
 /** Vertical field of view of the viewer camera, degrees. */
@@ -19,18 +20,18 @@ export interface CameraPose {
   target: Vec3;
 }
 
-/** Directions from the target towards the camera. */
+/** Directions from the target towards the camera (`D` = the drive side's z sign, `L` the left's). */
 export const POSE_DIRECTIONS = {
-  "drive-side": [0.25, 0.18, -1],
-  "non-drive-side": [0.25, 0.18, 1],
-  "drive-rear": [-0.9, 0.35, -0.8],
-  "drive-front": [0.9, 0.35, -0.8],
-  "non-drive-front": [0.9, 0.35, 0.8],
-  "non-drive-rear": [-0.9, 0.35, 0.8],
-  top: [0.05, 1, -0.25],
-  front: [1, 0.25, -0.12],
-  rear: [-1, 0.25, -0.12],
-  "drive-low": [0.1, -0.45, -1],
+  "drive-side": [0.25, 0.18, D],
+  "non-drive-side": [0.25, 0.18, L],
+  "drive-rear": [-0.9, 0.35, D * 0.8],
+  "drive-front": [0.9, 0.35, D * 0.8],
+  "non-drive-front": [0.9, 0.35, L * 0.8],
+  "non-drive-rear": [-0.9, 0.35, L * 0.8],
+  top: [0.05, 1, D * 0.25],
+  front: [1, 0.25, D * 0.12],
+  rear: [-1, 0.25, D * 0.12],
+  "drive-low": [0.1, -0.45, D],
 } as const satisfies Record<string, Vec3>;
 
 /**
@@ -39,24 +40,24 @@ export const POSE_DIRECTIONS = {
  * from one side — what a user gets by pinching in.
  */
 export const CLOSE_UPS = {
-  "close-drive-bb": { anchor: "bb", radius: 0.26, direction: [0.15, 0.1, -1] },
-  "close-drive-rear-axle": { anchor: "rearAxle", radius: 0.26, direction: [-0.1, 0.1, -1] },
-  "close-drive-cockpit": { anchor: "stemEnd", radius: 0.32, direction: [0.35, 0.45, -1] },
-  "close-non-drive-front-axle": { anchor: "frontAxle", radius: 0.26, direction: [0.15, 0.1, 1] },
-  "close-non-drive-rear-axle": { anchor: "rearAxle", radius: 0.26, direction: [-0.15, 0.1, 1] },
-  "close-non-drive-bb": { anchor: "bb", radius: 0.26, direction: [0.1, 0.1, 1] },
-  "close-non-drive-cockpit": { anchor: "stemEnd", radius: 0.32, direction: [0.35, 0.45, 1] },
-  "close-top-cockpit": { anchor: "stemEnd", radius: 0.4, direction: [0.3, 1, -0.1] },
+  "close-drive-bb": { anchor: "bb", radius: 0.26, direction: [0.15, 0.1, D] },
+  "close-drive-rear-axle": { anchor: "rearAxle", radius: 0.26, direction: [-0.1, 0.1, D] },
+  "close-drive-cockpit": { anchor: "stemEnd", radius: 0.32, direction: [0.35, 0.45, D] },
+  "close-non-drive-front-axle": { anchor: "frontAxle", radius: 0.26, direction: [0.15, 0.1, L] },
+  "close-non-drive-rear-axle": { anchor: "rearAxle", radius: 0.26, direction: [-0.15, 0.1, L] },
+  "close-non-drive-bb": { anchor: "bb", radius: 0.26, direction: [0.1, 0.1, L] },
+  "close-non-drive-cockpit": { anchor: "stemEnd", radius: 0.32, direction: [0.35, 0.45, L] },
+  "close-top-cockpit": { anchor: "stemEnd", radius: 0.4, direction: [0.3, 1, D * 0.1] },
   // Rim brakes sit at the top of the rear rim, outside the axle close-ups.
   "close-drive-rear-brake": {
     anchor: "part:brake-caliper-rear",
     radius: 0.2,
-    direction: [0.1, 0.3, -1],
+    direction: [0.1, 0.3, D],
   },
   "close-non-drive-rear-brake": {
     anchor: "part:brake-caliper-rear",
     radius: 0.2,
-    direction: [0.1, 0.3, 1],
+    direction: [0.1, 0.3, L],
   },
 } as const satisfies Record<
   string,

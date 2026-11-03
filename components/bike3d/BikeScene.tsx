@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from "react";
 import { CAMERA_FOV } from "@/lib/bike3d/focus";
 import { applyPalette, readPalette } from "@/lib/bike3d/materials";
 import { dprFor } from "@/lib/bike3d/quality";
-import type { QualityTier, ScenePlan } from "@/lib/bike3d/types";
+import { DRIVE_SIDE_Z, LEFT_Z, type QualityTier, type ScenePlan } from "@/lib/bike3d/types";
 
 import { BikeModel } from "./BikeModel";
 import { CameraRig } from "./CameraRig";
@@ -138,14 +138,15 @@ export default function BikeScene({
       dpr={dprFor(quality, devicePixelRatio)}
       gl={{ antialias, alpha: true, powerPreference: "high-performance" }}
       performance={{ min: 0.5, debounce: 200 }}
-      camera={{ fov: CAMERA_FOV, near: 0.02, far: 40, position: [0.4, 0.5, -3] }}
+      camera={{ fov: CAMERA_FOV, near: 0.02, far: 40, position: [0.4, 0.5, DRIVE_SIDE_Z * 3] }}
       onCreated={onCreated}
       onPointerMissed={() => api.getState().hover(null)}
       className="h-full w-full"
     >
       <hemisphereLight args={["#ffffff", "#8a8173", 1.4]} />
-      <directionalLight position={[2, 4, -3]} intensity={2.2} />
-      <directionalLight position={[-3, 2, 3]} intensity={0.8} />
+      {/* Key light from the front, above the drive side; fill from behind the left. */}
+      <directionalLight position={[2, 4, DRIVE_SIDE_Z * 3]} intensity={2.2} />
+      <directionalLight position={[-3, 2, LEFT_Z * 3]} intensity={0.8} />
       <BikeModel plan={plan} />
       <CameraRig plan={plan} coarsePointer={coarsePointer} reducedMotion={reducedMotion} />
       <PartLabel plan={plan} labels={labels} />

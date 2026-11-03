@@ -19,16 +19,18 @@ import { partDefinition, type PartId } from "@/lib/domain/data/parts";
 
 import { hashOf } from "./hash";
 import { onDownTube, onSeatTube, solve, solverInputFor } from "./solver";
-import type {
-  BaseMaterialKey,
-  BikeAnchors,
-  GeometryRecipe,
-  MeshDescriptor,
-  PartComponentName,
-  ScenePart,
-  ScenePlan,
-  SpokeDescriptor,
-  Vec3,
+import {
+  type BaseMaterialKey,
+  type BikeAnchors,
+  DRIVE_SIDE_Z,
+  type GeometryRecipe,
+  LEFT_Z,
+  type MeshDescriptor,
+  type PartComponentName,
+  type ScenePart,
+  type ScenePlan,
+  type SpokeDescriptor,
+  type Vec3,
 } from "./types";
 import { add, boundsOf, lerp, normalize, offset, scale, sub, withZ } from "./vec";
 
@@ -179,8 +181,12 @@ export function recipePoints(recipe: GeometryRecipe): Vec3[] {
         offset(recipe.center, recipe.radius, recipe.radius, recipe.thickness / 2),
       ];
     case "gear": {
+      // A gear's face is at `center.z`; it is extruded outboard, towards the drive side.
       const r = recipe.pitchRadius * 1.05;
-      return [offset(recipe.center, -r, -r, -recipe.thickness), offset(recipe.center, r, r, 0)];
+      return [
+        offset(recipe.center, -r, -r, 0),
+        offset(recipe.center, r, r, DRIVE_SIDE_Z * recipe.thickness),
+      ];
     }
     case "box": {
       const h = scale(recipe.size, 0.5);
@@ -288,8 +294,8 @@ function cranksetMeshes(a: BikeAnchors): Built {
     meshes: [
       mesh("chainrings", "steel", rings),
       mesh("crank-arms", "alu", [
-        tube([0, 0, -0.06], withZ(a.pedalRight, -0.06), 0.011),
-        tube([0, 0, 0.06], withZ(a.pedalLeft, 0.06), 0.011),
+        tube([0, 0, DRIVE_SIDE_Z * 0.06], withZ(a.pedalRight, DRIVE_SIDE_Z * 0.06), 0.011),
+        tube([0, 0, LEFT_Z * 0.06], withZ(a.pedalLeft, LEFT_Z * 0.06), 0.011),
         tube([0, 0, -0.062], [0, 0, 0.062], 0.012),
       ]),
     ],
@@ -298,7 +304,7 @@ function cranksetMeshes(a: BikeAnchors): Built {
 
 function pedalMeshes(a: BikeAnchors, side: "left" | "right"): Built {
   const p = side === "left" ? a.pedalLeft : a.pedalRight;
-  const sign = side === "left" ? 1 : -1;
+  const sign = side === "left" ? LEFT_Z : DRIVE_SIDE_Z;
   return {
     meshes: [
       mesh(`pedal-${side}`, "plastic", [
@@ -335,8 +341,9 @@ function cassetteMeshes(a: BikeAnchors, igh: boolean): Built {
 }
 
 function rearDerailleurMeshes(a: BikeAnchors): Built {
-  const z = a.cogs[a.displayedCog]!.center[2] - 0.004;
-  const body = offset(a.rearAxle, -0.005, -0.03, z - 0.012);
+  // Just outboard of the displayed cog, the body further out.
+  const z = a.cogs[a.displayedCog]!.center[2] + DRIVE_SIDE_Z * 0.004;
+  const body = offset(a.rearAxle, -0.005, -0.03, z + DRIVE_SIDE_Z * 0.012);
   const upper = offset(a.rearAxle, -0.005, -0.065, z);
   const lower = offset(a.rearAxle, 0.02, -0.12, z);
   return {
@@ -357,8 +364,12 @@ function frontDerailleurMeshes(a: BikeAnchors): Built {
   return {
     meshes: [
       mesh("front-derailleur", "alu", [
-        box(offset(onTube, 0.035, 0, outerRing.center[2] + 0.004), [0.06, 0.025, 0.018], -15 * DEG),
-        tube(withZ(onTube, -0.02), withZ(onTube, outerRing.center[2]), 0.006),
+        box(
+          offset(onTube, 0.035, 0, outerRing.center[2] - DRIVE_SIDE_Z * 0.004),
+          [0.06, 0.025, 0.018],
+          -15 * DEG,
+        ),
+        tube(withZ(onTube, DRIVE_SIDE_Z * 0.02), withZ(onTube, outerRing.center[2]), 0.006),
       ]),
     ],
   };
@@ -366,8 +377,8 @@ function frontDerailleurMeshes(a: BikeAnchors): Built {
 
 type Side = "front" | "rear";
 
-/** French/continental levers: front brake on the LEFT (+Z), rear on the right (−Z). */
-const leverZSign = (side: Side) => (side === "front" ? 1 : -1);
+/** Front brake lever on the rider's LEFT (−Z), rear on the right (the drive side, +Z). */
+const leverZSign = (side: Side) => (side === "front" ? LEFT_Z : DRIVE_SIDE_Z);
 
 function barEnd(a: BikeAnchors, zSign: number, drop: boolean): Vec3 {
   const half = a.row.barWidth / 2;
@@ -527,7 +538,7 @@ function shifterMeshes(
   drop: boolean,
   grip: boolean,
 ): Built {
-  const zSign = side === "left" ? 1 : -1;
+  const zSign = side === "left" ? LEFT_Z : DRIVE_SIDE_Z;
   const half = a.row.barWidth / 2;
   const recipes: GeometryRecipe[] = drop
     ? // The shift paddle of an STI lever: outboard of the lever body, so it is
@@ -653,11 +664,14 @@ function rackMeshes(a: BikeAnchors): Built {
   return { meshes: [mesh("rack", "alu", recipes)] };
 }
 
+/** On the rider's left, away from the drivetrain. */
 function kickstandMeshes(a: BikeAnchors): Built {
-  const mount = withZ(lerp(a.bb, a.rearAxle, 0.45), 0.05);
+  const mount = withZ(lerp(a.bb, a.rearAxle, 0.45), LEFT_Z * 0.05);
   return {
     meshes: [
-      mesh("kickstand", "alu", [tube(mount, [mount[0] - 0.08, a.ground + 0.01, 0.17], 0.008)]),
+      mesh("kickstand", "alu", [
+        tube(mount, [mount[0] - 0.08, a.ground + 0.01, LEFT_Z * 0.17], 0.008),
+      ]),
     ],
   };
 }

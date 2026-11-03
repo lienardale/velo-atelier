@@ -1,7 +1,8 @@
 /**
  * Geometry solver (§3.2) — `SolverInput` → `BikeAnchors`. Pure, no three.js.
  *
- * Units metres; origin = BB; +X forward, +Y up, +Z rider's left; drive side −Z.
+ * Units metres; origin = BB; +X forward, +Y up, +Z the rider's right = the drive
+ * side (`DRIVE_SIDE_Z`), −Z the rider's left (`LEFT_Z`).
  *
  *   axles        from wheelbase / chainstay / bbDrop (axles sit bbDrop above the BB)
  *   steering     head angle → `steerDown` (along the axis, towards the fork) and
@@ -12,9 +13,9 @@
  *   step-through no top tube; the down tube meets the seat tube at 40 % of its height
  *   wheels       rimRadius = etrto / 2000; wheelRadius = rimRadius + tyre width
  *   drivetrain   r(T) = 0.0127 / (2·sin(π/T)); cog i (0 = largest, nearest the spokes)
- *                at z = −(0.0335 + i·pitch); displayed cog = floor(n / 2); the chain is
+ *                at z = +(0.0335 + i·pitch); displayed cog = floor(n / 2); the chain is
  *                the two external tangents in XY with z interpolated
- *   rotors       plane at axle + [0, 0, +0.03]
+ *   rotors       plane at axle + [0, 0, −0.03] (the rider's left)
  *
  * It throws ONLY when an anchor would not be finite (`chainstay < bbDrop`,
  * `AC < rake`) — never because a row disagrees with a catalogue; those checks
@@ -24,14 +25,16 @@ import type { BikeBuild } from "@/lib/domain";
 
 import { cassetteTeeth, chainringTeeth, openChainLength, pitchRadius } from "./cassettes";
 import { geometryRowFor } from "./geometry-table";
-import type {
-  BikeAnchors,
-  FrameGeometryRow,
-  SolverAttributes,
-  SolverInput,
-  Sprocket,
-  Vec3,
-  WheelAnchors,
+import {
+  type BikeAnchors,
+  DRIVE_SIDE_Z,
+  type FrameGeometryRow,
+  LEFT_Z,
+  type SolverAttributes,
+  type SolverInput,
+  type Sprocket,
+  type Vec3,
+  type WheelAnchors,
 } from "./types";
 import { add, isFiniteVec, lerp, scale, sub } from "./vec";
 
@@ -214,7 +217,8 @@ export function solveRow(row: FrameGeometryRow, input: SolverInput): BikeAnchors
     attributes.chainringTeeth ?? defaultChainringTeeth(input),
     spec.drivetrain.chainrings,
   );
-  const ringZ = (index: number, count: number) => -0.043 - (count - 1 - index) * 0.0065;
+  const ringZ = (index: number, count: number) =>
+    DRIVE_SIDE_Z * (0.043 + (count - 1 - index) * 0.0065);
   const chainrings: Sprocket[] = ringTeeth.map((teeth, index) => ({
     teeth,
     pitchRadius: pitchRadius(teeth),
@@ -230,7 +234,7 @@ export function solveRow(row: FrameGeometryRow, input: SolverInput): BikeAnchors
   const cogs: Sprocket[] = [...teethSmallFirst].reverse().map((teeth, i) => ({
     teeth,
     pitchRadius: pitchRadius(teeth),
-    center: [rearAxle[0], rearAxle[1], -(0.0335 + i * pitch)],
+    center: [rearAxle[0], rearAxle[1], DRIVE_SIDE_Z * (0.0335 + i * pitch)],
   }));
   const displayedCog = Math.floor(cogs.length / 2);
   // The chain runs on the middle ring of a triple, the big ring otherwise.
@@ -248,13 +252,13 @@ export function solveRow(row: FrameGeometryRow, input: SolverInput): BikeAnchors
   const pedalRight: Vec3 = [
     crankLength * Math.cos(crankAngle),
     crankLength * Math.sin(crankAngle),
-    -0.105,
+    DRIVE_SIDE_Z * 0.105,
   ];
-  const pedalLeft: Vec3 = [-pedalRight[0], -pedalRight[1], 0.105];
+  const pedalLeft: Vec3 = [-pedalRight[0], -pedalRight[1], LEFT_Z * 0.105];
 
   const rotor = (axle: Vec3, mm: number | undefined, fallback: number) =>
     spec.brakes.isDisc
-      ? { center: add(axle, [0, 0, 0.03]), radius: (mm ?? fallback) / 2000 }
+      ? { center: add(axle, [0, 0, LEFT_Z * 0.03]), radius: (mm ?? fallback) / 2000 }
       : null;
   const defaultRotor = spec.discipline === "mtb" ? 180 : 160;
 

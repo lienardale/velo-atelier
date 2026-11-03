@@ -4,14 +4,15 @@
  * context-lost fallback. Built from the SAME recipes as the 3D meshes, so the
  * two views cannot drift apart.
  *
- * Projection: the drive-side view the 3D camera opens on (camera on −Z, so
- * screen-x = −world-x), millimetres, SVG y down. Parts are ordered far → near
- * (+Z first) so nearer parts paint on top, and each part becomes exactly one
+ * Projection: the drive-side view the 3D camera opens on (camera on the drive
+ * side, +Z, so screen-x = world-x: the front wheel on the right), millimetres,
+ * SVG y down. Parts are ordered far → near (the rider's left, −Z, first) so
+ * nearer parts paint on top, and each part becomes exactly one
  * `<g data-part-id>`.
  */
 import type { PartId } from "@/lib/domain/data/parts";
 
-import type { GeometryRecipe, ScenePlan, Vec3 } from "./types";
+import { DRIVE_SIDE_Z, type GeometryRecipe, type ScenePlan, type Vec3 } from "./types";
 
 export type SilhouetteShape =
   | { type: "line"; x1: number; y1: number; x2: number; y2: number; width: number }
@@ -35,7 +36,7 @@ export interface Silhouette {
 export const MIN_STROKE_MM = 6;
 
 const r1 = (value: number) => Math.round(value * 10) / 10;
-const px = (p: Vec3): [number, number] => [r1(-p[0] * 1000), r1(-p[1] * 1000)];
+const px = (p: Vec3): [number, number] => [r1(p[0] * 1000), r1(-p[1] * 1000)];
 const stroke = (radiusM: number) => r1(Math.max(MIN_STROKE_MM, radiusM * 2000));
 
 export function projectRecipe(recipe: GeometryRecipe): SilhouetteShape {
@@ -121,11 +122,12 @@ export function silhouetteFor(plan: ScenePlan, paddingMm = 40): Silhouette {
       index,
       z: meanZ(part.meshes.flatMap((mesh) => mesh.recipes)),
     }))
-    // Far (+Z) first; the frame stays behind everything that is at its depth.
-    .sort((a, b) => b.z - a.z || a.index - b.index);
+    // Far (away from the drive side) first; the frame stays behind everything
+    // that is at its depth.
+    .sort((a, b) => DRIVE_SIDE_Z * (a.z - b.z) || a.index - b.index);
 
-  const minX = -plan.bounds.max[0] * 1000 - paddingMm;
-  const maxX = -plan.bounds.min[0] * 1000 + paddingMm;
+  const minX = plan.bounds.min[0] * 1000 - paddingMm;
+  const maxX = plan.bounds.max[0] * 1000 + paddingMm;
   const minY = -plan.bounds.max[1] * 1000 - paddingMm;
   const maxY = -plan.bounds.min[1] * 1000 + paddingMm;
   const width = Math.round(maxX - minX);

@@ -148,6 +148,7 @@ Vercel (`scripts/check-env.ts`) :
 | [`docs/bike3d.md`](./docs/bike3d.md)                   | le visualiseur 3D : couches, API publique, crochets de test, limites |
 | [`docs/bike3d-geometry.md`](./docs/bike3d-geometry.md) | la géométrie du vélo : axes, solveur, tableau des tailles            |
 | [`docs/bike3d-perf.md`](./docs/bike3d-perf.md)         | la performance 3D et la vérification sur un vrai appareil            |
+| [`docs/visual-realism.md`](./docs/visual-realism.md)   | des vélos réalistes et fidèles aux marques : décisions et étapes     |
 | [`docs/illustrations.md`](./docs/illustrations.md)     | dessiner une illustration, pour un guide ou pour l'arbre de décision |
 | [`docs/retailers.md`](./docs/retailers.md)             | les liens vers les boutiques et leur vérification à la main          |
 | [`docs/deploy.md`](./docs/deploy.md)                   | la mise en ligne (W5) : Neon, Vercel, Google, réglages GitHub        |
@@ -328,6 +329,7 @@ Vercel build (`scripts/check-env.ts`):
 | [`docs/bike3d.md`](./docs/bike3d.md)                   | the 3D viewer: layers, public API, test hooks, known limitations |
 | [`docs/bike3d-geometry.md`](./docs/bike3d-geometry.md) | bike geometry: axes, the solver, the size table                  |
 | [`docs/bike3d-perf.md`](./docs/bike3d-perf.md)         | 3D performance and the real-device check                         |
+| [`docs/visual-realism.md`](./docs/visual-realism.md)   | realistic, brand-accurate bikes: the decisions and the phases    |
 | [`docs/illustrations.md`](./docs/illustrations.md)     | drawing an illustration, for a guide or for the decision tree    |
 | [`docs/retailers.md`](./docs/retailers.md)             | the retailer links and how they are verified by hand             |
 | [`docs/deploy.md`](./docs/deploy.md)                   | going live (W5): Neon, Vercel, Google, the GitHub settings       |

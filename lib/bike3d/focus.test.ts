@@ -11,6 +11,7 @@ import {
   poseFor,
 } from "./focus";
 import { planScene, sceneSphere } from "./scene";
+import { DRIVE_SIDE_Z, LEFT_Z } from "./types";
 import { distance } from "./vec";
 
 const plan = planScene(presetBuild("road-disc-2x12"));
@@ -54,9 +55,11 @@ describe("poses", () => {
     expect(distance(bb.position, bb.target)).toBeLessThan(
       distance(whole.position, whole.target) / 3,
     );
-    expect(poseFor(plan, "close-non-drive-front-axle").position[2]).toBeGreaterThan(
-      plan.anchors.frontAxle[2],
-    );
+    expect(
+      Math.sign(
+        poseFor(plan, "close-non-drive-front-axle").position[2] - plan.anchors.frontAxle[2],
+      ),
+    ).toBe(LEFT_Z);
     expect(isPoseName("close-top-cockpit")).toBe(true);
     const caliper = plan.parts.find((part) => part.partId === "brake-caliper-rear")!;
     expect(poseFor(plan, "close-drive-rear-brake").target).toEqual(caliper.focus.center);
@@ -64,10 +67,34 @@ describe("poses", () => {
     expect(poseFor(noCaliper, "close-drive-rear-brake").target).toEqual(plan.anchors.rearAxle);
   });
 
-  it("the default pose is the drive side (camera on −Z)", () => {
+  it("the default pose is the drive side (camera on +Z), from slightly in front", () => {
     const pose = defaultPose(plan);
-    expect(pose.position[2]).toBeLessThan(pose.target[2]);
+    expect(Math.sign(pose.position[2] - pose.target[2])).toBe(DRIVE_SIDE_Z);
+    expect(pose.position[0]).toBeGreaterThan(pose.target[0]);
     expect(pose).toEqual(poseFor(plan, "drive-side"));
+  });
+
+  it("names every side pose after the side its camera is on", () => {
+    for (const name of POSE_NAMES) {
+      const side = name.includes("non-drive") ? LEFT_Z : name.includes("drive") ? DRIVE_SIDE_Z : 0;
+      if (side === 0) continue;
+      const pose = poseFor(plan, name);
+      expect(Math.sign(pose.position[2] - pose.target[2]), name).toBe(side);
+    }
+  });
+
+  it("puts the front wheel on the right of the default view", () => {
+    // Camera basis: right = forward × up, with forward = target − position.
+    const pose = defaultPose(plan);
+    const forward = [
+      pose.target[0] - pose.position[0],
+      pose.target[1] - pose.position[1],
+      pose.target[2] - pose.position[2],
+    ] as const;
+    // up = +Y, so forward × up = (−forward.z, 0, forward.x).
+    const right = [-forward[2], 0, forward[0]] as const;
+    const toFront = plan.anchors.frontAxle[0] - plan.anchors.rearAxle[0];
+    expect(Math.sign(right[0] * toFront)).toBe(1);
   });
 
   it("guards pose names", () => {
